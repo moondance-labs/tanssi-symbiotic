@@ -4,6 +4,8 @@
 
 DEFAULT_ANVIL_KEY := 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 DEFAULT_OWNER := 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+DEFAULT_VAULT_CONFIGURATOR := 0xa85233C63b9Ee964Add6F2cffe00Fd84eb32338f # This works since every run is seeded
+
 all: clean remove install update build
 
 # Clean the repo
@@ -60,13 +62,10 @@ deploy-symbiotic:
 	@forge script lib/core/script/deploy/VaultFactory.s.sol:VaultFactoryScript ${DEFAULT_OWNER} --sig "run(address)" ${NETWORK_ARGS}
 	@echo "✅ VaultFactory deployment completed"
 
-# 	Not working need proper addresses as input (vaultConfigurator, owner, collateral)
-#   vaultConfigurator should come from Core.s.sol output, owner we can use DEFAULT_OWNER, collateral can be any address
-
 	@echo "📡 Deploying Vault..."
-	@forge script lib/core/script/deploy/Vault.s.sol:VaultScript -vvvv ${DEFAULT_OWNER} ${DEFAULT_OWNER} ${DEFAULT_OWNER} 1 false 0 0 false 0 0 --sig "run(address,address,address,uint48,bool,uint256,uint64,bool,uint64,uint48)" ${NETWORK_ARGS}
+	@forge script lib/core/script/deploy/Vault.s.sol:VaultScript -vvvv ${DEFAULT_VAULT_CONFIGURATOR} ${DEFAULT_OWNER} ${DEFAULT_VAULT_CONFIGURATOR} 1 false 0 0 false 0 0 --sig "run(address,address,address,uint48,bool,uint256,uint64,bool,uint64,uint48)" ${NETWORK_ARGS}
 	@echo "✅ Vault deployment completed"
 
 	@echo "📡 Deploying VaultTokenized..."
-	@forge script lib/core/script/deploy/VaultTokenized.s.sol:VaultTokenizedScript ${DEFAULT_OWNER} ${DEFAULT_OWNER} ${DEFAULT_OWNER} 1 false 0 Test TEST 0 false 0 0 --sig "run(address,address,address,uint48,bool,uint256,string,string,uint64,bool,uint64,uint48)" ${NETWORK_ARGS}
+	@forge script lib/core/script/deploy/VaultTokenized.s.sol:VaultTokenizedScript ${DEFAULT_VAULT_CONFIGURATOR} ${DEFAULT_OWNER} ${DEFAULT_VAULT_CONFIGURATOR} 1 false 0 Test TEST 0 false 0 0 --sig "run(address,address,address,uint48,bool,uint256,string,string,uint64,bool,uint64,uint48)" ${NETWORK_ARGS}
 	@echo "✅ VaultTokenized deployment completed"
