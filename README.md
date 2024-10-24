@@ -1,66 +1,47 @@
-## Foundry
+# Tanssi <> Symbiotic
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+## Description
 
-Foundry consists of:
+This repo aims in creating an easy to run environment to spin up a local blockchain network allowing devs to interact with Symbiotic smart contracts.
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
-
-## Documentation
-
-https://book.getfoundry.sh/
+It allows also to deploy a SimpleMiddleware contract that will be used to interact with the Symbiotic contracts.
 
 ## Usage
 
-### Build
+### Install
 
 ```shell
-$ forge build
+$ make install
+```
+
+### Start
+
+To spin up locally the blockchain network run:
+
+```shell
+$ make anvil
+```
+
+then to deploy symbiotic contracts:
+
+```shell
+$ make deploy-symbiotic
 ```
 
 ### Test
 
 ```shell
-$ forge test
+$ make test
 ```
 
 ### Format
 
 ```shell
-$ forge fmt
+$ make fmt
 ```
 
 ### Gas Snapshots
 
 ```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
+$ make snapshot
 ```

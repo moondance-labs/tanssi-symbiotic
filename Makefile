@@ -29,12 +29,7 @@ anvil :; anvil -m 'test test test test test test test test test test test junk' 
 
 NETWORK_ARGS := --rpc-url http://localhost:8545 --private-key $(DEFAULT_ANVIL_KEY) --broadcast
 
-deploy-core:
-	@echo "📡 Deploying Core..."
-	@forge script lib/core/script/deploy/Core.s.sol:CoreScript $(DEFAULT_OWNER) --sig "run(address)" $(NETWORK_ARGS)
-	@echo "✅ Core deployment completed"
-
-deploy:
+deploy-symbiotic:
 	@echo "🚀 Deploying contracts..."
 
 	@echo "📡 Deploying Core..."
