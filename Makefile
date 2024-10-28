@@ -4,7 +4,9 @@
 
 DEFAULT_ANVIL_KEY := 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 DEFAULT_OWNER := 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
-DEFAULT_VAULT_CONFIGURATOR := 0xa85233C63b9Ee964Add6F2cffe00Fd84eb32338f # This works since every run is seeded
+DEFAULT_VAULT_CONFIGURATOR := 0x4A679253410272dd5232B3Ff7cF5dbB88f295319 # This works since every run is seeded
+DEFAULT_COLLATERAL := 0x5FbDB2315678afecb367f032d93F642f64180aa3 
+
 
 all: clean remove install update build
 
@@ -63,9 +65,20 @@ deploy-symbiotic:
 	@echo "✅ VaultFactory deployment completed"
 
 	@echo "📡 Deploying Vault..."
-	@forge script lib/core/script/deploy/Vault.s.sol:VaultScript -vvvv ${DEFAULT_VAULT_CONFIGURATOR} ${DEFAULT_OWNER} ${DEFAULT_VAULT_CONFIGURATOR} 1 false 0 0 false 0 0 --sig "run(address,address,address,uint48,bool,uint256,uint64,bool,uint64,uint48)" ${NETWORK_ARGS}
+	@forge script lib/core/script/deploy/Vault.s.sol:VaultScript ${DEFAULT_VAULT_CONFIGURATOR} ${DEFAULT_OWNER} ${DEFAULT_COLLATERAL} 1 false 0 0 false 0 0 --sig "run(address,address,address,uint48,bool,uint256,uint64,bool,uint64,uint48)" ${NETWORK_ARGS}
 	@echo "✅ Vault deployment completed"
 
 	@echo "📡 Deploying VaultTokenized..."
-	@forge script lib/core/script/deploy/VaultTokenized.s.sol:VaultTokenizedScript ${DEFAULT_VAULT_CONFIGURATOR} ${DEFAULT_OWNER} ${DEFAULT_VAULT_CONFIGURATOR} 1 false 0 Test TEST 0 false 0 0 --sig "run(address,address,address,uint48,bool,uint256,string,string,uint64,bool,uint64,uint48)" ${NETWORK_ARGS}
+	@forge script lib/core/script/deploy/VaultTokenized.s.sol:VaultTokenizedScript ${DEFAULT_VAULT_CONFIGURATOR} ${DEFAULT_OWNER} ${DEFAULT_COLLATERAL} 1 false 0 Test TEST 0 false 0 0 --sig "run(address,address,address,uint48,bool,uint256,string,string,uint64,bool,uint64,uint48)" ${NETWORK_ARGS}
 	@echo "✅ VaultTokenized deployment completed"
+
+
+deploy-vault-vetoed:
+	@echo "📡 Deploying VaultVetoed..."
+	@forge script lib/core/script/deploy/Vault.s.sol:VaultScript ${DEFAULT_VAULT_CONFIGURATOR} ${DEFAULT_OWNER} ${DEFAULT_COLLATERAL} 1 false 0 0 true 1 0 --sig "run(address,address,address,uint48,bool,uint256,uint64,bool,uint64,uint48)" ${NETWORK_ARGS}
+	@echo "✅ VaultVetoed deployment completed"
+
+deploy-collateral:
+	@echo "📡 Deploying Collateral..."
+	@forge script script/DeployCollateral.s.sol:DeployCollateral ${NETWORK_ARGS}
+	@echo "✅ Collateral deployment completed"
