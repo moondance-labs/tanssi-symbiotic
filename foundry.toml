@@ -9,7 +9,7 @@ gas_reports = ["*"]
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
 
-remappings = ['@openzeppelin/contracts=lib/openzeppelin-contracts/contracts','@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/', '@symbiotic/=lib/core/src/', "@symbiotic/rewards=lib/rewards/src/"]
+remappings = ['@openzeppelin/contracts=lib/openzeppelin-contracts/contracts','@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/', '@symbiotic/=lib/core/src/', "@symbiotic-rewards=lib/rewards/src/"]
 
 [rpc_endpoints]
 mainnet = "${ETH_RPC_URL}"

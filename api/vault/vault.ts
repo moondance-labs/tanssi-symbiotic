@@ -134,9 +134,18 @@ export class VaultAPI {
     validateAddress(onBehalfOf);
     try {
       const tx = await this.contract.deposit(onBehalfOf, amount);
+
+      const receipt = await tx.wait();
+
+      const { depositedAmount, mintedShares } =
+        this.contract.interface.decodeFunctionResult(
+          "deposit",
+          receipt.logs[receipt.logs.length - 1].data
+        );
+
       return {
-        depositedAmount: tx.depositedAmount,
-        mintedShares: tx.mintedShares,
+        depositedAmount,
+        mintedShares,
       };
     } catch (error) {
       throw new Error(`Failed to deposit for ${onBehalfOf}: ${error.message}`);
@@ -160,9 +169,18 @@ export class VaultAPI {
     validateAddress(claimer);
     try {
       const tx = await this.contract.withdraw(claimer, amount);
+
+      const receipt = await tx.wait();
+
+      const { burnedShares, mintedShares } =
+        this.contract.interface.decodeFunctionResult(
+          "withdraw",
+          receipt.logs[receipt.logs.length - 1].data
+        );
+
       return {
-        burnedShares: tx.burnedShares,
-        mintedShares: tx.mintedShares,
+        burnedShares,
+        mintedShares,
       };
     } catch (error) {
       throw new Error(`Failed to withdraw for ${claimer}: ${error.message}`);
@@ -186,9 +204,16 @@ export class VaultAPI {
     validateAddress(claimer);
     try {
       const tx = await this.contract.redeem(claimer, shares);
+      const receipt = await tx.wait();
+
+      const { withdrawnAssets, mintedShares } =
+        this.contract.interface.decodeFunctionResult(
+          "redeem",
+          receipt.logs[receipt.logs.length - 1].data
+        );
       return {
-        withdrawnAssets: tx.withdrawnAssets,
-        mintedShares: tx.mintedShares,
+        withdrawnAssets,
+        mintedShares,
       };
     } catch (error) {
       throw new Error(`Failed to redeem for ${claimer}: ${error.message}`);
@@ -205,7 +230,13 @@ export class VaultAPI {
     validateAddress(recipient);
     try {
       const tx = await this.contract.claim(recipient, epoch);
-      return tx.amount;
+      const receipt = await tx.wait();
+
+      const { amount } = this.contract.interface.decodeFunctionResult(
+        "claim",
+        receipt.logs[receipt.logs.length - 1].data
+      );
+      return amount;
     } catch (error) {
       throw new Error(
         `Failed to claim for ${recipient} at epoch ${epoch}: ${error.message}`
@@ -227,8 +258,12 @@ export class VaultAPI {
     try {
       const tx = await this.contract.claimBatch(recipient, epochs);
       const receipt = await tx.wait();
-      const event = receipt.events?.find((e) => e.event === "ClaimBatch");
-      return event?.args?.amount;
+
+      const { amount } = this.contract.interface.decodeFunctionResult(
+        "claimBatch",
+        receipt.logs[receipt.logs.length - 1].data
+      );
+      return amount;
     } catch (error) {
       throw new Error(
         `Failed to claim batch for ${recipient}: ${error.message}`
@@ -249,7 +284,13 @@ export class VaultAPI {
   ): Promise<ethers.BigNumber> {
     try {
       const tx = await this.contract.onSlash(amount, captureTimestamp);
-      return tx.slashedAmount;
+      const receipt = await tx.wait();
+
+      const { slashedAmount } = this.contract.interface.decodeFunctionResult(
+        "onSlash",
+        receipt.logs[receipt.logs.length - 1].data
+      );
+      return slashedAmount;
     } catch (error) {
       throw new Error(`Failed to slash: ${error.message}`);
     }

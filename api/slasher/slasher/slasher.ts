@@ -33,7 +33,14 @@ export class SlasherAPI extends BaseSlasherAPI {
         hints
       );
 
-      return tx.slashedAmount;
+      const receipt = await tx.wait();
+
+      const { slashedAmount } = this.contract.interface.decodeFunctionResult(
+        "slash",
+        receipt.logs[receipt.logs.length - 1].data
+      );
+
+      return slashedAmount;
     } catch (error) {
       throw new Error(`Slash operation failed: ${error.message}`, error.code);
     }

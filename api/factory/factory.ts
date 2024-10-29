@@ -93,8 +93,14 @@ export class FactoryAPI {
    */
   async create(type_: number, data: string): Promise<string> {
     try {
-      const result = await this.contract.create(type_, data);
-      return result;
+      const tx = await this.contract.create(type_, data);
+      const receipt = await tx.wait();
+
+      const { entity_ } = this.contract.interface.decodeFunctionResult(
+        "create",
+        receipt.logs[receipt.logs.length - 1].data
+      );
+      return entity_;
     } catch (error) {
       throw new Error(`Failed to create entity: ${error.message}`);
     }

@@ -55,7 +55,8 @@ export class OperatorRegistryAPI {
    */
   async registerOperator(): Promise<void> {
     try {
-      await this.contract.registerOperator();
+      const tx = await this.contract.registerOperator();
+      await tx.wait();
     } catch (error) {
       throw new Error(`Failed to register operator: ${error.message}`);
     }

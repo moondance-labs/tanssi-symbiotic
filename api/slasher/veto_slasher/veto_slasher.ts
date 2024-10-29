@@ -177,11 +177,14 @@ export class VetoSlasherAPI extends BaseSlasherAPI {
         captureTimestamp,
         hints
       );
+
       const receipt = await tx.wait();
 
-      // Find RequestSlash event and get slashIndex from it
-      const event = receipt.events?.find((e) => e.event === "RequestSlash");
-      return event ? event.args.slashIndex.toNumber() : -1;
+      const { slashIndex } = this.contract.interface.decodeFunctionResult(
+        "requestSlash",
+        receipt.logs[receipt.logs.length - 1].data
+      );
+      return slashIndex;
     } catch (error) {
       throw Error(`Failed to request slash: ${error.message}`, error.code);
     }
@@ -199,11 +202,14 @@ export class VetoSlasherAPI extends BaseSlasherAPI {
   }: ExecuteSlashParams): Promise<ethers.BigNumber> {
     try {
       const tx = await this.contract.executeSlash(slashIndex, hints);
+
       const receipt = await tx.wait();
 
-      // Find ExecuteSlash event and get slashedAmount from it
-      const event = receipt.events?.find((e) => e.event === "ExecuteSlash");
-      return event ? event.args.slashedAmount : ethers.BigNumber.from(0);
+      const { slashedAmount } = this.contract.interface.decodeFunctionResult(
+        "executeSlash",
+        receipt.logs[receipt.logs.length - 1].data
+      );
+      return slashedAmount;
     } catch (error) {
       throw new Error(`Failed to execute slash: ${error.message}`, error.code);
     }
@@ -213,16 +219,11 @@ export class VetoSlasherAPI extends BaseSlasherAPI {
    * Veto a pending slash request
    * @param slashIndex The index of the slash request
    * @param hints Additional hints
-   * @returns Promise resolving to transaction receipt
    */
-  async vetoSlash({
-    slashIndex,
-    hints,
-  }: VetoSlashParams): Promise<ethers.ContractReceipt> {
+  async vetoSlash({ slashIndex, hints }: VetoSlashParams): Promise<void> {
     try {
       const tx = await this.contract.vetoSlash(slashIndex, hints);
-      const receipt = await tx.wait();
-      return receipt;
+      await tx.wait();
     } catch (error) {
       throw new Error(`Failed to veto slash: ${error.message}`, error.code);
     }
@@ -233,18 +234,12 @@ export class VetoSlasherAPI extends BaseSlasherAPI {
    * @param identifier The identifier number
    * @param resolver The resolver address
    * @param hints Additional hints
-   * @returns Promise resolving to transaction receipt
    */
-  async setResolver(
-    identifier: number,
-    resolver: string,
-    hints: string
-  ): Promise<ethers.ContractReceipt> {
+  async setResolver(identifier: number, resolver: string, hints: string) {
     try {
       validateAddress(resolver);
       const tx = await this.contract.setResolver(identifier, resolver, hints);
-      const receipt = await tx.wait();
-      return receipt;
+      await tx.wait();
     } catch (error) {
       throw new Error(`Failed to set resolver: ${error.message}`, error.code);
     }
