@@ -1,5 +1,5 @@
 import { Contract, ethers } from "ethers";
-import { PRIVATE_KEY } from "../config";
+import { OWNER_PRIVATE_KEY } from "../config";
 import { VaultAPI } from "./vault";
 import { COLLATERAL_ABI } from "./collateral_abi";
 
@@ -7,9 +7,9 @@ const jsonProvider = new ethers.providers.JsonRpcProvider(
   "http://127.0.0.1:8545"
 );
 
-const wallet = new ethers.Wallet(PRIVATE_KEY, jsonProvider);
+const wallet = new ethers.Wallet(OWNER_PRIVATE_KEY, jsonProvider);
 
-const CONTRACT_ADDRESS = "0xD5FE47FaB349E52a4648B7D9c5b42364AAF375ae";
+const CONTRACT_ADDRESS = "0x6692129Ec011A54E60d948b738c8157237589224";
 const COLLATERAL_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 
 const collateralContract = new Contract(
@@ -20,12 +20,16 @@ const collateralContract = new Contract(
 
 const vault = new VaultAPI(CONTRACT_ADDRESS, wallet);
 
-vault.getSlasher().then((slasher) => {
+vault.slasher().then((slasher) => {
   console.log("Slasher: ", slasher);
 });
 
 vault.owner().then((owner) => {
   console.log("Owner: ", owner);
+});
+
+vault.epochDuration().then((epochDuration) => {
+  console.log("Epoch Duration: ", epochDuration.toString());
 });
 
 vault.isInitialized().then((isInitialized) => {

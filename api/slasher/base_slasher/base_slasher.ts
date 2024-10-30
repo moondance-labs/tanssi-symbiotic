@@ -1,5 +1,6 @@
 import { ethers } from "ethers";
 import { BASE_SLASHER_ABI } from "./base_slasher_abi";
+import { validateAddress } from "../../utils";
 
 export type SlashParams = {
   subnetwork: string;
@@ -9,13 +10,15 @@ export type SlashParams = {
   hints?: string;
 };
 
+/**
+ * @notice API for interacting with the BaseSlasher contract
+ */
 export abstract class BaseSlasherAPI {
   protected contract: ethers.Contract;
 
   constructor(slasherAddress: string, wallet: ethers.Wallet) {
-    if (!ethers.utils.isAddress(slasherAddress)) {
-      throw new Error("Invalid slasher contract address");
-    }
+    validateAddress(slasherAddress);
+
     this.contract = new ethers.Contract(
       slasherAddress,
       BASE_SLASHER_ABI,

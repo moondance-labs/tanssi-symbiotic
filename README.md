@@ -6,6 +6,12 @@ This repo aims in creating an easy to run environment to spin up a local blockch
 
 It allows also to deploy a SimpleMiddleware contract that will be used to interact with the Symbiotic contracts.
 
+## Architecture
+
+The architecture can be seen in the following image
+
+![Architecture](./architecture.png)
+
 ## Usage
 
 ### Install
@@ -25,7 +31,7 @@ $ make anvil
 then to deploy symbiotic contracts:
 
 ```shell
-$ make deploy-symbiotic
+$ make deploy
 ```
 
 ### Test
@@ -44,4 +50,16 @@ $ make fmt
 
 ```shell
 $ make snapshot
+```
+
+### Clean
+
+```shell
+$ make clean
+```
+
+### Remove
+
+```shell
+$ make remove
 ```

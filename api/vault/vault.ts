@@ -30,7 +30,7 @@ export class VaultAPI {
    * @notice Get the slasher associated with the vault
    * @return The address of the slasher contract
    */
-  async getSlasher(): Promise<string> {
+  async slasher(): Promise<string> {
     try {
       return await this.contract.slasher();
     } catch (error) {
@@ -38,6 +38,363 @@ export class VaultAPI {
     }
   }
 
+  /**
+   * @notice Get a vault collateral.
+   * @return address of the underlying collateral
+   */
+  async collateral(): Promise<string> {
+    try {
+      return await this.contract.collateral();
+    } catch (error) {
+      throw new Error(`Failed to retrieve collateral: ${error.message}`);
+    }
+  }
+
+  /**
+   * @notice Get a burner to issue debt to (e.g., 0xdEaD or some unwrapper contract).
+   * @return address of the burner
+   */
+  async burner(): Promise<string> {
+    try {
+      return await this.contract.burner();
+    } catch (error) {
+      throw new Error(`Failed to retrieve burner: ${error.message}`);
+    }
+  }
+
+  /**
+   * @notice Get a delegator (it delegates the vault's stake to networks and operators).
+   * @return address of the delegator
+   */
+  async delegator(): Promise<string> {
+    try {
+      return await this.contract.delegator();
+    } catch (error) {
+      throw new Error(`Failed to retrieve delegator: ${error.message}`);
+    }
+  }
+
+  /**
+   * @notice Get if the delegator is initialized.
+   * @return if the delegator is initialized
+   */
+  async isDelegatorInitialized(): Promise<boolean> {
+    try {
+      return await this.contract.isDelegatorInitialized();
+    } catch (error) {
+      throw new Error(
+        `Failed to check if delegator is initialized: ${error.message}`
+      );
+    }
+  }
+
+  /**
+   * @notice Get if the slasher is initialized.
+   * @return if the slasher is initialized
+   */
+  async isSlasherInitialized(): Promise<boolean> {
+    try {
+      return await this.contract.isSlasherInitialized();
+    } catch (error) {
+      throw new Error(
+        `Failed to check if slasher is initialized: ${error.message}`
+      );
+    }
+  }
+
+  /**
+   * @notice Get a time point of the epoch duration set.
+   * @return time point of the epoch duration set
+   */
+  async epochDurationInit(): Promise<number> {
+    try {
+      return await this.contract.epochDurationInit();
+    } catch (error) {
+      throw new Error(
+        `Failed to retrieve epoch duration init: ${error.message}`
+      );
+    }
+  }
+  /**
+   * @notice Get a duration of the vault epoch.
+   * @return duration of the epoch
+   */
+  async epochDuration(): Promise<number> {
+    try {
+      return await this.contract.epochDuration();
+    } catch (error) {
+      throw new Error(`Failed to retrieve epoch duration: ${error.message}`);
+    }
+  }
+
+  /**
+   * @notice Get an epoch at a given timestamp.
+   * @param timestamp time point to get the epoch at
+   * @return epoch at the timestamp
+   * @dev Reverts if the timestamp is less than the start of the epoch 0.
+   */
+  async epochAt(timestamp: number): Promise<number> {
+    try {
+      return await this.contract.epochAt(timestamp);
+    } catch (error) {
+      throw new Error(`Failed to get epoch at ${timestamp}: ${error.message}`);
+    }
+  }
+
+  /**
+   * @notice Get a current vault epoch.
+   * @return current epoch
+   */
+  async currentEpoch(): Promise<number> {
+    try {
+      return await this.contract.currentEpoch();
+    } catch (error) {
+      throw new Error(`Failed to get current epoch: ${error.message}`);
+    }
+  }
+
+  /**
+   * @notice Get a start of the current vault epoch.
+   * @return start of the current epoch
+   */
+  async currentEpochStart(): Promise<number> {
+    try {
+      return await this.contract.currentEpochStart();
+    } catch (error) {
+      throw new Error(`Failed to get current epoch start: ${error.message}`);
+    }
+  }
+
+  /**
+   * @notice Get a start of the previous vault epoch.
+   * @return start of the previous epoch
+   * @dev Reverts if the current epoch is 0.
+   */
+  async previousEpochStart(): Promise<number> {
+    try {
+      return await this.contract.previousEpochStart();
+    } catch (error) {
+      throw new Error(`Failed to get previous epoch start: ${error.message}`);
+    }
+  }
+
+  /**
+   * @notice Get a start of the next vault epoch.
+   * @return start of the next epoch
+   */
+  async nextEpochStart(): Promise<number> {
+    try {
+      return await this.contract.nextEpochStart();
+    } catch (error) {
+      throw new Error(`Failed to get next epoch start: ${error.message}`);
+    }
+  }
+
+  /**
+   * @notice Get if the deposit whitelist is enabled.
+   * @return if the deposit whitelist is enabled
+   */
+  async depositWhitelist(): Promise<boolean> {
+    try {
+      return await this.contract.depositWhitelist();
+    } catch (error) {
+      throw new Error(
+        `Failed to get deposit whitelist status: ${error.message}`
+      );
+    }
+  }
+
+  /**
+   * @notice Get if a given account is whitelisted as a depositor.
+   * @param account address to check
+   * @return if the account is whitelisted as a depositor
+   */
+  async isDepositorWhitelisted(account: string): Promise<boolean> {
+    validateAddress(account);
+    try {
+      return await this.contract.isDepositorWhitelisted(account);
+    } catch (error) {
+      throw new Error(
+        `Failed to check if ${account} is a whitelisted depositor: ${error.message}`
+      );
+    }
+  }
+  /**
+   * @notice Get if the deposit limit is set.
+   * @return if the deposit limit is set
+   */
+  async isDepositLimit(): Promise<boolean> {
+    try {
+      return await this.contract.isDepositLimit();
+    } catch (error) {
+      throw new Error(`Failed to get deposit limit status: ${error.message}`);
+    }
+  }
+
+  /**
+   * @notice Get a deposit limit (maximum amount of the active stake that can be in the vault simultaneously).
+   * @return deposit limit
+   */
+  async depositLimit(): Promise<number> {
+    try {
+      return await this.contract.depositLimit();
+    } catch (error) {
+      throw new Error(`Failed to get deposit limit: ${error.message}`);
+    }
+  }
+
+  /**
+   * @notice Get a total number of active shares in the vault at a given timestamp using a hint.
+   * @param timestamp time point to get the total number of active shares at
+   * @param hint hint for the checkpoint index
+   * @return total number of active shares at the timestamp
+   */
+  async activeSharesAt(timestamp: number, hint: string): Promise<number> {
+    try {
+      return await this.contract.activeSharesAt(timestamp, hint);
+    } catch (error) {
+      throw new Error(
+        `Failed to get active shares at ${timestamp}: ${error.message}`
+      );
+    }
+  }
+
+  /**
+   * @notice Get a total number of active shares in the vault.
+   * @return total number of active shares
+   */
+  async activeShares(): Promise<number> {
+    try {
+      return await this.contract.activeShares();
+    } catch (error) {
+      throw new Error(`Failed to get active shares: ${error.message}`);
+    }
+  }
+
+  /**
+   * @notice Get a total amount of active stake in the vault at a given timestamp using a hint.
+   * @param timestamp time point to get the total active stake at
+   * @param hint hint for the checkpoint index
+   * @return total amount of active stake at the timestamp
+   */
+  async activeStakeAt(timestamp: number, hint: string): Promise<number> {
+    try {
+      return await this.contract.activeStakeAt(timestamp, hint);
+    } catch (error) {
+      throw new Error(
+        `Failed to get active stake at ${timestamp}: ${error.message}`
+      );
+    }
+  }
+
+  /**
+   * @notice Get a total amount of active stake in the vault.
+   * @return total amount of active stake
+   */
+  async activeStake(): Promise<number> {
+    try {
+      return await this.contract.activeStake();
+    } catch (error) {
+      throw new Error(`Failed to get active stake: ${error.message}`);
+    }
+  }
+  /**
+   * @notice Get a total number of active shares for a particular account at a given timestamp using a hint.
+   * @param account account to get the number of active shares for
+   * @param timestamp time point to get the number of active shares for the account at
+   * @param hint hint for the checkpoint index
+   * @return number of active shares for the account at the timestamp
+   */
+  async activeSharesOfAt(
+    account: string,
+    timestamp: number,
+    hint: string
+  ): Promise<number> {
+    validateAddress(account);
+    try {
+      return await this.contract.activeSharesOfAt(account, timestamp, hint);
+    } catch (error) {
+      throw new Error(
+        `Failed to get active shares for ${account} at ${timestamp}: ${error.message}`
+      );
+    }
+  }
+  /**
+   * @notice Get a number of active shares for a particular account.
+   * @param account account to get the number of active shares for
+   * @return number of active shares for the account
+   */
+  async activeSharesOf(account: string): Promise<number> {
+    validateAddress(account);
+    try {
+      return await this.contract.activeSharesOf(account);
+    } catch (error) {
+      throw new Error(
+        `Failed to get active shares for ${account}: ${error.message}`
+      );
+    }
+  }
+  /**
+   * @notice Get a total amount of the withdrawals at a given epoch.
+   * @param epoch epoch to get the total amount of the withdrawals at
+   * @return total amount of the withdrawals at the epoch
+   */
+  async withdrawals(epoch: number): Promise<number> {
+    try {
+      return await this.contract.withdrawals(epoch);
+    } catch (error) {
+      throw new Error(
+        `Failed to get withdrawals at epoch ${epoch}: ${error.message}`
+      );
+    }
+  }
+
+  /**
+   * @notice Get a total number of withdrawal shares at a given epoch.
+   * @param epoch epoch to get the total number of withdrawal shares at
+   * @return total number of withdrawal shares at the epoch
+   */
+  async withdrawalShares(epoch: number): Promise<number> {
+    try {
+      return await this.contract.withdrawalShares(epoch);
+    } catch (error) {
+      throw new Error(
+        `Failed to get withdrawal shares at epoch ${epoch}: ${error.message}`
+      );
+    }
+  }
+  /**
+   * @notice Get a number of withdrawal shares for a particular account at a given epoch (zero if claimed).
+   * @param epoch epoch to get the number of withdrawal shares for the account at
+   * @param account account to get the number of withdrawal shares for
+   * @return number of withdrawal shares for the account at the epoch
+   */
+  async withdrawalSharesOf(epoch: number, account: string): Promise<number> {
+    validateAddress(account);
+    try {
+      return await this.contract.withdrawalSharesOf(epoch, account);
+    } catch (error) {
+      throw new Error(
+        `Failed to get withdrawal shares for ${account} at epoch ${epoch}: ${error.message}`
+      );
+    }
+  }
+  /**
+   * @notice Get if the withdrawals are claimed for a particular account at a given epoch.
+   * @param epoch epoch to check the withdrawals for the account at
+   * @param account account to check the withdrawals for
+   * @return if the withdrawals are claimed for the account at the epoch
+   */
+  async isWithdrawalsClaimed(epoch: number, account: string): Promise<boolean> {
+    validateAddress(account);
+    try {
+      return await this.contract.isWithdrawalsClaimed(epoch, account);
+    } catch (error) {
+      throw new Error(
+        `Failed to check if withdrawals are claimed for ${account} at epoch ${epoch}: ${error.message}`
+      );
+    }
+  }
   /**
    * @notice Check if the vault is initialized
    * @return True if the vault is initialized, false otherwise

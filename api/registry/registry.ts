@@ -1,20 +1,16 @@
 import { ethers } from "ethers";
-import { OPERATOR_REGISTRY_ABI } from "./operator_registry_abi";
+import { REGISTRY_ABI } from "./registry_abi";
 import { validateAddress } from "../utils";
 
 /**
- * @notice API for interacting with the Operator Registry contract
+ * @notice API for interacting with the Registry contract
  */
-export class OperatorRegistryAPI {
-  private contract: ethers.Contract;
+export abstract class RegistryAPI {
+  protected contract: ethers.Contract;
 
-  constructor(operatorRegistryAddress: string, wallet: ethers.Wallet) {
-    validateAddress(operatorRegistryAddress);
-    this.contract = new ethers.Contract(
-      operatorRegistryAddress,
-      OPERATOR_REGISTRY_ABI,
-      wallet
-    );
+  constructor(registryAddress: string, wallet: ethers.Wallet) {
+    validateAddress(registryAddress);
+    this.contract = new ethers.Contract(registryAddress, REGISTRY_ABI, wallet);
   }
 
   /**
@@ -47,18 +43,6 @@ export class OperatorRegistryAPI {
       throw new Error(
         `Failed to check if ${entity} is an entity: ${error.message}`
       );
-    }
-  }
-
-  /**
-   * @notice Register the caller as an operator.
-   */
-  async registerOperator(): Promise<void> {
-    try {
-      const tx = await this.contract.registerOperator();
-      await tx.wait();
-    } catch (error) {
-      throw new Error(`Failed to register operator: ${error.message}`);
     }
   }
 

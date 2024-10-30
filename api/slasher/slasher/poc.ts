@@ -1,53 +1,38 @@
 import { ethers } from "ethers";
-import { PRIVATE_KEY } from "../../config";
+import { NETWORK_PRIVATE_KEY, OWNER_PRIVATE_KEY } from "../../config";
 import { SlasherAPI } from "./slasher";
+import { subnetwork } from "../../utils";
 
 const jsonProvider = new ethers.providers.JsonRpcProvider(
   "http://127.0.0.1:8545"
 );
 
-const wallet = new ethers.Wallet(PRIVATE_KEY, jsonProvider);
-
+const wallet = new ethers.Wallet(OWNER_PRIVATE_KEY, jsonProvider);
+const networkWallet = new ethers.Wallet(NETWORK_PRIVATE_KEY, jsonProvider);
 const contractAddress = "0xAc31FA0eB0089E32da44Fc31E1E0457A79Bf0977";
 
 const slasher = new SlasherAPI(contractAddress, wallet);
 
-//TODO: Rough implementation to get a subnetwork ID, still needs to be implemented properly
-function createSubnetworkId(
-  networkAddress: string,
-  identifier: number
-): string {
-  // Convert address to bytes (remove '0x' and pad to 40 characters)
-  const addressBytes = networkAddress.slice(2).padStart(40, "0");
-
-  // Convert identifier to bytes (12 bytes = 24 characters for uint96)
-  const identifierBytes = identifier.toString(16).padStart(24, "0");
-
-  return "0x" + addressBytes + identifierBytes;
-}
-
-const networkAddress = "0x0c4BE2f0005ce23555782dffb9c2Daa04a521c88";
-const networkIdentifier = 1;
-
-const subnetworkId = createSubnetworkId(networkAddress, networkIdentifier);
-
-const bytes32Value = ethers.utils.hexZeroPad(subnetworkId, 32);
+const subNetwork = subnetwork(networkWallet.address, 0);
+console.log("Subnetwork: ", subNetwork);
 
 slasher
   .cumulativeSlash({
-    subnetwork: bytes32Value,
+    subnetwork: subNetwork,
     operator: "0xF65B8FC22842CB9d3fD7c96C0dfD25122685E9B4",
   })
   .then((cumulativeSlash) => {
     console.log("Cumulative Slash: ", cumulativeSlash.toString());
   });
 
+// This can be called only by middleware, leaving here for reference
 slasher
   .slash({
-    subnetwork: bytes32Value,
+    subnetwork: subNetwork,
     operator: "0xF65B8FC22842CB9d3fD7c96C0dfD25122685E9B4",
-    captureTimestamp: 0,
-    hints: "",
+    captureTimestamp: Date.now(), //Calculate proper timestamp to be:
+    // Time.timestamp() + vetoDuration − IVault(vault).epochDuration() ≤ captureTimestamp < Time.timestamp()
+    hints: "0x",
     amount: ethers.BigNumber.from(1000),
   })
   .then((slash) => {
