@@ -3,16 +3,16 @@ pragma solidity 0.8.25;
 
 import {Script, console2} from "forge-std/Script.sol";
 
-import {IMigratablesFactory} from "@symbiotic/src/interfaces/common/IMigratablesFactory.sol";
-import {IVault} from "@symbiotic/src/interfaces/vault/IVault.sol";
-import {IVaultConfigurator} from "@symbiotic/src/interfaces/IVaultConfigurator.sol";
-import {IBaseDelegator} from "@symbiotic/src/interfaces/delegator/IBaseDelegator.sol";
-import {INetworkRestakeDelegator} from "@symbiotic/src/interfaces/delegator/INetworkRestakeDelegator.sol";
-import {IFullRestakeDelegator} from "@symbiotic/src/interfaces/delegator/IFullRestakeDelegator.sol";
-import {IOperatorSpecificDelegator} from "@symbiotic/src/interfaces/delegator/IOperatorSpecificDelegator.sol";
-import {IBaseSlasher} from "@symbiotic/src/interfaces/slasher/IBaseSlasher.sol";
-import {ISlasher} from "@symbiotic/src/interfaces/slasher/ISlasher.sol";
-import {IVetoSlasher} from "@symbiotic/src/interfaces/slasher/IVetoSlasher.sol";
+import {IMigratablesFactory} from "@symbiotic/interfaces/common/IMigratablesFactory.sol";
+import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
+import {IVaultConfigurator} from "@symbiotic/interfaces/IVaultConfigurator.sol";
+import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
+import {INetworkRestakeDelegator} from "@symbiotic/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestakeDelegator.sol";
+import {IOperatorSpecificDelegator} from "@symbiotic/interfaces/delegator/IOperatorSpecificDelegator.sol";
+import {IBaseSlasher} from "@symbiotic/interfaces/slasher/IBaseSlasher.sol";
+import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
+import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 
 contract DeployVault is Script {
     function deployVault(

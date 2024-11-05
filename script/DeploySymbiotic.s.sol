@@ -6,41 +6,41 @@ import {Script, console2} from "forge-std/Script.sol";
 //**************************************************************************************************
 //                                      SYMBIOTIC
 //**************************************************************************************************
-import {IVaultConfigurator} from "@symbiotic/src/interfaces/IVaultConfigurator.sol";
-import {IVault} from "@symbiotic/src/interfaces/vault/IVault.sol";
-import {INetworkRestakeDelegator} from "@symbiotic/src/interfaces/delegator/INetworkRestakeDelegator.sol";
-import {ISlasher} from "@symbiotic/src/interfaces/slasher/ISlasher.sol";
-import {IBaseDelegator} from "@symbiotic/src/interfaces/delegator/IBaseDelegator.sol";
-import {IBaseSlasher} from "@symbiotic/src/interfaces/slasher/IBaseSlasher.sol";
+import {IVaultConfigurator} from "@symbiotic/interfaces/IVaultConfigurator.sol";
+import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
+import {INetworkRestakeDelegator} from "@symbiotic/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
+import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
+import {IBaseSlasher} from "@symbiotic/interfaces/slasher/IBaseSlasher.sol";
 
-import {OperatorRegistry} from "@symbiotic/src/contracts/OperatorRegistry.sol";
-import {NetworkRegistry} from "@symbiotic/src/contracts/NetworkRegistry.sol";
+import {OperatorRegistry} from "@symbiotic/contracts/OperatorRegistry.sol";
+import {NetworkRegistry} from "@symbiotic/contracts/NetworkRegistry.sol";
 
-import {OptInService} from "@symbiotic/src/contracts/service/OptInService.sol";
-import {NetworkMiddlewareService} from "@symbiotic/src/contracts/service/NetworkMiddlewareService.sol";
-import {MetadataService} from "@symbiotic/src/contracts/service/MetadataService.sol";
+import {OptInService} from "@symbiotic/contracts/service/OptInService.sol";
+import {NetworkMiddlewareService} from "@symbiotic/contracts/service/NetworkMiddlewareService.sol";
+import {MetadataService} from "@symbiotic/contracts/service/MetadataService.sol";
 
-import {DelegatorFactory} from "@symbiotic/src/contracts/DelegatorFactory.sol";
-import {SlasherFactory} from "@symbiotic/src/contracts/SlasherFactory.sol";
-import {VaultFactory} from "@symbiotic/src/contracts/VaultFactory.sol";
+import {DelegatorFactory} from "@symbiotic/contracts/DelegatorFactory.sol";
+import {SlasherFactory} from "@symbiotic/contracts/SlasherFactory.sol";
+import {VaultFactory} from "@symbiotic/contracts/VaultFactory.sol";
 
-import {VaultConfigurator} from "@symbiotic/src/contracts/VaultConfigurator.sol";
-import {Vault} from "@symbiotic/src/contracts/vault/Vault.sol";
-import {VaultTokenized} from "@symbiotic/src/contracts/vault/VaultTokenized.sol";
+import {VaultConfigurator} from "@symbiotic/contracts/VaultConfigurator.sol";
+import {Vault} from "@symbiotic/contracts/vault/Vault.sol";
+import {VaultTokenized} from "@symbiotic/contracts/vault/VaultTokenized.sol";
 
-import {NetworkRestakeDelegator} from "@symbiotic/src/contracts/delegator/NetworkRestakeDelegator.sol";
-import {FullRestakeDelegator} from "@symbiotic/src/contracts/delegator/FullRestakeDelegator.sol";
-import {OperatorSpecificDelegator} from "@symbiotic/src/contracts/delegator/OperatorSpecificDelegator.sol";
-import {INetworkRestakeDelegator} from "@symbiotic/src/interfaces/delegator/INetworkRestakeDelegator.sol";
-import {IFullRestakeDelegator} from "@symbiotic/src/interfaces/delegator/IFullRestakeDelegator.sol";
-import {IOperatorSpecificDelegator} from "@symbiotic/src/interfaces/delegator/IOperatorSpecificDelegator.sol";
+import {NetworkRestakeDelegator} from "@symbiotic/contracts/delegator/NetworkRestakeDelegator.sol";
+import {FullRestakeDelegator} from "@symbiotic/contracts/delegator/FullRestakeDelegator.sol";
+import {OperatorSpecificDelegator} from "@symbiotic/contracts/delegator/OperatorSpecificDelegator.sol";
+import {INetworkRestakeDelegator} from "@symbiotic/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestakeDelegator.sol";
+import {IOperatorSpecificDelegator} from "@symbiotic/interfaces/delegator/IOperatorSpecificDelegator.sol";
 
-import {Slasher} from "@symbiotic/src/contracts/slasher/Slasher.sol";
-import {VetoSlasher} from "@symbiotic/src/contracts/slasher/VetoSlasher.sol";
-import {ISlasher} from "@symbiotic/src/interfaces/slasher/ISlasher.sol";
-import {IVetoSlasher} from "@symbiotic/src/interfaces/slasher/IVetoSlasher.sol";
+import {Slasher} from "@symbiotic/contracts/slasher/Slasher.sol";
+import {VetoSlasher} from "@symbiotic/contracts/slasher/VetoSlasher.sol";
+import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
+import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 
-import {Subnetwork} from "@symbiotic/src/contracts/libraries/Subnetwork.sol";
+import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 //**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
