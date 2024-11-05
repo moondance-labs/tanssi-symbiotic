@@ -68,18 +68,17 @@ contract DeploySymbiotic is Script {
     // These can be hardcoded since they are anvil private keys
     uint256 ownerPrivateKey =
         vm.envOr("OWNER_PRIVATE_KEY", uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80));
-    address owner = vm.addr(ownerPrivateKey);
+    address public owner = vm.addr(ownerPrivateKey);
 
     uint256 operatorPrivateKey =
         vm.envOr("OPERATOR_PRIVATE_KEY", uint256(0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a));
-    address operator = vm.addr(operatorPrivateKey);
+    address public operator = vm.addr(operatorPrivateKey);
 
     VaultConfigurator vaultConfigurator;
     Token collateral;
     DeployVault deployVault;
 
     struct SymbioticAddresses {
-        address owner;
         address vaultFactory;
         address delegatorFactory;
         address slasherFactory;
@@ -224,7 +223,13 @@ contract DeploySymbiotic is Script {
         return contractAddress;
     }
 
-    function deploySymbiotic() public returns (SymbioticAddresses memory) {
+    function deploySymbiotic(
+        address _owner
+    ) public returns (SymbioticAddresses memory) {
+        console2.log("msg.sender:", msg.sender, owner);
+        if (_owner != address(0)) {
+            vm.startPrank(_owner);
+        }
         VaultFactory vaultFactory = new VaultFactory(owner);
         DelegatorFactory delegatorFactory = new DelegatorFactory(owner);
         SlasherFactory slasherFactory = new SlasherFactory(owner);
@@ -326,8 +331,10 @@ contract DeploySymbiotic is Script {
         console2.log("OperatorNetworkOptInService: ", address(operatorNetworkOptInService));
         console2.log("VaultConfigurator: ", address(vaultConfigurator));
 
+        if (owner != address(0)) {
+            vm.stopPrank();
+        }
         return SymbioticAddresses({
-            owner: owner,
             vaultFactory: address(vaultFactory),
             delegatorFactory: address(delegatorFactory),
             slasherFactory: address(slasherFactory),
@@ -351,7 +358,7 @@ contract DeploySymbiotic is Script {
 
     function deploySymbioticBroadcast() public returns (SymbioticAddresses memory addresses) {
         vm.startBroadcast(ownerPrivateKey);
-        addresses = deploySymbiotic();
+        addresses = deploySymbiotic(address(0));
         vm.stopBroadcast();
     }
 

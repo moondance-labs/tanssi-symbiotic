@@ -15,7 +15,7 @@ optimizer_runs = 100
 # Enable caching
 cache = true
 # Enable parallel compilation 
-force = true
+force = false
 # If available, use more CPU cores
 thread_count = 16
 
