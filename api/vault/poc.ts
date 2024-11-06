@@ -9,7 +9,7 @@ const jsonProvider = new ethers.providers.JsonRpcProvider(
 
 const wallet = new ethers.Wallet(OWNER_PRIVATE_KEY, jsonProvider);
 
-const CONTRACT_ADDRESS = "0x6692129Ec011A54E60d948b738c8157237589224";
+const VAULT_ADDRESS = "0x6692129Ec011A54E60d948b738c8157237589224";
 const COLLATERAL_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 
 const collateralContract = new Contract(
@@ -18,7 +18,7 @@ const collateralContract = new Contract(
   wallet
 );
 
-const vault = new VaultAPI(CONTRACT_ADDRESS, wallet);
+const vault = new VaultAPI(VAULT_ADDRESS, wallet);
 
 vault.slasher().then((slasher) => {
   console.log("Slasher: ", slasher);
@@ -49,10 +49,7 @@ collateralContract.balanceOf(wallet.address).then((balance) => {
 });
 
 const approveAndDeposit = async () => {
-  await collateralContract.approve(
-    CONTRACT_ADDRESS,
-    ethers.BigNumber.from(1000)
-  );
+  await collateralContract.approve(VAULT_ADDRESS, ethers.BigNumber.from(1000));
   const { depositedAmount, mintedShares } = await vault.deposit(
     wallet.address,
     ethers.BigNumber.from(1000)

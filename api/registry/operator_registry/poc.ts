@@ -8,9 +8,12 @@ const jsonProvider = new ethers.providers.JsonRpcProvider(
 
 const wallet = new ethers.Wallet(OPERATOR_PRIVATE_KEY, jsonProvider);
 
-const contractAddress = "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707";
+const OPERATOR_REGISTRY_ADDRESS = "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707";
 
-const operatorRegistry = new OperatorRegistryAPI(contractAddress, wallet);
+const operatorRegistry = new OperatorRegistryAPI(
+  OPERATOR_REGISTRY_ADDRESS,
+  wallet
+);
 
 operatorRegistry
   .registerOperator()

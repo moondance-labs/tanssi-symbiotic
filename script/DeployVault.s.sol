@@ -47,11 +47,12 @@ contract DeployVault is Script {
             })
         );
 
-        address[] memory networkLimitSetRoleHolders = new address[](1);
+        uint8 rolesIndex = 1;
+        address[] memory networkLimitSetRoleHolders = new address[](rolesIndex);
         networkLimitSetRoleHolders[0] = params.owner;
-        address[] memory operatorNetworkLimitSetRoleHolders = new address[](1);
+        address[] memory operatorNetworkLimitSetRoleHolders = new address[](rolesIndex);
         operatorNetworkLimitSetRoleHolders[0] = params.owner;
-        address[] memory operatorNetworkSharesSetRoleHolders = new address[](1);
+        address[] memory operatorNetworkSharesSetRoleHolders = new address[](rolesIndex);
         operatorNetworkSharesSetRoleHolders[0] = params.owner;
 
         bytes memory delegatorParams;

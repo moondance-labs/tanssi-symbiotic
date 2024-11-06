@@ -235,13 +235,13 @@ contract DeploySymbiotic is Script {
     }
 
     function getCollateral() public returns (address) {
-        address contractAddress = DevOpsTools.get_most_recent_deployment("Token", block.chainid);
-        collateral = Token(contractAddress);
+        address tokenAddress = DevOpsTools.get_most_recent_deployment("Token", block.chainid);
+        collateral = Token(tokenAddress);
         console2.log("Collateral: ", address(collateral));
         console2.log("Owner: ", owner);
         console2.log("Balance owner: ", collateral.balanceOf(owner));
 
-        return contractAddress;
+        return tokenAddress;
     }
 
     function deployFactories(

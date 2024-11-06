@@ -13,6 +13,7 @@ const resolverWallet = new ethers.Wallet(RESOLVER_PRIVATE_KEY, jsonProvider);
 const VETO_SLASHER_CONTRACT_ADDRESS =
   "0x02129319612dE494175D7962DC4F0A8b3dAE8d5b";
 
+const OPERATOR_ADDRESS = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC";
 const vetoSlasher = new VetoSlasherAPI(
   VETO_SLASHER_CONTRACT_ADDRESS,
   networkWallet
@@ -23,19 +24,17 @@ vetoSlasher.slashRequestsLength().then((length) => {
 });
 
 const subNetwork = subnetwork(networkWallet.address, 0);
-console.log("Subnetwork: ", subNetwork);
 
 const requestSlashAndVeto = async () => {
-  const resolver = await vetoSlasher.resolver(
-    subnetwork(networkWallet.address, 0),
-    "0x"
-  );
+  const resolver = await vetoSlasher.resolver(subNetwork, "0x");
   console.log("Resolver: ", resolver);
+
   const vault = await vetoSlasher.vault();
   console.log("Vault: ", vault);
+
   const slashableStake = await vetoSlasher.slashableStake({
     subnetwork: subNetwork,
-    operator: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+    operator: OPERATOR_ADDRESS,
     captureTimestamp: Date.now() - 1000 * 60 * 1000,
     hints: "0x",
   });
@@ -46,7 +45,7 @@ const requestSlashAndVeto = async () => {
   // This can be called only by middleware, leaving here for reference
   const slashIndex = await vetoSlasher.requestSlash({
     subnetwork: subNetwork,
-    operator: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+    operator: OPERATOR_ADDRESS,
     amount: ethers.BigNumber.from(1000),
     hints: "0x",
     captureTimestamp: Date.now(),
