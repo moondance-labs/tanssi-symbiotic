@@ -11,7 +11,7 @@ all: clean remove install update build
 clean  :; forge clean
 
 # Remove modules
-remove :; rm -rf .gitmodules && rm -rf .git/modules/* && rm -rf lib && touch .gitmodules && git add . && git commit -m "modules"
+remove :; rm -rf .gitmodules && rm -rf .git/modules/* && rm -rf lib && touch .gitmodules
 
 install :; 	forge install foundry-rs/forge-std@v1.8.2 --no-commit && \
 		 	forge install openzeppelin/openzeppelin-contracts@v5.0.2 --no-commit && \
@@ -25,7 +25,11 @@ update:; forge update
 
 build:; forge build
 
-test :; forge test 
+test :; forge test
+
+testv :; forge test -vvvv
+
+coverage :; forge coverage
 
 snapshot :; forge snapshot
 
@@ -34,7 +38,7 @@ format :; forge fmt
 anvil :; anvil -m 'test test test test test test test test test test test junk' --steps-tracing --block-time 1
 
 NETWORK_ARGS := --rpc-url http://localhost:8545 --private-key $(DEFAULT_ANVIL_KEY) --broadcast
-	
+
 deploy:
 	@echo "🚀 Deploying contracts..."
 
@@ -45,5 +49,3 @@ deploy:
 	@echo "📡 Deploying Symbiotic..."
 	@forge script script/DeploySymbiotic.s.sol ${NETWORK_ARGS}
 	@echo "✅ Symbiotic deployment completed"
-
-	@echo "✅ VaultTokenized deployment completed"

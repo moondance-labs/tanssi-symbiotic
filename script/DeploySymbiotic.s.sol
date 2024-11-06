@@ -99,6 +99,25 @@ contract DeploySymbiotic is Script {
         address vaultConfigurator;
     }
 
+    struct DeployedFactories {
+        VaultFactory vaultFactory;
+        DelegatorFactory delegatorFactory;
+        SlasherFactory slasherFactory;
+    }
+
+    struct DeployedRegistries {
+        NetworkRegistry networkRegistry;
+        OperatorRegistry operatorRegistry;
+    }
+
+    struct DeployedServices {
+        MetadataService operatorMetadataService;
+        MetadataService networkMetadataService;
+        NetworkMiddlewareService networkMiddlewareService;
+        OptInService operatorVaultOptInService;
+        OptInService operatorNetworkOptInService;
+    }
+
     enum VaultSlashType {
         SLASH, // 0
         VETO // 1
@@ -196,7 +215,7 @@ contract DeploySymbiotic is Script {
             deployVault = new DeployVault();
         }
 
-        (vault_, delegator_, slasher_) = deployVault.deployVault({
+        DeployVault.VaultDeployParams memory params = DeployVault.VaultDeployParams({
             vaultConfigurator: address(vaultConfigurator),
             owner: owner,
             collateral: address(collateral),
@@ -208,6 +227,8 @@ contract DeploySymbiotic is Script {
             slasherIndex: slasherIndex,
             vetoDuration: vetoDuration
         });
+
+        (vault_, delegator_, slasher_) = deployVault.deployVault(params);
         if (shouldBroadcast) {
             vm.stopBroadcast();
         }
@@ -223,6 +244,36 @@ contract DeploySymbiotic is Script {
         return contractAddress;
     }
 
+    function deployFactories(
+        address _owner
+    ) internal returns (DeployedFactories memory factories) {
+        factories.vaultFactory = new VaultFactory(_owner);
+        factories.delegatorFactory = new DelegatorFactory(_owner);
+        factories.slasherFactory = new SlasherFactory(_owner);
+    }
+
+    function deployRegistries() internal returns (DeployedRegistries memory registries) {
+        registries.networkRegistry = new NetworkRegistry();
+        registries.operatorRegistry = new OperatorRegistry();
+    }
+
+    function deployServices(
+        DeployedFactories memory factories,
+        DeployedRegistries memory registries
+    ) internal returns (DeployedServices memory services) {
+        services.operatorMetadataService = new MetadataService(address(registries.operatorRegistry));
+        services.networkMetadataService = new MetadataService(address(registries.networkRegistry));
+        services.networkMiddlewareService = new NetworkMiddlewareService(address(registries.networkRegistry));
+
+        services.operatorVaultOptInService = new OptInService(
+            address(registries.operatorRegistry), address(factories.vaultFactory), "OperatorVaultOptInService"
+        );
+
+        services.operatorNetworkOptInService = new OptInService(
+            address(registries.operatorRegistry), address(registries.networkRegistry), "OperatorNetworkOptInService"
+        );
+    }
+
     function deploySymbiotic(
         address _owner
     ) public returns (SymbioticAddresses memory) {
@@ -230,121 +281,123 @@ contract DeploySymbiotic is Script {
         if (_owner != address(0)) {
             vm.startPrank(_owner);
         }
-        VaultFactory vaultFactory = new VaultFactory(owner);
-        DelegatorFactory delegatorFactory = new DelegatorFactory(owner);
-        SlasherFactory slasherFactory = new SlasherFactory(owner);
-        NetworkRegistry networkRegistry = new NetworkRegistry();
-        OperatorRegistry operatorRegistry = new OperatorRegistry();
-        MetadataService operatorMetadataService = new MetadataService(address(operatorRegistry));
-        MetadataService networkMetadataService = new MetadataService(address(networkRegistry));
-        NetworkMiddlewareService networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
 
-        OptInService operatorVaultOptInService =
-            new OptInService(address(operatorRegistry), address(vaultFactory), "OperatorVaultOptInService");
-        OptInService operatorNetworkOptInService =
-            new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorNetworkOptInService");
+        DeployedFactories memory factories = deployFactories(owner);
+        DeployedRegistries memory registries = deployRegistries();
+        DeployedServices memory services = deployServices(factories, registries);
 
-        networkRegistry.registerNetwork();
+        registries.networkRegistry.registerNetwork();
 
-        address vaultImpl =
-            address(new Vault(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
-        vaultFactory.whitelist(vaultImpl);
+        vaultConfigurator = new VaultConfigurator(
+            address(factories.vaultFactory), address(factories.delegatorFactory), address(factories.slasherFactory)
+        );
 
-        address vaultTokenizedImpl =
-            address(new VaultTokenized(address(delegatorFactory), address(slasherFactory), address(vaultFactory)));
-        vaultFactory.whitelist(vaultTokenizedImpl);
+        address vaultImpl = address(
+            new Vault(
+                address(factories.delegatorFactory), address(factories.slasherFactory), address(factories.vaultFactory)
+            )
+        );
+        factories.vaultFactory.whitelist(vaultImpl);
+
+        address vaultTokenizedImpl = address(
+            new VaultTokenized(
+                address(factories.delegatorFactory), address(factories.slasherFactory), address(factories.vaultFactory)
+            )
+        );
+        factories.vaultFactory.whitelist(vaultTokenizedImpl);
 
         address networkRestakeDelegatorImpl = address(
             new NetworkRestakeDelegator(
-                address(networkRegistry),
-                address(vaultFactory),
-                address(operatorVaultOptInService),
-                address(operatorNetworkOptInService),
-                address(delegatorFactory),
-                delegatorFactory.totalTypes()
+                address(registries.networkRegistry),
+                address(factories.vaultFactory),
+                address(services.operatorVaultOptInService),
+                address(services.operatorNetworkOptInService),
+                address(factories.delegatorFactory),
+                factories.delegatorFactory.totalTypes()
             )
         );
-        delegatorFactory.whitelist(networkRestakeDelegatorImpl);
+        factories.delegatorFactory.whitelist(networkRestakeDelegatorImpl);
 
         address fullRestakeDelegatorImpl = address(
             new FullRestakeDelegator(
-                address(networkRegistry),
-                address(vaultFactory),
-                address(operatorVaultOptInService),
-                address(operatorNetworkOptInService),
-                address(delegatorFactory),
-                delegatorFactory.totalTypes()
+                address(registries.networkRegistry),
+                address(factories.vaultFactory),
+                address(services.operatorVaultOptInService),
+                address(services.operatorNetworkOptInService),
+                address(factories.delegatorFactory),
+                factories.delegatorFactory.totalTypes()
             )
         );
-        delegatorFactory.whitelist(fullRestakeDelegatorImpl);
+        factories.delegatorFactory.whitelist(fullRestakeDelegatorImpl);
 
         address operatorSpecificDelegatorImpl = address(
             new OperatorSpecificDelegator(
-                address(operatorRegistry),
-                address(networkRegistry),
-                address(vaultFactory),
-                address(operatorVaultOptInService),
-                address(operatorNetworkOptInService),
-                address(delegatorFactory),
-                delegatorFactory.totalTypes()
+                address(registries.operatorRegistry),
+                address(registries.networkRegistry),
+                address(factories.vaultFactory),
+                address(services.operatorVaultOptInService),
+                address(services.operatorNetworkOptInService),
+                address(factories.delegatorFactory),
+                factories.delegatorFactory.totalTypes()
             )
         );
-        delegatorFactory.whitelist(operatorSpecificDelegatorImpl);
+        factories.delegatorFactory.whitelist(operatorSpecificDelegatorImpl);
 
         address slasherImpl = address(
             new Slasher(
-                address(vaultFactory),
-                address(networkMiddlewareService),
-                address(slasherFactory),
-                slasherFactory.totalTypes()
+                address(factories.vaultFactory),
+                address(services.networkMiddlewareService),
+                address(factories.slasherFactory),
+                factories.slasherFactory.totalTypes()
             )
         );
-        slasherFactory.whitelist(slasherImpl);
+        factories.slasherFactory.whitelist(slasherImpl);
 
         address vetoSlasherImpl = address(
             new VetoSlasher(
-                address(vaultFactory),
-                address(networkMiddlewareService),
-                address(networkRegistry),
-                address(slasherFactory),
-                slasherFactory.totalTypes()
+                address(factories.vaultFactory),
+                address(services.networkMiddlewareService),
+                address(registries.networkRegistry),
+                address(factories.slasherFactory),
+                factories.slasherFactory.totalTypes()
             )
         );
-        slasherFactory.whitelist(vetoSlasherImpl);
+        factories.slasherFactory.whitelist(vetoSlasherImpl);
 
-        vaultConfigurator =
-            new VaultConfigurator(address(vaultFactory), address(delegatorFactory), address(slasherFactory));
+        vaultConfigurator = new VaultConfigurator(
+            address(factories.vaultFactory), address(factories.delegatorFactory), address(factories.slasherFactory)
+        );
 
-        vaultFactory.transferOwnership(owner);
-        delegatorFactory.transferOwnership(owner);
-        slasherFactory.transferOwnership(owner);
+        factories.vaultFactory.transferOwnership(owner);
+        factories.delegatorFactory.transferOwnership(owner);
+        factories.slasherFactory.transferOwnership(owner);
 
-        console2.log("VaultFactory: ", address(vaultFactory));
-        console2.log("DelegatorFactory: ", address(delegatorFactory));
-        console2.log("SlasherFactory: ", address(slasherFactory));
-        console2.log("NetworkRegistry: ", address(networkRegistry));
-        console2.log("OperatorRegistry: ", address(operatorRegistry));
-        console2.log("OperatorMetadataService: ", address(operatorMetadataService));
-        console2.log("NetworkMetadataService: ", address(networkMetadataService));
-        console2.log("NetworkMiddlewareService: ", address(networkMiddlewareService));
-        console2.log("OperatorVaultOptInService: ", address(operatorVaultOptInService));
-        console2.log("OperatorNetworkOptInService: ", address(operatorNetworkOptInService));
+        console2.log("VaultFactory: ", address(factories.vaultFactory));
+        console2.log("DelegatorFactory: ", address(factories.delegatorFactory));
+        console2.log("SlasherFactory: ", address(factories.slasherFactory));
+        console2.log("NetworkRegistry: ", address(registries.networkRegistry));
+        console2.log("OperatorRegistry: ", address(registries.operatorRegistry));
+        console2.log("OperatorMetadataService: ", address(services.operatorMetadataService));
+        console2.log("NetworkMetadataService: ", address(services.networkMetadataService));
+        console2.log("NetworkMiddlewareService: ", address(services.networkMiddlewareService));
+        console2.log("OperatorVaultOptInService: ", address(services.operatorVaultOptInService));
+        console2.log("OperatorNetworkOptInService: ", address(services.operatorNetworkOptInService));
         console2.log("VaultConfigurator: ", address(vaultConfigurator));
 
         if (owner != address(0)) {
             vm.stopPrank();
         }
         return SymbioticAddresses({
-            vaultFactory: address(vaultFactory),
-            delegatorFactory: address(delegatorFactory),
-            slasherFactory: address(slasherFactory),
-            networkRegistry: address(networkRegistry),
-            operatorRegistry: address(operatorRegistry),
-            operatorMetadataService: address(operatorMetadataService),
-            networkMetadataService: address(networkMetadataService),
-            networkMiddlewareService: address(networkMiddlewareService),
-            operatorVaultOptInService: address(operatorVaultOptInService),
-            operatorNetworkOptInService: address(operatorNetworkOptInService),
+            vaultFactory: address(factories.vaultFactory),
+            delegatorFactory: address(factories.delegatorFactory),
+            slasherFactory: address(factories.slasherFactory),
+            networkRegistry: address(registries.networkRegistry),
+            operatorRegistry: address(registries.operatorRegistry),
+            operatorMetadataService: address(services.operatorMetadataService),
+            networkMetadataService: address(services.networkMetadataService),
+            networkMiddlewareService: address(services.networkMiddlewareService),
+            operatorVaultOptInService: address(services.operatorVaultOptInService),
+            operatorNetworkOptInService: address(services.operatorNetworkOptInService),
             vaultImpl: vaultImpl,
             vaultTokenizedImpl: vaultTokenizedImpl,
             networkRestakeDelegatorImpl: networkRestakeDelegatorImpl,
