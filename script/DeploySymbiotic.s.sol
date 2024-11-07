@@ -45,7 +45,6 @@ import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-
 //**************************************************************************************************
 //                                      DEVOPS
 //**************************************************************************************************
@@ -277,7 +276,6 @@ contract DeploySymbiotic is Script {
     function deploySymbiotic(
         address _owner
     ) public returns (SymbioticAddresses memory) {
-        console2.log("msg.sender:", msg.sender, owner);
         if (_owner != address(0)) {
             vm.startPrank(_owner);
         }

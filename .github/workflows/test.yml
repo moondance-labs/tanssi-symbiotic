@@ -43,3 +43,12 @@ jobs:
         run: |
           forge test -vvv
         id: test
+
+      - name: Run Anvil
+        run: |
+          make anvil
+        id: anvil
+
+      - name: Run Typescript API tests
+        run: |
+          cd api && pnpm test

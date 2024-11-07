@@ -75,7 +75,7 @@ export class OptInAPI {
    * @return nonce
    */
 
-  async nonces(who: string, where: string): Promise<number> {
+  async nonces(who: string, where: string): Promise<ethers.BigNumber> {
     try {
       const result = await this.contract.nonces(who, where);
       return result;

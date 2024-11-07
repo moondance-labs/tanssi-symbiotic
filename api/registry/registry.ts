@@ -50,7 +50,7 @@ export abstract class RegistryAPI {
    * @notice Get a total number of entities.
    * @return total number of entities added
    */
-  async totalEntities(): Promise<number> {
+  async totalEntities(): Promise<ethers.BigNumber> {
     try {
       const result = await this.contract.totalEntities();
       return result;
