@@ -44,11 +44,17 @@ jobs:
           forge test -vvv
         id: test
 
-      - name: Run Anvil
+      - name: Start Anvil
         run: |
-          make anvil
+          make anvil > /dev/null 2>&1 &
+          sleep 5
+          echo "ANVIL_PID=$!" >> $GITHUB_ENV
         id: anvil
 
       - name: Run Typescript API tests
         run: |
           cd api && pnpm test
+        id: api-test
+
+      - name: Stop Anvil
+        run: pkill -f anvil
