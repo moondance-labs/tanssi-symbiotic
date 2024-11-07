@@ -57,6 +57,11 @@ jobs:
           echo "ANVIL_PID=$!" >> $GITHUB_ENV
         id: anvil
 
+      - name: Deploy Symbiotic
+        run: |
+          make deploy
+        id: deploy-symbiotic
+
       - name: Run Typescript API tests
         run: |
           cd api && npm install && npm test
