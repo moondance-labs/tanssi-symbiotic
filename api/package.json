@@ -2,7 +2,8 @@
   "name": "symbiotic-api",
   "private": true,
   "scripts": {
-    "test": "jest __tests__/run_sequential_tests.test.ts",
+    "test": "jest",
+    "test-all": "jest __tests__/run_sequential_tests.test.ts",
     "coverage": "jest --coverage"
   },
   "dependencies": {

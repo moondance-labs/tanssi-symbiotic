@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { OWNER_PRIVATE_KEY } from "../config";
+import { OWNER_PRIVATE_KEY } from "../../config";
 import { FactoryAPI } from "./factory";
 
 const jsonProvider = new ethers.providers.JsonRpcProvider(

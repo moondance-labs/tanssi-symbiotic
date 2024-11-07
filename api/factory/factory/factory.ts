@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
 import { FACTORY_ABI } from "./factory_abi";
-import { validateAddress } from "../utils";
+import { validateAddress } from "../../utils";
 
 /**
  * @notice API for interacting with a all type of Factory (VaultFactory, DelegatorFactory, SlasherFactory)
@@ -17,7 +17,7 @@ export class FactoryAPI {
    * @notice Get the total number of whitelisted types.
    * @return total number of types
    */
-  async totalTypes(): Promise<number> {
+  async totalTypes(): Promise<ethers.BigNumber> {
     try {
       const result = await this.contract.totalTypes();
       return result;
@@ -96,11 +96,13 @@ export class FactoryAPI {
       const tx = await this.contract.create(type_, data);
       const receipt = await tx.wait();
 
-      const { entity_ } = this.contract.interface.decodeFunctionResult(
-        "create",
-        receipt.logs[receipt.logs.length - 1].data
-      );
-      return entity_;
+      const lastEvent = receipt.events?.[0];
+
+      if (!lastEvent || lastEvent.event !== "AddEntity") {
+        throw new Error("AddEntity event not found in transaction receipt");
+      }
+
+      return lastEvent.args[0];
     } catch (error) {
       throw new Error(`Failed to create entity: ${error.message}`);
     }
