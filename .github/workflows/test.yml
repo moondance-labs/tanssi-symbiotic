@@ -53,7 +53,7 @@ jobs:
 
       - name: Run Typescript API tests
         run: |
-          cd api && pnpm test
+          cd api && npm install && npm test
         id: api-test
 
       - name: Stop Anvil
