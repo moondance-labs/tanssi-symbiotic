@@ -16,6 +16,16 @@ export type SlasherParams = {
   slasherIndex: number;
   vetoDuration: number;
 };
+export type VaultConfiguratorParams = {
+  version: number;
+  owner: string;
+  vaultParams: string;
+  delegatorIndex: number;
+  delegatorParams: string;
+  withSlasher: boolean;
+  slasherIndex: number;
+  slasherParams: string;
+};
 
 export enum DelegatorType {
   NETWORK_RESTAKE = 0,

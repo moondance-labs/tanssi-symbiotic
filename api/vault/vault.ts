@@ -106,7 +106,7 @@ export class VaultAPI {
    * @notice Get a time point of the epoch duration set.
    * @return time point of the epoch duration set
    */
-  async epochDurationInit(): Promise<number> {
+  async epochDurationInit(): Promise<ethers.BigNumber> {
     try {
       return await this.contract.epochDurationInit();
     } catch (error) {
@@ -119,7 +119,7 @@ export class VaultAPI {
    * @notice Get a duration of the vault epoch.
    * @return duration of the epoch
    */
-  async epochDuration(): Promise<number> {
+  async epochDuration(): Promise<ethers.BigNumber> {
     try {
       return await this.contract.epochDuration();
     } catch (error) {
@@ -133,7 +133,7 @@ export class VaultAPI {
    * @return epoch at the timestamp
    * @dev Reverts if the timestamp is less than the start of the epoch 0.
    */
-  async epochAt(timestamp: number): Promise<number> {
+  async epochAt(timestamp: number): Promise<ethers.BigNumber> {
     try {
       return await this.contract.epochAt(timestamp);
     } catch (error) {
@@ -145,7 +145,7 @@ export class VaultAPI {
    * @notice Get a current vault epoch.
    * @return current epoch
    */
-  async currentEpoch(): Promise<number> {
+  async currentEpoch(): Promise<ethers.BigNumber> {
     try {
       return await this.contract.currentEpoch();
     } catch (error) {
@@ -157,7 +157,7 @@ export class VaultAPI {
    * @notice Get a start of the current vault epoch.
    * @return start of the current epoch
    */
-  async currentEpochStart(): Promise<number> {
+  async currentEpochStart(): Promise<ethers.BigNumber> {
     try {
       return await this.contract.currentEpochStart();
     } catch (error) {
@@ -170,7 +170,7 @@ export class VaultAPI {
    * @return start of the previous epoch
    * @dev Reverts if the current epoch is 0.
    */
-  async previousEpochStart(): Promise<number> {
+  async previousEpochStart(): Promise<ethers.BigNumber> {
     try {
       return await this.contract.previousEpochStart();
     } catch (error) {
@@ -182,7 +182,7 @@ export class VaultAPI {
    * @notice Get a start of the next vault epoch.
    * @return start of the next epoch
    */
-  async nextEpochStart(): Promise<number> {
+  async nextEpochStart(): Promise<ethers.BigNumber> {
     try {
       return await this.contract.nextEpochStart();
     } catch (error) {
@@ -235,7 +235,7 @@ export class VaultAPI {
    * @notice Get a deposit limit (maximum amount of the active stake that can be in the vault simultaneously).
    * @return deposit limit
    */
-  async depositLimit(): Promise<number> {
+  async depositLimit(): Promise<ethers.BigNumber> {
     try {
       return await this.contract.depositLimit();
     } catch (error) {
@@ -249,7 +249,10 @@ export class VaultAPI {
    * @param hint hint for the checkpoint index
    * @return total number of active shares at the timestamp
    */
-  async activeSharesAt(timestamp: number, hint: string): Promise<number> {
+  async activeSharesAt(
+    timestamp: number,
+    hint: string
+  ): Promise<ethers.BigNumber> {
     try {
       return await this.contract.activeSharesAt(timestamp, hint);
     } catch (error) {
@@ -263,7 +266,7 @@ export class VaultAPI {
    * @notice Get a total number of active shares in the vault.
    * @return total number of active shares
    */
-  async activeShares(): Promise<number> {
+  async activeShares(): Promise<ethers.BigNumber> {
     try {
       return await this.contract.activeShares();
     } catch (error) {
@@ -277,7 +280,10 @@ export class VaultAPI {
    * @param hint hint for the checkpoint index
    * @return total amount of active stake at the timestamp
    */
-  async activeStakeAt(timestamp: number, hint: string): Promise<number> {
+  async activeStakeAt(
+    timestamp: number,
+    hint: string
+  ): Promise<ethers.BigNumber> {
     try {
       return await this.contract.activeStakeAt(timestamp, hint);
     } catch (error) {
@@ -291,7 +297,7 @@ export class VaultAPI {
    * @notice Get a total amount of active stake in the vault.
    * @return total amount of active stake
    */
-  async activeStake(): Promise<number> {
+  async activeStake(): Promise<ethers.BigNumber> {
     try {
       return await this.contract.activeStake();
     } catch (error) {
@@ -309,7 +315,7 @@ export class VaultAPI {
     account: string,
     timestamp: number,
     hint: string
-  ): Promise<number> {
+  ): Promise<ethers.BigNumber> {
     validateAddress(account);
     try {
       return await this.contract.activeSharesOfAt(account, timestamp, hint);
@@ -324,7 +330,7 @@ export class VaultAPI {
    * @param account account to get the number of active shares for
    * @return number of active shares for the account
    */
-  async activeSharesOf(account: string): Promise<number> {
+  async activeSharesOf(account: string): Promise<ethers.BigNumber> {
     validateAddress(account);
     try {
       return await this.contract.activeSharesOf(account);
@@ -339,7 +345,7 @@ export class VaultAPI {
    * @param epoch epoch to get the total amount of the withdrawals at
    * @return total amount of the withdrawals at the epoch
    */
-  async withdrawals(epoch: number): Promise<number> {
+  async withdrawals(epoch: number): Promise<ethers.BigNumber> {
     try {
       return await this.contract.withdrawals(epoch);
     } catch (error) {
@@ -354,7 +360,7 @@ export class VaultAPI {
    * @param epoch epoch to get the total number of withdrawal shares at
    * @return total number of withdrawal shares at the epoch
    */
-  async withdrawalShares(epoch: number): Promise<number> {
+  async withdrawalShares(epoch: number): Promise<ethers.BigNumber> {
     try {
       return await this.contract.withdrawalShares(epoch);
     } catch (error) {
@@ -369,7 +375,10 @@ export class VaultAPI {
    * @param account account to get the number of withdrawal shares for
    * @return number of withdrawal shares for the account at the epoch
    */
-  async withdrawalSharesOf(epoch: number, account: string): Promise<number> {
+  async withdrawalSharesOf(
+    epoch: number,
+    account: string
+  ): Promise<ethers.BigNumber> {
     validateAddress(account);
     try {
       return await this.contract.withdrawalSharesOf(epoch, account);
@@ -491,7 +500,6 @@ export class VaultAPI {
     validateAddress(onBehalfOf);
     try {
       const tx = await this.contract.deposit(onBehalfOf, amount);
-
       const receipt = await tx.wait();
 
       const { depositedAmount, mintedShares } =
@@ -725,7 +733,7 @@ export class VaultAPI {
   /**
    * @notice Set a delegator.
    * @param delegator vault's delegator to delegate the stake to networks and operators
-   * @dev Can be set only once.
+   * @dev Can be set only once, on newly created vaults.
    */
 
   async setDelegator(delegatorAddress: string): Promise<void> {
@@ -741,7 +749,7 @@ export class VaultAPI {
   /**
    * @notice Set a slasher.
    * @param slasher vault's slasher to provide a slashing mechanism to networks
-   * @dev Can be set only once.
+   * @dev Can be set only once, on newly created vaults.
    */
   async setSlasher(slasherAddress: string): Promise<void> {
     validateAddress(slasherAddress);

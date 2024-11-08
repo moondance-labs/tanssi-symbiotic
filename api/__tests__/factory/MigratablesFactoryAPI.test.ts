@@ -10,7 +10,7 @@ import { MigratableFactoryAPI } from "../../factory/migratables_factory/migratab
 import { VaultParams } from "../../types";
 import { encodeVaultParams } from "../../utils";
 
-describe("FactoryAPI", () => {
+describe("MigratableFactoryAPI", () => {
   let vaultFactoryAPI: MigratableFactoryAPI;
 
   beforeAll(async () => {

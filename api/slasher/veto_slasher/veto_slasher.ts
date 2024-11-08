@@ -67,7 +67,7 @@ export class VetoSlasherAPI extends BaseSlasherAPI {
   async vetoDuration(): Promise<number> {
     try {
       const result = await this.contract.vetoDuration();
-      return result.toNumber();
+      return result;
     } catch (error) {
       throw new Error(
         `Failed to get veto duration: ${error.message}`,

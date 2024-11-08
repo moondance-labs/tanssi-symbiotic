@@ -423,6 +423,12 @@ contract DeploySymbiotic is Script {
         console2.log("Delegator: ", delegator);
         console2.log("Slasher: ", slasher);
 
+        (address vaultSlashable, address delegatorSlashable, address slasherSlashable) =
+            createSlashableVault(VAULT_EPOCH_DURATION, false, 0, DelegatorIndex.NETWORK_RESTAKE, true);
+        console2.log("VaultSlashable: ", vaultSlashable);
+        console2.log("DelegatorSlashable: ", delegatorSlashable);
+        console2.log("SlasherSlashable: ", slasherSlashable);
+
         (address vaultVetoed, address delegatorVetoed, address slasherVetoed) =
             createVaultVetoed(VAULT_EPOCH_DURATION, false, 0, DelegatorIndex.FULL_RESTAKE, 1 days, true);
         console2.log("VaultVetoed: ", vaultVetoed);
