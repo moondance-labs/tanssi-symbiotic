@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+import {console2} from "forge-std/console2.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {EnumerableMap} from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
@@ -16,10 +17,10 @@ import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 
-import {SimpleKeyRegistry32} from "./SimpleKeyRegistry32.sol";
-import {MapWithTimeData} from "./libraries/MapWithTimeData.sol";
+import {SimpleKeyRegistry32} from "../libraries/SimpleKeyRegistry32.sol";
+import {MapWithTimeData} from "../libraries/MapWithTimeData.sol";
 
-contract SimpleMiddleware is SimpleKeyRegistry32, Ownable {
+contract Middleware is SimpleKeyRegistry32, Ownable {
     using EnumerableMap for EnumerableMap.AddressToUintMap;
     using MapWithTimeData for EnumerableMap.AddressToUintMap;
     using Subnetwork for address;
@@ -32,7 +33,7 @@ contract SimpleMiddleware is SimpleKeyRegistry32, Ownable {
     error OperarorGracePeriodNotPassed();
     error OperatorAlreadyRegistred();
 
-    error VaultAlreadyRegistred();
+    error VaultAlreadyRegistered();
     error VaultEpochTooShort();
     error VaultGracePeriodNotPassed();
 
@@ -90,7 +91,6 @@ contract SimpleMiddleware is SimpleKeyRegistry32, Ownable {
         if (_slashingWindow < _epochDuration) {
             revert SlashingWindowTooShort();
         }
-
         START_TIME = Time.timestamp();
         EPOCH_DURATION = _epochDuration;
         NETWORK = _network;
@@ -174,7 +174,7 @@ contract SimpleMiddleware is SimpleKeyRegistry32, Ownable {
         address vault
     ) external onlyOwner {
         if (vaults.contains(vault)) {
-            revert VaultAlreadyRegistred();
+            revert VaultAlreadyRegistered();
         }
 
         if (!IRegistry(VAULT_REGISTRY).isEntity(vault)) {
@@ -194,6 +194,12 @@ contract SimpleMiddleware is SimpleKeyRegistry32, Ownable {
 
         vaults.add(vault);
         vaults.enable(vault);
+    }
+
+    function isVaultRegistered(
+        address vault
+    ) external view returns (bool) {
+        return vaults.contains(vault);
     }
 
     function pauseVault(
@@ -236,7 +242,6 @@ contract SimpleMiddleware is SimpleKeyRegistry32, Ownable {
         }
 
         uint48 epochStartTs = getEpochStartTs(epoch);
-
         for (uint256 i; i < vaults.length(); ++i) {
             (address vault, uint48 enabledTime, uint48 disabledTime) = vaults.atWithTimes(i);
 
@@ -303,36 +308,53 @@ contract SimpleMiddleware is SimpleKeyRegistry32, Ownable {
         // process payload
     }
 
-    // just for example, our devnets don't support slashing
+    struct SlashParams {
+        uint48 epochStartTs;
+        address vault;
+        address operator;
+        uint256 totalOperatorStake;
+        uint256 slashAmount;
+    }
+
     function slash(uint48 epoch, address operator, uint256 amount) public onlyOwner updateStakeCache(epoch) {
-        uint48 epochStartTs = getEpochStartTs(epoch);
+        SlashParams memory params;
+        params.epochStartTs = getEpochStartTs(epoch);
+        params.operator = operator;
+        params.slashAmount = amount;
 
-        if (epochStartTs < Time.timestamp() - SLASHING_WINDOW) {
-            revert TooOldEpoch();
-        }
+        params.totalOperatorStake = getOperatorStake(operator, epoch);
 
-        uint256 totalOperatorStake = getOperatorStake(operator, epoch);
-
-        if (totalOperatorStake < amount) {
+        if (params.totalOperatorStake < amount) {
             revert TooBigSlashAmount();
         }
 
         // simple pro-rata slasher
         for (uint256 i; i < vaults.length(); ++i) {
-            (address vault, uint48 enabledTime, uint48 disabledTime) = operators.atWithTimes(i);
-
+            (address vault, uint48 enabledTime, uint48 disabledTime) = vaults.atWithTimes(i);
+            console2.log("Vault: ", vault);
+            console2.log("Enabled: ", enabledTime);
+            console2.log("Disabled: ", disabledTime);
+            console2.log("Epoch: ", params.epochStartTs);
+            console2.log("Active: ", _wasActiveAt(enabledTime, disabledTime, params.epochStartTs));
             // just skip the vault if it was enabled after the target epoch or not enabled
-            if (!_wasActiveAt(enabledTime, disabledTime, epochStartTs)) {
+            if (!_wasActiveAt(enabledTime, disabledTime, params.epochStartTs)) {
+                console2.log("skip vault", vault);
                 continue;
             }
 
-            for (uint96 j = 0; j < subnetworksCnt; ++j) {
-                bytes32 subnetwork = NETWORK.subnetwork(j);
-                uint256 vaultStake =
-                    IBaseDelegator(IVault(vault).delegator()).stakeAt(subnetwork, operator, epochStartTs, new bytes(0));
+            _processVaultSlashing(vault, params);
+        }
+    }
 
-                _slashVault(epochStartTs, vault, subnetwork, operator, amount * vaultStake / totalOperatorStake);
-            }
+    function _processVaultSlashing(address vault, SlashParams memory params) private {
+        for (uint96 j = 0; j < subnetworksCnt; ++j) {
+            bytes32 subnetwork = NETWORK.subnetwork(j);
+            uint256 vaultStake = IBaseDelegator(IVault(vault).delegator()).stakeAt(
+                subnetwork, params.operator, params.epochStartTs, new bytes(0)
+            );
+
+            uint256 slashAmount = (params.slashAmount * vaultStake) / params.totalOperatorStake;
+            _slashVault(params.epochStartTs, vault, subnetwork, params.operator, slashAmount);
         }
     }
 

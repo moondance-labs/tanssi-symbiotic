@@ -1,21 +1,22 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.25;
 
-import {Script} from "forge-std/Script.sol";
-import {SimpleMiddleware} from "src/SimpleMiddleware.sol";
+import {Script, console2} from "forge-std/Script.sol";
+import {Middleware} from "src/middleware/Middleware.sol";
 import {IRegistry} from "@symbiotic/interfaces/common/IRegistry.sol";
 import {INetworkRegistry} from "@symbiotic/interfaces/INetworkRegistry.sol";
 import {IOperatorRegistry} from "@symbiotic/interfaces/IOperatorRegistry.sol";
 import {IOptInService} from "@symbiotic/interfaces/service/IOptInService.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
+import {DevOpsTools} from "lib/foundry-devops/src/DevOpsTools.sol";
 
 contract NetworkSetup is Script {
     function run(
         address networkRegistry,
-        address[] memory vaults,
-        uint256 subnetworksCnt,
-        uint256[][] calldata networkLimits
+        address[] memory vaults, //Add vaults ehre
+        uint256 subnetworksCnt, //Add how many subnetworks
+        uint256[][] calldata networkLimits //Add network limits here
     ) external {
         require(vaults.length == networkLimits.length, "inconsistent length");
         vm.startBroadcast();
