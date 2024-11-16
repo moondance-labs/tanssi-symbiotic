@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+import {console2} from "forge-std/console2.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {EnumerableMap} from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
@@ -19,7 +20,7 @@ import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {SimpleKeyRegistry32} from "./SimpleKeyRegistry32.sol";
 import {MapWithTimeData} from "./libraries/MapWithTimeData.sol";
 
-contract SimpleMiddleware is SimpleKeyRegistry32, Ownable {
+contract Middleware is SimpleKeyRegistry32, Ownable {
     using EnumerableMap for EnumerableMap.AddressToUintMap;
     using MapWithTimeData for EnumerableMap.AddressToUintMap;
     using Subnetwork for address;
@@ -117,6 +118,78 @@ contract SimpleMiddleware is SimpleKeyRegistry32, Ownable {
 
     function getCurrentEpoch() public view returns (uint48 epoch) {
         return getEpochAtTs(Time.timestamp());
+    }
+
+    function getCurrentOperators(
+        uint48 epoch
+    ) public view returns (address[] memory activeOperators) {
+        uint48 epochStartTs = getEpochStartTs(epoch);
+
+        activeOperators = new address[](operators.length());
+        uint256 valIdx = 0;
+        for (uint256 i; i < operators.length(); ++i) {
+            (address operator, uint48 enabledTime, uint48 disabledTime) = operators.atWithTimes(i);
+
+            // just skip operator if it was added after the target epoch or paused
+            if (!_wasActiveAt(enabledTime, disabledTime, epochStartTs)) {
+                continue;
+            }
+
+            activeOperators[valIdx++] = operator;
+        }
+
+        assembly {
+            mstore(activeOperators, valIdx)
+        }
+    }
+
+    struct OperatorVaultPair {
+        address operator;
+        address[] vaults;
+    }
+
+    function getOperatorVaultPair(
+        uint48 epoch
+    ) external view returns (OperatorVaultPair[] memory operatorVaultPairs) {
+        uint48 epochStartTs = getEpochStartTs(epoch);
+
+        operatorVaultPairs = new OperatorVaultPair[](operators.length());
+        uint256 valIdx = 0;
+        for (uint256 i; i < operators.length(); ++i) {
+            (address operator, uint48 enabledTime, uint48 disabledTime) = operators.atWithTimes(i);
+
+            // just skip operator if it was added after the target epoch or paused
+            if (!_wasActiveAt(enabledTime, disabledTime, epochStartTs)) {
+                continue;
+            }
+
+            address[] memory _vaults = new address[](vaults.length());
+            uint256 vaultIdx = 0;
+            for (uint256 j; j < vaults.length(); ++j) {
+                (address vault, uint48 vaultEnabledTime, uint48 vaultDisabledTime) = vaults.atWithTimes(j);
+
+                // just skip the vault if it was enabled after the target epoch or not enabled
+                if (!_wasActiveAt(vaultEnabledTime, vaultDisabledTime, epochStartTs)) {
+                    continue;
+                }
+                uint256 operatorStake = 0;
+                console2.log("Subnetworks count: ", subnetworksCnt);
+                for (uint96 k = 0; k < subnetworksCnt; ++k) {
+                    operatorStake += IBaseDelegator(IVault(vault).delegator()).stakeAt(
+                        NETWORK.subnetwork(k), operator, epochStartTs, new bytes(0)
+                    );
+                    console2.log("Operator stake: ", operatorStake);
+                }
+                if (operatorStake > 0) {
+                    _vaults[vaultIdx++] = vault;
+                }
+            }
+            console2.log("Adding operator with vaults: ", operator);
+            console2.log("Vaults length: ", _vaults.length);
+            if (vaultIdx > 0) {
+                operatorVaultPairs[valIdx++] = OperatorVaultPair(operator, _vaults);
+            }
+        }
     }
 
     function registerOperator(address operator, bytes32 key) external onlyOwner {

@@ -2,7 +2,7 @@
 pragma solidity 0.8.25;
 
 import {Script} from "forge-std/Script.sol";
-import {SimpleMiddleware} from "src/SimpleMiddleware.sol";
+import {Middleware} from "src/Middleware.sol";
 import {IRegistry} from "@symbiotic/interfaces/common/IRegistry.sol";
 import {INetworkRegistry} from "@symbiotic/interfaces/INetworkRegistry.sol";
 import {IOperatorRegistry} from "@symbiotic/interfaces/IOperatorRegistry.sol";

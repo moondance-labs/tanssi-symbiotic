@@ -28,6 +28,12 @@ then to deploy symbiotic contracts:
 $ make deploy-symbiotic
 ```
 
+If you want to emulate the whole process of registering operators and vaults as in mainnet run the demo script:
+
+```shell
+$ make demo
+```
+
 ### Test
 
 ```shell
@@ -44,4 +50,22 @@ $ make fmt
 
 ```shell
 $ make snapshot
+```
+
+### Clean
+
+```shell
+$ make clean
+```
+
+If you encounter any issues after continuously deploying contracts, namely `MemoryOOG`, just run:
+
+```shell
+$ make clean-all
+```
+
+### Remove
+
+```shell
+$ make remove
 ```

@@ -2,7 +2,7 @@
 pragma solidity 0.8.25;
 
 import {Script} from "forge-std/Script.sol";
-import {SimpleMiddleware} from "src/SimpleMiddleware.sol";
+import {Middleware} from "src/Middleware.sol";
 
 contract Setup is Script {
     function run(
@@ -21,7 +21,7 @@ contract Setup is Script {
 
         uint48 minSlashingWindow = epochDuration; // we dont use this
 
-        SimpleMiddleware middleware = new SimpleMiddleware(
+        Middleware middleware = new Middleware(
             network, operatorRegistry, vaultRegistry, operatorNetworkOptIn, owner, epochDuration, minSlashingWindow
         );
 
