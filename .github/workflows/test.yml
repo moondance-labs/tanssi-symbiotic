@@ -86,9 +86,9 @@ jobs:
       - name: Get diff
         run: |
           if [ -s base_lcov.lcov ]; then
-            genhtml -o coverage -- coverage/current.lcov
+            genhtml -o coverage --baseline-file coverage/base_cov.lcov -- coverage/current.lcov
           else
-            genhtml -o coverage --baseline-file coverate/base_cov.lcov -- coverage/current.lcov
+            genhtml -o coverage -- coverage/current.lcov
           fi
       - name: Upload coverate to gha
         uses: actions/upload-artifact@v4
