@@ -7,10 +7,8 @@ DEFAULT_ANVIL_KEY := 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf
 
 all: clean remove install update build
 
-# Clean the repo
 clean  :; forge clean
 
-# Remove modules
 remove :; rm -rf .gitmodules && rm -rf .git/modules/* && rm -rf lib && touch .gitmodules
 
 install :; 	forge install foundry-rs/forge-std@v1.8.2 --no-commit && \
@@ -20,7 +18,6 @@ install :; 	forge install foundry-rs/forge-std@v1.8.2 --no-commit && \
 			forge install symbioticfi/rewards --no-commit && \
 			forge install Cyfrin/foundry-devops --no-commit
 
-# Update Dependencies
 update:; forge update
 
 build:; forge build
