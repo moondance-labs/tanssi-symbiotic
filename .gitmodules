@@ -10,3 +10,6 @@
 [submodule "lib/core"]
 	path = lib/core
 	url = https://github.com/symbioticfi/core
+[submodule "lib/foundry-devops"]
+	path = lib/foundry-devops
+	url = https://github.com/Cyfrin/foundry-devops
