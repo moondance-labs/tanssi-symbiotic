@@ -109,6 +109,5 @@ jobs:
       - name: Link To Report
         if: ${{(github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push') }}
         run: |
-          echo "${{steps.S3.outputs.object_key}}"
-          
+          echo "${{steps.S3.outputs.object_key}}"         
           echo "${{ vars.S3_BUCKET_URL }}/${{steps.S3.outputs.object_key}}/html/index.html"
