@@ -1,13 +1,13 @@
-// OperatorRegistryAPI.test.ts
 import { ethers } from "ethers";
 import { NetworkRegistryAPI } from "../../registry/network_registry/network_registry";
-import { NETWORK_PRIVATE_KEY } from "../../config";
+import {
+  NETWORK_ADDRESS,
+  NETWORK_PRIVATE_KEY,
+  NETWORK_REGISTRY_ADDRESS,
+} from "../../config";
 
 describe("NetworkRegistryAPI", () => {
   let networkRegistry: NetworkRegistryAPI;
-
-  const NETWORK_REGISTRY_ADDRESS = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9";
-  const DEFAULT_NETWORK_ADDRESS = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
 
   beforeAll(async () => {
     const provider = new ethers.providers.JsonRpcProvider(
@@ -36,11 +36,11 @@ describe("NetworkRegistryAPI", () => {
 
   test("entity", async () => {
     const entity = await networkRegistry.entity(1);
-    expect(entity).toBe(DEFAULT_NETWORK_ADDRESS);
+    expect(entity).toBe(NETWORK_ADDRESS);
   });
 
   test("isEntity", async () => {
-    const isEntity = await networkRegistry.isEntity(DEFAULT_NETWORK_ADDRESS);
+    const isEntity = await networkRegistry.isEntity(NETWORK_ADDRESS);
     expect(isEntity).toBe(true);
   });
 });
