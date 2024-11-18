@@ -103,6 +103,7 @@ jobs:
           echo "${{steps.S3.outputs.object_key}}"         
           echo "${{ vars.S3_BUCKET_URL }}/${{steps.S3.outputs.object_key}}/html/index.html"
       - name: Coverage Report
+        if: ${{ (needs.set-tags.outputs.coverage_report == 'true') && (github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push') }}
         uses: romeovs/lcov-reporter-action@v0.2.21
         with:
           title: "> Coverage generated ${{ steps.coverage.outputs.coverage_date }}"
