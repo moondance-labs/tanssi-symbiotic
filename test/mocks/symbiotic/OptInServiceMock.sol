@@ -25,6 +25,8 @@ contract OptInServiceMock is EIP712, IOptInService {
         WHERE_REGISTRY = whereRegistry;
     }
 
+    function test() public {}
+
     function isOptedInAt(
         address who,
         address where,

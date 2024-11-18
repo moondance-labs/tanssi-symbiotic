@@ -21,6 +21,8 @@ contract VaultMock is VaultStorage, MigratableEntity, IVault {
         address vaultFactory
     ) VaultStorage(delegatorFactory, slasherFactory) MigratableEntity(vaultFactory) {}
 
+    function test() public {}
+
     function isInitialized() external view returns (bool) {}
 
     function totalStake() external view returns (uint256) {}
