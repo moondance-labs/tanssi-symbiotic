@@ -1,4 +1,17 @@
-// SPDX-License-Identifier: MIT
+//SPDX-License-Identifier: GPL-3.0-or-later
+
+// Copyright (C) Moondance Labs Ltd.
+// This file is part of Tanssi.
+// Tanssi is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// Tanssi is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+// You should have received a copy of the GNU General Public License
+// along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
 import {console2} from "forge-std/console2.sol";
@@ -46,7 +59,7 @@ contract OptInServiceMock is EIP712, IOptInService {
         _optIn(msg.sender, where);
     }
 
-    function optIn(address who, address where, uint48 deadline, bytes calldata signature) external {
+    function optIn(address who, address where, uint48, /*deadline*/ bytes calldata /*signature*/ ) external {
         _optIn(who, where);
     }
 
@@ -56,7 +69,7 @@ contract OptInServiceMock is EIP712, IOptInService {
         _optOut(msg.sender, where);
     }
 
-    function optOut(address who, address where, uint48 deadline, bytes calldata signature) external {
+    function optOut(address who, address where, uint48, /*deadline*/ bytes calldata /* signature*/ ) external {
         _optOut(who, where);
     }
 

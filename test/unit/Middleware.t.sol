@@ -1,4 +1,17 @@
-// SPDX-License-Identifier: UNLICENSED
+//SPDX-License-Identifier: GPL-3.0-or-later
+
+// Copyright (C) Moondance Labs Ltd.
+// This file is part of Tanssi.
+// Tanssi is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// Tanssi is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+// You should have received a copy of the GNU General Public License
+// along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity ^0.8.13;
 
 import {Test, console2} from "forge-std/Test.sol";
@@ -120,7 +133,7 @@ contract MiddlewareTest is Test {
         uint48 SHORT_SLASHING_WINDOW_ = 99;
 
         vm.startPrank(owner);
-        vm.expectRevert(Middleware.SlashingWindowTooShort.selector);
+        vm.expectRevert(Middleware.Middleware__SlashingWindowTooShort.selector);
 
         new Middleware(
             address(0),
@@ -197,12 +210,12 @@ contract MiddlewareTest is Test {
     }
 
     function testInitialState() public view {
-        assertEq(middleware.NETWORK(), address(network));
-        assertEq(middleware.OPERATOR_REGISTRY(), address(registry));
-        assertEq(middleware.VAULT_REGISTRY(), address(registry));
-        assertEq(middleware.EPOCH_DURATION(), NETWORK_EPOCH_DURATION);
-        assertEq(middleware.SLASHING_WINDOW(), SLASHING_WINDOW);
-        assertEq(middleware.subnetworksCnt(), 1);
+        assertEq(middleware.i_network(), address(network));
+        assertEq(middleware.i_operatorRegistry(), address(registry));
+        assertEq(middleware.i_vaultRegistry(), address(registry));
+        assertEq(middleware.i_epochDuration(), NETWORK_EPOCH_DURATION);
+        assertEq(middleware.i_slashingWindow(), SLASHING_WINDOW);
+        assertEq(middleware.s_subnetworksCount(), 1);
     }
 
     // ************************************************************************************************
@@ -234,7 +247,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         middleware.registerOperator(operator, OPERATOR_KEY);
 
-        vm.expectRevert(Middleware.OperatorAlreadyRegistred.selector);
+        vm.expectRevert(Middleware.Middleware__OperatorAlreadyRegistred.selector);
         middleware.registerOperator(operator, OPERATOR_KEY);
         vm.stopPrank();
     }
@@ -243,7 +256,7 @@ contract MiddlewareTest is Test {
         _registerOperatorToNetwork(operator, address(vault), true, false);
 
         vm.startPrank(owner);
-        vm.expectRevert(Middleware.NotOperator.selector);
+        vm.expectRevert(Middleware.Middleware__NotOperator.selector);
         middleware.registerOperator(owner, OPERATOR_KEY);
         vm.stopPrank();
     }
@@ -252,7 +265,7 @@ contract MiddlewareTest is Test {
         _registerOperatorToNetwork(operator, address(vault), false, true);
 
         vm.startPrank(owner);
-        vm.expectRevert(Middleware.OperatorNotOptedIn.selector);
+        vm.expectRevert(Middleware.Middleware__OperatorNotOptedIn.selector);
         middleware.registerOperator(operator, OPERATOR_KEY);
         vm.stopPrank();
     }
@@ -300,7 +313,7 @@ contract MiddlewareTest is Test {
 
     function testUpdateOperatorKeyNotRegistered() public {
         vm.startPrank(owner);
-        vm.expectRevert(Middleware.OperatorNotRegistred.selector);
+        vm.expectRevert(Middleware.Middleware__OperatorNotRegistred.selector);
         middleware.updateOperatorKey(operator, OPERATOR_KEY);
         vm.stopPrank();
     }
@@ -376,7 +389,7 @@ contract MiddlewareTest is Test {
 
         middleware.pauseOperator(operator);
         vm.warp(START_TIME + SLASHING_WINDOW - 1);
-        vm.expectRevert(Middleware.OperarorGracePeriodNotPassed.selector);
+        vm.expectRevert(Middleware.Middleware__OperarorGracePeriodNotPassed.selector);
         middleware.unregisterOperator(operator);
         vm.stopPrank();
     }
@@ -411,14 +424,14 @@ contract MiddlewareTest is Test {
 
         middleware.registerVault(address(vault));
 
-        vm.expectRevert(Middleware.VaultAlreadyRegistered.selector);
+        vm.expectRevert(Middleware.Middleware__VaultAlreadyRegistered.selector);
         middleware.registerVault(address(vault));
         vm.stopPrank();
     }
 
     function testRegisterVaultNotVault() public {
         vm.startPrank(owner);
-        vm.expectRevert(Middleware.NotVault.selector);
+        vm.expectRevert(Middleware.Middleware__NotVault.selector);
         middleware.registerVault(owner);
         vm.stopPrank();
     }
@@ -429,7 +442,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         vault.setSlasher(address(vetoSlasher));
         vm.store(address(vetoSlasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        vm.expectRevert(Middleware.VaultEpochTooShort.selector);
+        vm.expectRevert(Middleware.Middleware__VaultEpochTooShort.selector);
         middleware.registerVault(address(vault));
         vm.stopPrank();
     }
@@ -524,7 +537,7 @@ contract MiddlewareTest is Test {
 
         middleware.pauseVault(address(vault));
         vm.warp(START_TIME + SLASHING_WINDOW - 1);
-        vm.expectRevert(Middleware.VaultGracePeriodNotPassed.selector);
+        vm.expectRevert(Middleware.Middleware__VaultGracePeriodNotPassed.selector);
         middleware.unregisterVault(address(vault));
         vm.stopPrank();
     }
@@ -535,31 +548,31 @@ contract MiddlewareTest is Test {
 
     function testSetSubnetworksCnt() public {
         vm.startPrank(owner);
-        middleware.setSubnetworksCnt(2);
-        assertEq(middleware.subnetworksCnt(), 2);
+        middleware.setSubnetworksCount(2);
+        assertEq(middleware.s_subnetworksCount(), 2);
         vm.stopPrank();
     }
 
     function testSetSubnetworksCntInvalidIfGreaterThanZero() public {
         vm.startPrank(owner);
-        middleware.setSubnetworksCnt(10);
-        assertEq(middleware.subnetworksCnt(), 10);
+        middleware.setSubnetworksCount(10);
+        assertEq(middleware.s_subnetworksCount(), 10);
 
-        vm.expectRevert(Middleware.InvalidSubnetworksCnt.selector);
-        middleware.setSubnetworksCnt(8);
+        vm.expectRevert(Middleware.Middleware__InvalidSubnetworksCnt.selector);
+        middleware.setSubnetworksCount(8);
         vm.stopPrank();
     }
 
     function testSetSubnetworksCntInvalid() public {
         vm.startPrank(owner);
-        vm.expectRevert(Middleware.InvalidSubnetworksCnt.selector);
-        middleware.setSubnetworksCnt(0);
+        vm.expectRevert(Middleware.Middleware__InvalidSubnetworksCnt.selector);
+        middleware.setSubnetworksCount(0);
         vm.stopPrank();
     }
 
     function testSetSubnetworksCntUnauthorized() public {
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
-        middleware.setSubnetworksCnt(2);
+        middleware.setSubnetworksCount(2);
     }
 
     // ************************************************************************************************
@@ -733,7 +746,7 @@ contract MiddlewareTest is Test {
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         vm.warp(SLASHING_WINDOW * 2 + 1);
-        vm.expectRevert(Middleware.TooOldEpoch.selector);
+        vm.expectRevert(Middleware.Middleware__TooOldEpoch.selector);
         middleware.getTotalStake(currentEpoch);
         vm.stopPrank();
     }
@@ -750,7 +763,7 @@ contract MiddlewareTest is Test {
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         vm.warp(START_TIME + SLASHING_WINDOW - 1);
-        vm.expectRevert(Middleware.InvalidEpoch.selector);
+        vm.expectRevert(Middleware.Middleware__InvalidEpoch.selector);
         middleware.getTotalStake(currentEpoch + 1);
         vm.stopPrank();
     }
@@ -874,7 +887,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         vm.warp(SLASHING_WINDOW * 2 + 1);
-        vm.expectRevert(Middleware.TooOldEpoch.selector);
+        vm.expectRevert(Middleware.Middleware__TooOldEpoch.selector);
         middleware.slash(currentEpoch, operator, OPERATOR_STAKE);
         vm.stopPrank();
     }
@@ -893,7 +906,7 @@ contract MiddlewareTest is Test {
         uint256 totalStakeCached = middleware.calcAndCacheStakes(currentEpoch);
 
         uint256 slashAmount = OPERATOR_STAKE * 2;
-        vm.expectRevert(Middleware.TooBigSlashAmount.selector);
+        vm.expectRevert(Middleware.Middleware__TooBigSlashAmount.selector);
         middleware.slash(currentEpoch, operator, slashAmount);
 
         uint256 totalStake = middleware.getTotalStake(currentEpoch);
@@ -999,7 +1012,7 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 slashAmount = OPERATOR_STAKE / 2;
-        vm.expectRevert(Middleware.UnknownSlasherType.selector);
+        vm.expectRevert(Middleware.Middleware__UnknownSlasherType.selector);
         middleware.slash(currentEpoch, operator, slashAmount);
 
         vm.stopPrank();
@@ -1044,7 +1057,7 @@ contract MiddlewareTest is Test {
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         vm.warp(SLASHING_WINDOW * 2 + 1);
-        vm.expectRevert(Middleware.TooOldEpoch.selector);
+        vm.expectRevert(Middleware.Middleware__TooOldEpoch.selector);
         middleware.calcAndCacheStakes(currentEpoch);
         vm.stopPrank();
     }
@@ -1062,7 +1075,7 @@ contract MiddlewareTest is Test {
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         vm.warp(START_TIME + SLASHING_WINDOW - 1);
-        vm.expectRevert(Middleware.InvalidEpoch.selector);
+        vm.expectRevert(Middleware.Middleware__InvalidEpoch.selector);
         middleware.calcAndCacheStakes(currentEpoch + 1);
         vm.stopPrank();
     }
