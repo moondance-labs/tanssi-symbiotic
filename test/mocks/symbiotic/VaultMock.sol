@@ -79,7 +79,7 @@ contract VaultMock is VaultStorage, MigratableEntity, IVault {
 
     function claimBatch(address recipient, uint256[] calldata epochs) external returns (uint256 amount) {}
 
-    function onSlash(uint256 amount, uint48 /*captureTimestamp*/ ) external returns (uint256 slashedAmount) {
+    function onSlash(uint256 amount, uint48 /*captureTimestamp */ ) external returns (uint256 slashedAmount) {
         totalAtStake -= amount;
         slashedAmount = amount;
         for (uint256 i = 0; i < operators.length; i++) {
