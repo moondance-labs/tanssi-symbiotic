@@ -108,7 +108,7 @@ jobs:
         with:
           title: "> Coverage generated ${{ steps.coverage.outputs.coverage_date }}"
           lcov-file: coverage/current.lcov
-          lcov-base: coverate/base_lcov.lcov
+          lcov-base: coverage/base_lcov.lcov
           filter-changed-files: true
           delete-old-comments: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
