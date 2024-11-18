@@ -81,15 +81,6 @@ jobs:
         run: |
           wget ${{ vars.S3_BUCKET_URL }}/tanssi-symbiotic-coverage/branches/master/current.lcov \
               -O coverage/base_lcov.lcov || true
-      - name: Install lcov
-        run: sudo apt install lcov
-      - name: Get diff
-        run: |
-          if [ -s base_lcov.lcov ]; then
-            genhtml -o coverage --baseline-file coverage/base_cov.lcov -- coverage/current.lcov
-          else
-            genhtml -o coverage -- coverage/current.lcov
-          fi
       - name: Upload coverate to gha
         uses: actions/upload-artifact@v4
         with:
@@ -111,3 +102,12 @@ jobs:
         run: |
           echo "${{steps.S3.outputs.object_key}}"         
           echo "${{ vars.S3_BUCKET_URL }}/${{steps.S3.outputs.object_key}}/html/index.html"
+      - name: Coverage Report
+        uses: romeovs/lcov-reporter-action@v0.2.21
+        with:
+          title: "> Coverage generated ${{ steps.coverage.outputs.coverage_date }}"
+          lcov-file: coverage/current.lcov
+          lcov-base: coverate/base_lcov.lcov
+          filter-changed-files: true
+          delete-old-comments: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
