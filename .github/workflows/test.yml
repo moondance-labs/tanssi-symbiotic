@@ -9,12 +9,41 @@ env:
   FOUNDRY_PROFILE: ci
 
 jobs:
+  set-tags:
+      runs-on: ubuntu-latest
+      outputs:
+        git_ref: ${{ steps.check-git-ref.outputs.git_ref }}
+        coverage_dir: ${{ steps.check-git-ref.outputs.coverage_dir }}
+        coverage_report: ${{ steps.check-git-ref.outputs.coverage_report }}
+        git_branch: ${{ steps.check-git-ref.outputs.git_branch }}
+        git_target_branch: ${{ steps.check-git-ref.outputs.git_target_branch }}
+      steps:
+        - name: Check git ref
+          id: check-git-ref
+          # if PR
+          # else if manual PR
+          # else (push)
+          run: |
+            if [[ -n "${{ github.event.pull_request.head.sha }}" ]]; then
+              echo "git_branch=$(echo ${GITHUB_HEAD_REF})" >> $GITHUB_OUTPUT
+              echo "git_target_branch=$(echo ${GITHUB_BASE_REF})" >> $GITHUB_OUTPUT
+              echo "git_ref=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+              echo "coverage_dir=tanssi-symbiotic-coverage/pulls/${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+              echo "coverage_report=true" >> $GITHUB_OUTPUT
+            else
+              echo "git_branch=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_OUTPUT
+              echo "git_target_branch=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_OUTPUT
+              echo "git_ref=$GITHUB_REF" >> $GITHUB_OUTPUT
+              echo "coverage_dir=tanssi-symbiotic-coverage/branches/master" >> $GITHUB_OUTPUT
+              echo "coverage_report=false" >> $GITHUB_OUTPUT
+            fi
   check:
     strategy:
       fail-fast: true
 
     name: Foundry project
     runs-on: ubuntu-latest
+    needs: ["set-tags"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -43,3 +72,43 @@ jobs:
         run: |
           forge test -vvv
         id: test
+      - name: Run Forge coverage
+        run: |
+          mkdir -p coverage
+          forge coverage --report lcov -r coverage/current.lcov
+        id: coverage
+      - name: Retrieve master coverage
+        run: |
+          wget ${{ vars.S3_BUCKET_URL }}/tanssi-symbiotic-coverage/branches/master/current.lcov \
+              -O coverage/base_lcov.lcov || true
+      - name: Upload coverate to gha
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage
+      - name: Upload coverage s3
+        if: ${{(github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push') }}
+        uses: mario-sangar/upload-s3-action@master
+        id: S3
+        with:
+          aws_key_id: ${{ secrets.S3_COVERAGE_ID }}
+          aws_secret_access_key: ${{ secrets.S3_COVERAGE_KEY }}
+          aws_bucket: ${{ vars.S3_COVERAGE_BUCKET }}
+          destination_dir: "${{ needs.set-tags.outputs.coverage_dir }}"
+          source_dir: "coverage"
+          acl: "none"
+      - name: Link To Report
+        if: ${{(github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push') }}
+        run: |
+          echo "${{steps.S3.outputs.object_key}}"         
+          echo "${{ vars.S3_BUCKET_URL }}/${{steps.S3.outputs.object_key}}/html/index.html"
+
+      - name: Coverage Report
+        if: ${{ (needs.set-tags.outputs.coverage_report == 'true') && (github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push') }}
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: "> Coverage generated ${{ steps.coverage.outputs.coverage_date }}"
+          lcov-file: coverage/current.lcov
+          lcov-base: coverage/base_lcov.lcov
+          delete-old-comments: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
