@@ -7,9 +7,6 @@
 [submodule "lib/core"]
 	path = lib/core
 	url = https://github.com/symbioticfi/core
-[submodule "lib/rewards"]
-	path = lib/rewards
-	url = https://github.com/symbioticfi/rewards
 [submodule "lib/foundry-devops"]
 	path = lib/foundry-devops
 	url = https://github.com/Cyfrin/foundry-devops

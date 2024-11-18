@@ -1,6 +1,6 @@
 -include .env
 
-.PHONY: all test clean deploy fund help install snapshot format anvil
+.PHONY: all test clean clean-all deploy install snapshot format anvil
 
 DEFAULT_ANVIL_KEY := 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 
@@ -10,6 +10,8 @@ all: clean remove install update build
 # Clean the repo
 clean  :; forge clean
 
+clean-all :; forge clean && rm -rf broadcast && rm -rf cache
+
 # Remove modules
 remove :; rm -rf .gitmodules && rm -rf .git/modules/* && rm -rf lib && touch .gitmodules
 
@@ -17,7 +19,6 @@ install :; 	forge install foundry-rs/forge-std@v1.8.2 --no-commit && \
 		 	forge install openzeppelin/openzeppelin-contracts@v5.0.2 --no-commit && \
 			forge install openzeppelin/openzeppelin-contracts-upgradeable@v5.0.2 --no-commit && \
 			forge install symbioticfi/core --no-commit  && \
-			forge install symbioticfi/rewards --no-commit && \
 			forge install Cyfrin/foundry-devops --no-commit
 
 # Update Dependencies
@@ -49,3 +50,9 @@ deploy:
 	@echo "📡 Deploying Symbiotic..."
 	@forge script script/DeploySymbiotic.s.sol ${NETWORK_ARGS}
 	@echo "✅ Symbiotic deployment completed"
+	
+demo:
+	@echo "📡 Deploying Demo..."
+	@forge script script/Demo.s.sol:Demo ${NETWORK_ARGS} --sig "run(address,address,address,address,address,address)" 0x09635F643e140090A9A8Dcd712eD6285858ceBef 0x5FC8d32690cc91D4c39d9d3abcBD16989F875707 0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512 0x610178dA211FEF7D417bC0e6FeD39F05609AD788 0x8A791620dd6260079BF849Dc5567aDC3F2FdC318
+	@echo "✅ Demo deployment completed"
+

@@ -39,12 +39,13 @@ import {Slasher} from "@symbiotic/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "@symbiotic/contracts/slasher/VetoSlasher.sol";
 import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
-
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
+
 //**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+
 //**************************************************************************************************
 //                                      DEVOPS
 //**************************************************************************************************
@@ -134,103 +135,6 @@ contract DeploySymbiotic is Script {
         address collateralAddress
     ) public {
         collateral = Token(collateralAddress);
-    }
-
-    function createBaseVault(
-        uint48 epochDuration,
-        bool depositWhitelist,
-        uint256 depositLimit,
-        DelegatorIndex delegatorIndex,
-        bool shouldBroadcast
-    ) public returns (address, address, address) {
-        return _createVault({
-            epochDuration: epochDuration,
-            depositWhitelist: depositWhitelist,
-            depositLimit: depositLimit,
-            delegatorIndex: uint8(delegatorIndex),
-            withSlasher: false,
-            slasherIndex: 0,
-            vetoDuration: 0,
-            shouldBroadcast: shouldBroadcast
-        });
-    }
-
-    function createSlashableVault(
-        uint48 epochDuration,
-        bool depositWhitelist,
-        uint256 depositLimit,
-        DelegatorIndex delegatorIndex,
-        bool shouldBroadcast
-    ) public returns (address, address, address) {
-        return _createVault({
-            epochDuration: epochDuration,
-            depositWhitelist: depositWhitelist,
-            depositLimit: depositLimit,
-            delegatorIndex: uint8(delegatorIndex),
-            withSlasher: true,
-            slasherIndex: uint8(VaultSlashType.SLASH),
-            vetoDuration: 0,
-            shouldBroadcast: shouldBroadcast
-        });
-    }
-
-    function createVaultVetoed(
-        uint48 epochDuration,
-        bool depositWhitelist,
-        uint256 depositLimit,
-        DelegatorIndex delegatorIndex,
-        uint48 vetoDuration,
-        bool shouldBroadcast
-    ) public returns (address, address, address) {
-        return _createVault({
-            epochDuration: epochDuration,
-            depositWhitelist: depositWhitelist,
-            depositLimit: depositLimit,
-            delegatorIndex: uint8(delegatorIndex),
-            withSlasher: true,
-            slasherIndex: uint8(VaultSlashType.VETO),
-            vetoDuration: vetoDuration, //TODO: Restrict this in order to be compliant with architecture
-            shouldBroadcast: shouldBroadcast
-        });
-    }
-
-    function _createVault(
-        uint48 epochDuration,
-        bool depositWhitelist,
-        uint256 depositLimit,
-        uint64 delegatorIndex,
-        bool withSlasher,
-        uint64 slasherIndex,
-        uint48 vetoDuration,
-        bool shouldBroadcast
-    ) public returns (address vault_, address delegator_, address slasher_) {
-        if (shouldBroadcast) {
-            vm.startBroadcast(ownerPrivateKey);
-        }
-        if (address(vaultConfigurator) == address(0) || address(collateral) == address(0)) {
-            revert DeploySymbiotic__VaultConfiguratorOrCollateralNotDeployed();
-        }
-        if (address(deployVault) == address(0)) {
-            deployVault = new DeployVault();
-        }
-
-        DeployVault.VaultDeployParams memory params = DeployVault.VaultDeployParams({
-            vaultConfigurator: address(vaultConfigurator),
-            owner: owner,
-            collateral: address(collateral),
-            epochDuration: epochDuration,
-            depositWhitelist: depositWhitelist,
-            depositLimit: depositLimit,
-            delegatorIndex: delegatorIndex,
-            withSlasher: withSlasher,
-            slasherIndex: slasherIndex,
-            vetoDuration: vetoDuration
-        });
-
-        (vault_, delegator_, slasher_) = deployVault.deployVault(params);
-        if (shouldBroadcast) {
-            vm.stopBroadcast();
-        }
     }
 
     function getCollateral() public returns (address) {
@@ -408,7 +312,7 @@ contract DeploySymbiotic is Script {
     }
 
     function deploySymbioticBroadcast() public returns (SymbioticAddresses memory addresses) {
-        vm.startBroadcast(ownerPrivateKey);
+        vm.startBroadcast();
         addresses = deploySymbiotic(address(0));
         vm.stopBroadcast();
     }
@@ -416,21 +320,33 @@ contract DeploySymbiotic is Script {
     function run() external {
         getCollateral();
         deploySymbioticBroadcast();
+        deployVault = new DeployVault();
 
-        (address vault, address delegator, address slasher) =
-            createBaseVault(VAULT_EPOCH_DURATION, false, 0, DelegatorIndex.NETWORK_RESTAKE, true);
+        DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
+            epochDuration: VAULT_EPOCH_DURATION,
+            depositWhitelist: false,
+            depositLimit: 0,
+            delegatorIndex: DelegatorIndex.NETWORK_RESTAKE,
+            shouldBroadcast: true,
+            vaultConfigurator: address(vaultConfigurator),
+            collateral: address(collateral)
+        });
+
+        (address vault, address delegator, address slasher) = deployVault.createBaseVault(params);
         console2.log("Vault: ", vault);
         console2.log("Delegator: ", delegator);
         console2.log("Slasher: ", slasher);
 
         (address vaultSlashable, address delegatorSlashable, address slasherSlashable) =
-            createSlashableVault(VAULT_EPOCH_DURATION, false, 0, DelegatorIndex.NETWORK_RESTAKE, true);
+            deployVault.createSlashableVault(params);
         console2.log("VaultSlashable: ", vaultSlashable);
         console2.log("DelegatorSlashable: ", delegatorSlashable);
         console2.log("SlasherSlashable: ", slasherSlashable);
 
+        params.delegatorIndex = DelegatorIndex.FULL_RESTAKE;
+
         (address vaultVetoed, address delegatorVetoed, address slasherVetoed) =
-            createVaultVetoed(VAULT_EPOCH_DURATION, false, 0, DelegatorIndex.FULL_RESTAKE, 1 days, true);
+            deployVault.createVaultVetoed(params, 1 days);
         console2.log("VaultVetoed: ", vaultVetoed);
         console2.log("DelegatorVetoed: ", delegatorVetoed);
         console2.log("SlasherVetoed: ", slasherVetoed);
