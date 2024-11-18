@@ -51,8 +51,9 @@ deploy:
 	@echo "📡 Deploying Symbiotic..."
 	@forge script script/DeploySymbiotic.s.sol ${NETWORK_ARGS}
 	@echo "✅ Symbiotic deployment completed"
-
+	
 demo:
 	@echo "📡 Deploying Demo..."
 	@forge script script/Demo.s.sol:Demo ${NETWORK_ARGS} --sig "run(address,address,address,address,address,address)" 0x09635F643e140090A9A8Dcd712eD6285858ceBef 0x5FC8d32690cc91D4c39d9d3abcBD16989F875707 0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512 0x610178dA211FEF7D417bC0e6FeD39F05609AD788 0x8A791620dd6260079BF849Dc5567aDC3F2FdC318
 	@echo "✅ Demo deployment completed"
+

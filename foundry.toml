@@ -4,12 +4,24 @@ via_ir = true
 src = "src"
 out = "out"
 libs = ["lib"]
-fs_permissions = [{ access = "read-write", path = "./"}]
+fs_permissions = [
+    { access = "read", path = "./broadcast" },
+    { access = "read", path = "./reports" },
+]
 gas_reports = ["*"]
+
+optimizer = true
+optimizer_runs = 100
+# Enable caching
+cache = true
+# Enable parallel compilation 
+force = false
+# If available, use more CPU cores
+thread_count = 16
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
 
-remappings = ['@openzeppelin/contracts=lib/openzeppelin-contracts/contracts','@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/', '@symbiotic/=lib/core/src/']
+remappings = ['@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/','@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/', '@symbiotic/=lib/core/src', '@symbiotic-rewards=lib/rewards/src/']
 
 [rpc_endpoints]
 mainnet = "${ETH_RPC_URL}"
@@ -27,6 +39,6 @@ tab_width = 4
 runs = 4096
 max_test_rejects = 262144
 
-[etherscan]
-mainnet = { key = "${ETHERSCAN_API_KEY}" }
-holesky = { key = "${ETHERSCAN_API_KEY}" }
+# [etherscan]
+# mainnet = { key = "${ETHERSCAN_API_KEY}" }
+# holesky = { key = "${ETHERSCAN_API_KEY}" }
