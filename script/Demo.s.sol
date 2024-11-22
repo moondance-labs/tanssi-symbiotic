@@ -10,7 +10,8 @@ import {OptInService} from "@symbiotic/contracts/service/OptInService.sol";
 import {Vault} from "@symbiotic/contracts/vault/Vault.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
-
+import {INetworkRestakeDelegator} from "@symbiotic/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestakeDelegator.sol";
 import {DeployCollateral} from "./DeployCollateral.s.sol";
 import {DeployVault} from "./DeployVault.s.sol";
 import {DeploySymbiotic} from "./DeploySymbiotic.s.sol";
@@ -53,7 +54,7 @@ contract Demo is Script {
     uint256 operator3PrivateKey =
         vm.envOr("OPERATOR3_PRIVATE_KEY", uint256(0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba));
     address public operator3 = vm.addr(operator3PrivateKey);
-    bytes32 public constant OPERATOR_KEY3 = bytes32(uint256(23));
+    bytes32 public constant OPERATOR_KEY3 = bytes32(uint256(3));
 
     DeployCollateral deployCollateral;
     DeployVault deployVault;
@@ -166,6 +167,34 @@ contract Demo is Script {
         deployVaults();
 
         vm.startBroadcast(ownerPrivateKey);
+        INetworkRestakeDelegator(vaultAddresses.delegator).setMaxNetworkLimit(0, 1000 ether);
+        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setMaxNetworkLimit(0, 1000 ether);
+        INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setMaxNetworkLimit(0, 1000 ether);
+        INetworkRestakeDelegator(vaultAddresses.delegator).setNetworkLimit(tanssi.subnetwork(0), 1000 ether);
+        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setNetworkLimit(tanssi.subnetwork(0), 1000 ether);
+        INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setNetworkLimit(tanssi.subnetwork(0), 1000 ether);
+
+        IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
+            tanssi.subnetwork(0), operator, 300 ether
+        );
+        IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
+            tanssi.subnetwork(0), operator2, 300 ether
+        );
+        IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
+            tanssi.subnetwork(0), operator3, 300 ether
+        );
+        INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares(tanssi.subnetwork(0), operator, 1);
+        INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares(tanssi.subnetwork(0), operator2, 1);
+        INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares(tanssi.subnetwork(0), operator3, 1);
+        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setOperatorNetworkShares(
+            tanssi.subnetwork(0), operator, 1
+        );
+        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setOperatorNetworkShares(
+            tanssi.subnetwork(0), operator2, 1
+        );
+        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setOperatorNetworkShares(
+            tanssi.subnetwork(0), operator3, 1
+        );
         middleware = new Middleware(
             tanssi,
             _operatorRegistry,
@@ -175,7 +204,7 @@ contract Demo is Script {
             NETWORK_EPOCH_DURATION,
             SLASHING_WINDOW
         );
-
+        console2.log("Middleware: ", address(middleware));
         //Already registered during deployment
         // networkRegistry.registerNetwork();
         vm.stopBroadcast();
