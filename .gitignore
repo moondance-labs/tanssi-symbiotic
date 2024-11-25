@@ -14,5 +14,3 @@ docs/
 .env
 
 .history/
-
-**/node_modules/
