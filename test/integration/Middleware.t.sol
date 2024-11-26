@@ -357,7 +357,7 @@ contract MiddlewareTest is Test {
 
     function testIfOperatorsAreRegisteredInVaults() public view {
         uint48 currentEpoch = middleware.getCurrentEpoch();
-        Middleware.OperatorVaultPair[] memory operatorVaultPairs = middleware.getOperatorVaultPair(currentEpoch);
+        Middleware.OperatorVaultPair[] memory operatorVaultPairs = middleware.getOperatorVaultPairs(currentEpoch);
         assertEq(operatorVaultPairs.length, 3);
         assertEq(operatorVaultPairs[0].operator, operator);
         assertEq(operatorVaultPairs[1].operator, operator2);
@@ -373,7 +373,7 @@ contract MiddlewareTest is Test {
         Middleware.ValidatorData[] memory validators = middleware.getValidatorSet(currentEpoch);
         assertEq(validators.length, 3);
 
-        Middleware.OperatorVaultPair[] memory operatorVaultPairs = middleware.getOperatorVaultPair(currentEpoch);
+        Middleware.OperatorVaultPair[] memory operatorVaultPairs = middleware.getOperatorVaultPairs(currentEpoch);
         assertEq(operatorVaultPairs.length, 3);
         assertEq(operatorVaultPairs[0].operator, operator);
         assertEq(operatorVaultPairs[1].operator, operator2);
