@@ -352,7 +352,6 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
         if (params.totalOperatorStake < amount) {
             revert Middleware__TooBigSlashAmount();
         }
-        console2.log("I'm inside slash");
         // simple pro-rata slasher
         for (uint256 i; i < s_vaults.length(); ++i) {
             (address vault, uint48 enabledTime, uint48 disabledTime) = s_vaults.atWithTimes(i);
@@ -373,12 +372,10 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
     function _processVaultSlashing(address vault, SlashParams memory params) private {
         for (uint96 j = 0; j < s_subnetworksCount; ++j) {
             bytes32 subnetwork = i_network.subnetwork(j);
+            //! This can be manipulated. I get slashed for 100 ETH, but if I participate to multiple vaults without any slashing, I can get slashed for far lower amount of ETH
             uint256 vaultStake = IBaseDelegator(IVault(vault).delegator()).stakeAt(
                 subnetwork, params.operator, params.epochStartTs, new bytes(0)
             );
-            console2.log("SlashAmount: ", params.slashAmount);
-            console2.log("VaultStake: ", vaultStake);
-            console2.log("TotalOperatorStake: ", params.totalOperatorStake);
             uint256 slashAmount = (params.slashAmount * vaultStake) / params.totalOperatorStake;
             _slashVault(params.epochStartTs, vault, subnetwork, params.operator, slashAmount);
         }
@@ -400,7 +397,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
         uint256 amount
     ) private {
         address slasher = IVault(vault).slasher();
-        if (slasher == address(0)) {
+        if (slasher == address(0) || amount == 0) {
             return;
         }
         uint256 slasherType = IEntity(slasher).TYPE();
@@ -446,7 +443,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
      * @param epoch The epoch number
      * @return operatorVaultPairs Array of operator-vault pairs
      */
-    function getOperatorVaultPair(
+    function getOperatorVaultPairs(
         uint48 epoch
     ) external view returns (OperatorVaultPair[] memory operatorVaultPairs) {
         uint48 epochStartTs = getEpochStartTs(epoch);
@@ -461,31 +458,38 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
                 continue;
             }
 
-            address[] memory _vaults = new address[](s_vaults.length());
-            uint256 vaultIdx = 0;
-            for (uint256 j; j < s_vaults.length(); ++j) {
-                (address vault, uint48 vaultEnabledTime, uint48 vaultDisabledTime) = s_vaults.atWithTimes(j);
-
-                // just skip the vault if it was enabled after the target epoch or not enabled
-                if (!_wasActiveAt(vaultEnabledTime, vaultDisabledTime, epochStartTs)) {
-                    continue;
-                }
-                uint256 operatorStake = 0;
-                for (uint96 k = 0; k < s_subnetworksCount; ++k) {
-                    operatorStake += IBaseDelegator(IVault(vault).delegator()).stakeAt(
-                        i_network.subnetwork(k), operator, epochStartTs, new bytes(0)
-                    );
-                }
-
-                if (operatorStake > 0) {
-                    _vaults[vaultIdx++] = vault;
-                }
-            }
+            (uint256 vaultIdx, address[] memory _vaults) = _getOperatorVaults(operator, epochStartTs);
             assembly {
                 mstore(_vaults, vaultIdx)
             }
             if (vaultIdx > 0) {
                 operatorVaultPairs[valIdx++] = OperatorVaultPair(operator, _vaults);
+            }
+        }
+    }
+
+    function _getOperatorVaults(
+        address operator,
+        uint48 epochStartTs
+    ) private view returns (uint256 vaultIdx, address[] memory _vaults) {
+        _vaults = new address[](s_vaults.length());
+        vaultIdx = 0;
+        for (uint256 j; j < s_vaults.length(); ++j) {
+            (address vault, uint48 vaultEnabledTime, uint48 vaultDisabledTime) = s_vaults.atWithTimes(j);
+
+            // just skip the vault if it was enabled after the target epoch or not enabled
+            if (!_wasActiveAt(vaultEnabledTime, vaultDisabledTime, epochStartTs)) {
+                continue;
+            }
+            uint256 operatorStake = 0;
+            for (uint96 k = 0; k < s_subnetworksCount; ++k) {
+                operatorStake += IBaseDelegator(IVault(vault).delegator()).stakeAt(
+                    i_network.subnetwork(k), operator, epochStartTs, new bytes(0)
+                );
+            }
+
+            if (operatorStake > 0) {
+                _vaults[vaultIdx++] = vault;
             }
         }
     }
@@ -527,8 +531,6 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
                 );
             }
         }
-        // 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
-        //   Active Operator:  0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65
         return stake;
     }
 

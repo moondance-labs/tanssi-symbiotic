@@ -267,6 +267,14 @@ contract Demo is Script {
             console2.log("Active Operator: ", activeOperators[i]);
         }
 
+        Middleware.OperatorVaultPair[] memory operatorVaultPairs = middleware.getOperatorVaultPairs(currentEpoch);
+        for (uint256 i = 0; i < operatorVaultPairs.length; i++) {
+            console2.log("Operator: ", operatorVaultPairs[i].operator);
+            for (uint256 j = 0; j < operatorVaultPairs[i].vaults.length; j++) {
+                console2.log("Vault: ", operatorVaultPairs[i].vaults[j]);
+            }
+        }
+
         vm.stopBroadcast();
     }
 }
