@@ -115,7 +115,6 @@ export class MigratableFactoryAPI {
 
       return lastEvent.args[0];
     } catch (error) {
-      console.log(error);
       throw new Error(`Failed to create entity: ${error.message}`);
     }
   }

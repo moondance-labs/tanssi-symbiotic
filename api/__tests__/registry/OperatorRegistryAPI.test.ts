@@ -1,13 +1,13 @@
-// OperatorRegistryAPI.test.ts
 import { ethers } from "ethers";
 import { OperatorRegistryAPI } from "../../registry/operator_registry/operator_registry";
-import { OPERATOR_PRIVATE_KEY } from "../../config";
+import {
+  OPERATOR_ADDRESS,
+  OPERATOR_PRIVATE_KEY,
+  OPERATOR_REGISTRY_ADDRESS,
+} from "../../config";
 
 describe("OperatorRegistryAPI", () => {
   let operatorRegistry: OperatorRegistryAPI;
-  const OPERATOR_REGISTRY_ADDRESS =
-    "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707";
-  const DEFAULT_OPERATOR_ADDRESS = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC";
 
   beforeAll(async () => {
     const provider = new ethers.providers.JsonRpcProvider(
@@ -40,11 +40,11 @@ describe("OperatorRegistryAPI", () => {
 
   test("entity", async () => {
     const entity = await operatorRegistry.entity(0);
-    expect(entity).toBe(DEFAULT_OPERATOR_ADDRESS);
+    expect(entity).toBe(OPERATOR_ADDRESS);
   });
 
   test("isEntity", async () => {
-    const isEntity = await operatorRegistry.isEntity(DEFAULT_OPERATOR_ADDRESS);
+    const isEntity = await operatorRegistry.isEntity(OPERATOR_ADDRESS);
     expect(isEntity).toBe(true);
   });
 });

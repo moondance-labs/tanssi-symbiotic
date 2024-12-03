@@ -14,7 +14,11 @@ import {IBaseSlasher} from "@symbiotic/interfaces/slasher/IBaseSlasher.sol";
 import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 
+import {DeploySymbiotic} from "./DeploySymbiotic.s.sol";
+
 contract DeployVault is Script {
+    error DeployVault__VaultConfiguratorOrCollateralNotDeployed();
+
     struct VaultDeployParams {
         address vaultConfigurator;
         address owner;
@@ -26,6 +30,79 @@ contract DeployVault is Script {
         bool withSlasher;
         uint64 slasherIndex;
         uint48 vetoDuration;
+    }
+
+    struct CreateVaultBaseParams {
+        uint48 epochDuration;
+        bool depositWhitelist;
+        uint256 depositLimit;
+        DeploySymbiotic.DelegatorIndex delegatorIndex;
+        bool shouldBroadcast;
+        address vaultConfigurator;
+        address collateral;
+    }
+
+    function createBaseVault(
+        CreateVaultBaseParams memory params
+    ) public returns (address, address, address) {
+        return _createVault({params: params, withSlasher: false, slasherIndex: 0, vetoDuration: 0});
+    }
+
+    function createSlashableVault(
+        CreateVaultBaseParams memory params
+    ) public returns (address, address, address) {
+        return _createVault({
+            params: params,
+            withSlasher: true,
+            slasherIndex: uint8(DeploySymbiotic.VaultSlashType.SLASH),
+            vetoDuration: 0
+        });
+    }
+
+    function createVaultVetoed(
+        CreateVaultBaseParams memory params,
+        uint48 vetoDuration
+    ) public returns (address, address, address) {
+        return _createVault({
+            params: params,
+            withSlasher: true,
+            slasherIndex: uint8(DeploySymbiotic.VaultSlashType.VETO),
+            vetoDuration: vetoDuration //TODO: Restrict this in order to be compliant with architecture
+        });
+    }
+
+    function _createVault(
+        CreateVaultBaseParams memory params,
+        uint64 slasherIndex,
+        bool withSlasher,
+        uint48 vetoDuration
+    ) public returns (address vault_, address delegator_, address slasher_) {
+        if (address(params.vaultConfigurator) == address(0) || address(params.collateral) == address(0)) {
+            revert DeployVault__VaultConfiguratorOrCollateralNotDeployed();
+        }
+        uint256 ownerPrivateKey =
+            vm.envOr("OWNER_PRIVATE_KEY", uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80));
+        address owner = vm.addr(ownerPrivateKey);
+        VaultDeployParams memory deployParams = VaultDeployParams({
+            vaultConfigurator: address(params.vaultConfigurator),
+            owner: owner,
+            collateral: address(params.collateral),
+            epochDuration: params.epochDuration,
+            depositWhitelist: params.depositWhitelist,
+            depositLimit: params.depositLimit,
+            delegatorIndex: uint64(params.delegatorIndex),
+            withSlasher: withSlasher,
+            slasherIndex: slasherIndex,
+            vetoDuration: vetoDuration
+        });
+
+        if (params.shouldBroadcast) {
+            vm.startBroadcast();
+        }
+        (vault_, delegator_, slasher_) = deployVault(deployParams);
+        if (params.shouldBroadcast) {
+            vm.stopBroadcast();
+        }
     }
 
     function deployVault(
@@ -124,7 +201,7 @@ contract DeployVault is Script {
 
     function run(
         address vaultConfigurator,
-        address owner,
+        address _owner,
         address collateral,
         uint48 epochDuration,
         bool depositWhitelist,
@@ -138,7 +215,7 @@ contract DeployVault is Script {
 
         VaultDeployParams memory params = VaultDeployParams({
             vaultConfigurator: vaultConfigurator,
-            owner: owner,
+            owner: _owner,
             collateral: collateral,
             epochDuration: epochDuration,
             depositWhitelist: depositWhitelist,

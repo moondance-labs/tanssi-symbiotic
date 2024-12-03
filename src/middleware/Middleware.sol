@@ -14,6 +14,8 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
+import {console2} from "forge-std/console2.sol";
+
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {EnumerableMap} from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
@@ -64,6 +66,11 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
         address operator;
         uint256 totalOperatorStake;
         uint256 slashAmount;
+    }
+
+    struct OperatorVaultPair {
+        address operator;
+        address[] vaults;
     }
 
     address public immutable i_network;
@@ -345,7 +352,6 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
         if (params.totalOperatorStake < amount) {
             revert Middleware__TooBigSlashAmount();
         }
-
         // simple pro-rata slasher
         for (uint256 i; i < s_vaults.length(); ++i) {
             (address vault, uint48 enabledTime, uint48 disabledTime) = s_vaults.atWithTimes(i);
@@ -366,10 +372,10 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
     function _processVaultSlashing(address vault, SlashParams memory params) private {
         for (uint96 j = 0; j < s_subnetworksCount; ++j) {
             bytes32 subnetwork = i_network.subnetwork(j);
+            //! This can be manipulated. I get slashed for 100 ETH, but if I participate to multiple vaults without any slashing, I can get slashed for far lower amount of ETH
             uint256 vaultStake = IBaseDelegator(IVault(vault).delegator()).stakeAt(
                 subnetwork, params.operator, params.epochStartTs, new bytes(0)
             );
-
             uint256 slashAmount = (params.slashAmount * vaultStake) / params.totalOperatorStake;
             _slashVault(params.epochStartTs, vault, subnetwork, params.operator, slashAmount);
         }
@@ -391,6 +397,9 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
         uint256 amount
     ) private {
         address slasher = IVault(vault).slasher();
+        if (slasher == address(0) || amount == 0) {
+            return;
+        }
         uint256 slasherType = IEntity(slasher).TYPE();
         if (slasherType == INSTANT_SLASHER_TYPE) {
             ISlasher(slasher).slash(subnetwork, operator, amount, timestamp, new bytes(0));
@@ -402,24 +411,17 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
     }
 
     /**
-     * @dev Calculates total stake for an epoch
-     * @param epoch The epoch to calculate stake for
-     * @return totalStake The total stake amount
+     * @notice Gets how many operators were active at a specific epoch
+     * @param epoch The epoch at which to check how many operators were active
+     * @return activeOperators The array of active operators
      */
-    function _calcTotalStake(
+    function getCurrentOperators(
         uint48 epoch
-    ) private view returns (uint256 totalStake) {
+    ) external view returns (address[] memory activeOperators) {
         uint48 epochStartTs = getEpochStartTs(epoch);
 
-        // for epoch older than i_slashingWindow total stake can be invalidated (use cache)
-        if (epochStartTs < Time.timestamp() - i_slashingWindow) {
-            revert Middleware__TooOldEpoch();
-        }
-
-        if (epochStartTs > Time.timestamp()) {
-            revert Middleware__InvalidEpoch();
-        }
-
+        activeOperators = new address[](s_operators.length());
+        uint256 valIdx = 0;
         for (uint256 i; i < s_operators.length(); ++i) {
             (address operator, uint48 enabledTime, uint48 disabledTime) = s_operators.atWithTimes(i);
 
@@ -428,20 +430,68 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
                 continue;
             }
 
-            uint256 operatorStake = getOperatorStake(operator, epoch);
-            totalStake += operatorStake;
+            activeOperators[valIdx++] = operator;
+        }
+
+        assembly {
+            mstore(activeOperators, valIdx)
         }
     }
 
     /**
-     * @dev Checks if an entity was active at a specific timestamp
-     * @param enabledTime Time when entity was enabled
-     * @param disabledTime Time when entity was disabled (0 if never disabled)
-     * @param timestamp Timestamp to check activity for
-     * @return bool True if entity was active at timestamp
+     * @notice Gets operator-vault pairs for an epoch
+     * @param epoch The epoch number
+     * @return operatorVaultPairs Array of operator-vault pairs
      */
-    function _wasActiveAt(uint48 enabledTime, uint48 disabledTime, uint48 timestamp) private pure returns (bool) {
-        return enabledTime != 0 && enabledTime <= timestamp && (disabledTime == 0 || disabledTime >= timestamp);
+    function getOperatorVaultPairs(
+        uint48 epoch
+    ) external view returns (OperatorVaultPair[] memory operatorVaultPairs) {
+        uint48 epochStartTs = getEpochStartTs(epoch);
+
+        operatorVaultPairs = new OperatorVaultPair[](s_operators.length());
+        uint256 valIdx = 0;
+        for (uint256 i; i < s_operators.length(); ++i) {
+            (address operator, uint48 enabledTime, uint48 disabledTime) = s_operators.atWithTimes(i);
+
+            // just skip operator if it was added after the target epoch or paused
+            if (!_wasActiveAt(enabledTime, disabledTime, epochStartTs)) {
+                continue;
+            }
+
+            (uint256 vaultIdx, address[] memory _vaults) = _getOperatorVaults(operator, epochStartTs);
+            assembly {
+                mstore(_vaults, vaultIdx)
+            }
+            if (vaultIdx > 0) {
+                operatorVaultPairs[valIdx++] = OperatorVaultPair(operator, _vaults);
+            }
+        }
+    }
+
+    function _getOperatorVaults(
+        address operator,
+        uint48 epochStartTs
+    ) private view returns (uint256 vaultIdx, address[] memory _vaults) {
+        _vaults = new address[](s_vaults.length());
+        vaultIdx = 0;
+        for (uint256 j; j < s_vaults.length(); ++j) {
+            (address vault, uint48 vaultEnabledTime, uint48 vaultDisabledTime) = s_vaults.atWithTimes(j);
+
+            // just skip the vault if it was enabled after the target epoch or not enabled
+            if (!_wasActiveAt(vaultEnabledTime, vaultDisabledTime, epochStartTs)) {
+                continue;
+            }
+            uint256 operatorStake = 0;
+            for (uint96 k = 0; k < s_subnetworksCount; ++k) {
+                operatorStake += IBaseDelegator(IVault(vault).delegator()).stakeAt(
+                    i_network.subnetwork(k), operator, epochStartTs, new bytes(0)
+                );
+            }
+
+            if (operatorStake > 0) {
+                _vaults[vaultIdx++] = vault;
+            }
+        }
     }
 
     /**
@@ -481,7 +531,6 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
                 );
             }
         }
-
         return stake;
     }
 
@@ -565,5 +614,48 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
      */
     function getCurrentEpoch() public view returns (uint48 epoch) {
         return getEpochAtTs(Time.timestamp());
+    }
+
+    /**
+     * @dev Calculates total stake for an epoch
+     * @param epoch The epoch to calculate stake for
+     * @return totalStake The total stake amount
+     */
+    function _calcTotalStake(
+        uint48 epoch
+    ) private view returns (uint256 totalStake) {
+        uint48 epochStartTs = getEpochStartTs(epoch);
+
+        // for epoch older than i_slashingWindow total stake can be invalidated (use cache)
+        if (epochStartTs < Time.timestamp() - i_slashingWindow) {
+            revert Middleware__TooOldEpoch();
+        }
+
+        if (epochStartTs > Time.timestamp()) {
+            revert Middleware__InvalidEpoch();
+        }
+
+        for (uint256 i; i < s_operators.length(); ++i) {
+            (address operator, uint48 enabledTime, uint48 disabledTime) = s_operators.atWithTimes(i);
+
+            // just skip operator if it was added after the target epoch or paused
+            if (!_wasActiveAt(enabledTime, disabledTime, epochStartTs)) {
+                continue;
+            }
+
+            uint256 operatorStake = getOperatorStake(operator, epoch);
+            totalStake += operatorStake;
+        }
+    }
+
+    /**
+     * @dev Checks if an entity was active at a specific timestamp
+     * @param enabledTime Time when entity was enabled
+     * @param disabledTime Time when entity was disabled (0 if never disabled)
+     * @param timestamp Timestamp to check activity for
+     * @return bool True if entity was active at timestamp
+     */
+    function _wasActiveAt(uint48 enabledTime, uint48 disabledTime, uint48 timestamp) private pure returns (bool) {
+        return enabledTime != 0 && enabledTime <= timestamp && (disabledTime == 0 || disabledTime >= timestamp);
     }
 }

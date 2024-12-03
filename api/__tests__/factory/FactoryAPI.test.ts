@@ -18,9 +18,7 @@ import {
 } from "../../types";
 import {
   encodeDelegatorFactoryParams,
-  encodeDelegatorParams,
   encodeSlasherFactoryParams,
-  encodeSlasherParams,
   encodeVaultParams,
 } from "../../utils";
 import { MigratableFactoryAPI } from "../../factory/migratables_factory/migratable_factory";
