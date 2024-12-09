@@ -10,33 +10,33 @@ env:
 
 jobs:
   set-tags:
-      runs-on: ubuntu-latest
-      outputs:
-        git_ref: ${{ steps.check-git-ref.outputs.git_ref }}
-        coverage_dir: ${{ steps.check-git-ref.outputs.coverage_dir }}
-        coverage_report: ${{ steps.check-git-ref.outputs.coverage_report }}
-        git_branch: ${{ steps.check-git-ref.outputs.git_branch }}
-        git_target_branch: ${{ steps.check-git-ref.outputs.git_target_branch }}
-      steps:
-        - name: Check git ref
-          id: check-git-ref
-          # if PR
-          # else if manual PR
-          # else (push)
-          run: |
-            if [[ -n "${{ github.event.pull_request.head.sha }}" ]]; then
-              echo "git_branch=$(echo ${GITHUB_HEAD_REF})" >> $GITHUB_OUTPUT
-              echo "git_target_branch=$(echo ${GITHUB_BASE_REF})" >> $GITHUB_OUTPUT
-              echo "git_ref=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
-              echo "coverage_dir=tanssi-symbiotic-coverage/pulls/${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
-              echo "coverage_report=true" >> $GITHUB_OUTPUT
-            else
-              echo "git_branch=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_OUTPUT
-              echo "git_target_branch=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_OUTPUT
-              echo "git_ref=$GITHUB_REF" >> $GITHUB_OUTPUT
-              echo "coverage_dir=tanssi-symbiotic-coverage/branches/master" >> $GITHUB_OUTPUT
-              echo "coverage_report=false" >> $GITHUB_OUTPUT
-            fi
+    runs-on: ubuntu-latest
+    outputs:
+      git_ref: ${{ steps.check-git-ref.outputs.git_ref }}
+      coverage_dir: ${{ steps.check-git-ref.outputs.coverage_dir }}
+      coverage_report: ${{ steps.check-git-ref.outputs.coverage_report }}
+      git_branch: ${{ steps.check-git-ref.outputs.git_branch }}
+      git_target_branch: ${{ steps.check-git-ref.outputs.git_target_branch }}
+    steps:
+      - name: Check git ref
+        id: check-git-ref
+        # if PR
+        # else if manual PR
+        # else (push)
+        run: |
+          if [[ -n "${{ github.event.pull_request.head.sha }}" ]]; then
+            echo "git_branch=$(echo ${GITHUB_HEAD_REF})" >> $GITHUB_OUTPUT
+            echo "git_target_branch=$(echo ${GITHUB_BASE_REF})" >> $GITHUB_OUTPUT
+            echo "git_ref=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+            echo "coverage_dir=tanssi-symbiotic-coverage/pulls/${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+            echo "coverage_report=true" >> $GITHUB_OUTPUT
+          else
+            echo "git_branch=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_OUTPUT
+            echo "git_target_branch=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_OUTPUT
+            echo "git_ref=$GITHUB_REF" >> $GITHUB_OUTPUT
+            echo "coverage_dir=tanssi-symbiotic-coverage/branches/master" >> $GITHUB_OUTPUT
+            echo "coverage_report=false" >> $GITHUB_OUTPUT
+          fi
   check:
     strategy:
       fail-fast: true
@@ -77,7 +77,7 @@ jobs:
 
       - name: Run Forge tests
         run: |
-          forge test -vvv
+          forge test -vvvv
         id: test
       - name: Run Forge coverage
         run: |
