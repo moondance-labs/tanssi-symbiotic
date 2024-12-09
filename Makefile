@@ -18,6 +18,7 @@ install :; 	forge install foundry-rs/forge-std@v1.8.2 --no-commit && \
 		 	forge install openzeppelin/openzeppelin-contracts@v5.0.2 --no-commit && \
 			forge install openzeppelin/openzeppelin-contracts-upgradeable@v5.0.2 --no-commit && \
 			forge install symbioticfi/core --no-commit  && \
+			forge install symbioticfi/collateral --no-commit  && \
 			forge install Cyfrin/foundry-devops --no-commit
 
 update:; forge update

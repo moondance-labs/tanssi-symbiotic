@@ -65,27 +65,27 @@ contract Demo is Script {
     OptInService operatorVaultOptInService;
 
     Middleware middleware;
-    Token sthETHToken;
+    Token stETHToken;
     Token rETHToken;
     Token wBTCToken;
 
     VaultAddresses public vaultAddresses;
 
     function deployTokens() public returns (address, address, address) {
-        address sthETH = deployCollateral.deployCollateralBroadcast("sthETH");
+        address stETH = deployCollateral.deployCollateralBroadcast("stETH");
         console2.log(" ");
         address rETH = deployCollateral.deployCollateralBroadcast("rETH");
         console2.log(" ");
         address wBTC = deployCollateral.deployCollateralBroadcast("wBTC");
         console2.log(" ");
 
-        sthETHToken = Token(sthETH);
+        stETHToken = Token(stETH);
         rETHToken = Token(rETH);
         wBTCToken = Token(wBTC);
 
         vm.startBroadcast(ownerPrivateKey);
-        sthETHToken.transfer(operator, 1000 ether);
-        sthETHToken.transfer(operator3, 1000 ether);
+        stETHToken.transfer(operator, 1000 ether);
+        stETHToken.transfer(operator3, 1000 ether);
 
         rETHToken.transfer(operator, 1000 ether);
         rETHToken.transfer(operator2, 1000 ether);
@@ -94,7 +94,7 @@ contract Demo is Script {
         wBTCToken.transfer(operator3, 1000 ether);
         vm.stopBroadcast();
 
-        return (sthETH, rETH, wBTC);
+        return (stETH, rETH, wBTC);
     }
 
     function deployVaults() public returns (VaultAddresses memory) {
@@ -105,7 +105,8 @@ contract Demo is Script {
             delegatorIndex: DeploySymbiotic.DelegatorIndex.NETWORK_RESTAKE,
             shouldBroadcast: true,
             vaultConfigurator: address(vaultConfigurator),
-            collateral: address(sthETHToken)
+            collateral: address(stETHToken),
+            owner: tanssi
         });
 
         (vaultAddresses.vault, vaultAddresses.delegator, vaultAddresses.slasher) = deployVault.createBaseVault(params);
@@ -237,7 +238,7 @@ contract Demo is Script {
         vm.stopBroadcast();
 
         vm.startBroadcast(operatorPrivateKey);
-        sthETHToken.approve(vaultAddresses.vault, 1000 ether);
+        stETHToken.approve(vaultAddresses.vault, 1000 ether);
         vault.deposit{gas: 600_000}(operator, 1000 ether);
 
         rETHToken.approve(vaultAddresses.vaultSlashable, 1000 ether);
@@ -250,7 +251,7 @@ contract Demo is Script {
         vm.stopBroadcast();
 
         vm.startBroadcast(operator3PrivateKey);
-        sthETHToken.approve(vaultAddresses.vault, 1000 ether);
+        stETHToken.approve(vaultAddresses.vault, 1000 ether);
         vault.deposit{gas: 600_000}(operator3, 1000 ether);
 
         rETHToken.approve(vaultAddresses.vaultSlashable, 1000 ether);

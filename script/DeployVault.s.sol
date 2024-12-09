@@ -40,6 +40,7 @@ contract DeployVault is Script {
         bool shouldBroadcast;
         address vaultConfigurator;
         address collateral;
+        address owner;
     }
 
     function createBaseVault(
@@ -85,7 +86,7 @@ contract DeployVault is Script {
         address owner = vm.addr(ownerPrivateKey);
         VaultDeployParams memory deployParams = VaultDeployParams({
             vaultConfigurator: address(params.vaultConfigurator),
-            owner: owner,
+            owner: params.owner != address(0) ? params.owner : owner,
             collateral: address(params.collateral),
             epochDuration: params.epochDuration,
             depositWhitelist: params.depositWhitelist,

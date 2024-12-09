@@ -75,7 +75,7 @@ contract DeploySymbiotic is Script {
     address public operator = vm.addr(operatorPrivateKey);
 
     VaultConfigurator vaultConfigurator;
-    Token collateral;
+    Token public collateral;
     DeployVault deployVault;
 
     struct SymbioticAddresses {
@@ -312,7 +312,7 @@ contract DeploySymbiotic is Script {
     }
 
     function deploySymbioticBroadcast() public returns (SymbioticAddresses memory addresses) {
-        vm.startBroadcast();
+        vm.startBroadcast(ownerPrivateKey);
         addresses = deploySymbiotic(address(0));
         vm.stopBroadcast();
     }
@@ -329,7 +329,8 @@ contract DeploySymbiotic is Script {
             delegatorIndex: DelegatorIndex.NETWORK_RESTAKE,
             shouldBroadcast: true,
             vaultConfigurator: address(vaultConfigurator),
-            collateral: address(collateral)
+            collateral: address(collateral),
+            owner: owner
         });
 
         (address vault, address delegator, address slasher) = deployVault.createBaseVault(params);
