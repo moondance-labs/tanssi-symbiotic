@@ -599,9 +599,8 @@ contract MiddlewareTest is Test {
         INetworkRestakeDelegator(vaultAddresses.delegator).setNetworkLimit(
             network2.subnetwork(0), OPERATOR_NETWORK_LIMIT
         );
-
-        // Operator4 registration and network configuration
         _registerOperator(operator4, network2, address(vault));
+
         vm.startPrank(network2);
         Middleware middleware2 = new Middleware(
             network2,
@@ -615,18 +614,22 @@ contract MiddlewareTest is Test {
         networkMiddlewareService.setMiddleware(address(middleware2));
         middleware2.registerVault(address(vault));
         middleware2.registerOperator(operator4, OPERATOR4_KEY);
-
         vm.stopPrank();
+
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
-        uint48 middleware2CurrentEpoch = middleware2.getCurrentEpoch();
-        Middleware.OperatorVaultPair[] memory operator2VaultPairs =
-            middleware2.getOperatorVaultPairs(middleware2CurrentEpoch);
-        assertEq(operator2VaultPairs.length, 1);
-        assertEq(operator2VaultPairs[0].operator, operator4);
-        assertEq(operator2VaultPairs[0].vaults.length, 1);
+
         uint48 middlewareCurrentEpoch = middleware.getCurrentEpoch();
         Middleware.OperatorVaultPair[] memory operatorVaultPairs =
             middleware.getOperatorVaultPairs(middlewareCurrentEpoch);
+
+        uint48 middleware2CurrentEpoch = middleware2.getCurrentEpoch();
+        Middleware.OperatorVaultPair[] memory operator2VaultPairs =
+            middleware2.getOperatorVaultPairs(middleware2CurrentEpoch);
+
+        assertEq(operator2VaultPairs.length, 1);
+        assertEq(operator2VaultPairs[0].operator, operator4);
+        assertEq(operator2VaultPairs[0].vaults.length, 1);
+
         for (uint256 i = 0; i < operatorVaultPairs.length; i++) {
             assert(operatorVaultPairs[i].operator != operator4);
         }
