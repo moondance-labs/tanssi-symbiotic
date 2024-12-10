@@ -90,7 +90,7 @@ jobs:
       - name: Run Forge coverage
         run: |
           mkdir -p coverage
-          forge coverage --report lcov -r coverage/current.lcov
+          forge coverage --report lcov -r coverage/current.lcov --nmp test/fork/*
         id: coverage
       - name: Retrieve master coverage
         run: |
