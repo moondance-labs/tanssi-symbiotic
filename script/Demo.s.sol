@@ -1,4 +1,17 @@
-// SPDX-License-Identifier: UNLICENSED
+//SPDX-License-Identifier: GPL-3.0-or-later
+
+// Copyright (C) Moondance Labs Ltd.
+// This file is part of Tanssi.
+// Tanssi is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// Tanssi is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+// You should have received a copy of the GNU General Public License
+// along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
 import {Script, console2} from "forge-std/Script.sol";
@@ -65,27 +78,27 @@ contract Demo is Script {
     OptInService operatorVaultOptInService;
 
     Middleware middleware;
-    Token sthETHToken;
+    Token stETHToken;
     Token rETHToken;
     Token wBTCToken;
 
     VaultAddresses public vaultAddresses;
 
     function deployTokens() public returns (address, address, address) {
-        address sthETH = deployCollateral.deployCollateralBroadcast("sthETH");
+        address stETH = deployCollateral.deployCollateralBroadcast("stETH");
         console2.log(" ");
         address rETH = deployCollateral.deployCollateralBroadcast("rETH");
         console2.log(" ");
         address wBTC = deployCollateral.deployCollateralBroadcast("wBTC");
         console2.log(" ");
 
-        sthETHToken = Token(sthETH);
+        stETHToken = Token(stETH);
         rETHToken = Token(rETH);
         wBTCToken = Token(wBTC);
 
         vm.startBroadcast(ownerPrivateKey);
-        sthETHToken.transfer(operator, 1000 ether);
-        sthETHToken.transfer(operator3, 1000 ether);
+        stETHToken.transfer(operator, 1000 ether);
+        stETHToken.transfer(operator3, 1000 ether);
 
         rETHToken.transfer(operator, 1000 ether);
         rETHToken.transfer(operator2, 1000 ether);
@@ -94,7 +107,7 @@ contract Demo is Script {
         wBTCToken.transfer(operator3, 1000 ether);
         vm.stopBroadcast();
 
-        return (sthETH, rETH, wBTC);
+        return (stETH, rETH, wBTC);
     }
 
     function deployVaults() public returns (VaultAddresses memory) {
@@ -105,7 +118,8 @@ contract Demo is Script {
             delegatorIndex: DeploySymbiotic.DelegatorIndex.NETWORK_RESTAKE,
             shouldBroadcast: true,
             vaultConfigurator: address(vaultConfigurator),
-            collateral: address(sthETHToken)
+            collateral: address(stETHToken),
+            owner: tanssi
         });
 
         (vaultAddresses.vault, vaultAddresses.delegator, vaultAddresses.slasher) = deployVault.createBaseVault(params);
@@ -237,7 +251,7 @@ contract Demo is Script {
         vm.stopBroadcast();
 
         vm.startBroadcast(operatorPrivateKey);
-        sthETHToken.approve(vaultAddresses.vault, 1000 ether);
+        stETHToken.approve(vaultAddresses.vault, 1000 ether);
         vault.deposit{gas: 600_000}(operator, 1000 ether);
 
         rETHToken.approve(vaultAddresses.vaultSlashable, 1000 ether);
@@ -250,7 +264,7 @@ contract Demo is Script {
         vm.stopBroadcast();
 
         vm.startBroadcast(operator3PrivateKey);
-        sthETHToken.approve(vaultAddresses.vault, 1000 ether);
+        stETHToken.approve(vaultAddresses.vault, 1000 ether);
         vault.deposit{gas: 600_000}(operator3, 1000 ether);
 
         rETHToken.approve(vaultAddresses.vaultSlashable, 1000 ether);
