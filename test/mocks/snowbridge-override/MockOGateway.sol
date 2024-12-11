@@ -7,9 +7,9 @@ import {Verification} from "@snowbridge/src/Verification.sol";
 import {IInitializable} from "@snowbridge/src/interfaces/IInitializable.sol";
 import {UD60x18} from "prb/math/src/UD60x18.sol";
 
-import {OGateway} from "../../../src/snowbridge-override/OGateway.sol";
+import {Gateway} from "../../../src/snowbridge-override/Gateway.sol";
 
-contract MockOGateway is OGateway {
+contract MockOGateway is Gateway {
     bool public commitmentsAreVerified;
 
     constructor(
@@ -20,7 +20,7 @@ contract MockOGateway is OGateway {
         uint8 foreignTokenDecimals,
         uint128 maxDestinationFee
     )
-        OGateway(beefyClient, agentExecutor, bridgeHubParaID, bridgeHubHubAgentID, foreignTokenDecimals, maxDestinationFee)
+        Gateway(beefyClient, agentExecutor, bridgeHubParaID, bridgeHubHubAgentID, foreignTokenDecimals, maxDestinationFee)
     {}
 
     function agentExecutePublic(

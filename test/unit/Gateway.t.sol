@@ -26,7 +26,6 @@ import {
 } from "@snowbridge/src/Types.sol";
 import {IGateway} from "@snowbridge/src/interfaces/IGateway.sol";
 import {MockGateway} from "@snowbridge/test/mocks/MockGateway.sol";
-import {GatewayTest} from "@snowbridge/test/Gateway.t.sol";
 import {CreateAgentParams, CreateChannelParams} from "@snowbridge/src/Params.sol";
 import {OperatingMode, ParaID, Command} from "@snowbridge/src/Types.sol";
 import {GatewayProxy} from "@snowbridge/src/GatewayProxy.sol";
@@ -47,7 +46,7 @@ import {Test} from "forge-std/Test.sol";
 import {WETH9} from "canonical-weth/WETH9.sol";
 import {UD60x18, ud60x18, convert} from "prb/math/src/UD60x18.sol";
 
-contract OGatewayTest is Test {
+contract GatewayTest is Test {
     // Emitted when token minted/burnt/transfered
     event Transfer(address indexed from, address indexed to, uint256 value);
 
