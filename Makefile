@@ -39,7 +39,6 @@ anvil :; anvil -m 'test test test test test test test test test test test junk' 
 
 NETWORK_ARGS := --rpc-url http://localhost:8545 --private-key $(DEFAULT_ANVIL_KEY) --broadcast
 
-MAINNET_ARGS := --private-key $(DEFAULT_ANVIL_KEY) --broadcast 
 
 deploy:
 	@echo "🚀 Deploying contracts..."
@@ -59,5 +58,5 @@ demo:
 
 deploy-tanssi-eco:
 	@echo "📡 Deploying Tanssi Ecosystem..."
-	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem ${MAINNET_ARGS} --rpc-url ${RPC_URL}
+	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url ${RPC_URL} --private-key ${PRIVATE_KEY} --broadcast 
 	@echo "✅ Tanssi Ecosystem deployment completed"
