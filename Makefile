@@ -58,5 +58,5 @@ demo:
 
 deploy-tanssi-eco:
 	@echo "📡 Deploying Tanssi Ecosystem..."
-	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url ${RPC_URL} --private-key ${PRIVATE_KEY} --broadcast 
+	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem ${NETWORK_ARGS}
 	@echo "✅ Tanssi Ecosystem deployment completed"
