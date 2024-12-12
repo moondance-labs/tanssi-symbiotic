@@ -27,7 +27,7 @@ contract DeployCollateral is Script {
             vm.envOr("OWNER_PRIVATE_KEY", uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80));
         address owner = vm.addr(ownerPrivateKey);
 
-        vm.startBroadcast();
+        vm.startBroadcast(ownerPrivateKey);
         address tokenAddress = deployCollateral(tokenName);
 
         vm.stopBroadcast();
