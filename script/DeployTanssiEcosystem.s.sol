@@ -253,7 +253,7 @@ contract DeployTanssiEcosystem is Script {
         IOptInService operatorNetworkOptInService = IOptInService(operatorNetworkOptInServiceAddress);
         IOptInService operatorVaultOptInService = IOptInService(operatorVaultOptInServiceAddress);
 
-        if (block.chainid == 31_337) {
+        if (block.chainid == 31_337 || block.chainid == 11_155_111) {
             // Deploy simple ERC20 collateral tokens
             deployTokens();
         } else {
