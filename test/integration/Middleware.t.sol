@@ -104,6 +104,20 @@ contract MiddlewareTest is Test {
         address slasherVetoed;
     }
 
+    struct GatewayParams {
+        OperatingMode operatingMode;
+        ParaID assetHubParaID;
+        bytes32 assetHubAgentID;
+        uint128 outboundFee;
+        uint128 registerTokenFee;
+        uint128 sendTokenFee;
+        uint128 createTokenFee;
+        uint128 maxDestinationFee;
+        uint8 foreignTokenDecimals;
+        UD60x18 exchangeRate;
+        UD60x18 multiplier;
+    }
+
     Middleware public middleware;
     DelegatorFactory public delegatorFactory;
     SlasherFactory public slasherFactory;
@@ -727,37 +741,46 @@ contract MiddlewareTest is Test {
         ParaID assetHubParaID = ParaID.wrap(1000);
         bytes32 assetHubAgentID = 0x81c5ab2571199e3188135178f3c2c8e2d268be1313d029b30f534fa579b69b79;
 
-        uint128 outboundFee = 1e10;
-        uint128 registerTokenFee = 0;
-        uint128 sendTokenFee = 1e10;
-        uint128 createTokenFee = 1e10;
-        uint128 maxDestinationFee = 1e11;
-        uint8 foreignTokenDecimals = 10;
-
-        UD60x18 exchangeRate = ud60x18(0.0025e18);
-        UD60x18 multiplier = ud60x18(1e18);
+        GatewayParams memory params = GatewayParams({
+            operatingMode: OperatingMode.Normal,
+            outboundFee: 1e10,
+            registerTokenFee: 0,
+            sendTokenFee: 1e10,
+            createTokenFee: 1e10,
+            maxDestinationFee: 1e11,
+            foreignTokenDecimals: 10,
+            exchangeRate: ud60x18(0.0025e18),
+            multiplier: ud60x18(1e18),
+            assetHubParaID: assetHubParaID,
+            assetHubAgentID: assetHubAgentID
+        });
 
         AgentExecutor executor = new AgentExecutor();
         MockOGateway gatewayLogic = new MockOGateway(
-            address(0), address(executor), bridgeHubParaID, bridgeHubAgentID, foreignTokenDecimals, maxDestinationFee
+            address(0),
+            address(executor),
+            bridgeHubParaID,
+            bridgeHubAgentID,
+            params.foreignTokenDecimals,
+            params.maxDestinationFee
         );
         Gateway.Config memory config = Gateway.Config({
             mode: OperatingMode.Normal,
-            deliveryCost: outboundFee,
-            registerTokenFee: registerTokenFee,
-            assetHubParaID: assetHubParaID,
-            assetHubAgentID: assetHubAgentID,
-            assetHubCreateAssetFee: createTokenFee,
-            assetHubReserveTransferFee: sendTokenFee,
-            exchangeRate: exchangeRate,
-            multiplier: multiplier,
+            deliveryCost: params.outboundFee,
+            registerTokenFee: params.registerTokenFee,
+            assetHubParaID: params.assetHubParaID,
+            assetHubAgentID: params.assetHubAgentID,
+            assetHubCreateAssetFee: params.createTokenFee,
+            assetHubReserveTransferFee: params.sendTokenFee,
+            exchangeRate: params.exchangeRate,
+            multiplier: params.multiplier,
             rescueOperator: 0x4B8a782D4F03ffcB7CE1e95C5cfe5BFCb2C8e967
         });
         GatewayProxy gateway = new GatewayProxy(address(gatewayLogic), abi.encode(config));
         MockGateway(address(gateway)).setCommitmentsAreVerified(true);
 
-        SetOperatingModeParams memory params = SetOperatingModeParams({mode: OperatingMode.Normal});
-        MockGateway(address(gateway)).setOperatingModePublic(abi.encode(params));
+        SetOperatingModeParams memory operatingModeParams = SetOperatingModeParams({mode: OperatingMode.Normal});
+        MockGateway(address(gateway)).setOperatingModePublic(abi.encode(operatingModeParams));
 
         return address(gateway);
     }
