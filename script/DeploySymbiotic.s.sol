@@ -325,7 +325,7 @@ contract DeploySymbiotic is Script {
     }
 
     function deploySymbioticBroadcast() public returns (SymbioticAddresses memory addresses) {
-        vm.startBroadcast();
+        vm.startBroadcast(ownerPrivateKey);
         addresses = deploySymbiotic(address(0));
         vm.stopBroadcast();
     }

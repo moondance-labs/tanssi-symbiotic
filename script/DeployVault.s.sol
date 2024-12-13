@@ -111,7 +111,7 @@ contract DeployVault is Script {
         });
 
         if (params.shouldBroadcast) {
-            vm.startBroadcast();
+            vm.startBroadcast(ownerPrivateKey);
         }
         (vault_, delegator_, slasher_) = deployVault(deployParams);
         if (params.shouldBroadcast) {

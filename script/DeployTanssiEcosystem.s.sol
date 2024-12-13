@@ -148,10 +148,9 @@ contract DeployTanssiEcosystem is Script {
             delegatorIndex: DeploySymbiotic.DelegatorIndex.NETWORK_RESTAKE,
             shouldBroadcast: !isTest,
             vaultConfigurator: address(ecosystemEntities.vaultConfigurator),
-            collateral: address(1),
-            // ecosystemEntities.defaultCollateralAddress != address(0)
-            //     ? ecosystemEntities.defaultCollateralAddress
-            //     : address(tokensAddresses.stETHToken),
+            collateral: ecosystemEntities.defaultCollateralAddress != address(0)
+                ? ecosystemEntities.defaultCollateralAddress
+                : address(tokensAddresses.stETHToken),
             owner: tanssi
         });
 
@@ -170,9 +169,9 @@ contract DeployTanssiEcosystem is Script {
             console2.log(" ");
         }
 
-        // if (block.chainid == 31_337 || block.chainid == 11_155_111) {
-        //     params.collateral = address(tokensAddresses.rETHToken);
-        // }
+        if (block.chainid == 31_337 || block.chainid == 11_155_111) {
+            params.collateral = address(tokensAddresses.rETHToken);
+        }
         (vaultAddresses.vaultSlashable, vaultAddresses.delegatorSlashable, vaultAddresses.slasherSlashable) =
             contractScripts.deployVault.createSlashableVault(params);
         console2.log("VaultSlashable Collateral: ", IVault(vaultAddresses.vaultSlashable).collateral());
@@ -183,9 +182,9 @@ contract DeployTanssiEcosystem is Script {
 
         if (isTest || block.chainid == 31_337 || block.chainid == 11_155_111) {
             params.delegatorIndex = DeploySymbiotic.DelegatorIndex.FULL_RESTAKE;
-            // if (block.chainid == 31_337 || block.chainid == 11_155_111) {
-            //     params.collateral = address(tokensAddresses.wBTCToken);
-            // }
+            if (block.chainid == 31_337 || block.chainid == 11_155_111) {
+                params.collateral = address(tokensAddresses.wBTCToken);
+            }
             (vaultAddresses.vaultVetoed, vaultAddresses.delegatorVetoed, vaultAddresses.slasherVetoed) =
                 contractScripts.deployVault.createVaultVetoed(params, 1 days);
             console2.log("VaultVetoed Collateral: ", IVault(vaultAddresses.vaultVetoed).collateral());
@@ -196,40 +195,34 @@ contract DeployTanssiEcosystem is Script {
         }
 
         if (!isTest) {
-            vm.startBroadcast();
+            vm.startBroadcast(ownerPrivateKey);
         }
         return vaultAddresses;
     }
 
     function _setDelegatorConfigs() public {
         if (block.chainid == 31_337 || block.chainid == 11_155_111 || isTest) {
-            INetworkRestakeDelegator(vaultAddresses.delegator).setMaxNetworkLimit{gas: 10_000_000}(0, MAX_NETWORK_LIMIT);
-            INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setMaxNetworkLimit{gas: 10_000_000}(
-                0, MAX_NETWORK_LIMIT
-            );
+            INetworkRestakeDelegator(vaultAddresses.delegator).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
+            INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
 
-            INetworkRestakeDelegator(vaultAddresses.delegator).setNetworkLimit{gas: 10_000_000}(
-                tanssi.subnetwork(0), MAX_NETWORK_LIMIT
-            );
-            INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setNetworkLimit{gas: 10_000_000}(
+            INetworkRestakeDelegator(vaultAddresses.delegator).setNetworkLimit(tanssi.subnetwork(0), MAX_NETWORK_LIMIT);
+            INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setNetworkLimit(
                 tanssi.subnetwork(0), MAX_NETWORK_LIMIT
             );
         }
 
-        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setMaxNetworkLimit{gas: 10_000_000}(
-            0, MAX_NETWORK_LIMIT
-        );
-        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setNetworkLimit{gas: 10_000_000}(
+        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
+        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setNetworkLimit(
             tanssi.subnetwork(0), MAX_NETWORK_LIMIT
         );
     }
 
     function _registerEntitiesToMiddleware() public {
         if (block.chainid == 31_337 || block.chainid == 11_155_111 || isTest) {
-            ecosystemEntities.middleware.registerVault{gas: 10_000_000}(vaultAddresses.vault);
-            ecosystemEntities.middleware.registerVault{gas: 10_000_000}(vaultAddresses.vaultVetoed);
+            ecosystemEntities.middleware.registerVault(vaultAddresses.vault);
+            ecosystemEntities.middleware.registerVault(vaultAddresses.vaultVetoed);
         }
-        ecosystemEntities.middleware.registerVault{gas: 10_000_000}(vaultAddresses.vaultSlashable);
+        ecosystemEntities.middleware.registerVault(vaultAddresses.vaultSlashable);
     }
 
     function _deploy() private {
@@ -262,12 +255,12 @@ contract DeployTanssiEcosystem is Script {
 
         if (block.chainid == 31_337 || block.chainid == 11_155_111) {
             // Deploy simple ERC20 collateral tokens
-            // deployTokens();
+            deployTokens();
         } else {
-            // networkRegistry.registerNetwork();
+            networkRegistry.registerNetwork();
         }
         deployVaults();
-        // _setDelegatorConfigs();
+        _setDelegatorConfigs();
         ecosystemEntities.middleware = new Middleware(
             tanssi,
             operatorRegistryAddress,
@@ -277,8 +270,8 @@ contract DeployTanssiEcosystem is Script {
             NETWORK_EPOCH_DURATION,
             SLASHING_WINDOW
         );
-        // _registerEntitiesToMiddleware();
-        // networkMiddlewareService.setMiddleware{gas: 10_000_000}(address(ecosystemEntities.middleware));
+        _registerEntitiesToMiddleware();
+        networkMiddlewareService.setMiddleware(address(ecosystemEntities.middleware));
 
         console2.log("VaultConfigurator: ", address(ecosystemEntities.vaultConfigurator));
         console2.log("OperatorRegistry: ", address(operatorRegistry));
@@ -317,7 +310,7 @@ contract DeployTanssiEcosystem is Script {
         contractScripts.helperConfig = new HelperConfig();
         contractScripts.deployVault = new DeployVault();
         contractScripts.deployCollateral = new DeployCollateral();
-        vm.startBroadcast();
+        vm.startBroadcast(ownerPrivateKey);
         isTest = false;
         _deploy();
         vm.stopBroadcast();
