@@ -15,6 +15,11 @@ remappings = [
     '@symbiotic/=lib/core/src/',
     '@symbiotic-rewards=lib/rewards/src/',
     '@symbiotic-collateral=lib/collateral/src/',
+    '@snowbridge/=lib/snowbridge/contracts/',
+    # These are for snowbridge. Needs to emulate their remappings.
+    'openzeppelin-contracts/=lib/openzeppelin-contracts/',
+    'openzeppelin/=lib/openzeppelin-contracts/contracts/',
+    'prb/math/=lib/prb-math/',
 ]
 
 [rpc_endpoints]
