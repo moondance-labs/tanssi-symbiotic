@@ -16,10 +16,16 @@ pragma solidity 0.8.25;
 
 import {console2} from "forge-std/console2.sol";
 
+//**************************************************************************************************
+//                                      OPENZEPPELIN
+//**************************************************************************************************
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {EnumerableMap} from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 
+//**************************************************************************************************
+//                                      SYMBIOTIC
+//**************************************************************************************************
 import {IRegistry} from "@symbiotic/interfaces/common/IRegistry.sol";
 import {IEntity} from "@symbiotic/interfaces/common/IEntity.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
@@ -30,6 +36,12 @@ import {IEntity} from "@symbiotic/interfaces/common/IEntity.sol";
 import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
+
+//**************************************************************************************************
+//                                      SNOWBRIDGE
+//**************************************************************************************************
+import {IOGateway} from "../snowbridge-override/interfaces/IOGateway.sol";
+import {ParaID} from "@snowbridge/src/Types.sol";
 
 import {SimpleKeyRegistry32} from "../libraries/SimpleKeyRegistry32.sol";
 import {MapWithTimeData} from "../libraries/MapWithTimeData.sol";
@@ -92,6 +104,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
     mapping(uint48 => mapping(address => uint256)) public s_operatorStakeCache;
     EnumerableMap.AddressToUintMap private s_operators;
     EnumerableMap.AddressToUintMap private s_vaults;
+    IOGateway public gateway;
 
     modifier updateStakeCache(
         uint48 epoch
@@ -289,6 +302,17 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
         s_subnetworksCount = _subnetworksCount;
     }
 
+    /**
+     * @notice Sets the gateway contract
+     * @dev Only the owner can call this function
+     * @param _gateway The gateway contract address
+     */
+    function setGateway(
+        address _gateway
+    ) external onlyOwner {
+        gateway = IOGateway(_gateway);
+    }
+
     // function submission(bytes memory payload, bytes32[] memory signatures) public updateStakeCache(getCurrentEpoch()) {
     //     // validate signatures
     //     // validate payload
@@ -436,6 +460,40 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
         assembly {
             mstore(activeOperators, valIdx)
         }
+    }
+
+    /**
+     * @notice Gets the operators' keys for a specific epoch
+     * @param epoch The epoch number
+     * @return keys Array of operator keys
+     */
+    function sendCurrentOperatorsKeys(
+        uint48 epoch
+    ) external returns (bytes32[] memory keys) {
+        keys = new bytes32[](s_operators.length());
+        for (uint256 i; i < s_operators.length(); ++i) {
+            (address operator,,) = s_operators.atWithTimes(i);
+            keys[i] = getCurrentOperatorKey(operator);
+        }
+
+        uint48 epochStartTs = getEpochStartTs(epoch);
+        uint256 valIdx = 0;
+        for (uint256 i; i < s_operators.length(); ++i) {
+            (address operator, uint48 enabledTime, uint48 disabledTime) = s_operators.atWithTimes(i);
+
+            // just skip operator if it was added after the target epoch or paused
+            if (!_wasActiveAt(enabledTime, disabledTime, epochStartTs)) {
+                continue;
+            }
+
+            keys[valIdx++] = getCurrentOperatorKey(operator);
+        }
+
+        assembly {
+            mstore(keys, valIdx)
+        }
+
+        gateway.sendOperatorsData(keys, ParaID.wrap(1));
     }
 
     /**
