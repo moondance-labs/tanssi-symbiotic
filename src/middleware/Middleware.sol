@@ -434,6 +434,10 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
         }
     }
 
+    // **************************************************************************************************
+    //                                      VIEW FUNCTIONS
+    // **************************************************************************************************
+
     /**
      * @notice Gets how many operators were active at a specific epoch
      * @param epoch The epoch at which to check how many operators were active
@@ -463,13 +467,11 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
     }
 
     /**
-     * @notice Gets the operators' keys for a specific epoch
-     * @param epoch The epoch number
+     * @notice Gets the operators' keys for latest epoch
      * @return keys Array of operator keys
      */
-    function sendCurrentOperatorsKeys(
-        uint48 epoch
-    ) external returns (bytes32[] memory keys) {
+    function sendCurrentOperatorsKeys() external returns (bytes32[] memory keys) {
+        uint48 epoch = getCurrentEpoch();
         keys = new bytes32[](s_operators.length());
         for (uint256 i; i < s_operators.length(); ++i) {
             (address operator,,) = s_operators.atWithTimes(i);
