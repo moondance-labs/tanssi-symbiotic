@@ -803,10 +803,9 @@ contract MiddlewareTest is Test {
     function testSendingOperatorsDataToGateway() public {
         IOGateway gateway = IOGateway(address(_createGateway()));
         _createParaIDAndAgent(gateway);
-        uint48 currentEpoch = middleware.getCurrentEpoch();
         vm.startPrank(owner);
         middleware.setGateway(address(gateway));
-        middleware.sendCurrentOperatorsKeys(currentEpoch);
+        middleware.sendCurrentOperatorsKeys();
         vm.stopPrank();
     }
 }
