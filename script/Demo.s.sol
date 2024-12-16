@@ -276,7 +276,7 @@ contract Demo is Script {
 
         vm.startBroadcast(ownerPrivateKey);
         uint48 currentEpoch = middleware.getCurrentEpoch();
-        address[] memory activeOperators = middleware.getCurrentOperators(currentEpoch);
+        address[] memory activeOperators = middleware.getOperatorsByEpoch(currentEpoch);
         for (uint256 i = 0; i < activeOperators.length; i++) {
             console2.log("Active Operator: ", activeOperators[i]);
         }

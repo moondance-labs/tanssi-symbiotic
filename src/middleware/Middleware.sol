@@ -443,7 +443,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
      * @param epoch The epoch at which to check how many operators were active
      * @return activeOperators The array of active operators
      */
-    function getCurrentOperators(
+    function getOperatorsByEpoch(
         uint48 epoch
     ) external view returns (address[] memory activeOperators) {
         uint48 epochStartTs = getEpochStartTs(epoch);
