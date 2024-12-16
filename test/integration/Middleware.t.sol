@@ -50,6 +50,7 @@ import {VetoSlasher} from "@symbiotic/contracts/slasher/VetoSlasher.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 import {Token} from "../mocks/Token.sol";
 import {Middleware} from "../../src/middleware/Middleware.sol";
@@ -260,7 +261,7 @@ contract MiddlewareTest is Test {
             deployVault.createSlashableVault(params);
 
         params.collateral = address(wBTC);
-        params.delegatorIndex = DeploySymbiotic.DelegatorIndex.FULL_RESTAKE;
+        // params.delegatorIndex = DeploySymbiotic.DelegatorIndex.FULL_RESTAKE;
         (vaultAddresses.vaultVetoed, vaultAddresses.delegatorVetoed, vaultAddresses.slasherVetoed) =
             deployVault.createVaultVetoed(params, 1 days);
     }
@@ -315,6 +316,17 @@ contract MiddlewareTest is Test {
         INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setOperatorNetworkShares(
             tanssi.subnetwork(0), operator3, OPERATOR_SHARE
         );
+
+        INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkShares(
+            tanssi.subnetwork(0), operator, OPERATOR_SHARE
+        );
+        INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkShares(
+            tanssi.subnetwork(0), operator2, OPERATOR_SHARE
+        );
+        INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkShares(
+            tanssi.subnetwork(0), operator3, OPERATOR_SHARE
+        );
+
         vm.stopPrank();
     }
 
@@ -329,15 +341,15 @@ contract MiddlewareTest is Test {
         INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setNetworkLimit(tanssi.subnetwork(0), 1000 ether);
         INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setNetworkLimit(tanssi.subnetwork(0), 1000 ether);
 
-        IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
-            tanssi.subnetwork(0), operator, 300 ether
-        );
-        IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
-            tanssi.subnetwork(0), operator2, 300 ether
-        );
-        IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
-            tanssi.subnetwork(0), operator3, 300 ether
-        );
+        // IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
+        //     tanssi.subnetwork(0), operator, 300 ether
+        // );
+        // IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
+        //     tanssi.subnetwork(0), operator2, 300 ether
+        // );
+        // IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
+        //     tanssi.subnetwork(0), operator3, 300 ether
+        // );
         vm.stopPrank();
     }
 
@@ -704,5 +716,188 @@ contract MiddlewareTest is Test {
         for (uint256 i = 0; i < operatorVaultPairs.length; i++) {
             assert(operatorVaultPairs[i].operator != operator4);
         }
+    }
+
+    function _addOperatorsToNetwork(
+        uint256 _count
+    ) public {
+        for (uint256 i = 0; i < _count; i++) {
+            address _operator = makeAddr(string.concat("operator", Strings.toString(i + 4)));
+            address _vault = address(vault);
+            address _delegator = address(vaultAddresses.delegator);
+            Token token = stETH;
+            vm.startPrank(owner);
+            if (i % 3 == 0) {
+                _vault = address(vaultSlashable);
+                _delegator = address(vaultAddresses.delegatorSlashable);
+                rETH.transfer(_operator, 1 ether);
+                token = rETH;
+            } else if (i % 3 == 1) {
+                _vault = address(vaultVetoed);
+                _delegator = address(vaultAddresses.delegatorVetoed);
+                wBTC.transfer(_operator, 1 ether);
+                token = wBTC;
+            } else {
+                stETH.transfer(_operator, 1 ether);
+            }
+            _registerOperator(_operator, tanssi, address(_vault));
+            vm.startPrank(_operator);
+            uint256 depositAmount = 0.001 ether * (i + 1);
+            _depositToVault(Vault(_vault), _operator, 0.001 ether * (i + 1), token);
+            vm.startPrank(owner);
+            INetworkRestakeDelegator(_delegator).setOperatorNetworkShares(
+                tanssi.subnetwork(0), _operator, depositAmount
+            );
+            middleware.registerOperator(_operator, bytes32(uint256(i + 4)));
+        }
+    }
+
+    function testGasFor100OperatorsIn3Vaults() public {
+        uint16 count = 100;
+        _addOperatorsToNetwork(count);
+
+        vm.startPrank(owner);
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        uint256 gasBefore = gasleft();
+        Middleware.ValidatorData[] memory validators = middleware.sortOperatorsByVaults(currentEpoch);
+        uint256 gasAfter = gasleft();
+        uint256 gasSorted = gasBefore - gasAfter;
+        console2.log("Total gas used: ", gasSorted);
+
+        assertEq(validators.length, count + 3);
+        for (uint256 i = 0; i < validators.length - 1; i++) {
+            if (i > 0 && i < count - 1) {
+                assertLe(validators[i].stake, validators[i - 1].stake);
+            }
+        }
+        vm.stopPrank();
+    }
+
+    function testGasFor100OperatorsIn3VaultsNonSorted() public {
+        uint16 count = 100;
+        _addOperatorsToNetwork(count);
+
+        vm.startPrank(owner);
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+
+        uint256 gasBefore = gasleft();
+        Middleware.ValidatorData[] memory validatorsNotSorted = middleware.getValidatorSet(currentEpoch);
+        uint256 gasAfter = gasleft();
+        uint256 gasNotSorted = gasBefore - gasAfter;
+        console2.log("Total gas used for non sorted: ", gasNotSorted);
+
+        vm.stopPrank();
+    }
+
+    function testGasFor250OperatorsIn3Vaults() public {
+        uint16 count = 250;
+        _addOperatorsToNetwork(count);
+
+        vm.startPrank(owner);
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        uint256 gasBefore = gasleft();
+        Middleware.ValidatorData[] memory validators = middleware.sortOperatorsByVaults(currentEpoch);
+        uint256 gasAfter = gasleft();
+        uint256 gasSorted = gasBefore - gasAfter;
+        console2.log("Total gas used: ", gasSorted);
+
+        assertEq(validators.length, count + 3);
+        for (uint256 i = 0; i < validators.length - 1; i++) {
+            if (i > 0 && i < count - 1) {
+                assertLe(validators[i].stake, validators[i - 1].stake);
+            }
+        }
+        vm.stopPrank();
+    }
+
+    function testGasFor250OperatorsIn3VaultsNonSorted() public {
+        uint16 count = 250;
+        _addOperatorsToNetwork(count);
+
+        vm.startPrank(owner);
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+
+        uint256 gasBefore = gasleft();
+        Middleware.ValidatorData[] memory validatorsNotSorted = middleware.getValidatorSet(currentEpoch);
+        uint256 gasAfter = gasleft();
+        uint256 gasNotSorted = gasBefore - gasAfter;
+        console2.log("Total gas used for non sorted: ", gasNotSorted);
+
+        vm.stopPrank();
+    }
+
+    function testGasFor350OperatorsIn3Vaults() public {
+        uint16 count = 350;
+        _addOperatorsToNetwork(count);
+
+        vm.startPrank(owner);
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        uint256 gasBefore = gasleft();
+        Middleware.ValidatorData[] memory validators = middleware.sortOperatorsByVaults(currentEpoch);
+        uint256 gasAfter = gasleft();
+        uint256 gasSorted = gasBefore - gasAfter;
+        console2.log("Total gas used: ", gasSorted);
+
+        assertEq(validators.length, count + 3);
+        for (uint256 i = 0; i < validators.length - 1; i++) {
+            if (i > 0 && i < count - 1) {
+                assertLe(validators[i].stake, validators[i - 1].stake);
+            }
+        }
+        vm.stopPrank();
+    }
+
+    function testGasFor350OperatorsIn3VaultsNonSorted() public {
+        uint16 count = 350;
+        _addOperatorsToNetwork(count);
+
+        vm.startPrank(owner);
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+
+        uint256 gasBefore = gasleft();
+        Middleware.ValidatorData[] memory validatorsNotSorted = middleware.getValidatorSet(currentEpoch);
+        uint256 gasAfter = gasleft();
+        uint256 gasNotSorted = gasBefore - gasAfter;
+        console2.log("Total gas used for non sorted: ", gasNotSorted);
+
+        vm.stopPrank();
+    }
+
+    function testGasFor500OperatorsIn3Vaults() public {
+        uint16 count = 500;
+        _addOperatorsToNetwork(count);
+
+        vm.startPrank(owner);
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+
+        uint256 gasBefore = gasleft();
+        Middleware.ValidatorData[] memory validators = middleware.sortOperatorsByVaults(currentEpoch);
+        uint256 gasAfter = gasleft();
+        uint256 gasSorted = gasBefore - gasAfter;
+        console2.log("Total gas used: ", gasSorted);
+
+        assertEq(validators.length, count + 3);
+        for (uint256 i = 0; i < validators.length - 1; i++) {
+            if (i > 0 && i < count - 1) {
+                assertLe(validators[i].stake, validators[i - 1].stake);
+            }
+        }
+        vm.stopPrank();
+    }
+
+    function testGasFor500OperatorsIn3VaultsNonSorted() public {
+        uint16 count = 500;
+        _addOperatorsToNetwork(count);
+
+        vm.startPrank(owner);
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+
+        uint256 gasBefore = gasleft();
+        Middleware.ValidatorData[] memory validatorsNotSorted = middleware.getValidatorSet(currentEpoch);
+        uint256 gasAfter = gasleft();
+        uint256 gasNotSorted = gasBefore - gasAfter;
+        console2.log("Total gas used for non sorted: ", gasBefore - gasAfter);
+
+        vm.stopPrank();
     }
 }
