@@ -25,11 +25,11 @@ import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
 import {INetworkRestakeDelegator} from "@symbiotic/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestakeDelegator.sol";
-import {DeployCollateral} from "./DeployCollateral.s.sol";
-import {DeployVault} from "./DeployVault.s.sol";
-import {DeploySymbiotic} from "./DeploySymbiotic.s.sol";
+import {DeployCollateral} from "../DeployCollateral.s.sol";
+import {DeployVault} from "../DeployVault.s.sol";
+import {DeploySymbiotic} from "../DeploySymbiotic.s.sol";
 
-import {Token} from "../test/mocks/Token.sol";
+import {Token} from "../../test/mocks/Token.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 
 contract Demo is Script {
