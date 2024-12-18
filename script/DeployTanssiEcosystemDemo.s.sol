@@ -66,9 +66,9 @@ contract DeployTanssiEcosystem is Script {
     address public operator3 = vm.addr(operator3PrivateKey);
     bytes32 public constant OPERATOR_KEY3 = bytes32(uint256(3));
 
-    bytes32 public operatorKey1;
-    bytes32 public operatorKey2;
-    bytes32 public operatorKey3;
+    bytes32 public operatorKey1 = vm.envOr("OPERATOR1_KEY", OPERATOR_KEY);
+    bytes32 public operatorKey2 = vm.envOr("OPERATOR2_KEY", OPERATOR_KEY2);
+    bytes32 public operatorKey3 = vm.envOr("OPERATOR3_KEY", OPERATOR_KEY3);
 
     bool public isTest = false;
     VaultAddresses public vaultAddresses;
@@ -237,12 +237,6 @@ contract DeployTanssiEcosystem is Script {
         _vault.deposit(_operator, _amount);
     }
 
-    // --rpc-url http://localhost:8545 --private-key 0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6
-    // Vault Collateral:  0xBd4927D2E257174f4dD1A42c58c29B9F31900Bd0
-    //   Vault:  0x957dC38918F51Ba3cc1eb2e4876faa21eC897396
-    //   Delegator:  0xe3E2ed27D33a74E2c1575116537E999e8B5e0192
-    //   Slasher:  0x0000000000000000000000000000000000000000
-    // 0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6
     function _deploy() private {
         (
             address vaultConfiguratorAddress,
@@ -371,7 +365,7 @@ contract DeployTanssiEcosystem is Script {
         vm.stopPrank();
     }
 
-    function run(bytes32 _operatorKey1, bytes32 _operatorKey2, bytes32 _operatorKey3) external {
+    function run() external {
         contractScripts.helperConfig = new HelperConfig();
         contractScripts.deployVault = new DeployVault();
         contractScripts.deployCollateral = new DeployCollateral();
