@@ -473,10 +473,6 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
     function sendCurrentOperatorsKeys() external returns (bytes32[] memory keys) {
         uint48 epoch = getCurrentEpoch();
         keys = new bytes32[](s_operators.length());
-        for (uint256 i; i < s_operators.length(); ++i) {
-            (address operator,,) = s_operators.atWithTimes(i);
-            keys[i] = getCurrentOperatorKey(operator);
-        }
 
         uint48 epochStartTs = getEpochStartTs(epoch);
         uint256 valIdx = 0;
