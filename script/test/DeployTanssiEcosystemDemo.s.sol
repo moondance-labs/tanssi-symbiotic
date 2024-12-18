@@ -122,13 +122,13 @@ contract DeployTanssiEcosystem is Script {
         tokensAddresses.rETHToken = Token(rETH);
         tokensAddresses.wBTCToken = Token(wBTC);
 
-        tokensAddresses.stETHToken.mint{gas: 1_000_000}(tanssi, 10_000 ether);
+        vm.startBroadcast(ownerPrivateKey);
+        tokensAddresses.stETHToken.mint(tanssi, 10_000 ether);
         tokensAddresses.rETHToken.mint(tanssi, 10_000 ether);
         tokensAddresses.wBTCToken.mint(tanssi, 10_000 ether);
 
-        vm.startBroadcast(ownerPrivateKey);
-        tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator, 1000 ether);
-        tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator3, 1000 ether);
+        tokensAddresses.stETHToken.transfer(operator, 1000 ether);
+        tokensAddresses.stETHToken.transfer(operator3, 1000 ether);
 
         tokensAddresses.rETHToken.transfer(operator, 1000 ether);
         tokensAddresses.rETHToken.transfer(operator2, 1000 ether);
