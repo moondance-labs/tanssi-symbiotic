@@ -123,6 +123,9 @@ contract DeployTanssiEcosystem is Script {
         tokensAddresses.wBTCToken = Token(wBTC);
 
         vm.startBroadcast(ownerPrivateKey);
+        (bool success,) = payable(operator).call{value: 100 ether}("");
+        (bool success2,) = payable(operator2).call{value: 100 ether}("");
+        (bool success3,) = payable(operator3).call{value: 100 ether}("");
         tokensAddresses.stETHToken.mint(tanssi, 10_000 ether);
         tokensAddresses.rETHToken.mint(tanssi, 10_000 ether);
         tokensAddresses.wBTCToken.mint(tanssi, 10_000 ether);
@@ -313,9 +316,6 @@ contract DeployTanssiEcosystem is Script {
         vm.stopBroadcast();
 
         vm.startBroadcast(ownerPrivateKey);
-        (bool success,) = payable(operator).call{value: 100 ether}("");
-        (bool success2,) = payable(operator2).call{value: 100 ether}("");
-        (bool success3,) = payable(operator3).call{value: 100 ether}("");
 
         tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator, 1000 ether);
         tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator2, 1000 ether);
