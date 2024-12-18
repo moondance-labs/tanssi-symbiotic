@@ -227,6 +227,9 @@ contract DeployTanssiEcosystem is Script {
             ecosystemEntities.middleware.registerVault(vaultAddresses.vaultVetoed);
         }
         ecosystemEntities.middleware.registerVault(vaultAddresses.vaultSlashable);
+        middleware.registerOperator(operator, operatorKey1);
+        middleware.registerOperator(operator2, operatorKey2);
+        middleware.registerOperator(operator3, operatorKey3);
     }
 
     function _depositToVault(IVault _vault, address _operator, uint256 _amount, Token collateral) public {
