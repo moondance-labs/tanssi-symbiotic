@@ -335,7 +335,12 @@ contract DeployTanssiEcosystem is Script {
 
         vm.startBroadcast(operator3PrivateKey);
         _depositToVault(_vault, operator3, 100 ether, tokensAddresses.stETHToken);
+        vm.stopBroadcast();
 
+        vm.startBroadcast(ownerPrivateKey);
+        uint48 currentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
+        address[] memory operators = ecosystemEntities.middleware.getOperatorsByEpoch(currentEpoch);
+        assert(operators.length == 3);
         console2.log("VaultConfigurator: ", address(ecosystemEntities.vaultConfigurator));
         console2.log("OperatorRegistry: ", address(operatorRegistry));
         console2.log("NetworkRegistry: ", address(networkRegistry));
