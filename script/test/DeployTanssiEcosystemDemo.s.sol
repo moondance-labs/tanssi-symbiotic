@@ -43,7 +43,7 @@ contract DeployTanssiEcosystem is Script {
     using Subnetwork for address;
 
     uint48 public constant VAULT_EPOCH_DURATION = 12 days;
-    uint48 public constant NETWORK_EPOCH_DURATION = 6 days;
+    uint48 public constant NETWORK_EPOCH_DURATION = 1 minutes;
     uint48 public constant SLASHING_WINDOW = 7 days;
     uint48 public constant OPERATOR_NETWORK_SHARES = 1;
     uint128 public constant MAX_NETWORK_LIMIT = 1000 ether;
