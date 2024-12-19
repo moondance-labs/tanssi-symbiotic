@@ -31,18 +31,16 @@ import {OperatingMode, ParaID, Command} from "@snowbridge/src/Types.sol";
 import {GatewayProxy} from "@snowbridge/src/GatewayProxy.sol";
 import {MultiAddress} from "@snowbridge/src/MultiAddress.sol";
 import {AgentExecutor} from "@snowbridge/src/AgentExecutor.sol";
-import {Gateway} from "@snowbridge/src/Gateway.sol";
 import {SetOperatingModeParams} from "@snowbridge/src/Params.sol";
 
 import {Strings} from "openzeppelin/utils/Strings.sol";
+
+import {Gateway} from "../../src/snowbridge-override/Gateway.sol";
 import {IOGateway} from "../../src/snowbridge-override/interfaces/IOGateway.sol";
 import {Operators} from "../../src/snowbridge-override/Operators.sol";
 import {MockOGateway} from "../../test/mocks/snowbridge-override/MockOGateway.sol";
 
 //NEW
-
-import {Test} from "forge-std/Test.sol";
-
 import {WETH9} from "canonical-weth/WETH9.sol";
 import {UD60x18, ud60x18, convert} from "prb/math/src/UD60x18.sol";
 
