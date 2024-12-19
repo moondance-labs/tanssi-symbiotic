@@ -25,6 +25,7 @@ import {INetworkRegistry} from "@symbiotic/interfaces/INetworkRegistry.sol";
 import {INetworkMiddlewareService} from "@symbiotic/interfaces/service/INetworkMiddlewareService.sol";
 import {IOptInService} from "@symbiotic/interfaces/service/IOptInService.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
+import {Vault} from "@symbiotic/contracts/vault/Vault.sol";
 import {INetworkRestakeDelegator} from "@symbiotic/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestakeDelegator.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
@@ -225,10 +226,8 @@ contract DeployTanssiEcosystem is Script {
     }
 
     function _registerEntitiesToMiddleware() public {
-        if (block.chainid == 31_337 || block.chainid == 11_155_111 || isTest) {
-            ecosystemEntities.middleware.registerVault(vaultAddresses.vault);
-            ecosystemEntities.middleware.registerVault(vaultAddresses.vaultVetoed);
-        }
+        ecosystemEntities.middleware.registerVault(vaultAddresses.vault);
+        ecosystemEntities.middleware.registerVault(vaultAddresses.vaultVetoed);
         ecosystemEntities.middleware.registerVault(vaultAddresses.vaultSlashable);
         ecosystemEntities.middleware.registerOperator(operator, operatorKey1);
         ecosystemEntities.middleware.registerOperator(operator2, operatorKey2);
@@ -276,6 +275,34 @@ contract DeployTanssiEcosystem is Script {
         }
         deployVaults();
 
+        tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator, 1000 ether);
+        tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator2, 1000 ether);
+        tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator3, 1000 ether);
+        vm.stopBroadcast();
+
+        IVault _vault = IVault(vaultAddresses.vault);
+        vm.startBroadcast(operatorPrivateKey);
+        operatorRegistry.registerOperator();
+        operatorNetworkOptInService.optIn(tanssi);
+        operatorVaultOptInService.optIn(vaultAddresses.vault);
+        _depositToVault(_vault, operator, 100 ether, tokensAddresses.stETHToken);
+        vm.stopBroadcast();
+
+        vm.startBroadcast(operator2PrivateKey);
+        operatorRegistry.registerOperator();
+        operatorNetworkOptInService.optIn(tanssi);
+        operatorVaultOptInService.optIn(vaultAddresses.vault);
+        _depositToVault(_vault, operator2, 100 ether, tokensAddresses.stETHToken);
+        vm.stopBroadcast();
+
+        vm.startBroadcast(operator3PrivateKey);
+        operatorRegistry.registerOperator();
+        operatorNetworkOptInService.optIn(tanssi);
+        operatorVaultOptInService.optIn(vaultAddresses.vault);
+        _depositToVault(_vault, operator3, 100 ether, tokensAddresses.stETHToken);
+        vm.stopBroadcast();
+
+        vm.startBroadcast(ownerPrivateKey);
         ecosystemEntities.middleware = new Middleware(
             tanssi,
             operatorRegistryAddress,
@@ -295,46 +322,8 @@ contract DeployTanssiEcosystem is Script {
             tanssi.subnetwork(0), operator3, 1
         );
         _setDelegatorConfigs();
-        vm.stopBroadcast();
-
-        vm.startBroadcast(operatorPrivateKey);
-        operatorRegistry.registerOperator();
-        operatorNetworkOptInService.optIn(tanssi);
-        operatorVaultOptInService.optIn(vaultAddresses.vault);
-        vm.stopBroadcast();
-
-        vm.startBroadcast(operator2PrivateKey);
-        operatorRegistry.registerOperator();
-        operatorNetworkOptInService.optIn(tanssi);
-        operatorVaultOptInService.optIn(vaultAddresses.vault);
-        vm.stopBroadcast();
-
-        vm.startBroadcast(operator3PrivateKey);
-        operatorRegistry.registerOperator();
-        operatorNetworkOptInService.optIn(tanssi);
-        operatorVaultOptInService.optIn(vaultAddresses.vault);
-        vm.stopBroadcast();
-
-        vm.startBroadcast(ownerPrivateKey);
-
-        tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator, 1000 ether);
-        tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator2, 1000 ether);
-        tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator3, 1000 ether);
         _registerEntitiesToMiddleware();
         networkMiddlewareService.setMiddleware(address(ecosystemEntities.middleware));
-        vm.stopBroadcast();
-
-        IVault _vault = IVault(vaultAddresses.vault);
-        vm.startBroadcast(operatorPrivateKey);
-        _depositToVault(_vault, operator, 100 ether, tokensAddresses.stETHToken);
-        vm.stopBroadcast();
-
-        vm.startBroadcast(operator2PrivateKey);
-        _depositToVault(_vault, operator2, 100 ether, tokensAddresses.stETHToken);
-        vm.stopBroadcast();
-
-        vm.startBroadcast(operator3PrivateKey);
-        _depositToVault(_vault, operator3, 100 ether, tokensAddresses.stETHToken);
         vm.stopBroadcast();
 
         vm.startBroadcast(ownerPrivateKey);
