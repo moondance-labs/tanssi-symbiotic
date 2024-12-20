@@ -289,7 +289,7 @@ contract MiddlewareTest is Test {
             deployVault.createSlashableVault(params);
 
         params.collateral = address(wBTC);
-        // params.delegatorIndex = DeploySymbiotic.DelegatorIndex.FULL_RESTAKE;
+        params.delegatorIndex = DeploySymbiotic.DelegatorIndex.FULL_RESTAKE;
         (vaultAddresses.vaultVetoed, vaultAddresses.delegatorVetoed, vaultAddresses.slasherVetoed) =
             deployVault.createVaultVetoed(params, 1 days);
     }
@@ -344,17 +344,6 @@ contract MiddlewareTest is Test {
         INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setOperatorNetworkShares(
             tanssi.subnetwork(0), operator3, OPERATOR_SHARE
         );
-
-        INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator2, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator3, OPERATOR_SHARE
-        );
-
         vm.stopPrank();
     }
 
@@ -369,15 +358,15 @@ contract MiddlewareTest is Test {
         INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setNetworkLimit(tanssi.subnetwork(0), 1000 ether);
         INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setNetworkLimit(tanssi.subnetwork(0), 1000 ether);
 
-        // IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
-        //     tanssi.subnetwork(0), operator, 300 ether
-        // );
-        // IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
-        //     tanssi.subnetwork(0), operator2, 300 ether
-        // );
-        // IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
-        //     tanssi.subnetwork(0), operator3, 300 ether
-        // );
+        IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
+            tanssi.subnetwork(0), operator, 300 ether
+        );
+        IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
+            tanssi.subnetwork(0), operator2, 300 ether
+        );
+        IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
+            tanssi.subnetwork(0), operator3, 300 ether
+        );
         vm.stopPrank();
     }
 
@@ -754,6 +743,7 @@ contract MiddlewareTest is Test {
             address _vault = address(vault);
             address _delegator = address(vaultAddresses.delegator);
             Token token = stETH;
+
             vm.startPrank(owner);
             if (i % 3 == 0) {
                 _vault = address(vaultSlashable);
@@ -773,9 +763,15 @@ contract MiddlewareTest is Test {
             uint256 depositAmount = 0.001 ether * (i + 1);
             _depositToVault(Vault(_vault), _operator, 0.001 ether * (i + 1), token);
             vm.startPrank(owner);
-            INetworkRestakeDelegator(_delegator).setOperatorNetworkShares(
-                tanssi.subnetwork(0), _operator, depositAmount
-            );
+            if (i % 3 == 1) {
+                IFullRestakeDelegator(_delegator).setOperatorNetworkLimit(
+                    tanssi.subnetwork(0), _operator, depositAmount
+                );
+            } else {
+                INetworkRestakeDelegator(_delegator).setOperatorNetworkShares(
+                    tanssi.subnetwork(0), _operator, depositAmount
+                );
+            }
             middleware.registerOperator(_operator, bytes32(uint256(i + 4)));
         }
     }
@@ -790,7 +786,7 @@ contract MiddlewareTest is Test {
         Middleware.ValidatorData[] memory validators = middleware.sortOperatorsByVaults(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasSorted = gasBefore - gasAfter;
-        console2.log("Total gas used: ", gasSorted);
+        console2.log("Total gas used for sorted: ", gasSorted);
 
         assertEq(validators.length, count + 3);
         for (uint256 i = 0; i < validators.length - 1; i++) {
@@ -827,7 +823,7 @@ contract MiddlewareTest is Test {
         Middleware.ValidatorData[] memory validators = middleware.sortOperatorsByVaults(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasSorted = gasBefore - gasAfter;
-        console2.log("Total gas used: ", gasSorted);
+        console2.log("Total gas used for sorted: ", gasSorted);
 
         assertEq(validators.length, count + 3);
         for (uint256 i = 0; i < validators.length - 1; i++) {
@@ -864,7 +860,7 @@ contract MiddlewareTest is Test {
         Middleware.ValidatorData[] memory validators = middleware.sortOperatorsByVaults(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasSorted = gasBefore - gasAfter;
-        console2.log("Total gas used: ", gasSorted);
+        console2.log("Total gas used for sorted: ", gasSorted);
 
         assertEq(validators.length, count + 3);
         for (uint256 i = 0; i < validators.length - 1; i++) {
@@ -902,7 +898,7 @@ contract MiddlewareTest is Test {
         Middleware.ValidatorData[] memory validators = middleware.sortOperatorsByVaults(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasSorted = gasBefore - gasAfter;
-        console2.log("Total gas used: ", gasSorted);
+        console2.log("Total gas used for sorted: ", gasSorted);
 
         assertEq(validators.length, count + 3);
         for (uint256 i = 0; i < validators.length - 1; i++) {
