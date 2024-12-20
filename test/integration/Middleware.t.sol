@@ -61,16 +61,16 @@ import {AgentExecutor} from "@snowbridge/src/AgentExecutor.sol";
 import {SetOperatingModeParams} from "@snowbridge/src/Params.sol";
 import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
 
-import {IOGateway} from "../../src/snowbridge-override/interfaces/IOGateway.sol";
-import {Gateway} from "../../src/snowbridge-override/Gateway.sol";
-import {MockOGateway} from "../../test/mocks/snowbridge-override/MockOGateway.sol";
-import {Middleware} from "../../src/middleware/Middleware.sol";
+import {IOGateway} from "src/interfaces/snowbridge-override/IOGateway.sol";
+import {Gateway} from "src/contracts/snowbridge-override/Gateway.sol";
+import {MockOGateway} from "test/mocks/snowbridge-override/MockOGateway.sol";
+import {Middleware} from "src/contracts/middleware/Middleware.sol";
 
 import {Token} from "../mocks/Token.sol";
 
-import {DeploySymbiotic} from "../../script/DeploySymbiotic.s.sol";
-import {DeployCollateral} from "../../script/DeployCollateral.s.sol";
-import {DeployVault} from "../../script/DeployVault.s.sol";
+import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
+import {DeployCollateral} from "script/DeployCollateral.s.sol";
+import {DeployVault} from "script/DeployVault.s.sol";
 
 contract MiddlewareTest is Test {
     using Subnetwork for address;

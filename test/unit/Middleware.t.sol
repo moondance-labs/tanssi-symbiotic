@@ -34,8 +34,8 @@ import {NetworkMiddlewareService} from "@symbiotic/contracts/service/NetworkMidd
 //**************************************************************************************************
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-import {Middleware} from "../../src/middleware/Middleware.sol";
-import {SimpleKeyRegistry32} from "../../src/libraries/SimpleKeyRegistry32.sol";
+import {Middleware} from "../../src/contracts/middleware/Middleware.sol";
+import {SimpleKeyRegistry32} from "../../src/contracts/libraries/SimpleKeyRegistry32.sol";
 
 import {DelegatorMock} from "../mocks/symbiotic/DelegatorMock.sol";
 import {OptInServiceMock} from "../mocks/symbiotic/OptInServiceMock.sol";

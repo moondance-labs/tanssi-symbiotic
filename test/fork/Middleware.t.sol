@@ -36,10 +36,10 @@ import {IDefaultCollateral} from "@symbiotic-collateral/interfaces/defaultCollat
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
-import {Middleware} from "../../src/middleware/Middleware.sol";
+import {Middleware} from "src/contracts/middleware/Middleware.sol";
 
-import {DeployTanssiEcosystem} from "../../script/DeployTanssiEcosystem.s.sol";
-import {HelperConfig} from "../../script/HelperConfig.s.sol";
+import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
+import {HelperConfig} from "script/HelperConfig.s.sol";
 
 contract MiddlewareTest is Test {
     using Subnetwork for address;

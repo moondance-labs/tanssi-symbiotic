@@ -54,7 +54,7 @@ import {UD60x18, ud60x18, convert} from "prb/math/src/UD60x18.sol";
 
 import {Operators} from "./Operators.sol";
 
-import {IOGateway} from "./interfaces/IOGateway.sol";
+import {IOGateway} from "src/interfaces/snowbridge-override/IOGateway.sol";
 
 contract Gateway is IOGateway, IInitializable, IUpgradable {
     using Address for address;
