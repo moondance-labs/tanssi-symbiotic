@@ -103,15 +103,15 @@ contract DeployTanssiEcosystem is Script {
     }
 
     function deployTokens() public returns (address, address, address) {
-        // if (!isTest) {
-        //     vm.stopBroadcast();
-        // }
+        if (!isTest) {
+            vm.stopBroadcast();
+        }
 
-        address stETH = contractScripts.deployCollateral.deployCollateral("stETH");
+        address stETH = contractScripts.deployCollateral.deployCollateralBroadcast("stETH");
         console2.log(" ");
-        address rETH = contractScripts.deployCollateral.deployCollateral("rETH");
+        address rETH = contractScripts.deployCollateral.deployCollateralBroadcast("rETH");
         console2.log(" ");
-        address wBTC = contractScripts.deployCollateral.deployCollateral("wBTC");
+        address wBTC = contractScripts.deployCollateral.deployCollateralBroadcast("wBTC");
         console2.log(" ");
 
         tokensAddresses.stETHToken = Token(stETH);
@@ -122,7 +122,7 @@ contract DeployTanssiEcosystem is Script {
         tokensAddresses.rETHToken.mint(tanssi, 10_000 ether);
         tokensAddresses.wBTCToken.mint(tanssi, 10_000 ether);
 
-        // vm.startBroadcast(ownerPrivateKey);
+        vm.startBroadcast(ownerPrivateKey);
         tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator, 1000 ether);
         tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator3, 1000 ether);
 
@@ -131,11 +131,11 @@ contract DeployTanssiEcosystem is Script {
         tokensAddresses.rETHToken.transfer(operator3, 1000 ether);
 
         tokensAddresses.wBTCToken.transfer(operator3, 1000 ether);
-        // vm.stopBroadcast();
+        vm.stopBroadcast();
 
-        // if (!isTest) {
-        //     vm.startBroadcast(ownerPrivateKey);
-        // }
+        if (!isTest) {
+            vm.startBroadcast(ownerPrivateKey);
+        }
         return (stETH, rETH, wBTC);
         // return (stETH, address(0), address(0));
     }
