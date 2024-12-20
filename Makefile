@@ -63,3 +63,18 @@ deploy-tanssi-eco:
 	@echo "📡 Deploying Tanssi Ecosystem..."
 	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem ${NETWORK_ARGS}
 	@echo "✅ Tanssi Ecosystem deployment completed"
+
+deploy-full-tanssi-eco-demo:
+	@echo "📡 Deploying Full Tanssi Ecosystem Locally for Demo..."
+	@forge script script/test/DeployTanssiEcosystemDemo.s.sol --slow --skip-simulation ${NETWORK_ARGS}
+	@echo "✅ Full Tanssi Ecosystem Locally for Demo deployment completed"
+
+deploy-beefy-client:
+	@echo "📡 Deploying Beefy Client..."
+	@forge script script/snowbridge-override/DeployBeefyClient.s.sol:DeployBeefyClient \
+	--private-key ${PRIVATE_KEY} \
+	--rpc-url ${HOLESKY_RPC_URL} \
+	--broadcast \
+	--verify \
+	--etherscan-api-key ${ETHERSCAN_API_KEY}
+	@echo "✅ Beefy Client deployment completed"
