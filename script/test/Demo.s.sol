@@ -15,7 +15,7 @@
 pragma solidity 0.8.25;
 
 import {Script, console2} from "forge-std/Script.sol";
-import {Middleware} from "src/middleware/Middleware.sol";
+import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {VaultConfigurator} from "@symbiotic/contracts/VaultConfigurator.sol";
 import {OperatorRegistry} from "@symbiotic/contracts/OperatorRegistry.sol";
 import {NetworkRegistry} from "@symbiotic/contracts/NetworkRegistry.sol";
@@ -29,7 +29,7 @@ import {DeployCollateral} from "../DeployCollateral.s.sol";
 import {DeployVault} from "../DeployVault.s.sol";
 import {DeploySymbiotic} from "../DeploySymbiotic.s.sol";
 
-import {Token} from "../../test/mocks/Token.sol";
+import {Token} from "test/mocks/Token.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 
 contract Demo is Script {

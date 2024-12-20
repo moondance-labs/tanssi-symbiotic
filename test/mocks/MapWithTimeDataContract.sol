@@ -16,7 +16,7 @@ pragma solidity 0.8.25;
 
 import {EnumerableMap} from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 
-import {MapWithTimeData} from "src/libraries/MapWithTimeData.sol";
+import {MapWithTimeData} from "src/contracts/libraries/MapWithTimeData.sol";
 
 contract MapWithTimeDataContract {
     using EnumerableMap for EnumerableMap.AddressToUintMap;

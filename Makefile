@@ -19,7 +19,7 @@ install :; 	forge install foundry-rs/forge-std@v1.8.2 --no-commit && \
 			forge install openzeppelin/openzeppelin-contracts-upgradeable@v5.0.2 --no-commit && \
 			forge install symbioticfi/core --no-commit  && \
 			forge install symbioticfi/collateral --no-commit  && \
-			forge install Cyfrin/foundry-devops --no-commit
+			forge install symbioticfi/rewards --no-commit  && \
 			forge install Cyfrin/foundry-devops --no-commit && \
 			forge install Snowfork/snowbridge@relayer-v1.0.30 --no-commit && \
 			forge install PaulRBerg/prb-math@release-v4 --no-commit 

@@ -20,7 +20,7 @@ import {ScaleCodec} from "@snowbridge/src/utils/ScaleCodec.sol";
 import {OSubstrateTypes} from "./libraries/OSubstrateTypes.sol";
 import {MultiAddress, Ticket, Costs, ParaID} from "@snowbridge/src/Types.sol";
 
-import {IOGateway} from "./interfaces/IOGateway.sol";
+import {IOGateway} from "src/interfaces/snowbridge-override/IOGateway.sol";
 
 library Operators {
     error Operators__OperatorsLengthTooLong();

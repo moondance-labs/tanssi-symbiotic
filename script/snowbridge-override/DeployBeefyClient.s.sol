@@ -19,7 +19,7 @@ import {SafeNativeTransfer} from "@snowbridge/src/utils/SafeTransfer.sol";
 
 import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
 
-import {Gateway} from "../../src/snowbridge-override/Gateway.sol";
+import {Gateway} from "src/contracts/snowbridge-override/Gateway.sol";
 
 contract DeployBeefyClient is Script {
     using SafeNativeTransfer for address payable;

@@ -40,7 +40,7 @@ import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 //**************************************************************************************************
 //                                      SNOWBRIDGE
 //**************************************************************************************************
-import {IOGateway} from "../snowbridge-override/interfaces/IOGateway.sol";
+import {IOGateway} from "../../interfaces/snowbridge-override/IOGateway.sol";
 import {ParaID} from "@snowbridge/src/Types.sol";
 
 import {SimpleKeyRegistry32} from "../libraries/SimpleKeyRegistry32.sol";
@@ -92,7 +92,6 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
     address public immutable i_owner;
     uint48 public immutable i_epochDuration;
     uint48 public immutable i_slashingWindow;
-
     uint48 public immutable i_startTime;
 
     uint48 private constant INSTANT_SLASHER_TYPE = 0;

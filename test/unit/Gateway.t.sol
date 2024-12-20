@@ -35,9 +35,9 @@ import {SetOperatingModeParams} from "@snowbridge/src/Params.sol";
 
 import {Strings} from "openzeppelin/utils/Strings.sol";
 
-import {Gateway} from "../../src/snowbridge-override/Gateway.sol";
-import {IOGateway} from "../../src/snowbridge-override/interfaces/IOGateway.sol";
-import {Operators} from "../../src/snowbridge-override/Operators.sol";
+import {Gateway} from "../../src/contracts/snowbridge-override/Gateway.sol";
+import {IOGateway} from "../../src/interfaces/snowbridge-override/IOGateway.sol";
+import {Operators} from "../../src/contracts/snowbridge-override/Operators.sol";
 import {MockOGateway} from "../../test/mocks/snowbridge-override/MockOGateway.sol";
 
 //NEW

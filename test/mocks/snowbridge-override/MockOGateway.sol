@@ -7,7 +7,7 @@ import {Verification} from "@snowbridge/src/Verification.sol";
 import {IInitializable} from "@snowbridge/src/interfaces/IInitializable.sol";
 import {UD60x18} from "prb/math/src/UD60x18.sol";
 
-import {Gateway} from "../../../src/snowbridge-override/Gateway.sol";
+import {Gateway} from "../../../src/contracts/snowbridge-override/Gateway.sol";
 
 contract MockOGateway is Gateway {
     bool public commitmentsAreVerified;

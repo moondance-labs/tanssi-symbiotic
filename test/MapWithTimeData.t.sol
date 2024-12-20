@@ -16,7 +16,7 @@ pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-import {MapWithTimeData} from "src/libraries/MapWithTimeData.sol";
+import {MapWithTimeData} from "src/contracts/libraries/MapWithTimeData.sol";
 import {MapWithTimeDataContract} from "./mocks/MapWithTimeDataContract.sol";
 
 contract DefaultOperatorRewardsTest is Test {
