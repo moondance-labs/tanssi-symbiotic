@@ -63,3 +63,8 @@ deploy-tanssi-eco:
 	@echo "📡 Deploying Tanssi Ecosystem..."
 	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem ${NETWORK_ARGS}
 	@echo "✅ Tanssi Ecosystem deployment completed"
+
+deploy-full-tanssi-eco-demo:
+	@echo "📡 Deploying Full Tanssi Ecosystem Locally for Demo..."
+	@forge script script/test/DeployTanssiEcosystemDemo.s.sol --slow --skip-simulation ${NETWORK_ARGS}
+	@echo "✅ Full Tanssi Ecosystem Locally for Demo deployment completed"
