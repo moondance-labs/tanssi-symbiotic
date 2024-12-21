@@ -42,6 +42,7 @@ interface IODefaultStakerRewards is IStakerRewards {
     struct RewardDistribution {
         uint256 amount;
         uint48 epoch;
+        bytes32 root;
     }
 
     /**
@@ -123,7 +124,7 @@ interface IODefaultStakerRewards is IStakerRewards {
      * @notice Get the vault's address.
      * @return address of the vault
      */
-    function VAULT() external view returns (address);
+    function s_vault() external view returns (address);
 
     /**
      * @notice Get an admin fee.
@@ -151,7 +152,7 @@ interface IODefaultStakerRewards is IStakerRewards {
         address token,
         address network,
         uint256 rewardIndex
-    ) external view returns (uint256 amount, uint48 epoch);
+    ) external view returns (uint256 amount, uint48 epoch, bytes32 root);
 
     /**
      * @notice Get the first index of the unclaimed rewards using a particular token by a given account.

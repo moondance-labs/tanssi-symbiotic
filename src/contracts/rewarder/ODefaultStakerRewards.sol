@@ -86,7 +86,7 @@ contract ODefaultStakerRewards is
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    address public VAULT;
+    address public s_vault;
 
     /**
      * @inheritdoc IODefaultStakerRewards
@@ -157,10 +157,11 @@ contract ODefaultStakerRewards is
 
         uint256 rewardsToClaim = Math.min(maxRewards, rewardsByTokenNetwork.length - rewardIndex);
 
+        //! Probably this whole part needs to be changed.
         for (uint256 i; i < rewardsToClaim;) {
             RewardDistribution storage reward = rewardsByTokenNetwork[rewardIndex];
 
-            amount += IVault(VAULT).activeSharesOfAt(account, reward.epoch, new bytes(0)).mulDiv(
+            amount += IVault(s_vault).activeSharesOfAt(account, reward.epoch, new bytes(0)).mulDiv(
                 reward.amount, _activeSharesCache[reward.epoch]
             );
 
@@ -195,7 +196,7 @@ contract ODefaultStakerRewards is
 
         __ReentrancyGuard_init();
 
-        VAULT = params.vault;
+        s_vault = params.vault;
 
         _setAdminFee(params.adminFee);
 
@@ -220,11 +221,13 @@ contract ODefaultStakerRewards is
         bytes calldata data
     ) external override nonReentrant {
         // epoch - an epoch at which stakes must be taken into account
+        // root - a Merkle root of the epoch
         // maxAdminFee - the maximum admin fee to allow
         // activeSharesHint - a hint index to optimize `activeSharesAt()` processing
         // activeStakeHint - a hint index to optimize `activeStakeAt()` processing
-        (uint48 epoch, uint256 maxAdminFee, bytes memory activeSharesHint, bytes memory activeStakeHint) =
-            abi.decode(data, (uint48, uint256, bytes, bytes));
+
+        (uint48 epoch, bytes32 root, uint256 maxAdminFee, bytes memory activeSharesHint, bytes memory activeStakeHint) =
+            abi.decode(data, (uint48, bytes32, uint256, bytes, bytes));
 
         uint48 epochTs = getEpochStartTs(epoch);
 
@@ -242,8 +245,8 @@ contract ODefaultStakerRewards is
         }
 
         if (_activeSharesCache[epoch] == 0) {
-            uint256 activeShares_ = IVault(VAULT).activeSharesAt(epochTs, activeSharesHint);
-            uint256 activeStake_ = IVault(VAULT).activeStakeAt(epochTs, activeStakeHint);
+            uint256 activeShares_ = IVault(s_vault).activeSharesAt(epochTs, activeSharesHint);
+            uint256 activeStake_ = IVault(s_vault).activeStakeAt(epochTs, activeStakeHint);
 
             if (activeShares_ == 0 || activeStake_ == 0) {
                 revert InvalidRewardTimestamp();
@@ -266,7 +269,7 @@ contract ODefaultStakerRewards is
         claimableAdminFee[token] += adminFeeAmount;
 
         if (distributeAmount > 0) {
-            rewards[token][network].push(RewardDistribution({amount: distributeAmount, epoch: epoch}));
+            rewards[token][network].push(RewardDistribution({amount: distributeAmount, epoch: epoch, root: root}));
         }
 
         emit DistributeRewards(network, token, amount, data);
@@ -301,13 +304,21 @@ contract ODefaultStakerRewards is
             revert InvalidHintsLength();
         }
 
+        //! This calculates the rewards based on activeSharesOfAt, but we want based on the root. Follow
+        //  if (
+        //     !MerkleProof.verifyCalldata(
+        //         proof, root_, keccak256(bytes.concat(keccak256(abi.encode(msg.sender, totalClaimable))))
+        //     )
+        // ) {
+        //     revert InvalidProof();
+        // }
         //! Should we add that rewards are gonna expire after 1 month?
         uint256 amount;
         uint256 rewardIndex = lastUnclaimedReward_;
         for (uint256 i; i < rewardsToClaim;) {
             RewardDistribution storage reward = rewardsByTokenNetwork[rewardIndex];
             uint48 epochTs = getEpochStartTs(reward.epoch);
-            amount += IVault(VAULT).activeSharesOfAt(msg.sender, epochTs, activeSharesOfHints[i]).mulDiv(
+            amount += IVault(s_vault).activeSharesOfAt(msg.sender, epochTs, activeSharesOfHints[i]).mulDiv(
                 reward.amount, _activeSharesCache[reward.epoch]
             );
 

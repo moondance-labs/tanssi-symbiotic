@@ -41,6 +41,9 @@ import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 //                                      SNOWBRIDGE
 //**************************************************************************************************
 import {IOGateway} from "../../interfaces/snowbridge-override/IOGateway.sol";
+import {IODefaultStakerRewards} from "../../interfaces/rewarder/IODefaultStakerRewards.sol";
+import {IODefaultOperatorRewards} from "../../interfaces/rewarder/IODefaultOperatorRewards.sol";
+
 import {ParaID} from "@snowbridge/src/Types.sol";
 
 import {SimpleKeyRegistry32} from "../libraries/SimpleKeyRegistry32.sol";
@@ -103,7 +106,11 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
     mapping(uint48 => mapping(address => uint256)) public s_operatorStakeCache;
     EnumerableMap.AddressToUintMap private s_operators;
     EnumerableMap.AddressToUintMap private s_vaults;
-    IOGateway public gateway;
+    IOGateway private s_gateway;
+    IODefaultOperatorRewards private s_operatorRewards;
+    IODefaultStakerRewards private s_stakerRewards;
+
+    event Middleware__RewardsContractsSet(address indexed stakerRewardsAddress, address indexed operatorRewardsAddress);
 
     modifier updateStakeCache(
         uint48 epoch
@@ -111,6 +118,11 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
         if (!s_totalStakeCached[epoch]) {
             calcAndCacheStakes(epoch);
         }
+        _;
+    }
+
+    modifier onlyGateway() {
+        require(msg.sender == address(s_gateway), "Middleware: caller is not the gateway");
         _;
     }
 
@@ -309,7 +321,14 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
     function setGateway(
         address _gateway
     ) external onlyOwner {
-        gateway = IOGateway(_gateway);
+        s_gateway = IOGateway(_gateway);
+    }
+
+    function setRewardsContracts(address stakerRewardsAddress, address operatorRewardsAddress) external onlyOwner {
+        s_stakerRewards = IODefaultStakerRewards(stakerRewardsAddress);
+        s_operatorRewards = IODefaultOperatorRewards(operatorRewardsAddress);
+
+        emit Middleware__RewardsContractsSet(stakerRewardsAddress, operatorRewardsAddress);
     }
 
     // function submission(bytes memory payload, bytes32[] memory signatures) public updateStakeCache(getCurrentEpoch()) {
@@ -317,6 +336,14 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
     //     // validate payload
     //     // process payload
     // }
+
+    function distributeRewards(uint256 amount, bytes calldata data) external onlyGateway {
+        address tanssiTokenAddress = address(1); //Mocked for now until we have the real address
+        s_stakerRewards.distributeRewards(i_network, tanssiTokenAddress, amount, data);
+
+        // Probably this should be called by staker rewards contract as 90% of total needs to be sent to operator rewards
+        // s_operatorRewards.distributeRewards(root);
+    }
 
     /**
      * @notice Calculates and caches stakes for an epoch
@@ -490,7 +517,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
             mstore(keys, valIdx)
         }
 
-        gateway.sendOperatorsData(keys, ParaID.wrap(1));
+        s_gateway.sendOperatorsData(keys, ParaID.wrap(1));
     }
 
     /**
