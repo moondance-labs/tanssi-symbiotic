@@ -20,6 +20,7 @@ import {
     InboundMessage,
     OperatingMode,
     ParaID,
+    ChannelID,
     Command,
     multiAddressFromBytes32,
     multiAddressFromBytes20
@@ -43,6 +44,7 @@ import {MockOGateway} from "../../test/mocks/snowbridge-override/MockOGateway.so
 //NEW
 import {WETH9} from "canonical-weth/WETH9.sol";
 import {UD60x18, ud60x18, convert} from "prb/math/src/UD60x18.sol";
+
 
 contract GatewayTest is Test {
     // Emitted when token minted/burnt/transfered
@@ -93,6 +95,9 @@ contract GatewayTest is Test {
 
     // tokenID for DOT
     bytes32 public dotTokenID;
+
+    ChannelID internal constant PRIMARY_GOVERNANCE_CHANNEL_ID = ChannelID.wrap(bytes32(uint256(1)));
+    ChannelID internal constant SECONDARY_GOVERNANCE_CHANNEL_ID = ChannelID.wrap(bytes32(uint256(2)));
 
     function setUp() public {
         AgentExecutor executor = new AgentExecutor();
@@ -177,19 +182,17 @@ contract GatewayTest is Test {
 
     function testSendOperatorsDataX() public {
         // Create mock agent and paraID
-        ParaID paraID = _createParaIDAndAgent();
         vm.expectEmit(true, false, false, true);
-        emit IGateway.OutboundMessageAccepted(paraID.into(), 1, messageID, FINAL_VALIDATORS_PAYLOAD);
+        emit IGateway.OutboundMessageAccepted(PRIMARY_GOVERNANCE_CHANNEL_ID, 1, messageID, FINAL_VALIDATORS_PAYLOAD);
 
-        IOGateway(address(gateway)).sendOperatorsData(VALIDATORS_DATA, paraID);
+        IOGateway(address(gateway)).sendOperatorsData(VALIDATORS_DATA);
     }
 
     function testShouldNotSendOperatorsDataBecauseOperatorsTooLong() public {
-        ParaID paraID = _createParaIDAndAgent();
         bytes32[] memory longOperatorsData = createLongOperatorsData();
 
         vm.expectRevert(Operators.Operators__OperatorsLengthTooLong.selector);
-        IOGateway(address(gateway)).sendOperatorsData(longOperatorsData, paraID);
+        IOGateway(address(gateway)).sendOperatorsData(longOperatorsData);
     }
 
     function testSendOperatorsDataWith50Entries() public {
@@ -202,12 +205,11 @@ contract GatewayTest is Test {
 
         // Get accounts array
         bytes32[] memory accounts = abi.decode(vm.parseJson(json, "$.accounts"), (bytes32[]));
-        (ParaID paraID) = _createParaIDAndAgent();
 
         vm.expectEmit(true, false, false, true);
-        emit IGateway.OutboundMessageAccepted(paraID.into(), 1, messageID, final_payload);
+        emit IGateway.OutboundMessageAccepted(PRIMARY_GOVERNANCE_CHANNEL_ID, 1, messageID, final_payload);
 
-        IOGateway(address(gateway)).sendOperatorsData(accounts, paraID);
+        IOGateway(address(gateway)).sendOperatorsData(accounts);
     }
 
     function testSendOperatorsDataWith400Entries() public {
@@ -220,12 +222,11 @@ contract GatewayTest is Test {
 
         // Get accounts array
         bytes32[] memory accounts = abi.decode(vm.parseJson(json, "$.accounts"), (bytes32[]));
-        ParaID paraID = _createParaIDAndAgent();
 
         vm.expectEmit(true, false, false, true);
-        emit IGateway.OutboundMessageAccepted(paraID.into(), 1, messageID, final_payload);
+        emit IGateway.OutboundMessageAccepted(PRIMARY_GOVERNANCE_CHANNEL_ID, 1, messageID, final_payload);
 
-        IOGateway(address(gateway)).sendOperatorsData(accounts, paraID);
+        IOGateway(address(gateway)).sendOperatorsData(accounts);
     }
 
     function testSendOperatorsDataWith1000Entries() public {
@@ -238,11 +239,10 @@ contract GatewayTest is Test {
 
         // Get accounts array
         bytes32[] memory accounts = abi.decode(vm.parseJson(json, "$.accounts"), (bytes32[]));
-        ParaID paraID = _createParaIDAndAgent();
 
         vm.expectEmit(true, false, false, true);
-        emit IGateway.OutboundMessageAccepted(paraID.into(), 1, messageID, final_payload);
+        emit IGateway.OutboundMessageAccepted(PRIMARY_GOVERNANCE_CHANNEL_ID, 1, messageID, final_payload);
 
-        IOGateway(address(gateway)).sendOperatorsData(accounts, paraID);
+        IOGateway(address(gateway)).sendOperatorsData(accounts);
     }
 }
