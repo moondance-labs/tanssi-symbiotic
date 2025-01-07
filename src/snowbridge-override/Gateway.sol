@@ -518,7 +518,9 @@ contract Gateway is IOGateway, IInitializable, IUpgradable {
         return Assets.tokenAddressOf(tokenID);
     }
 
-    function sendOperatorsData(bytes32[] calldata data) external {
+    function sendOperatorsData(
+        bytes32[] calldata data
+    ) external {
         ParaID dummyChain = ParaID.wrap(0);
         Ticket memory ticket = Operators.encodeOperatorsData(data, dummyChain);
         _submitOutboundToChannel(PRIMARY_GOVERNANCE_CHANNEL_ID, ticket.payload);
@@ -599,10 +601,7 @@ contract Gateway is IOGateway, IInitializable, IUpgradable {
 
     // Submit an outbound message to a specific channel.
     // Doesn't handle fees.
-    function _submitOutboundToChannel(
-        ChannelID channelID,
-        bytes memory payload
-    ) internal {
+    function _submitOutboundToChannel(ChannelID channelID, bytes memory payload) internal {
         Channel storage channel = _ensureChannel(channelID);
 
         // Ensure outbound messaging is allowed

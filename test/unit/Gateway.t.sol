@@ -45,7 +45,6 @@ import {MockOGateway} from "../../test/mocks/snowbridge-override/MockOGateway.so
 import {WETH9} from "canonical-weth/WETH9.sol";
 import {UD60x18, ud60x18, convert} from "prb/math/src/UD60x18.sol";
 
-
 contract GatewayTest is Test {
     // Emitted when token minted/burnt/transfered
     event Transfer(address indexed from, address indexed to, uint256 value);

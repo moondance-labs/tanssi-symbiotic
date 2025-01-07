@@ -21,5 +21,7 @@ interface IOGateway is IGateway {
     // Emitted when operators data has been created
     event OperatorsDataCreated(uint256 indexed validatorsCount, bytes payload);
 
-    function sendOperatorsData(bytes32[] calldata data) external;
+    function sendOperatorsData(
+        bytes32[] calldata data
+    ) external;
 }
