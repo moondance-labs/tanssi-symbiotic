@@ -2,74 +2,77 @@
 pragma solidity 0.8.25;
 
 import {IODefaultOperatorRewards} from "../../interfaces/rewarder/IODefaultOperatorRewards.sol";
+import {IODefaultStakerRewards} from "../../interfaces/rewarder/IODefaultStakerRewards.sol";
 
-import {INetworkMiddlewareService} from "@symbioticfi/core/src/interfaces/service/INetworkMiddlewareService.sol";
+import {INetworkMiddlewareService} from "@symbiotic/interfaces/service/INetworkMiddlewareService.sol";
 
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-contract DefaultOperatorRewards is ReentrancyGuardUpgradeable, IODefaultOperatorRewards {
+contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
     using SafeERC20 for IERC20;
+    using Math for uint256;
 
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
-    address public immutable NETWORK_MIDDLEWARE_SERVICE;
+    address public immutable i_networkMiddlewareService;
 
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
-    // ! this should have the epoch and let's see if we need the token or we know we are just gonna use tanssi token
-    mapping(address network => mapping(address token => bytes32 value)) public root;
+    address public immutable i_token;
+
+    // Do we want this immutable? Or can we upgrade it?
+    address public s_network;
+
+    address public s_defaultStakerRewards;
 
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
-    // ! this should have the epoch
-    mapping(address network => mapping(address token => uint256 amount)) public balance;
+    mapping(uint48 epoch => bytes32 value) public s_epochRoot;
 
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
-    mapping(address network => mapping(address token => mapping(address account => uint256 amount))) public claimed;
+    mapping(uint48 epoch => uint256 amount) public s_balance;
 
-    constructor(
-        address networkMiddlewareService
-    ) {
-        //! Probably we won't need this
-        _disableInitializers();
+    /**
+     * @inheritdoc IODefaultOperatorRewards
+     */
+    mapping(uint48 epoch => mapping(address account => uint256 amount)) public s_claimed;
 
-        NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
+    constructor(address networkMiddlewareService, address token) {
+        i_networkMiddlewareService = networkMiddlewareService;
+        i_token = token;
     }
 
-    function initialize() public initializer {
-        __ReentrancyGuard_init();
-    }
-
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
-    function distributeRewards(address network, address token, uint256 amount, bytes32 root_) external nonReentrant {
-        if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(network) != msg.sender) {
+    function distributeRewards(uint48 epoch, uint256 amount, bytes32 root) external nonReentrant {
+        if (INetworkMiddlewareService(i_networkMiddlewareService).middleware(s_network) != msg.sender) {
             revert NotNetworkMiddleware();
         }
 
         if (amount > 0) {
-            uint256 balanceBefore = IERC20(token).balanceOf(address(this));
-            IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
-            amount = IERC20(token).balanceOf(address(this)) - balanceBefore;
+            uint256 balanceBefore = IERC20(i_token).balanceOf(address(this));
+            IERC20(i_token).safeTransferFrom(msg.sender, address(this), amount);
+            amount = IERC20(i_token).balanceOf(address(this)) - balanceBefore;
 
             if (amount == 0) {
                 revert InsufficientTransfer();
             }
 
-            balance[network][token] += amount;
+            s_balance[epoch] += amount;
         }
 
-        root[network][token] = root_;
+        s_epochRoot[epoch] = root;
 
-        emit DistributeRewards(network, token, amount, root_);
+        emit DistributeRewards(epoch, root);
     }
 
     /**
@@ -77,42 +80,46 @@ contract DefaultOperatorRewards is ReentrancyGuardUpgradeable, IODefaultOperator
      */
     function claimRewards(
         address recipient,
-        address network,
-        address token,
-        uint256 totalClaimable,
-        bytes32[] calldata proof
+        uint48 epoch,
+        bytes32[] calldata proof,
+        bytes calldata data
     ) external nonReentrant returns (uint256 amount) {
-        bytes32 root_ = root[network][token];
+        bytes32 root_ = s_epochRoot[epoch];
         if (root_ == bytes32(0)) {
             revert RootNotSet();
         }
 
-        if (
-            !MerkleProof.verifyCalldata(
-                proof, root_, keccak256(bytes.concat(keccak256(abi.encode(msg.sender, totalClaimable))))
-            )
-        ) {
+        if (!MerkleProof.verifyCalldata(proof, root_, keccak256(bytes.concat(keccak256(abi.encode(msg.sender)))))) {
             revert InvalidProof();
         }
 
-        uint256 claimed_ = claimed[network][token][msg.sender];
+        uint256 claimed_ = s_claimed[epoch][msg.sender];
+        uint256 totalClaimable = s_balance[epoch];
+
         if (totalClaimable <= claimed_) {
             revert InsufficientTotalClaimable();
         }
 
         amount = totalClaimable - claimed_;
 
-        uint256 balance_ = balance[network][token];
+        uint256 balance_ = s_balance[epoch];
         if (amount > balance_) {
             revert InsufficientBalance();
         }
 
-        balance[network][token] = balance_ - amount;
+        s_balance[epoch] = balance_ - amount;
 
-        claimed[network][token][msg.sender] = totalClaimable;
+        s_claimed[epoch][msg.sender] = amount;
 
-        IERC20(token).safeTransfer(recipient, amount);
+        //!Comment 1: Math here is important. Please double check if this is what we want!!
+        uint256 operatorAmount = amount.mulDiv(20, 100); // 20% of the rewards to the operator
+        uint256 stakerAmount = amount - operatorAmount; // 80% of the rewards to the stakers
 
-        emit ClaimRewards(recipient, network, token, msg.sender, amount);
+        // On every claim send 20% of the rewards to the operator
+        // And then distribute rewards to the stakers
+        IERC20(i_token).safeTransfer(recipient, operatorAmount); //This is gonna send 20% of the rewards
+        IODefaultStakerRewards(s_defaultStakerRewards).distributeRewards(epoch, stakerAmount, data);
+
+        emit ClaimRewards(recipient, epoch, msg.sender, amount);
     }
 }

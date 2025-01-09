@@ -44,7 +44,7 @@ contract ODefaultStakerRewards is
     using Math for uint256;
 
     /**
-     * @inheritdoc IStakerRewards
+     * @inheritdoc IODefaultStakerRewards
      */
     uint64 public constant version = 1;
 
@@ -76,12 +76,19 @@ contract ODefaultStakerRewards is
     /**
      * @inheritdoc IODefaultStakerRewards
      */
+    address public immutable i_token;
+
+    /**
+     * @inheritdoc IODefaultStakerRewards
+     */
     uint48 public immutable i_startTime;
 
     /**
      * @inheritdoc IODefaultStakerRewards
      */
     uint48 public immutable i_epochDuration;
+
+    address public s_network;
 
     /**
      * @inheritdoc IODefaultStakerRewards
@@ -91,27 +98,32 @@ contract ODefaultStakerRewards is
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    uint256 public adminFee;
+    uint256 public s_adminFee;
 
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    mapping(address token => mapping(address network => RewardDistribution[] rewards_)) public rewards;
+    mapping(uint48 epoch => uint256[] rewards_) public s_rewards;
 
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    mapping(address account => mapping(address token => mapping(address network => uint256 rewardIndex))) public
-        lastUnclaimedReward;
+    mapping(address account => mapping(uint48 epoch => uint256 rewardIndex)) public s_lastUnclaimedReward;
 
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    mapping(address token => uint256 amount) public claimableAdminFee;
+    mapping(uint48 epoch => uint256 amount) public s_claimableAdminFee;
 
-    mapping(uint48 timestamp => uint256 amount) private _activeSharesCache;
+    mapping(uint48 epoch => uint256 amount) private _s_activeSharesCache;
 
-    constructor(address vaultFactory, address networkMiddlewareService, uint48 startTime, uint48 epochDuration) {
+    constructor(
+        address vaultFactory,
+        address networkMiddlewareService,
+        uint48 startTime,
+        uint48 epochDuration,
+        address token
+    ) {
         // probably we don't need this since we will just deploy it and upgrade it and we don't need a factory
         // _disableInitializers();
 
@@ -119,6 +131,7 @@ contract ODefaultStakerRewards is
         i_networkMiddlewareService = networkMiddlewareService;
         i_startTime = startTime;
         i_epochDuration = epochDuration;
+        i_token = token;
     }
 
     /**
@@ -136,33 +149,30 @@ contract ODefaultStakerRewards is
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    function rewardsLength(address token, address network) external view returns (uint256) {
-        return rewards[token][network].length;
+    function rewardsLength(
+        uint48 epoch
+    ) external view returns (uint256) {
+        return s_rewards[epoch].length;
     }
 
     /**
-     * @inheritdoc IStakerRewards
+     * @inheritdoc IODefaultStakerRewards
      */
     function claimable(
-        address token,
+        uint48 epoch,
         address account,
-        bytes calldata data
+        uint256 maxRewards
     ) external view override returns (uint256 amount) {
-        // network - a network to claim rewards for
-        // maxRewards - the maximum amount of rewards to process
-        (address network, uint256 maxRewards) = abi.decode(data, (address, uint256));
+        uint256[] memory rewardsPerEpoch = s_rewards[epoch];
+        uint256 rewardIndex = s_lastUnclaimedReward[account][epoch];
 
-        RewardDistribution[] storage rewardsByTokenNetwork = rewards[token][network];
-        uint256 rewardIndex = lastUnclaimedReward[account][token][network];
+        uint256 rewardsToClaim = Math.min(maxRewards, rewardsPerEpoch.length - rewardIndex);
 
-        uint256 rewardsToClaim = Math.min(maxRewards, rewardsByTokenNetwork.length - rewardIndex);
-
-        //! Probably this whole part needs to be changed.
         for (uint256 i; i < rewardsToClaim;) {
-            RewardDistribution storage reward = rewardsByTokenNetwork[rewardIndex];
+            uint256 rewardAmount = rewardsPerEpoch[rewardIndex];
 
-            amount += IVault(s_vault).activeSharesOfAt(account, reward.epoch, new bytes(0)).mulDiv(
-                reward.amount, _activeSharesCache[reward.epoch]
+            amount += IVault(s_vault).activeSharesOfAt(account, epoch, new bytes(0)).mulDiv(
+                rewardAmount, _s_activeSharesCache[epoch]
             );
 
             unchecked {
@@ -212,26 +222,19 @@ contract ODefaultStakerRewards is
     }
 
     /**
-     * @inheritdoc IStakerRewards
+     * @inheritdoc IODefaultStakerRewards
      */
-    function distributeRewards(
-        address network,
-        address token,
-        uint256 amount,
-        bytes calldata data
-    ) external override nonReentrant {
-        // epoch - an epoch at which stakes must be taken into account
-        // root - a Merkle root of the epoch
+    function distributeRewards(uint48 epoch, uint256 amount, bytes calldata data) external override nonReentrant {
         // maxAdminFee - the maximum admin fee to allow
         // activeSharesHint - a hint index to optimize `activeSharesAt()` processing
         // activeStakeHint - a hint index to optimize `activeStakeAt()` processing
 
-        (uint48 epoch, bytes32 root, uint256 maxAdminFee, bytes memory activeSharesHint, bytes memory activeStakeHint) =
-            abi.decode(data, (uint48, bytes32, uint256, bytes, bytes));
+        (uint256 maxAdminFee, bytes memory activeSharesHint, bytes memory activeStakeHint) =
+            abi.decode(data, (uint256, bytes, bytes));
 
         uint48 epochTs = getEpochStartTs(epoch);
 
-        if (INetworkMiddlewareService(i_networkMiddlewareService).middleware(network) != msg.sender) {
+        if (INetworkMiddlewareService(i_networkMiddlewareService).middleware(s_network) != msg.sender) {
             revert NotNetworkMiddleware();
         }
 
@@ -239,12 +242,12 @@ contract ODefaultStakerRewards is
             revert InvalidRewardTimestamp();
         }
 
-        uint256 adminFee_ = adminFee;
+        uint256 adminFee_ = s_adminFee;
         if (maxAdminFee < adminFee_) {
             revert HighAdminFee();
         }
 
-        if (_activeSharesCache[epoch] == 0) {
+        if (_s_activeSharesCache[epoch] == 0) {
             uint256 activeShares_ = IVault(s_vault).activeSharesAt(epochTs, activeSharesHint);
             uint256 activeStake_ = IVault(s_vault).activeStakeAt(epochTs, activeStakeHint);
 
@@ -252,12 +255,13 @@ contract ODefaultStakerRewards is
                 revert InvalidRewardTimestamp();
             }
 
-            _activeSharesCache[epoch] = activeShares_;
+            _s_activeSharesCache[epoch] = activeShares_;
         }
 
-        uint256 balanceBefore = IERC20(token).balanceOf(address(this));
-        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
-        amount = IERC20(token).balanceOf(address(this)) - balanceBefore;
+        //!Comment 3 Probably mint and then transfer on distribute or claim?
+        uint256 balanceBefore = IERC20(i_token).balanceOf(address(this));
+        IERC20(i_token).safeTransferFrom(msg.sender, address(this), amount);
+        amount = IERC20(i_token).balanceOf(address(this)) - balanceBefore;
 
         if (amount == 0) {
             revert InsufficientReward();
@@ -266,33 +270,31 @@ contract ODefaultStakerRewards is
         uint256 adminFeeAmount = amount.mulDiv(adminFee_, ADMIN_FEE_BASE);
         uint256 distributeAmount = amount - adminFeeAmount;
 
-        claimableAdminFee[token] += adminFeeAmount;
+        s_claimableAdminFee[epoch] += adminFeeAmount;
 
         if (distributeAmount > 0) {
-            rewards[token][network].push(RewardDistribution({amount: distributeAmount, epoch: epoch, root: root}));
+            s_rewards[epoch].push(distributeAmount);
         }
 
-        emit DistributeRewards(network, token, amount, data);
+        emit DistributeRewards(s_network, amount, data);
     }
 
     /**
-     * @inheritdoc IStakerRewards
+     * @inheritdoc IODefaultStakerRewards
      */
-    function claimRewards(address recipient, address token, bytes calldata data) external override nonReentrant {
-        // network - a network to claim rewards for
+    function claimRewards(address recipient, uint48 epoch, bytes calldata data) external override nonReentrant {
         // maxRewards - the maximum amount of rewards to process
         // activeSharesOfHints - hint indexes to optimize `activeSharesOf()` processing
-        (address network, uint256 maxRewards, bytes[] memory activeSharesOfHints) =
-            abi.decode(data, (address, uint256, bytes[]));
+        (uint256 maxRewards, bytes[] memory activeSharesOfHints) = abi.decode(data, (uint256, bytes[]));
 
         if (recipient == address(0)) {
             revert InvalidRecipient();
         }
 
-        RewardDistribution[] storage rewardsByTokenNetwork = rewards[token][network];
-        uint256 lastUnclaimedReward_ = lastUnclaimedReward[msg.sender][token][network];
+        uint256[] memory rewardsPerEpoch = s_rewards[epoch];
+        uint256 lastUnclaimedReward_ = s_lastUnclaimedReward[msg.sender][epoch];
 
-        uint256 rewardsToClaim = Math.min(maxRewards, rewardsByTokenNetwork.length - lastUnclaimedReward_);
+        uint256 rewardsToClaim = Math.min(maxRewards, rewardsPerEpoch.length - lastUnclaimedReward_);
 
         if (rewardsToClaim == 0) {
             revert NoRewardsToClaim();
@@ -304,53 +306,47 @@ contract ODefaultStakerRewards is
             revert InvalidHintsLength();
         }
 
-        //! This calculates the rewards based on activeSharesOfAt, but we want based on the root. Follow
-        //  if (
-        //     !MerkleProof.verifyCalldata(
-        //         proof, root_, keccak256(bytes.concat(keccak256(abi.encode(msg.sender, totalClaimable))))
-        //     )
-        // ) {
-        //     revert InvalidProof();
-        // }
-        //! Should we add that rewards are gonna expire after 1 month?
+        //!Comment 1 Should we add that rewards are gonna expire after 1 month?
         uint256 amount;
         uint256 rewardIndex = lastUnclaimedReward_;
         for (uint256 i; i < rewardsToClaim;) {
-            RewardDistribution storage reward = rewardsByTokenNetwork[rewardIndex];
-            uint48 epochTs = getEpochStartTs(reward.epoch);
+            uint256 rewardAmount = rewardsPerEpoch[rewardIndex];
+            uint48 epochTs = getEpochStartTs(epoch);
             amount += IVault(s_vault).activeSharesOfAt(msg.sender, epochTs, activeSharesOfHints[i]).mulDiv(
-                reward.amount, _activeSharesCache[reward.epoch]
+                rewardAmount, _s_activeSharesCache[epoch]
             );
 
             unchecked {
                 ++i;
                 ++rewardIndex;
+                rewardsPerEpoch;
             }
         }
 
-        lastUnclaimedReward[msg.sender][token][network] = rewardIndex;
+        s_lastUnclaimedReward[msg.sender][epoch] = rewardIndex;
 
         if (amount > 0) {
-            IERC20(token).safeTransfer(recipient, amount);
+            //!Comment 2 Mint and then transfer?
+            IERC20(i_token).safeTransfer(recipient, amount);
         }
 
-        emit ClaimRewards(token, network, msg.sender, recipient, lastUnclaimedReward_, rewardsToClaim, amount);
+        emit ClaimRewards(s_network, msg.sender, epoch, recipient, lastUnclaimedReward_, rewardsToClaim, amount);
     }
 
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    function claimAdminFee(address recipient, address token) external nonReentrant onlyRole(ADMIN_FEE_CLAIM_ROLE) {
-        uint256 claimableAdminFee_ = claimableAdminFee[token];
+    function claimAdminFee(address recipient, uint48 epoch) external nonReentrant onlyRole(ADMIN_FEE_CLAIM_ROLE) {
+        uint256 claimableAdminFee_ = s_claimableAdminFee[epoch];
         if (claimableAdminFee_ == 0) {
             revert InsufficientAdminFee();
         }
 
-        claimableAdminFee[token] = 0;
+        s_claimableAdminFee[epoch] = 0;
 
-        IERC20(token).safeTransfer(recipient, claimableAdminFee_);
+        IERC20(i_token).safeTransfer(recipient, claimableAdminFee_);
 
-        emit ClaimAdminFee(token, claimableAdminFee_);
+        emit ClaimAdminFee(recipient, claimableAdminFee_);
     }
 
     /**
@@ -359,7 +355,7 @@ contract ODefaultStakerRewards is
     function setAdminFee(
         uint256 adminFee_
     ) external onlyRole(ADMIN_FEE_SET_ROLE) {
-        if (adminFee == adminFee_) {
+        if (s_adminFee == adminFee_) {
             revert AlreadySet();
         }
 
@@ -375,6 +371,6 @@ contract ODefaultStakerRewards is
             revert InvalidAdminFee();
         }
 
-        adminFee = adminFee_;
+        s_adminFee = adminFee_;
     }
 }
