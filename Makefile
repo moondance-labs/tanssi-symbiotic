@@ -26,7 +26,7 @@ install :; 	forge install foundry-rs/forge-std@v1.8.2 --no-commit && \
 
 update:; forge update
 
-build:; forge build
+build:; forge build -vvvv
 
 test :; forge test
 

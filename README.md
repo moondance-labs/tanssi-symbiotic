@@ -28,6 +28,13 @@ The architecture can be seen in the following image
 $ make install
 ```
 
+If you have issue with install, delete the `lib` folder.
+
+### Build
+```shell
+$ make build
+```
+
 ### Start
 
 To spin up locally the blockchain network run:
