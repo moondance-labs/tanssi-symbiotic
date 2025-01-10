@@ -2,6 +2,9 @@
 cache/
 out/
 
+# Libraries
+lib
+
 # Ignores development broadcast logs
 !/broadcast
 /broadcast/*/31337/
@@ -16,3 +19,20 @@ docs/
 .history/
 
 **/node_modules/
+node_modules
+.env
+
+# Hardhat files
+/cache
+/artifacts
+
+# TypeChain files
+/typechain
+/typechain-types
+
+# solidity-coverage files
+/coverage
+/coverage.json
+
+# Hardhat Ignition default folder for deployments against a local node
+/ignition
