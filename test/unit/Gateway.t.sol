@@ -15,7 +15,6 @@
 pragma solidity 0.8.25;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {console} from "forge-std/console.sol";
 import {
     AgentExecuteCommand,
     InboundMessage,
@@ -228,7 +227,6 @@ contract GatewayTest is Test {
         bytes32[] memory accounts = abi.decode(vm.parseJson(json, "$.accounts"), (bytes32[]));
         uint64 timestamp = abi.decode(vm.parseJson(json, "$.timestamp"), (uint64));
         vm.warp(timestamp);
-        console.log(timestamp);
         ParaID paraID = _createParaIDAndAgent();
 
         vm.expectEmit(true, false, false, true);
