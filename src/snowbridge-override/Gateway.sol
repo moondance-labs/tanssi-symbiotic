@@ -521,8 +521,7 @@ contract Gateway is IOGateway, IInitializable, IUpgradable {
     function sendOperatorsData(
         bytes32[] calldata data
     ) external {
-        ParaID dummyChain = ParaID.wrap(0);
-        Ticket memory ticket = Operators.encodeOperatorsData(data, dummyChain);
+        Ticket memory ticket = Operators.encodeOperatorsData(data);
         _submitOutboundToChannel(PRIMARY_GOVERNANCE_CHANNEL_ID, ticket.payload);
     }
 

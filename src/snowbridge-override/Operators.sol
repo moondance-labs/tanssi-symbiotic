@@ -29,8 +29,7 @@ library Operators {
     uint16 private constant MAX_OPERATORS = 1000;
 
     function encodeOperatorsData(
-        bytes32[] calldata operatorsKeys,
-        ParaID dest
+        bytes32[] calldata operatorsKeys
     ) internal returns (Ticket memory ticket) {
         if (operatorsKeys.length == 0) {
             revert Operators__OperatorsKeysCannotBeEmpty();
@@ -41,8 +40,9 @@ library Operators {
             revert Operators__OperatorsLengthTooLong();
         }
 
-        ticket.dest = dest;
-        //TODO For now mock it to 0
+        // TODO: This is a type from Snowbridge, do we want our own simplified Ticket type?
+        ticket.dest = ParaID.wrap(0);
+        // TODO For now mock it to 0
         ticket.costs = Costs(0, 0);
 
         ticket.payload = OSubstrateTypes.EncodedOperatorsData(operatorsKeys, uint32(validatorsKeysLength));
