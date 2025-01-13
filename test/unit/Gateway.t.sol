@@ -144,7 +144,7 @@ contract GatewayTest is Test {
     }
 
     bytes private constant FINAL_VALIDATORS_PAYLOAD =
-        hex"7015003800000cd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d90b5ab205c6974c9ea841be688864633dc9ca8a357843eeacf2314649965fe228eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48";
+        hex"7015003800000cd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d90b5ab205c6974c9ea841be688864633dc9ca8a357843eeacf2314649965fe228eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a480100000000000000";
 
     bytes32[] private VALIDATORS_DATA = [
         bytes32(0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d),
@@ -179,6 +179,8 @@ contract GatewayTest is Test {
         // Create mock agent and paraID
         ParaID paraID = _createParaIDAndAgent();
         vm.expectEmit(true, false, false, true);
+        vm.warp(1);
+
         emit IGateway.OutboundMessageAccepted(paraID.into(), 1, messageID, FINAL_VALIDATORS_PAYLOAD);
 
         IOGateway(address(gateway)).sendOperatorsData(VALIDATORS_DATA, paraID);
@@ -202,6 +204,9 @@ contract GatewayTest is Test {
 
         // Get accounts array
         bytes32[] memory accounts = abi.decode(vm.parseJson(json, "$.accounts"), (bytes32[]));
+        uint64 timestamp = abi.decode(vm.parseJson(json, "$.timestamp"), (uint64));
+        vm.warp(timestamp);
+        
         (ParaID paraID) = _createParaIDAndAgent();
 
         vm.expectEmit(true, false, false, true);
@@ -220,9 +225,12 @@ contract GatewayTest is Test {
 
         // Get accounts array
         bytes32[] memory accounts = abi.decode(vm.parseJson(json, "$.accounts"), (bytes32[]));
+        uint64 timestamp = abi.decode(vm.parseJson(json, "$.timestamp"), (uint64));
+        vm.warp(timestamp);
         ParaID paraID = _createParaIDAndAgent();
 
         vm.expectEmit(true, false, false, true);
+        
         emit IGateway.OutboundMessageAccepted(paraID.into(), 1, messageID, final_payload);
 
         IOGateway(address(gateway)).sendOperatorsData(accounts, paraID);
@@ -238,6 +246,9 @@ contract GatewayTest is Test {
 
         // Get accounts array
         bytes32[] memory accounts = abi.decode(vm.parseJson(json, "$.accounts"), (bytes32[]));
+        uint64 timestamp = abi.decode(vm.parseJson(json, "$.timestamp"), (uint64));
+        vm.warp(timestamp);
+
         ParaID paraID = _createParaIDAndAgent();
 
         vm.expectEmit(true, false, false, true);
