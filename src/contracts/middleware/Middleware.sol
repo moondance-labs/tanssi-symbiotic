@@ -14,8 +14,6 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
-import {console2} from "forge-std/console2.sol";
-
 //**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
@@ -53,6 +51,8 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
     using EnumerableMap for EnumerableMap.AddressToUintMap;
     using MapWithTimeData for EnumerableMap.AddressToUintMap;
     using Subnetwork for address;
+
+    event InvalidSlashTimeframe(uint48 indexed epoch, address indexed operator, uint256 indexed amount);
 
     error Middleware__NotOperator();
     error Middleware__NotVault();
@@ -410,6 +410,14 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
                 continue;
             }
 
+            if (
+                params.epochStartTs < Time.timestamp() - IVault(vault).epochDuration()
+                    || params.epochStartTs >= Time.timestamp()
+            ) {
+                emit InvalidSlashTimeframe(epoch, operator, amount);
+                return;
+            }
+
             _processVaultSlashing(vault, params);
         }
     }
@@ -427,6 +435,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
                 subnetwork, params.operator, params.epochStartTs, new bytes(0)
             );
             uint256 slashAmount = (params.slashAmount * vaultStake) / params.totalOperatorStake;
+
             _slashVault(params.epochStartTs, vault, subnetwork, params.operator, slashAmount);
         }
     }

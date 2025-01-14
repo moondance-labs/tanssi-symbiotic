@@ -29,7 +29,7 @@ library OSubstrateTypes {
     function EncodedOperatorsData(
         bytes32[] calldata operatorsKeys,
         uint32 operatorsCount
-    ) internal pure returns (bytes memory) {
+    ) internal view returns (bytes memory) {
         bytes memory operatorsFlattened = new bytes(operatorsCount * 32);
         for (uint32 i = 0; i < operatorsCount; i++) {
             for (uint32 j = 0; j < 32; j++) {
@@ -42,7 +42,8 @@ library OSubstrateTypes {
             bytes1(uint8(Message.V0)),
             bytes1(uint8(OutboundCommandV1.ReceiveValidators)),
             ScaleCodec.encodeCompactU32(operatorsCount),
-            operatorsFlattened
+            operatorsFlattened,
+            ScaleCodec.encodeU64(uint64(block.timestamp))
         );
     }
 }

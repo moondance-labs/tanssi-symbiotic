@@ -77,7 +77,7 @@ contract MiddlewareTest is Test {
     using Subnetwork for bytes32;
     using Math for uint256;
 
-    uint48 public constant VAULT_EPOCH_DURATION = 12 days;
+    uint48 public constant VAULT_EPOCH_DURATION = 8 days;
     uint48 public constant NETWORK_EPOCH_DURATION = 6 days;
     uint48 public constant SLASHING_WINDOW = 7 days;
     uint48 public constant VETO_DURATION = 1 days;
@@ -181,8 +181,6 @@ contract MiddlewareTest is Test {
         DeploySymbiotic deploySymbiotic = new DeploySymbiotic();
 
         owner = tanssi = deploySymbiotic.owner();
-        console2.log("Owner: ", owner);
-        console2.log("Network: ", tanssi);
 
         DeploySymbiotic.SymbioticAddresses memory symbioticAddresses = deploySymbiotic.deploySymbiotic(owner);
         vaultFactory = VaultFactory(symbioticAddresses.vaultFactory);
@@ -223,7 +221,6 @@ contract MiddlewareTest is Test {
 
         vetoSlasher = VetoSlasher(vaultAddresses.slasherVetoed);
 
-        console2.log("Middleware for network: ", networkMiddlewareService.middleware(tanssi));
         vetoSlasher.setResolver(0, resolver1, hex"");
         vetoSlasher.setResolver(0, resolver2, hex"");
         vm.stopPrank();
@@ -498,6 +495,20 @@ contract MiddlewareTest is Test {
             _calculateTotalOperatorStake(OPERATOR_STAKE * 2 * 2, activeStakeInVetoed, slashAmountSlashable);
         assertEq(validators[1].stake, totalOperator2StakeAfter);
         assertEq(validators[2].stake, totalOperator3StakeAfter);
+    }
+
+    function testSlashingOnOperator2ButWrongSlashingWindow() public {
+        vm.warp(NETWORK_EPOCH_DURATION * 2 + SLASHING_WINDOW / 2);
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        uint256 epochStartTs = middleware.getEpochStartTs(currentEpoch);
+
+        // We go directly to epochStart as it 100% ensure that the epoch is started and thus the slashing is invalid
+        vm.warp(epochStartTs);
+
+        vm.prank(owner);
+        vm.expectEmit(true, true, true, true);
+        emit Middleware.InvalidSlashTimeframe(currentEpoch, operator2, 30 ether);
+        middleware.slash(currentEpoch, operator2, 30 ether);
     }
 
     function testSlashingOnOperator2AndExecuteSlashOnVetoVault() public {
