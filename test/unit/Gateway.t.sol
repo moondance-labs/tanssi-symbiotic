@@ -181,6 +181,7 @@ contract GatewayTest is Test {
 
     function testSendOperatorsDataX() public {
         // Create mock agent and paraID
+        vm.warp(1);
         vm.expectEmit(true, false, false, true);
         emit IGateway.OutboundMessageAccepted(PRIMARY_GOVERNANCE_CHANNEL_ID, 1, messageID, FINAL_VALIDATORS_PAYLOAD);
 
@@ -205,6 +206,9 @@ contract GatewayTest is Test {
         // Get accounts array
         bytes32[] memory accounts = abi.decode(vm.parseJson(json, "$.accounts"), (bytes32[]));
 
+        uint64 timestamp = abi.decode(vm.parseJson(json, "$.timestamp"), (uint64));
+        vm.warp(timestamp);
+
         vm.expectEmit(true, false, false, true);
         emit IGateway.OutboundMessageAccepted(PRIMARY_GOVERNANCE_CHANNEL_ID, 1, messageID, final_payload);
 
@@ -221,6 +225,8 @@ contract GatewayTest is Test {
 
         // Get accounts array
         bytes32[] memory accounts = abi.decode(vm.parseJson(json, "$.accounts"), (bytes32[]));
+        uint64 timestamp = abi.decode(vm.parseJson(json, "$.timestamp"), (uint64));
+        vm.warp(timestamp);
 
         vm.expectEmit(true, false, false, true);
         emit IGateway.OutboundMessageAccepted(PRIMARY_GOVERNANCE_CHANNEL_ID, 1, messageID, final_payload);
@@ -238,6 +244,8 @@ contract GatewayTest is Test {
 
         // Get accounts array
         bytes32[] memory accounts = abi.decode(vm.parseJson(json, "$.accounts"), (bytes32[]));
+        uint64 timestamp = abi.decode(vm.parseJson(json, "$.timestamp"), (uint64));
+        vm.warp(timestamp);
 
         vm.expectEmit(true, false, false, true);
         emit IGateway.OutboundMessageAccepted(PRIMARY_GOVERNANCE_CHANNEL_ID, 1, messageID, final_payload);
