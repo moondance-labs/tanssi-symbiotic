@@ -578,24 +578,33 @@ contract Gateway is IOGateway, IInitializable, IUpgradable {
         Ticket memory ticket
     ) internal {
         ChannelID channelID = ticket.dest.into();
+        Channel storage channel = _ensureChannel(channelID);
 
-        // // Destination fee always in DOT
-        // uint256 fee = _calculateFee(ticket.costs);
+        // Ensure outbound messaging is allowed
+        _ensureOutboundMessagingEnabled(channel);
 
-        // // Ensure the user has enough funds for this message to be accepted
-        // if (msg.value < fee) {
-        //     revert FeePaymentToLow();
-        // }
+        // Destination fee always in DOT
+        uint256 fee = _calculateFee(ticket.costs);
 
-        // // Deposit total fee into agent's contract
-        // payable(channel.agent).safeNativeTransfer(fee);
+        // Ensure the user has enough funds for this message to be accepted
+        if (msg.value < fee) {
+            revert FeePaymentToLow();
+        }
 
-        // // Reimburse excess fee payment
-        // if (msg.value > fee) {
-        //     payable(msg.sender).safeNativeTransfer(msg.value - fee);
-        // }
+        channel.outboundNonce = channel.outboundNonce + 1;
 
-        _submitOutboundToChannel(channelID, ticket.payload);
+        // Deposit total fee into agent's contract
+        payable(channel.agent).safeNativeTransfer(fee);
+
+        // Reimburse excess fee payment
+        if (msg.value > fee) {
+            payable(msg.sender).safeNativeTransfer(msg.value - fee);
+        }
+
+        // Generate a unique ID for this message
+        bytes32 messageID = keccak256(abi.encodePacked(channelID, channel.outboundNonce));
+
+        emit OutboundMessageAccepted(channelID, channel.outboundNonce, messageID, ticket.payload);
     }
 
     // Submit an outbound message to a specific channel.
