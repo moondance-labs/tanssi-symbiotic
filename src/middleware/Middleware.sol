@@ -500,7 +500,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
             mstore(keys, valIdx)
         }
 
-        gateway.sendOperatorsData(keys, ParaID.wrap(1));
+        gateway.sendOperatorsData(keys);
     }
 
     /**

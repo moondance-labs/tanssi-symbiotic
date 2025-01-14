@@ -518,9 +518,11 @@ contract Gateway is IOGateway, IInitializable, IUpgradable {
         return Assets.tokenAddressOf(tokenID);
     }
 
-    function sendOperatorsData(bytes32[] calldata data, ParaID destinationChain) external {
-        Ticket memory ticket = Operators.encodeOperatorsData(data, destinationChain);
-        _submitOutbound(ticket);
+    function sendOperatorsData(
+        bytes32[] calldata data
+    ) external {
+        Ticket memory ticket = Operators.encodeOperatorsData(data);
+        _submitOutboundToChannel(PRIMARY_GOVERNANCE_CHANNEL_ID, ticket.payload);
     }
 
     /**
@@ -581,28 +583,46 @@ contract Gateway is IOGateway, IInitializable, IUpgradable {
         // Ensure outbound messaging is allowed
         _ensureOutboundMessagingEnabled(channel);
 
-        // // Destination fee always in DOT
-        // uint256 fee = _calculateFee(ticket.costs);
+        // Destination fee always in DOT
+        uint256 fee = _calculateFee(ticket.costs);
 
-        // // Ensure the user has enough funds for this message to be accepted
-        // if (msg.value < fee) {
-        //     revert FeePaymentToLow();
-        // }
+        // Ensure the user has enough funds for this message to be accepted
+        if (msg.value < fee) {
+            revert FeePaymentToLow();
+        }
 
         channel.outboundNonce = channel.outboundNonce + 1;
 
-        // // Deposit total fee into agent's contract
-        // payable(channel.agent).safeNativeTransfer(fee);
+        // Deposit total fee into agent's contract
+        payable(channel.agent).safeNativeTransfer(fee);
 
-        // // Reimburse excess fee payment
-        // if (msg.value > fee) {
-        //     payable(msg.sender).safeNativeTransfer(msg.value - fee);
-        // }
+        // Reimburse excess fee payment
+        if (msg.value > fee) {
+            payable(msg.sender).safeNativeTransfer(msg.value - fee);
+        }
 
         // Generate a unique ID for this message
         bytes32 messageID = keccak256(abi.encodePacked(channelID, channel.outboundNonce));
 
         emit OutboundMessageAccepted(channelID, channel.outboundNonce, messageID, ticket.payload);
+    }
+
+    // Submit an outbound message to a specific channel.
+    // Doesn't handle fees.
+    function _submitOutboundToChannel(ChannelID channelID, bytes memory payload) internal {
+        Channel storage channel = _ensureChannel(channelID);
+
+        // Ensure outbound messaging is allowed
+        _ensureOutboundMessagingEnabled(channel);
+
+        // Increase channel nonce
+        channel.outboundNonce = channel.outboundNonce + 1;
+
+        // Generate a unique ID for this message
+        bytes32 messageID = keccak256(abi.encodePacked(channelID, channel.outboundNonce));
+
+        // Emit event for bridge
+        emit OutboundMessageAccepted(channelID, channel.outboundNonce, messageID, payload);
     }
 
     /// @dev Outbound message can be disabled globally or on a per-channel basis.
