@@ -2,19 +2,19 @@
 pragma solidity ^0.8.0;
 
 interface IODefaultStakerRewards {
-    error AlreadySet();
-    error HighAdminFee();
-    error InsufficientAdminFee();
-    error InsufficientReward();
-    error InvalidAdminFee();
-    error InvalidHintsLength();
-    error InvalidRecipient();
-    error InvalidRewardTimestamp();
-    error MissingRoles();
-    error NoRewardsToClaim();
-    error NotNetwork();
-    error NotNetworkMiddleware();
-    error NotVault();
+    error ODefaultStakerRewards__AlreadySet();
+    error ODefaultStakerRewards__HighAdminFee();
+    error ODefaultStakerRewards__InsufficientAdminFee();
+    error ODefaultStakerRewards__InsufficientReward();
+    error ODefaultStakerRewards__InvalidAdminFee();
+    error ODefaultStakerRewards__InvalidHintsLength();
+    error ODefaultStakerRewards__InvalidRecipient();
+    error ODefaultStakerRewards__InvalidRewardTimestamp();
+    error ODefaultStakerRewards__MissingRoles();
+    error ODefaultStakerRewards__NoRewardsToClaim();
+    error ODefaultStakerRewards__NotNetwork();
+    error ODefaultStakerRewards__NotNetworkMiddleware();
+    error ODefaultStakerRewards__NotVault();
 
     /**
      * @notice Initial parameters needed for a staker rewards contract deployment.
@@ -139,7 +139,7 @@ interface IODefaultStakerRewards {
      * @notice Get the network's address.
      * @return address of the network
      */
-    function s_network() external view returns (address);
+    function i_network() external view returns (address);
 
     /**
      * @notice Get the vault's address.

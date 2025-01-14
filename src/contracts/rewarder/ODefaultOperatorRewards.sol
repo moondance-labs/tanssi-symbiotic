@@ -5,11 +5,12 @@ import {IODefaultOperatorRewards} from "../../interfaces/rewarder/IODefaultOpera
 import {IODefaultStakerRewards} from "../../interfaces/rewarder/IODefaultStakerRewards.sol";
 
 import {INetworkMiddlewareService} from "@symbiotic/interfaces/service/INetworkMiddlewareService.sol";
-
+import {SimpleKeyRegistry32} from "../libraries/SimpleKeyRegistry32.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {ScaleCodec} from "@snowbridge/src/utils/ScaleCodec.sol";
 
 contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
     using SafeERC20 for IERC20;
@@ -25,8 +26,10 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
      */
     address public immutable i_token;
 
-    // Do we want this immutable? Or can we upgrade it?
-    address public s_network;
+    /**
+     * @inheritdoc IODefaultOperatorRewards
+     */
+    address public immutable i_network;
 
     address public s_defaultStakerRewards;
 
@@ -45,7 +48,15 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
      */
     mapping(uint48 epoch => mapping(address account => uint256 amount)) public s_claimed;
 
-    constructor(address networkMiddlewareService, address token) {
+    modifier onlyMiddleware() {
+        if (INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network) != msg.sender) {
+            revert ODefaultOperatorRewards__NotNetworkMiddleware();
+        }
+        _;
+    }
+
+    constructor(address network, address networkMiddlewareService, address token) {
+        i_network = network;
         i_networkMiddlewareService = networkMiddlewareService;
         i_token = token;
     }
@@ -53,18 +64,14 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
-    function distributeRewards(uint48 epoch, uint256 amount, bytes32 root) external nonReentrant {
-        if (INetworkMiddlewareService(i_networkMiddlewareService).middleware(s_network) != msg.sender) {
-            revert NotNetworkMiddleware();
-        }
-
+    function distributeRewards(uint48 epoch, uint256 amount, bytes32 root) external nonReentrant onlyMiddleware {
         if (amount > 0) {
             uint256 balanceBefore = IERC20(i_token).balanceOf(address(this));
             IERC20(i_token).safeTransferFrom(msg.sender, address(this), amount);
             amount = IERC20(i_token).balanceOf(address(this)) - balanceBefore;
 
             if (amount == 0) {
-                revert InsufficientTransfer();
+                revert ODefaultOperatorRewards__InsufficientTransfer();
             }
 
             s_balance[epoch] += amount;
@@ -79,37 +86,45 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
      * @inheritdoc IODefaultOperatorRewards
      */
     function claimRewards(
-        address recipient,
+        bytes32 operatorKey,
         uint48 epoch,
+        uint32 totalClaimable,
         bytes32[] calldata proof,
         bytes calldata data
     ) external nonReentrant returns (uint256 amount) {
         bytes32 root_ = s_epochRoot[epoch];
         if (root_ == bytes32(0)) {
-            revert RootNotSet();
+            revert ODefaultOperatorRewards__RootNotSet();
         }
 
-        if (!MerkleProof.verifyCalldata(proof, root_, keccak256(bytes.concat(keccak256(abi.encode(msg.sender)))))) {
-            revert InvalidProof();
+        // This should be double checked
+        if (
+            !MerkleProof.verifyCalldata(
+                proof, root_, keccak256(abi.encodePacked(operatorKey, ScaleCodec.encodeU32(totalClaimable)))
+            )
+        ) {
+            revert ODefaultOperatorRewards__InvalidProof();
         }
 
-        uint256 claimed_ = s_claimed[epoch][msg.sender];
-        uint256 totalClaimable = s_balance[epoch];
+        address recipient = SimpleKeyRegistry32(
+            INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network)
+        ).getOperatorByKey(operatorKey);
 
+        uint256 claimed_ = s_claimed[epoch][recipient];
         if (totalClaimable <= claimed_) {
-            revert InsufficientTotalClaimable();
+            revert ODefaultOperatorRewards__InsufficientTotalClaimable();
         }
 
         amount = totalClaimable - claimed_;
 
         uint256 balance_ = s_balance[epoch];
         if (amount > balance_) {
-            revert InsufficientBalance();
+            revert ODefaultOperatorRewards__InsufficientBalance();
         }
 
         s_balance[epoch] = balance_ - amount;
 
-        s_claimed[epoch][msg.sender] = amount;
+        s_claimed[epoch][recipient] = amount;
 
         //!Comment 1: Math here is important. Please double check if this is what we want!!
         uint256 operatorAmount = amount.mulDiv(20, 100); // 20% of the rewards to the operator
@@ -119,7 +134,12 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         // And then distribute rewards to the stakers
         IERC20(i_token).safeTransfer(recipient, operatorAmount); //This is gonna send 20% of the rewards
         IODefaultStakerRewards(s_defaultStakerRewards).distributeRewards(epoch, stakerAmount, data);
-
         emit ClaimRewards(recipient, epoch, msg.sender, amount);
+    }
+
+    function setStakerRewardContract(
+        address stakerRewards
+    ) external onlyMiddleware {
+        s_defaultStakerRewards = stakerRewards;
     }
 }

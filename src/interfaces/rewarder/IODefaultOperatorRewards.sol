@@ -2,12 +2,12 @@
 pragma solidity ^0.8.0;
 
 interface IODefaultOperatorRewards {
-    error InsufficientBalance();
-    error InsufficientTotalClaimable();
-    error InsufficientTransfer();
-    error InvalidProof();
-    error NotNetworkMiddleware();
-    error RootNotSet();
+    error ODefaultOperatorRewards__InsufficientBalance();
+    error ODefaultOperatorRewards__InsufficientTotalClaimable();
+    error ODefaultOperatorRewards__InsufficientTransfer();
+    error ODefaultOperatorRewards__InvalidProof();
+    error ODefaultOperatorRewards__NotNetworkMiddleware();
+    error ODefaultOperatorRewards__RootNotSet();
 
     /**
      * @notice Emitted when rewards are distributed by providing a Merkle root.
@@ -15,7 +15,7 @@ interface IODefaultOperatorRewards {
      * @param root Merkle root of the rewards distribution
      * @dev The Merkle tree's leaves must represent an account and a claimable amount (the total amount of the reward tokens for the whole time).
      */
-    event DistributeRewards(uint48 indexed epoch, bytes32 root);
+    event DistributeRewards(uint48 indexed epoch, bytes32 indexed root);
 
     /**
      * @notice Emitted when rewards are claimed by a particular account.
@@ -42,7 +42,7 @@ interface IODefaultOperatorRewards {
      * @notice Get the network identifier.
      * @return network identifier
      */
-    function s_network() external view returns (address);
+    function i_network() external view returns (address);
 
     /**
      * @notice Get a Merkle root of a reward distribution for a particular epoch.
@@ -80,14 +80,17 @@ interface IODefaultOperatorRewards {
 
     /**
      * @notice Claim rewards for a particular epoch by providing a Merkle proof.
-     * @param recipient address of the rewards' recipient
+     * @param operatorKey operator key of the rewards' recipient
      * @param epoch epoch for which the rewards are claimed
+     * @param totalClaimable total amount of tokens that can be claimed
      * @param proof Merkle proof of the reward distribution
+     * @param data additional data to use to distribute rewards to stakers
      * @return amount amount of tokens claimed
      */
     function claimRewards(
-        address recipient,
+        bytes32 operatorKey,
         uint48 epoch,
+        uint32 totalClaimable,
         bytes32[] calldata proof,
         bytes calldata data
     ) external returns (uint256 amount);
