@@ -6,8 +6,8 @@ import {Script} from "forge-std/Script.sol";
 import {BeefyClient} from "@snowbridge/src/BeefyClient.sol";
 
 import {GatewayProxy} from "@snowbridge/src/GatewayProxy.sol";
-import {Gateway} from "../../src/snowbridge-override/Gateway.sol";
-import {IOGateway} from "../../src/snowbridge-override/interfaces/IOGateway.sol";
+import {Gateway} from "src/contracts/snowbridge-override/Gateway.sol";
+import {IOGateway} from "src/interfaces/snowbridge-override/IOGateway.sol";
 
 import {MockGatewayV2} from "@snowbridge/test/mocks/MockGatewayV2.sol";
 import {Agent} from "@snowbridge/src/Agent.sol";
