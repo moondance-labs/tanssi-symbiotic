@@ -384,7 +384,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
                     || params.epochStartTs >= Time.timestamp()
             ) {
                 emit InvalidSlashTimeframe(epoch, operator, amount);
-                return;
+                continue;
             }
 
             _processVaultSlashing(vault, params);
