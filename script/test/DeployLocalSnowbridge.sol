@@ -93,7 +93,6 @@ contract DeployLocalSnowbridge is Script {
 
         GatewayProxy gateway = new GatewayProxy(address(gatewayLogic), abi.encode(config));
 
-
         // Fund the sovereign account for the BridgeHub parachain. Used to reward relayers
         // of messages originating from BridgeHub
         uint256 initialDeposit = vm.envUint("BRIDGE_HUB_INITIAL_DEPOSIT");
