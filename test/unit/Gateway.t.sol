@@ -206,7 +206,7 @@ contract GatewayTest is Test {
         bytes32[] memory accounts = abi.decode(vm.parseJson(json, "$.accounts"), (bytes32[]));
         uint64 timestamp = abi.decode(vm.parseJson(json, "$.timestamp"), (uint64));
         vm.warp(timestamp);
-        
+
         (ParaID paraID) = _createParaIDAndAgent();
 
         vm.expectEmit(true, false, false, true);
@@ -230,7 +230,7 @@ contract GatewayTest is Test {
         ParaID paraID = _createParaIDAndAgent();
 
         vm.expectEmit(true, false, false, true);
-        
+
         emit IGateway.OutboundMessageAccepted(paraID.into(), 1, messageID, final_payload);
 
         IOGateway(address(gateway)).sendOperatorsData(accounts, paraID);
