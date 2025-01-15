@@ -247,14 +247,12 @@ contract RewardsTest is Test {
         _distributeRewards(epoch, AMOUNT_TO_DISTRIBUTE);
 
         bytes32[] memory proof = _generateValidProof();
-        bytes32 leaf = 0x7aa72ad48826fe03d6a4bbf2598e1753fb7641efbbad5daacea9bd6a0bf7a507;
         operatorRewards.claimRewards(ALICE_KEY, epoch, AMOUNT_TO_CLAIM, proof, REWARDS_ADDITIONAL_DATA);
     }
 
     function testClaimRewardsRootNotSet() public {
         uint48 epoch = 0;
         bytes32[] memory proof = _generateValidProof();
-        // bytes32 leaf = 0x7aa72ad48826fe03d6a4bbf2598e1753fb7641efbbad5daacea9bd6a0bf7a507;
         vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__RootNotSet.selector);
         operatorRewards.claimRewards(ALICE_KEY, epoch, AMOUNT_TO_CLAIM, proof, REWARDS_ADDITIONAL_DATA);
     }
@@ -266,7 +264,6 @@ contract RewardsTest is Test {
         bytes32[] memory proof = new bytes32[](1);
         // Create a valid proof that matches the root we set
         proof[0] = 0xffe610a11a547f210646001377ae223bc6bce387931f8153624d21f6478512d2;
-        // bytes32 leaf = 0xffa72ad48826fe03d6a4bbf2598e1753fb7641efbbad5daacea9bd6a0bf7a507;
         vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidProof.selector);
         operatorRewards.claimRewards(ALICE_KEY, epoch, AMOUNT_TO_CLAIM, proof, REWARDS_ADDITIONAL_DATA);
     }
@@ -277,22 +274,9 @@ contract RewardsTest is Test {
         _mockVaultActiveSharesStakeAt(epoch, true, true);
         _distributeRewards(epoch, AMOUNT_TO_DISTRIBUTE);
         bytes32[] memory proof = _generateValidProof();
-        // bytes32 leaf = 0x7aa72ad48826fe03d6a4bbf2598e1753fb7641efbbad5daacea9bd6a0bf7a507;
         operatorRewards.claimRewards(ALICE_KEY, epoch, AMOUNT_TO_CLAIM, proof, REWARDS_ADDITIONAL_DATA);
 
         vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InsufficientTotalClaimable.selector);
-        operatorRewards.claimRewards(ALICE_KEY, epoch, AMOUNT_TO_CLAIM, proof, REWARDS_ADDITIONAL_DATA);
-    }
-
-    function testClaimRewardsWithInsufficientBalance() public {
-        uint48 epoch = 0;
-        vm.warp(NETWORK_EPOCH_DURATION);
-        _distributeRewards(epoch, AMOUNT_TO_DISTRIBUTE);
-        _mockVaultActiveSharesStakeAt(epoch, true, true);
-
-        bytes32[] memory proof = _generateValidProof();
-        // bytes32 leaf = 0x7aa72ad48826fe03d6a4bbf2598e1753fb7641efbbad5daacea9bd6a0bf7a507;
-        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InsufficientBalance.selector);
         operatorRewards.claimRewards(ALICE_KEY, epoch, AMOUNT_TO_CLAIM, proof, REWARDS_ADDITIONAL_DATA);
     }
 
@@ -302,7 +286,7 @@ contract RewardsTest is Test {
         _distributeRewards(epoch, AMOUNT_TO_DISTRIBUTE);
 
         bytes32[] memory proof = _generateValidProof();
-        // bytes32 leaf = 0x7aa72ad48826fe03d6a4bbf2598e1753fb7641efbbad5daacea9bd6a0bf7a507;
+
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__InvalidRewardTimestamp.selector);
         operatorRewards.claimRewards(ALICE_KEY, epoch, AMOUNT_TO_CLAIM, proof, REWARDS_ADDITIONAL_DATA);
     }
@@ -316,7 +300,6 @@ contract RewardsTest is Test {
         bytes memory badRewardsData =
             hex"00000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
         bytes32[] memory proof = _generateValidProof();
-        // bytes32 leaf = 0x7aa72ad48826fe03d6a4bbf2598e1753fb7641efbbad5daacea9bd6a0bf7a507;
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__HighAdminFee.selector);
         operatorRewards.claimRewards(ALICE_KEY, epoch, AMOUNT_TO_CLAIM, proof, badRewardsData);
     }
@@ -327,7 +310,6 @@ contract RewardsTest is Test {
         _distributeRewards(epoch, AMOUNT_TO_DISTRIBUTE);
 
         bytes32[] memory proof = _generateValidProof();
-        // bytes32 leaf = 0x7aa72ad48826fe03d6a4bbf2598e1753fb7641efbbad5daacea9bd6a0bf7a507;
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__InvalidRewardTimestamp.selector);
         operatorRewards.claimRewards(ALICE_KEY, epoch, AMOUNT_TO_CLAIM, proof, REWARDS_ADDITIONAL_DATA);
     }
@@ -340,7 +322,6 @@ contract RewardsTest is Test {
         _mockVaultActiveSharesStakeAt(epoch, true, false);
 
         bytes32[] memory proof = _generateValidProof();
-        // bytes32 leaf = 0x7aa72ad48826fe03d6a4bbf2598e1753fb7641efbbad5daacea9bd6a0bf7a507;
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__InvalidRewardTimestamp.selector);
         operatorRewards.claimRewards(ALICE_KEY, epoch, AMOUNT_TO_CLAIM, proof, REWARDS_ADDITIONAL_DATA);
     }

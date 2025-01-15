@@ -117,19 +117,11 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         ).getOperatorByKey(operatorKey);
 
         uint256 claimed_ = s_claimed[epoch][recipient]; // this can beecome a bool.
-        if (totalPointsClaimable <= claimed_) {
+        amount = totalPointsClaimable * s_balance[epoch].tokensPerPoint;
+        if (amount <= claimed_) {
             revert ODefaultOperatorRewards__InsufficientTotalClaimable();
         }
 
-        amount = totalPointsClaimable - claimed_;
-
-        //TODO Recheck this part
-        uint256 balance_ = s_balance[epoch].amount;
-        if (amount > balance_) {
-            revert ODefaultOperatorRewards__InsufficientBalance();
-        }
-
-        amount = totalPointsClaimable * s_balance[epoch].tokensPerPoint;
         s_claimed[epoch][recipient] = amount;
 
         //!Comment 1: Math here is important. Please double check if this is what we want!!
