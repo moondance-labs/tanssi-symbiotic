@@ -41,7 +41,6 @@ import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRew
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 
 import {DelegatorMock} from "../mocks/symbiotic/DelegatorMock.sol";
-import {VaultFactoryMock} from "../mocks/symbiotic/VaultFactoryMock.sol";
 import {OptInServiceMock} from "../mocks/symbiotic/OptInServiceMock.sol";
 import {RegistryMock} from "../mocks/symbiotic/RegistryMock.sol";
 import {VaultMock} from "../mocks/symbiotic/VaultMock.sol";
@@ -65,7 +64,8 @@ contract RewardsTest is Test {
 
     address tanssi = makeAddr("tanssi");
     address delegatorFactory = makeAddr("delegatorFactory");
-    address slasherFactory = makeAddr("vaultFactory");
+    address slasherFactory = makeAddr("slasherFactory");
+    address vaultFactory = makeAddr("vaultFactory");
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
 
@@ -97,8 +97,6 @@ contract RewardsTest is Test {
             NETWORK_EPOCH_DURATION,
             SLASHING_WINDOW
         );
-
-        VaultFactoryMock vaultFactory = new VaultFactoryMock();
 
         delegator = new DelegatorMock(
             address(networkRegistry),
