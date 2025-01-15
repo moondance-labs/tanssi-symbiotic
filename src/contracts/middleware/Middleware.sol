@@ -495,7 +495,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
             mstore(keys, valIdx)
         }
 
-        gateway.sendOperatorsData(keys);
+        s_gateway.sendOperatorsData(keys);
     }
 
     /**
