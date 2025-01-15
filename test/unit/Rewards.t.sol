@@ -174,7 +174,7 @@ contract RewardsTest is Test {
 
     function _distributeRewards(uint48 epoch, uint256 amount) public {
         vm.startPrank(address(middleware));
-        operatorRewards.distributeRewards(epoch, amount, REWARDS_ROOT);
+        operatorRewards.distributeRewards(epoch, amount, amount, REWARDS_ROOT);
         vm.stopPrank();
     }
 
@@ -206,7 +206,7 @@ contract RewardsTest is Test {
         uint48 epoch = 0;
 
         vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__NotNetworkMiddleware.selector);
-        operatorRewards.distributeRewards(epoch, AMOUNT_TO_DISTRIBUTE, REWARDS_ROOT);
+        operatorRewards.distributeRewards(epoch, AMOUNT_TO_DISTRIBUTE, AMOUNT_TO_DISTRIBUTE, REWARDS_ROOT);
     }
 
     function testDistributeRewardsFailsWhenTokenFeeAmountResultInZeroAmount() public {

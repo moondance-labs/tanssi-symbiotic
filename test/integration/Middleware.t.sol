@@ -64,6 +64,7 @@ import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
 import {IOGateway} from "src/interfaces/snowbridge-override/IOGateway.sol";
 import {Gateway} from "src/contracts/snowbridge-override/Gateway.sol";
 import {MockOGateway} from "test/mocks/snowbridge-override/MockOGateway.sol";
+import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 
 import {Token} from "../mocks/Token.sol";
@@ -507,7 +508,7 @@ contract MiddlewareTest is Test {
 
         vm.prank(owner);
         vm.expectEmit(true, true, true, true);
-        emit Middleware.InvalidSlashTimeframe(currentEpoch, operator2, 30 ether);
+        emit IMiddleware.InvalidSlashTimeframe(currentEpoch, operator2, 30 ether);
         middleware.slash(currentEpoch, operator2, 30 ether);
     }
 

@@ -27,6 +27,16 @@ interface IODefaultOperatorRewards {
     event ClaimRewards(address indexed recipient, uint48 indexed epoch, address indexed claimer, uint256 amount);
 
     /**
+     * @notice Struct to store the amount of tokens received per epoch and the amount of tokens per point.
+     * @param amount amount of tokens received per epoch
+     * @param tokensPerPoint amount of tokens per point
+     */
+    struct BalancePerEpoch {
+        uint256 amount;
+        uint256 tokensPerPoint;
+    }
+
+    /**
      * @notice Get the network middleware service's address.
      * @return address of the network middleware service
      */
@@ -57,10 +67,11 @@ interface IODefaultOperatorRewards {
      * @notice Get an amount of tokens that can be claimed for a particular epoch.
      * @param epoch epoch of the related available rewards
      * @return amount of tokens that can be claimed
+     * @return tokensPerPoints amount of tokens per point
      */
     function s_balance(
         uint48 epoch
-    ) external view returns (uint256);
+    ) external view returns (uint256 amount, uint256 tokensPerPoints);
 
     /**
      * @notice Get a claimed amount of rewards for a particular account and epoch
@@ -76,7 +87,7 @@ interface IODefaultOperatorRewards {
      * @param amount amount of tokens to distribute
      * @param root Merkle root of the reward distribution
      */
-    function distributeRewards(uint48 epoch, uint256 amount, bytes32 root) external;
+    function distributeRewards(uint48 epoch, uint256 amount, uint256 totalPointsToken, bytes32 root) external;
 
     /**
      * @notice Claim rewards for a particular epoch by providing a Merkle proof.

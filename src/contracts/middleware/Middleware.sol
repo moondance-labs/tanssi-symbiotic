@@ -38,79 +38,46 @@ import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 //**************************************************************************************************
 //                                      SNOWBRIDGE
 //**************************************************************************************************
-import {IOGateway} from "../../interfaces/snowbridge-override/IOGateway.sol";
-import {IODefaultStakerRewards} from "../../interfaces/rewarder/IODefaultStakerRewards.sol";
-import {IODefaultOperatorRewards} from "../../interfaces/rewarder/IODefaultOperatorRewards.sol";
+import {IOGateway} from "src/interfaces/snowbridge-override/IOGateway.sol";
 
 import {ParaID} from "@snowbridge/src/Types.sol";
 
+import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
+import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
+import {IMiddleware} from "../../interfaces/middleware/IMiddleware.sol";
+
 import {SimpleKeyRegistry32} from "../libraries/SimpleKeyRegistry32.sol";
+
 import {MapWithTimeData} from "../libraries/MapWithTimeData.sol";
 
-contract Middleware is SimpleKeyRegistry32, Ownable {
+contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     using EnumerableMap for EnumerableMap.AddressToUintMap;
     using MapWithTimeData for EnumerableMap.AddressToUintMap;
     using Subnetwork for address;
 
-    event InvalidSlashTimeframe(uint48 indexed epoch, address indexed operator, uint256 indexed amount);
+    uint48 private constant INSTANT_SLASHER_TYPE = 0;
+    uint48 private constant VETO_SLASHER_TYPE = 1;
 
-    error Middleware__NotOperator();
-    error Middleware__NotVault();
-    error Middleware__OperatorNotOptedIn();
-    error Middleware__OperatorNotRegistred();
-    error Middleware__OperarorGracePeriodNotPassed();
-    error Middleware__OperatorAlreadyRegistred();
-    error Middleware__VaultAlreadyRegistered();
-    error Middleware__VaultEpochTooShort();
-    error Middleware__VaultGracePeriodNotPassed();
-    error Middleware__InvalidSubnetworksCnt();
-    error Middleware__TooOldEpoch();
-    error Middleware__InvalidEpoch();
-    error Middleware__SlashingWindowTooShort();
-    error Middleware__TooBigSlashAmount();
-    error Middleware__UnknownSlasherType();
-
-    struct ValidatorData {
-        uint256 stake;
-        bytes32 key;
-    }
-
-    struct SlashParams {
-        uint48 epochStartTs;
-        address vault;
-        address operator;
-        uint256 totalOperatorStake;
-        uint256 slashAmount;
-    }
-
-    struct OperatorVaultPair {
-        address operator;
-        address[] vaults;
-    }
-
+    uint48 public immutable i_epochDuration;
+    uint48 public immutable i_slashingWindow;
+    uint48 public immutable i_startTime;
     address public immutable i_network;
     address public immutable i_operatorRegistry;
     address public immutable i_vaultRegistry;
     address public immutable i_operatorNetworkOptin;
     address public immutable i_owner;
-    uint48 public immutable i_epochDuration;
-    uint48 public immutable i_slashingWindow;
-    uint48 public immutable i_startTime;
-
-    uint48 private constant INSTANT_SLASHER_TYPE = 0;
-    uint48 private constant VETO_SLASHER_TYPE = 1;
 
     uint256 public s_subnetworksCount;
-    mapping(uint48 => uint256) public s_totalStakeCache;
-    mapping(uint48 => bool) public s_totalStakeCached;
-    mapping(uint48 => mapping(address => uint256)) public s_operatorStakeCache;
+
+    mapping(uint48 epoch => uint256 amount) public s_totalStakeCache;
+    mapping(uint48 epoch => bool) public s_totalStakeCached;
+    mapping(uint48 epoch => mapping(address operator => uint256 amount)) public s_operatorStakeCache;
+
     EnumerableMap.AddressToUintMap private s_operators;
     EnumerableMap.AddressToUintMap private s_vaults;
     IOGateway private s_gateway;
     IODefaultOperatorRewards private s_operatorRewards;
     IODefaultStakerRewards private s_stakerRewards;
-
-    event Middleware__RewardsContractsSet(address indexed stakerRewardsAddress, address indexed operatorRewardsAddress);
 
     modifier updateStakeCache(
         uint48 epoch
@@ -328,21 +295,23 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
         s_stakerRewards = IODefaultStakerRewards(stakerRewardsAddress);
         s_operatorRewards = IODefaultOperatorRewards(operatorRewardsAddress);
 
-        emit Middleware__RewardsContractsSet(stakerRewardsAddress, operatorRewardsAddress);
+        emit RewardsContractsSet(stakerRewardsAddress, operatorRewardsAddress);
     }
 
-    // function submission(bytes memory payload, bytes32[] memory signatures) public updateStakeCache(getCurrentEpoch()) {
-    //     // validate signatures
-    //     // validate payload
-    //     // process payload
-    // }
+    function distributeRewards(
+        bytes calldata data
+    ) external onlyGateway {
+        (
+            uint256 timestamp,
+            , // Dunno what to do with it xD
+            uint256 totalPointsToken, //Used in gateway to mint tokens?
+            uint256 tokensInflatedToken, //Used in gateway to mint tokens?
+            bytes32 rewardsRoot
+        ) = abi.decode(data, (uint256, uint256, uint256, uint256, bytes32));
 
-    function distributeRewards(uint256 amount, bytes calldata data) external onlyGateway {
-        address tanssiTokenAddress = address(1); //Mocked for now until we have the real address
-        s_stakerRewards.distributeRewards(i_network, tanssiTokenAddress, amount, data);
+        uint48 epoch = getEpochAtTs(uint48(timestamp));
 
-        // Probably this should be called by staker rewards contract as 90% of total needs to be sent to operator rewards
-        // s_operatorRewards.distributeRewards(root);
+        s_operatorRewards.distributeRewards(epoch, tokensInflatedToken, totalPointsToken, rewardsRoot);
     }
 
     /**

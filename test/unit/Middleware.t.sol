@@ -34,8 +34,9 @@ import {NetworkMiddlewareService} from "@symbiotic/contracts/service/NetworkMidd
 //**************************************************************************************************
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-import {Middleware} from "../../src/contracts/middleware/Middleware.sol";
-import {SimpleKeyRegistry32} from "../../src/contracts/libraries/SimpleKeyRegistry32.sol";
+import {Middleware} from "src/contracts/middleware/Middleware.sol";
+import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
+import {SimpleKeyRegistry32} from "src/contracts/libraries/SimpleKeyRegistry32.sol";
 
 import {DelegatorMock} from "../mocks/symbiotic/DelegatorMock.sol";
 import {OptInServiceMock} from "../mocks/symbiotic/OptInServiceMock.sol";
@@ -133,7 +134,7 @@ contract MiddlewareTest is Test {
         uint48 SHORT_SLASHING_WINDOW_ = 99;
 
         vm.startPrank(owner);
-        vm.expectRevert(Middleware.Middleware__SlashingWindowTooShort.selector);
+        vm.expectRevert(IMiddleware.Middleware__SlashingWindowTooShort.selector);
 
         new Middleware(
             address(0),
@@ -247,7 +248,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         middleware.registerOperator(operator, OPERATOR_KEY);
 
-        vm.expectRevert(Middleware.Middleware__OperatorAlreadyRegistred.selector);
+        vm.expectRevert(IMiddleware.Middleware__OperatorAlreadyRegistred.selector);
         middleware.registerOperator(operator, OPERATOR_KEY);
         vm.stopPrank();
     }
@@ -256,7 +257,7 @@ contract MiddlewareTest is Test {
         _registerOperatorToNetwork(operator, address(vault), true, false);
 
         vm.startPrank(owner);
-        vm.expectRevert(Middleware.Middleware__NotOperator.selector);
+        vm.expectRevert(IMiddleware.Middleware__NotOperator.selector);
         middleware.registerOperator(owner, OPERATOR_KEY);
         vm.stopPrank();
     }
@@ -265,7 +266,7 @@ contract MiddlewareTest is Test {
         _registerOperatorToNetwork(operator, address(vault), false, true);
 
         vm.startPrank(owner);
-        vm.expectRevert(Middleware.Middleware__OperatorNotOptedIn.selector);
+        vm.expectRevert(IMiddleware.Middleware__OperatorNotOptedIn.selector);
         middleware.registerOperator(operator, OPERATOR_KEY);
         vm.stopPrank();
     }
@@ -313,7 +314,7 @@ contract MiddlewareTest is Test {
 
     function testUpdateOperatorKeyNotRegistered() public {
         vm.startPrank(owner);
-        vm.expectRevert(Middleware.Middleware__OperatorNotRegistred.selector);
+        vm.expectRevert(IMiddleware.Middleware__OperatorNotRegistred.selector);
         middleware.updateOperatorKey(operator, OPERATOR_KEY);
         vm.stopPrank();
     }
@@ -389,7 +390,7 @@ contract MiddlewareTest is Test {
 
         middleware.pauseOperator(operator);
         vm.warp(START_TIME + SLASHING_WINDOW - 1);
-        vm.expectRevert(Middleware.Middleware__OperarorGracePeriodNotPassed.selector);
+        vm.expectRevert(IMiddleware.Middleware__OperarorGracePeriodNotPassed.selector);
         middleware.unregisterOperator(operator);
         vm.stopPrank();
     }
@@ -424,14 +425,14 @@ contract MiddlewareTest is Test {
 
         middleware.registerVault(address(vault));
 
-        vm.expectRevert(Middleware.Middleware__VaultAlreadyRegistered.selector);
+        vm.expectRevert(IMiddleware.Middleware__VaultAlreadyRegistered.selector);
         middleware.registerVault(address(vault));
         vm.stopPrank();
     }
 
     function testRegisterVaultNotVault() public {
         vm.startPrank(owner);
-        vm.expectRevert(Middleware.Middleware__NotVault.selector);
+        vm.expectRevert(IMiddleware.Middleware__NotVault.selector);
         middleware.registerVault(owner);
         vm.stopPrank();
     }
@@ -442,7 +443,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         vault.setSlasher(address(vetoSlasher));
         vm.store(address(vetoSlasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        vm.expectRevert(Middleware.Middleware__VaultEpochTooShort.selector);
+        vm.expectRevert(IMiddleware.Middleware__VaultEpochTooShort.selector);
         middleware.registerVault(address(vault));
         vm.stopPrank();
     }
@@ -537,7 +538,7 @@ contract MiddlewareTest is Test {
 
         middleware.pauseVault(address(vault));
         vm.warp(START_TIME + SLASHING_WINDOW - 1);
-        vm.expectRevert(Middleware.Middleware__VaultGracePeriodNotPassed.selector);
+        vm.expectRevert(IMiddleware.Middleware__VaultGracePeriodNotPassed.selector);
         middleware.unregisterVault(address(vault));
         vm.stopPrank();
     }
@@ -558,14 +559,14 @@ contract MiddlewareTest is Test {
         middleware.setSubnetworksCount(10);
         assertEq(middleware.s_subnetworksCount(), 10);
 
-        vm.expectRevert(Middleware.Middleware__InvalidSubnetworksCnt.selector);
+        vm.expectRevert(IMiddleware.Middleware__InvalidSubnetworksCnt.selector);
         middleware.setSubnetworksCount(8);
         vm.stopPrank();
     }
 
     function testSetSubnetworksCntInvalid() public {
         vm.startPrank(owner);
-        vm.expectRevert(Middleware.Middleware__InvalidSubnetworksCnt.selector);
+        vm.expectRevert(IMiddleware.Middleware__InvalidSubnetworksCnt.selector);
         middleware.setSubnetworksCount(0);
         vm.stopPrank();
     }
@@ -746,7 +747,7 @@ contract MiddlewareTest is Test {
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         vm.warp(SLASHING_WINDOW * 2 + 1);
-        vm.expectRevert(Middleware.Middleware__TooOldEpoch.selector);
+        vm.expectRevert(IMiddleware.Middleware__TooOldEpoch.selector);
         middleware.getTotalStake(currentEpoch);
         vm.stopPrank();
     }
@@ -763,7 +764,7 @@ contract MiddlewareTest is Test {
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         vm.warp(START_TIME + SLASHING_WINDOW - 1);
-        vm.expectRevert(Middleware.Middleware__InvalidEpoch.selector);
+        vm.expectRevert(IMiddleware.Middleware__InvalidEpoch.selector);
         middleware.getTotalStake(currentEpoch + 1);
         vm.stopPrank();
     }
@@ -887,7 +888,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         vm.warp(SLASHING_WINDOW * 2 + 1);
-        vm.expectRevert(Middleware.Middleware__TooOldEpoch.selector);
+        vm.expectRevert(IMiddleware.Middleware__TooOldEpoch.selector);
         middleware.slash(currentEpoch, operator, OPERATOR_STAKE);
         vm.stopPrank();
     }
@@ -906,7 +907,7 @@ contract MiddlewareTest is Test {
         uint256 totalStakeCached = middleware.calcAndCacheStakes(currentEpoch);
 
         uint256 slashAmount = OPERATOR_STAKE * 2;
-        vm.expectRevert(Middleware.Middleware__TooBigSlashAmount.selector);
+        vm.expectRevert(IMiddleware.Middleware__TooBigSlashAmount.selector);
         middleware.slash(currentEpoch, operator, slashAmount);
 
         uint256 totalStake = middleware.getTotalStake(currentEpoch);
@@ -1012,7 +1013,7 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 slashAmount = OPERATOR_STAKE / 2;
-        vm.expectRevert(Middleware.Middleware__UnknownSlasherType.selector);
+        vm.expectRevert(IMiddleware.Middleware__UnknownSlasherType.selector);
         middleware.slash(currentEpoch, operator, slashAmount);
 
         vm.stopPrank();
@@ -1057,7 +1058,7 @@ contract MiddlewareTest is Test {
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         vm.warp(SLASHING_WINDOW * 2 + 1);
-        vm.expectRevert(Middleware.Middleware__TooOldEpoch.selector);
+        vm.expectRevert(IMiddleware.Middleware__TooOldEpoch.selector);
         middleware.calcAndCacheStakes(currentEpoch);
         vm.stopPrank();
     }
@@ -1075,7 +1076,7 @@ contract MiddlewareTest is Test {
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         vm.warp(START_TIME + SLASHING_WINDOW - 1);
-        vm.expectRevert(Middleware.Middleware__InvalidEpoch.selector);
+        vm.expectRevert(IMiddleware.Middleware__InvalidEpoch.selector);
         middleware.calcAndCacheStakes(currentEpoch + 1);
         vm.stopPrank();
     }

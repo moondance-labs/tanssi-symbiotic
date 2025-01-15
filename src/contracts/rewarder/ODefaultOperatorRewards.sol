@@ -41,7 +41,7 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
-    mapping(uint48 epoch => uint256 amount) public s_balance;
+    mapping(uint48 epoch => BalancePerEpoch balancePerEpoch) public s_balance;
 
     /**
      * @inheritdoc IODefaultOperatorRewards
@@ -64,7 +64,12 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
-    function distributeRewards(uint48 epoch, uint256 amount, bytes32 root) external nonReentrant onlyMiddleware {
+    function distributeRewards(
+        uint48 epoch,
+        uint256 amount,
+        uint256 totalPointsToken,
+        bytes32 root
+    ) external nonReentrant onlyMiddleware {
         if (amount > 0) {
             uint256 balanceBefore = IERC20(i_token).balanceOf(address(this));
             IERC20(i_token).safeTransferFrom(msg.sender, address(this), amount);
@@ -74,7 +79,8 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
                 revert ODefaultOperatorRewards__InsufficientTransfer();
             }
 
-            s_balance[epoch] += amount;
+            s_balance[epoch].amount = amount;
+            s_balance[epoch].tokensPerPoint = amount / totalPointsToken; // To change the math. Check it's not zero
         }
 
         s_epochRoot[epoch] = root;
@@ -88,7 +94,7 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
     function claimRewards(
         bytes32 operatorKey,
         uint48 epoch,
-        uint32 totalClaimable,
+        uint32 totalPointsClaimable,
         bytes32[] calldata proof,
         bytes calldata data
     ) external nonReentrant returns (uint256 amount) {
@@ -100,7 +106,7 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         // This should be double checked
         if (
             !MerkleProof.verifyCalldata(
-                proof, root_, keccak256(abi.encodePacked(operatorKey, ScaleCodec.encodeU32(totalClaimable)))
+                proof, root_, keccak256(abi.encodePacked(operatorKey, ScaleCodec.encodeU32(totalPointsClaimable)))
             )
         ) {
             revert ODefaultOperatorRewards__InvalidProof();
@@ -110,20 +116,20 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
             INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network)
         ).getOperatorByKey(operatorKey);
 
-        uint256 claimed_ = s_claimed[epoch][recipient];
-        if (totalClaimable <= claimed_) {
+        uint256 claimed_ = s_claimed[epoch][recipient]; // this can beecome a bool.
+        if (totalPointsClaimable <= claimed_) {
             revert ODefaultOperatorRewards__InsufficientTotalClaimable();
         }
 
-        amount = totalClaimable - claimed_;
+        amount = totalPointsClaimable - claimed_;
 
-        uint256 balance_ = s_balance[epoch];
+        //TODO Recheck this part
+        uint256 balance_ = s_balance[epoch].amount;
         if (amount > balance_) {
             revert ODefaultOperatorRewards__InsufficientBalance();
         }
 
-        s_balance[epoch] = balance_ - amount;
-
+        amount = totalPointsClaimable * s_balance[epoch].tokensPerPoint;
         s_claimed[epoch][recipient] = amount;
 
         //!Comment 1: Math here is important. Please double check if this is what we want!!
