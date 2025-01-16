@@ -383,14 +383,6 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
                 continue;
             }
 
-            /*if (
-                params.epochStartTs < Time.timestamp() - IVault(vault).epochDuration()
-                    || params.epochStartTs >= Time.timestamp()
-            ) {
-                emit InvalidSlashTimeframe(epoch, operator, percentage);
-                return;
-            }*/
-
             _processVaultSlashing(vault, params);
         }
     }
@@ -409,7 +401,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
             );
             // Slash percentage is already in parts per billion
             // so we need to divide by a billion
-            uint256 slashAmount = params.slashPercentage.mulDiv(vaultStake,1_000_000_000);
+            uint256 slashAmount = params.slashPercentage.mulDiv(vaultStake, 1_000_000_000);
 
             _slashVault(params.epochStartTs, vault, subnetwork, params.operator, slashAmount);
         }
@@ -431,15 +423,11 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
         uint256 amount
     ) private {
         address slasher = IVault(vault).slasher();
+
         if (slasher == address(0) || amount == 0) {
             return;
         }
         uint256 slasherType = IEntity(slasher).TYPE();
-        amount = Math.min(amount, IBaseSlasher(slasher).slashableStake(subnetwork, operator, timestamp, new bytes(0)));
-        if (amount == 0) {
-            // Otherwise we revert inside the slasher
-            return;
-        }
         if (slasherType == INSTANT_SLASHER_TYPE) {
             try ISlasher(slasher).slash(subnetwork, operator, amount, timestamp, new bytes(0)) {
                 return;

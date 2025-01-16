@@ -480,7 +480,11 @@ contract MiddlewareTest is Test {
         uint256 slashAmountSlashable = (SLASH_AMOUNT * remainingOperator2Stake) / totalOperator2Stake;
 
         vm.prank(owner);
-        middleware.slash(currentEpoch, operator2, 30 ether);
+
+        uint256 slashedAmount = 30 ether;
+        // We want to slash 30 ether, so we need to calculate what percentage
+        uint256 slashingFraction = slashedAmount.mulDiv(1_000_000_000, totalOperator2Stake);
+        middleware.slash(currentEpoch, operator2, slashingFraction);
 
         vm.prank(resolver1);
         vetoSlasher.vetoSlash(0, hex"");
@@ -505,10 +509,24 @@ contract MiddlewareTest is Test {
         // We go directly to epochStart as it 100% ensure that the epoch is started and thus the slashing is invalid
         vm.warp(epochStartTs);
 
+        //InvalidCaptureTimestamp
+        bytes memory data = "\x26\xaf\x59\x22";
+
+        //Since vaultVetoed is full restake, it exactly gets the amount deposited, so no need to calculations
+        uint256 activeStakeInVetoed = vaultVetoed.activeStake();
+
+        (uint256 totalOperator2Stake, uint256 remainingOperator2Stake) =
+            _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
+        uint256 slashedAmount = 30 ether;
+        // We want to slash 30 ether, so we need to calculate what percentage
+        uint256 slashingFraction = slashedAmount.mulDiv(1_000_000_000, totalOperator2Stake);
+
+        uint256 slashedEvent = activeStakeInVetoed * slashingFraction / 1_000_000_000;
+
         vm.prank(owner);
         vm.expectEmit(true, true, true, true);
-        //emit Middleware.InvalidSlashTimeframe(currentEpoch, operator2, 30 ether);
-        middleware.slash(currentEpoch, operator2, 30 ether);
+        emit Middleware.SlashFailure(data, tanssi.subnetwork(0), operator2, slashedEvent, uint48(epochStartTs));
+        middleware.slash(currentEpoch, operator2, slashingFraction);
     }
 
     function testSlashingOnOperator2AndExecuteSlashOnVetoVault() public {
@@ -532,7 +550,11 @@ contract MiddlewareTest is Test {
         //We calculate the amount slashable for only the operator2 since it's the only one that should be slashed. As a side effect operator3 will be slashed too since it's taking part in a NetworkRestake delegator based vault
         uint256 slashAmountSlashable = (SLASH_AMOUNT * remainingOperator2Stake) / totalOperator2Stake;
         vm.prank(owner);
-        middleware.slash(currentEpoch, operator2, 30 ether);
+
+        uint256 slashedAmount = 30 ether;
+        // We want to slash 30 ether, so we need to calculate what percentage
+        uint256 slashingFraction = slashedAmount.mulDiv(1_000_000_000, totalOperator2Stake);
+        middleware.slash(currentEpoch, operator2, slashingFraction);
 
         vm.warp(block.timestamp + VETO_DURATION);
         vm.prank(address(middleware));
@@ -572,7 +594,11 @@ contract MiddlewareTest is Test {
         uint256 slashAmountSlashable3 = (SLASH_AMOUNT * remainingOperator3Stake) / totalOperator3Stake;
 
         vm.prank(owner);
-        middleware.slash(currentEpoch, operator2, 30 ether);
+
+        uint256 slashedAmount = 30 ether;
+        // We want to slash 30 ether, so we need to calculate what percentage
+        uint256 slashingFraction = slashedAmount.mulDiv(1_000_000_000, totalOperator3Stake);
+        middleware.slash(currentEpoch, operator3, slashingFraction);
 
         vm.prank(resolver1);
         vetoSlasher.vetoSlash(0, hex"");
@@ -597,7 +623,8 @@ contract MiddlewareTest is Test {
         //Since vaultVetoed is full restake, it exactly gets the amount deposited, so no need to calculations
         uint256 activeStakeInVetoed = vaultVetoed.activeStake();
 
-        (uint256 totalOperator2Stake,) = _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
+        (uint256 totalOperator2Stake, uint256 remainingOperator2Stake) =
+            _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
 
         (uint256 totalOperator3Stake, uint256 remainingOperator3Stake) =
             _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
@@ -611,7 +638,12 @@ contract MiddlewareTest is Test {
             (SLASH_AMOUNT * remainingOperator3Stake) / (totalOperator3Stake + remainingOperator3Stake);
 
         vm.prank(owner);
-        middleware.slash(currentEpoch, operator3, 30 ether);
+
+        uint256 slashedAmount = 30 ether;
+        // We want to slash 30 ether, so we need to calculate what percentage
+
+        uint256 slashingFraction = slashedAmount.mulDiv(1_000_000_000, totalOperator3Stake + remainingOperator3Stake);
+        middleware.slash(currentEpoch, operator3, slashingFraction);
 
         vm.warp(block.timestamp + VETO_DURATION);
         vm.prank(address(middleware));
@@ -626,6 +658,7 @@ contract MiddlewareTest is Test {
 
         (uint256 totalOperator3StakeAfter,) =
             _calculateTotalOperatorStake(OPERATOR_STAKE * 2 * 2, activeStakeInVetoed, slashAmountSlashable3);
+
         assertEq(validators[1].stake, totalOperator2StakeAfter);
         assertEq(validators[2].stake, totalOperator3StakeAfter);
     }
@@ -685,8 +718,12 @@ contract MiddlewareTest is Test {
         middleware.pauseOperator(operator2);
 
         vm.prank(owner);
+
+        uint256 slashedAmount = 30 ether;
+        // We want to slash 30 ether, so we need to calculate what percentage
+        uint256 slashingFraction = slashedAmount.mulDiv(1_000_000_000, totalOperator2Stake);
         //! Why this slash should anyway go through if operator was paused? Shouldn't it revert?
-        middleware.slash(currentEpoch, operator2, 30 ether);
+        middleware.slash(currentEpoch, operator2, slashingFraction);
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = middleware.getValidatorSet(newEpoch);
