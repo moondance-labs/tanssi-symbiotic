@@ -23,3 +23,7 @@
 [submodule "lib/tanssi-bridge-relayer"]
 	path = lib/tanssi-bridge-relayer
 	url = https://github.com/moondance-labs/tanssi-bridge-relayer
+[submodule "snowbridge"]
+	path = snowbridge
+	url = https://github.com/Snowfork/snowbridge
+
