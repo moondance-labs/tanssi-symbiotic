@@ -10,12 +10,12 @@ gas_reports = ["*"]
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
 
 remappings = [
-    '@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/',
+    '@openzeppelin/contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/',
     '@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/',
     '@symbiotic/=lib/core/src/',
     '@symbiotic-rewards=lib/rewards/src/',
     '@symbiotic-collateral=lib/collateral/src/',
-    '@snowbridge/=lib/snowbridge/contracts/',
+    '@tanssi-bridge-relayer/=lib/tanssi-bridge-relayer/',
     # These are for snowbridge. Needs to emulate their remappings.
     'openzeppelin-contracts/=lib/openzeppelin-contracts/',
     'openzeppelin/=lib/openzeppelin-contracts/contracts/',

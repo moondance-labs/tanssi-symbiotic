@@ -15,14 +15,13 @@ clean-all :; forge clean && rm -rf broadcast && rm -rf cache
 remove :; rm -rf .gitmodules && rm -rf .git/modules/* && rm -rf lib && touch .gitmodules
 
 install :; 	forge install foundry-rs/forge-std@v1.8.2 --no-commit && \
-		 	forge install openzeppelin/openzeppelin-contracts@v5.0.2 --no-commit && \
 			forge install openzeppelin/openzeppelin-contracts-upgradeable@v5.0.2 --no-commit && \
 			forge install symbioticfi/core --no-commit  && \
 			forge install symbioticfi/collateral --no-commit  && \
-			forge install Cyfrin/foundry-devops --no-commit
 			forge install Cyfrin/foundry-devops --no-commit && \
-			forge install Snowfork/snowbridge@relayer-v1.0.30 --no-commit && \
-			forge install PaulRBerg/prb-math@release-v4 --no-commit 
+			forge install PaulRBerg/prb-math@release-v4 --no-commit &&\
+			forge install moondance-labs/tanssi-bridge-relayer --no-commit --no-git && \
+			cd lib/tanssi-bridge-relayer && ./update_contract_interface.sh
 
 update:; forge update
 
@@ -68,13 +67,3 @@ deploy-full-tanssi-eco-demo:
 	@echo "📡 Deploying Full Tanssi Ecosystem Locally for Demo..."
 	@forge script script/test/DeployTanssiEcosystemDemo.s.sol --slow --skip-simulation ${NETWORK_ARGS}
 	@echo "✅ Full Tanssi Ecosystem Locally for Demo deployment completed"
-
-deploy-beefy-client:
-	@echo "📡 Deploying Beefy Client..."
-	@forge script script/snowbridge-override/DeployBeefyClient.s.sol:DeployBeefyClient \
-	--private-key ${PRIVATE_KEY} \
-	--rpc-url ${HOLESKY_RPC_URL} \
-	--broadcast \
-	--verify \
-	--etherscan-api-key ${ETHERSCAN_API_KEY}
-	@echo "✅ Beefy Client deployment completed"
