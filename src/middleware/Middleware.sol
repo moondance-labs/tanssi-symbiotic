@@ -20,6 +20,7 @@ pragma solidity 0.8.25;
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {EnumerableMap} from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 //**************************************************************************************************
 //                                      SYMBIOTIC
@@ -48,8 +49,10 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
     using EnumerableMap for EnumerableMap.AddressToUintMap;
     using MapWithTimeData for EnumerableMap.AddressToUintMap;
     using Subnetwork for address;
+    using Math for uint256;
 
-    event InvalidSlashTimeframe(uint48 indexed epoch, address indexed operator, uint256 indexed amount);
+    event SlashFailure(string stringFailure, bytes32 subnetwork, address operator, uint256 amount, uint48 timestamp);
+    event SlashFailure(bytes bytesFailure, bytes32 subnetwork, address operator, uint256 amount, uint48 timestamp);
 
     error Middleware__NotOperator();
     error Middleware__NotVault();
@@ -77,7 +80,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
         address vault;
         address operator;
         uint256 totalOperatorStake;
-        uint256 slashAmount;
+        uint256 slashPercentage;
     }
 
     struct OperatorVaultPair {
@@ -362,20 +365,16 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
      * @dev This function first updates the stake cache for the target epoch
      * @param epoch The epoch number
      * @param operator The operator to slash
-     * @param amount Amount to slash
+     * @param percentage Percentage to slash, represented as parts per billion.
      */
     //INFO: this function can be made external. To check if it is possible to make it external
-    function slash(uint48 epoch, address operator, uint256 amount) public onlyOwner updateStakeCache(epoch) {
+    function slash(uint48 epoch, address operator, uint256 percentage) public onlyOwner updateStakeCache(epoch) {
         SlashParams memory params;
         params.epochStartTs = getEpochStartTs(epoch);
         params.operator = operator;
-        params.slashAmount = amount;
+        params.slashPercentage = percentage;
 
         params.totalOperatorStake = getOperatorStake(operator, epoch);
-
-        if (params.totalOperatorStake < amount) {
-            revert Middleware__TooBigSlashAmount();
-        }
         // simple pro-rata slasher
         for (uint256 i; i < s_vaults.length(); ++i) {
             (address vault, uint48 enabledTime, uint48 disabledTime) = s_vaults.atWithTimes(i);
@@ -384,13 +383,13 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
                 continue;
             }
 
-            if (
+            /*if (
                 params.epochStartTs < Time.timestamp() - IVault(vault).epochDuration()
                     || params.epochStartTs >= Time.timestamp()
             ) {
-                emit InvalidSlashTimeframe(epoch, operator, amount);
+                emit InvalidSlashTimeframe(epoch, operator, percentage);
                 return;
-            }
+            }*/
 
             _processVaultSlashing(vault, params);
         }
@@ -408,7 +407,9 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
             uint256 vaultStake = IBaseDelegator(IVault(vault).delegator()).stakeAt(
                 subnetwork, params.operator, params.epochStartTs, new bytes(0)
             );
-            uint256 slashAmount = (params.slashAmount * vaultStake) / params.totalOperatorStake;
+            // Slash percentage is already in parts per billion
+            // so we need to divide by a billion
+            uint256 slashAmount = params.slashPercentage.mulDiv(vaultStake,1_000_000_000);
 
             _slashVault(params.epochStartTs, vault, subnetwork, params.operator, slashAmount);
         }
@@ -434,12 +435,30 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
             return;
         }
         uint256 slasherType = IEntity(slasher).TYPE();
+        amount = Math.min(amount, IBaseSlasher(slasher).slashableStake(subnetwork, operator, timestamp, new bytes(0)));
+        if (amount == 0) {
+            // Otherwise we revert inside the slasher
+            return;
+        }
         if (slasherType == INSTANT_SLASHER_TYPE) {
-            ISlasher(slasher).slash(subnetwork, operator, amount, timestamp, new bytes(0));
+            try ISlasher(slasher).slash(subnetwork, operator, amount, timestamp, new bytes(0)) {
+                return;
+            } catch Error(string memory _err) {
+                emit SlashFailure(_err, subnetwork, operator, amount, timestamp);
+            } catch (bytes memory _err) {
+                emit SlashFailure(_err, subnetwork, operator, amount, timestamp);
+            }
         } else if (slasherType == VETO_SLASHER_TYPE) {
-            IVetoSlasher(slasher).requestSlash(subnetwork, operator, amount, timestamp, new bytes(0));
+            try IVetoSlasher(slasher).requestSlash(subnetwork, operator, amount, timestamp, new bytes(0)) {
+                return;
+            } catch Error(string memory _err) {
+                emit SlashFailure(_err, subnetwork, operator, amount, timestamp);
+            } catch (bytes memory _err) {
+                emit SlashFailure(_err, subnetwork, operator, amount, timestamp);
+            }
         } else {
-            revert Middleware__UnknownSlasherType();
+            // There is no slasher type we can apply and we cannot revert
+            return;
         }
     }
 

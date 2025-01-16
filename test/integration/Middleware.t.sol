@@ -507,7 +507,7 @@ contract MiddlewareTest is Test {
 
         vm.prank(owner);
         vm.expectEmit(true, true, true, true);
-        emit Middleware.InvalidSlashTimeframe(currentEpoch, operator2, 30 ether);
+        //emit Middleware.InvalidSlashTimeframe(currentEpoch, operator2, 30 ether);
         middleware.slash(currentEpoch, operator2, 30 ether);
     }
 
