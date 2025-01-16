@@ -69,7 +69,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          make install
+          make install-tanssi-relayer
 
       - name: Run Forge fmt
         run: |
