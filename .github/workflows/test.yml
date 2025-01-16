@@ -67,6 +67,10 @@ jobs:
         run: |
           forge --version
 
+      - name: Install dependencies
+        run: |
+          make install
+
       - name: Run Forge fmt
         run: |
           forge fmt --check
