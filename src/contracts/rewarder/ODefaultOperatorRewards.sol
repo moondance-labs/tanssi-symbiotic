@@ -117,7 +117,7 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         ).getOperatorByKey(operatorKey);
 
         uint256 claimed_ = s_claimed[epoch][recipient]; // this can beecome a bool.
-        amount = totalPointsClaimable * s_balance[epoch].tokensPerPoint;
+        amount = totalPointsClaimable * s_balance[epoch].tokensPerPoint * 10 ** 18; //Is it fine to use 10**18 here? Should we get the decimals for each token?
         if (amount <= claimed_) {
             revert ODefaultOperatorRewards__InsufficientTotalClaimable();
         }

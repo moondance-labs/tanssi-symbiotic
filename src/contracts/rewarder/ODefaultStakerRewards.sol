@@ -194,7 +194,13 @@ contract ODefaultStakerRewards is
 
     function setVault(
         address vault
-    ) external {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (s_vault == vault) {
+            revert ODefaultStakerRewards__AlreadySet();
+        }
+        if (!IRegistry(i_vaultFactory).isEntity(vault)) {
+            revert ODefaultStakerRewards__NotVault();
+        }
         s_vault = vault;
     }
 
@@ -210,11 +216,11 @@ contract ODefaultStakerRewards is
         uint256 rewardIndex = s_lastUnclaimedReward[account][epoch];
 
         uint256 rewardsToClaim = Math.min(maxRewards, rewardsPerEpoch.length - rewardIndex);
-
+        uint48 epochTs = getEpochStartTs(epoch);
         for (uint256 i; i < rewardsToClaim;) {
             uint256 rewardAmount = rewardsPerEpoch[rewardIndex];
 
-            amount += IVault(s_vault).activeSharesOfAt(account, epoch, new bytes(0)).mulDiv(
+            amount += IVault(s_vault).activeSharesOfAt(account, epochTs, new bytes(0)).mulDiv(
                 rewardAmount, _s_activeSharesCache[epoch]
             );
 
@@ -225,49 +231,11 @@ contract ODefaultStakerRewards is
         }
     }
 
-    //! Probably to take out as stated above
-    function initialize(
-        InitParams calldata params
-    ) external initializer {
-        if (!IRegistry(i_vaultFactory).isEntity(params.vault)) {
-            revert ODefaultStakerRewards__NotVault();
-        }
-
-        if (params.defaultAdminRoleHolder == address(0)) {
-            if (params.adminFee == 0) {
-                if (params.adminFeeClaimRoleHolder == address(0)) {
-                    if (params.adminFeeSetRoleHolder != address(0)) {
-                        revert ODefaultStakerRewards__MissingRoles();
-                    }
-                } else if (params.adminFeeSetRoleHolder == address(0)) {
-                    revert ODefaultStakerRewards__MissingRoles();
-                }
-            } else if (params.adminFeeClaimRoleHolder == address(0)) {
-                revert ODefaultStakerRewards__MissingRoles();
-            }
-        }
-
-        __ReentrancyGuard_init();
-
-        s_vault = params.vault;
-
-        _setAdminFee(params.adminFee);
-
-        if (params.defaultAdminRoleHolder != address(0)) {
-            _grantRole(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
-        }
-        if (params.adminFeeClaimRoleHolder != address(0)) {
-            _grantRole(ADMIN_FEE_CLAIM_ROLE, params.adminFeeClaimRoleHolder);
-        }
-        if (params.adminFeeSetRoleHolder != address(0)) {
-            _grantRole(ADMIN_FEE_SET_ROLE, params.adminFeeSetRoleHolder);
-        }
-    }
-
     /**
      * @inheritdoc IODefaultStakerRewards
      */
     function distributeRewards(uint48 epoch, uint256 amount, bytes calldata data) external override nonReentrant {
+        //! TODO This should be restricted to operator rewards
         // maxAdminFee - the maximum admin fee to allow
         // activeSharesHint - a hint index to optimize `activeSharesAt()` processing
         // activeStakeHint - a hint index to optimize `activeStakeAt()` processing
@@ -295,7 +263,6 @@ contract ODefaultStakerRewards is
             _s_activeSharesCache[epoch] = activeShares_;
         }
 
-        //!Comment 3 Probably mint and then transfer on distribute or claim?
         uint256 balanceBefore = IERC20(i_token).balanceOf(address(this));
         IERC20(i_token).safeTransferFrom(msg.sender, address(this), amount);
         amount = IERC20(i_token).balanceOf(address(this)) - balanceBefore;
@@ -351,7 +318,6 @@ contract ODefaultStakerRewards is
         s_lastUnclaimedReward[msg.sender][epoch] = rewardIndex;
 
         if (amount > 0) {
-            //!Comment 2 Mint and then transfer?
             IERC20(i_token).safeTransfer(recipient, amount);
         }
 
@@ -365,9 +331,9 @@ contract ODefaultStakerRewards is
         uint48 epoch,
         bytes[] memory activeSharesOfHints
     ) private view returns (uint256 amount) {
+        uint48 epochTs = getEpochStartTs(epoch);
         for (uint256 i; i < rewardsToClaim;) {
             uint256 rewardAmount = rewardsPerEpoch[rewardIndex];
-            uint48 epochTs = getEpochStartTs(epoch);
             amount += IVault(s_vault).activeSharesOfAt(msg.sender, epochTs, activeSharesOfHints[i]).mulDiv(
                 rewardAmount, _s_activeSharesCache[epoch]
             );

@@ -32,7 +32,9 @@ test :; forge test
 
 testv :; forge test -vvvv
 
-coverage :; forge coverage
+coverage :; forge coverage --nmp test/fork/*
+
+dcoverage :; forge coverage --nmp test/fork/* --report debug > coverage.txt
 
 snapshot :; forge snapshot
 
