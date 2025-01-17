@@ -23,7 +23,7 @@ install :; 	forge install foundry-rs/forge-std@v1.8.2 --no-commit && \
 			forge install moondance-labs/tanssi-bridge-relayer --no-commit --no-git && \
 			cd lib/tanssi-bridge-relayer && ./add_overridden_contracts.sh
 
-install-tanssi-relayer :; cd lib/tanssi-bridge-relayer && ./update_contract_interface.sh
+install-tanssi-relayer :; cd lib/tanssi-bridge-relayer && ./add_overridden_contracts.sh
 
 update:; forge update
 
