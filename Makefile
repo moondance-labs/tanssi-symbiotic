@@ -15,6 +15,7 @@ clean-all :; forge clean && rm -rf broadcast && rm -rf cache
 remove :; rm -rf .gitmodules && rm -rf .git/modules/* && rm -rf lib && touch .gitmodules
 
 install :; 	forge install foundry-rs/forge-std@v1.8.2 --no-commit && \
+			forge install openzeppelin/openzeppelin-contracts@v5.0.2 --no-commit && \
 			forge install openzeppelin/openzeppelin-contracts-upgradeable@v5.0.2 --no-commit && \
 			forge install symbioticfi/core --no-commit  && \
 			forge install symbioticfi/collateral --no-commit  && \
