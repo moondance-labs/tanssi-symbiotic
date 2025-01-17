@@ -681,11 +681,15 @@ contract MiddlewareTest is Test {
         //We need to assert like this instead of putting OPERATOR_STAKE * 2 * 2 because of the precision loss. We know that remainingOperator3Stake will be the same even for the other vault so we can just sum it.
         assertEq(validators[2].stake, totalOperator3Stake + remainingOperator3Stake);
 
+        uint256 slashedAmount = 30 ether;
+        // We want to slash 30 ether, so we need to calculate what percentage
+        uint256 slashingFraction = slashedAmount.mulDiv(1_000_000_000, totalOperator2Stake);
+
         vm.prank(owner);
         middleware.pauseVault(vaultAddresses.vaultSlashable);
 
         vm.prank(owner);
-        middleware.slash(currentEpoch, operator2, 30 ether);
+        middleware.slash(currentEpoch, operator2, slashingFraction);
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = middleware.getValidatorSet(newEpoch);

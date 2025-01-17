@@ -428,9 +428,11 @@ contract MiddlewareTest is Test {
         assertEq(validators[2].stake, totalOperator3Stake + remainingOperator3Stake);
         //We calculate the amount slashable for only the operator2 since it's the only one that should be slashed. As a side effect operator3 will be slashed too since it's taking part in a NetworkRestake delegator based vault
         uint256 slashAmountSlashable = (SLASH_AMOUNT * remainingOperator2Stake) / totalOperator2Stake;
+        uint256 amountToSlash = 30 ether;
+        uint256 slashingFraction = amountToSlash.mulDiv(1_000_000_000, totalOperator2Stake);
 
         vm.prank(owner);
-        ecosystemEntities.middleware.slash(currentEpoch, operator2, 30 ether);
+        ecosystemEntities.middleware.slash(currentEpoch, operator2, slashingFraction);
 
         vm.prank(resolver1);
         ecosystemEntities.vetoSlasher.vetoSlash(0, hex"");
@@ -467,8 +469,10 @@ contract MiddlewareTest is Test {
 
         //We calculate the amount slashable for only the operator2 since it's the only one that should be slashed. As a side effect operator3 will be slashed too since it's taking part in a NetworkRestake delegator based vault
         uint256 slashAmountSlashable = (SLASH_AMOUNT * remainingOperator2Stake) / totalOperator2Stake;
+        uint256 amountToSlash = 30 ether;
+        uint256 slashingFraction = amountToSlash.mulDiv(1_000_000_000, totalOperator2Stake);
         vm.prank(owner);
-        ecosystemEntities.middleware.slash(currentEpoch, operator2, 30 ether);
+        ecosystemEntities.middleware.slash(currentEpoch, operator2, slashingFraction);
 
         vm.warp(block.timestamp + VETO_DURATION);
         vm.prank(address(ecosystemEntities.middleware));
@@ -506,9 +510,12 @@ contract MiddlewareTest is Test {
 
         //We calculate the amount slashable for only the operator3 since it's the only one that should be slashed. As a side effect operator2 will be slashed too since it's taking part in a NetworkRestake delegator based vault
         uint256 slashAmountSlashable3 = (SLASH_AMOUNT * remainingOperator3Stake) / totalOperator3Stake;
+        uint256 slashedAmount = 30 ether;
+        // We want to slash 30 ether, so we need to calculate what percentage
+        uint256 slashingFraction = slashedAmount.mulDiv(1_000_000_000, totalOperator3Stake);
 
         vm.prank(owner);
-        ecosystemEntities.middleware.slash(currentEpoch, operator2, 30 ether);
+        ecosystemEntities.middleware.slash(currentEpoch, operator2, slashingFraction);
 
         vm.prank(resolver1);
         ecosystemEntities.vetoSlasher.vetoSlash(0, hex"");
@@ -546,8 +553,13 @@ contract MiddlewareTest is Test {
         uint256 slashAmountSlashable3 =
             (SLASH_AMOUNT * remainingOperator3Stake) / (totalOperator3Stake + remainingOperator3Stake);
 
+        uint256 slashedAmount = 30 ether;
+        // We want to slash 30 ether, so we need to calculate what percentage
+
+        uint256 slashingFraction = slashedAmount.mulDiv(1_000_000_000, totalOperator3Stake + remainingOperator3Stake);
+
         vm.prank(owner);
-        ecosystemEntities.middleware.slash(currentEpoch, operator3, 30 ether);
+        ecosystemEntities.middleware.slash(currentEpoch, operator3, slashingFraction);
 
         vm.warp(block.timestamp + VETO_DURATION);
         vm.prank(address(ecosystemEntities.middleware));
@@ -584,11 +596,15 @@ contract MiddlewareTest is Test {
         //We need to assert like this instead of putting OPERATOR_STAKE * 2 * 2 because of the precision loss. We know that remainingOperator3Stake will be the same even for the other vault so we can just sum it.
         assertEq(validators[2].stake, totalOperator3Stake + remainingOperator3Stake);
 
+        uint256 slashedAmount = 30 ether;
+        // We want to slash 30 ether, so we need to calculate what percentage
+        uint256 slashingFraction = slashedAmount.mulDiv(1_000_000_000, totalOperator2Stake);
+
         vm.prank(owner);
         ecosystemEntities.middleware.pauseVault(vaultAddresses.vaultSlashable);
 
         vm.prank(owner);
-        ecosystemEntities.middleware.slash(currentEpoch, operator2, 30 ether);
+        ecosystemEntities.middleware.slash(currentEpoch, operator2, slashingFraction);
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = ecosystemEntities.middleware.getCurrentEpoch();
         validators = ecosystemEntities.middleware.getValidatorSet(newEpoch);
@@ -617,12 +633,16 @@ contract MiddlewareTest is Test {
 
         uint256 slashAmountSlashable = (SLASH_AMOUNT * remainingOperator2Stake) / totalOperator2Stake;
 
+        uint256 slashedAmount = 30 ether;
+        // We want to slash 30 ether, so we need to calculate what percentage
+        uint256 slashingFraction = slashedAmount.mulDiv(1_000_000_000, totalOperator2Stake);
+
         vm.prank(owner);
         ecosystemEntities.middleware.pauseOperator(operator2);
 
         vm.prank(owner);
         //! Why this slash should anyway go through if operator was paused? Shouldn't it revert?
-        ecosystemEntities.middleware.slash(currentEpoch, operator2, 30 ether);
+        ecosystemEntities.middleware.slash(currentEpoch, operator2, slashingFraction);
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = ecosystemEntities.middleware.getCurrentEpoch();
         validators = ecosystemEntities.middleware.getValidatorSet(newEpoch);
