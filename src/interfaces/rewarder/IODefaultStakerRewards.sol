@@ -43,6 +43,7 @@ interface IODefaultStakerRewards {
         address defaultAdminRoleHolder;
         address adminFeeClaimRoleHolder;
         address adminFeeSetRoleHolder;
+        address operatorRewardsRoleHolder;
     }
 
     /**
@@ -117,6 +118,12 @@ interface IODefaultStakerRewards {
      * @return identifier of the admin fee setter role
      */
     function ADMIN_FEE_SET_ROLE() external view returns (bytes32);
+
+    /**
+     * @notice Get the operator rewards role.
+     * @return identifier of the operator rewards role
+     */
+    function OPERATOR_REWARDS_ROLE() external view returns (bytes32);
 
     /**
      * @notice Get the vault factory's address.
