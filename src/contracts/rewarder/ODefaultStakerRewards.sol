@@ -129,8 +129,6 @@ contract ODefaultStakerRewards is
         address token,
         InitParams memory params
     ) {
-        // probably we don't need this since we will just deploy it and upgrade it and we don't need a factory
-        // _disableInitializers();
         i_network = network;
         i_vaultFactory = vaultFactory;
         i_networkMiddlewareService = networkMiddlewareService;
@@ -172,10 +170,7 @@ contract ODefaultStakerRewards is
     }
 
     /**
-     * @dev Added to allow to calculate timestamp in order to access activeSharesOfAt
-     * @notice Gets the timestamp when an epoch starts
-     * @param epoch The epoch number
-     * @return timestamp The start time of the epoch
+     * @inheritdoc IODefaultStakerRewards
      */
     function getEpochStartTs(
         uint48 epoch
@@ -310,7 +305,7 @@ contract ODefaultStakerRewards is
             revert ODefaultStakerRewards__InvalidHintsLength();
         }
 
-        //!Comment 1 Should we add that rewards are gonna expire after 1 month?
+        //! TODO Should we add that rewards are gonna expire after 1 month?
 
         uint256 rewardIndex = lastUnclaimedReward_;
         uint256 amount = _claimRewardsPerEpoch(rewardsToClaim, rewardsPerEpoch, rewardIndex, epoch, activeSharesOfHints);
@@ -341,7 +336,6 @@ contract ODefaultStakerRewards is
             unchecked {
                 ++i;
                 ++rewardIndex;
-                rewardsPerEpoch;
             }
         }
     }

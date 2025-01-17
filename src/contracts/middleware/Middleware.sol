@@ -55,9 +55,6 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     using MapWithTimeData for EnumerableMap.AddressToUintMap;
     using Subnetwork for address;
 
-    uint48 private constant INSTANT_SLASHER_TYPE = 0;
-    uint48 private constant VETO_SLASHER_TYPE = 1;
-
     uint48 public immutable i_epochDuration;
     uint48 public immutable i_slashingWindow;
     uint48 public immutable i_startTime;
@@ -214,7 +211,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
         uint48 vaultEpoch = IVault(vault).epochDuration();
 
         address slasher = IVault(vault).slasher();
-        if (slasher != address(0) && IEntity(slasher).TYPE() == VETO_SLASHER_TYPE) {
+        if (slasher != address(0) && IEntity(slasher).TYPE() == uint256(SlasherType.VETO)) {
             vaultEpoch -= IVetoSlasher(slasher).vetoDuration();
         }
 
@@ -303,9 +300,9 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     ) external onlyGateway {
         (
             uint256 timestamp,
-            , // Dunno what to do with it xD
-            uint256 totalPointsToken, //Used in gateway to mint tokens?
-            uint256 tokensInflatedToken, //Used in gateway to mint tokens?
+            , // TODO do we need eraIndex somehow?
+            uint256 totalPointsToken,
+            uint256 tokensInflatedToken,
             bytes32 rewardsRoot
         ) = abi.decode(data, (uint256, uint256, uint256, uint256, bytes32));
 
@@ -429,9 +426,9 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
             return;
         }
         uint256 slasherType = IEntity(slasher).TYPE();
-        if (slasherType == INSTANT_SLASHER_TYPE) {
+        if (slasherType == uint256(SlasherType.INSTANT)) {
             ISlasher(slasher).slash(subnetwork, operator, amount, timestamp, new bytes(0));
-        } else if (slasherType == VETO_SLASHER_TYPE) {
+        } else if (slasherType == uint256(SlasherType.VETO)) {
             IVetoSlasher(slasher).requestSlash(subnetwork, operator, amount, timestamp, new bytes(0));
         } else {
             revert Middleware__UnknownSlasherType();

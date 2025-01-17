@@ -1,4 +1,17 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) Moondance Labs Ltd.
+// This file is part of Tanssi.
+// Tanssi is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// Tanssi is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+// You should have received a copy of the GNU General Public License
+// along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
+
 pragma solidity ^0.8.0;
 
 interface IODefaultOperatorRewards {
@@ -8,6 +21,9 @@ interface IODefaultOperatorRewards {
     error ODefaultOperatorRewards__InvalidProof();
     error ODefaultOperatorRewards__NotNetworkMiddleware();
     error ODefaultOperatorRewards__RootNotSet();
+    error ODefaultOperatorRewards__InvalidTotalPoints();
+    error ODefaultOperatorRewards__InvalidOperatorShare();
+    error ODefaultOperatorRewards__AlreadySet();
 
     /**
      * @notice Emitted when rewards are distributed by providing a Merkle root.
@@ -53,6 +69,18 @@ interface IODefaultOperatorRewards {
      * @return network identifier
      */
     function i_network() external view returns (address);
+
+    /**
+     * @notice Get the default staker rewards contract's address.
+     * @return address of the default staker rewards contract
+     */
+    function s_defaultStakerRewards() external view returns (address);
+
+    /**
+     * @notice Get the operator share.
+     * @return operator share
+     */
+    function s_operatorShare() external view returns (uint48);
 
     /**
      * @notice Get a Merkle root of a reward distribution for a particular epoch.

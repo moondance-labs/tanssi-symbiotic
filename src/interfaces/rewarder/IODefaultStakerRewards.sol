@@ -1,4 +1,17 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) Moondance Labs Ltd.
+// This file is part of Tanssi.
+// Tanssi is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// Tanssi is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+// You should have received a copy of the GNU General Public License
+// along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
+
 pragma solidity ^0.8.0;
 
 interface IODefaultStakerRewards {
@@ -177,6 +190,16 @@ interface IODefaultStakerRewards {
     function s_claimableAdminFee(
         uint48 epoch
     ) external view returns (uint256);
+
+    /**
+     * @dev Added to allow to calculate timestamp in order to access activeSharesOfAt
+     * @notice Gets the timestamp when an epoch starts
+     * @param epoch The epoch number
+     * @return timestamp The start time of the epoch
+     */
+    function getEpochStartTs(
+        uint48 epoch
+    ) external view returns (uint48 timestamp);
 
     /**
      * @notice Get a total number of rewards for a given epoch.

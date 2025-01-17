@@ -49,6 +49,16 @@ interface IMiddleware {
     error Middleware__UnknownSlasherType();
 
     /**
+     * @notice Slasher type enum
+     * @param INSTANT Instant slasher type
+     * @param VETO Veto slasher type
+     */
+    enum SlasherType {
+        INSTANT,
+        VETO
+    }
+
+    /**
      * @notice Validator data structure containing stake and key
      * @param stake The validator's stake amount
      * @param key The validator's key
