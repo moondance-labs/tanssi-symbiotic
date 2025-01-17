@@ -66,6 +66,11 @@ contract ODefaultStakerRewards is
     /**
      * @inheritdoc IODefaultStakerRewards
      */
+    bytes32 public constant OPERATOR_REWARDS_ROLE = keccak256("OPERATOR_REWARDS_ROLE");
+
+    /**
+     * @inheritdoc IODefaultStakerRewards
+     */
     address public immutable i_vaultFactory;
 
     /**
@@ -154,6 +159,10 @@ contract ODefaultStakerRewards is
             }
         }
 
+        if (params.operatorRewardsRoleHolder == address(0)) {
+            revert ODefaultStakerRewards__MissingRoles();
+        }
+
         s_vault = params.vault;
 
         _setAdminFee(params.adminFee);
@@ -166,6 +175,9 @@ contract ODefaultStakerRewards is
         }
         if (params.adminFeeSetRoleHolder != address(0)) {
             _grantRole(ADMIN_FEE_SET_ROLE, params.adminFeeSetRoleHolder);
+        }
+        if (params.operatorRewardsRoleHolder != address(0)) {
+            _grantRole(OPERATOR_REWARDS_ROLE, params.operatorRewardsRoleHolder);
         }
     }
 
@@ -229,7 +241,11 @@ contract ODefaultStakerRewards is
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    function distributeRewards(uint48 epoch, uint256 amount, bytes calldata data) external override nonReentrant {
+    function distributeRewards(
+        uint48 epoch,
+        uint256 amount,
+        bytes calldata data
+    ) external override nonReentrant onlyRole(OPERATOR_REWARDS_ROLE) {
         //! TODO This should be restricted to operator rewards
         // maxAdminFee - the maximum admin fee to allow
         // activeSharesHint - a hint index to optimize `activeSharesAt()` processing
