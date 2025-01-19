@@ -23,7 +23,7 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {ScaleCodec} from "@snowbridge/src/utils/ScaleCodec.sol";
+import {ScaleCodec} from "@tanssi-bridge-relayer/snowbridge/contracts/src/utils/ScaleCodec.sol";
 
 contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
     using SafeERC20 for IERC20;

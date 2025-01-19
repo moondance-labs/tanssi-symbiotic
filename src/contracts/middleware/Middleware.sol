@@ -38,9 +38,7 @@ import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 //**************************************************************************************************
 //                                      SNOWBRIDGE
 //**************************************************************************************************
-import {IOGateway} from "src/interfaces/snowbridge-override/IOGateway.sol";
-
-import {ParaID} from "@snowbridge/src/Types.sol";
+import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfaces/IOGateway.sol";
 
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";

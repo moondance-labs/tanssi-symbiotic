@@ -16,12 +16,16 @@
 [submodule "lib/collateral"]
 	path = lib/collateral
 	url = https://github.com/symbioticfi/collateral
-[submodule "lib/snowbridge"]
-	path = lib/snowbridge
-	url = https://github.com/Snowfork/snowbridge
 [submodule "lib/prb-math"]
 	path = lib/prb-math
 	url = https://github.com/PaulRBerg/prb-math
+	branch = release-v4
 [submodule "lib/rewards"]
 	path = lib/rewards
 	url = https://github.com/symbioticfi/rewards
+[submodule "lib/tanssi-bridge-relayer/snowbridge"]
+	path = lib/tanssi-bridge-relayer/snowbridge
+	url = https://github.com/Snowfork/snowbridge
+[submodule "lib/tanssi-bridge-relayer"]
+	path = lib/tanssi-bridge-relayer
+	url = https://github.com/moondance-labs/tanssi-bridge-relayer
