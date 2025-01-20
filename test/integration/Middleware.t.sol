@@ -53,24 +53,23 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 //**************************************************************************************************
 //                                      SNOWBRIDGE
 //**************************************************************************************************
-import {CreateAgentParams, CreateChannelParams} from "@snowbridge/src/Params.sol";
-import {OperatingMode, ParaID} from "@snowbridge/src/Types.sol";
-import {MockGateway} from "@snowbridge/test/mocks/MockGateway.sol";
-import {GatewayProxy} from "@snowbridge/src/GatewayProxy.sol";
-import {AgentExecutor} from "@snowbridge/src/AgentExecutor.sol";
-import {SetOperatingModeParams} from "@snowbridge/src/Params.sol";
+import {CreateAgentParams, CreateChannelParams} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Params.sol";
+import {OperatingMode, ParaID} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Types.sol";
+import {MockGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/test/mocks/MockGateway.sol";
+import {GatewayProxy} from "@tanssi-bridge-relayer/snowbridge/contracts/src/GatewayProxy.sol";
+import {AgentExecutor} from "@tanssi-bridge-relayer/snowbridge/contracts/src/AgentExecutor.sol";
+import {SetOperatingModeParams} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Params.sol";
+import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfaces/IOGateway.sol";
+import {Gateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Gateway.sol";
+import {MockOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/test/mocks/MockOGateway.sol";
+
 import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
 
-import {IOGateway} from "../../src/snowbridge-override/interfaces/IOGateway.sol";
-import {Gateway} from "../../src/snowbridge-override/Gateway.sol";
-import {MockOGateway} from "../../test/mocks/snowbridge-override/MockOGateway.sol";
-import {Middleware} from "../../src/middleware/Middleware.sol";
-
-import {Token} from "../mocks/Token.sol";
-
-import {DeploySymbiotic} from "../../script/DeploySymbiotic.s.sol";
-import {DeployCollateral} from "../../script/DeployCollateral.s.sol";
-import {DeployVault} from "../../script/DeployVault.s.sol";
+import {Middleware} from "src/middleware/Middleware.sol";
+import {Token} from "test/mocks/Token.sol";
+import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
+import {DeployCollateral} from "script/DeployCollateral.s.sol";
+import {DeployVault} from "script/DeployVault.s.sol";
 
 contract MiddlewareTest is Test {
     using Subnetwork for address;

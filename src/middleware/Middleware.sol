@@ -39,8 +39,7 @@ import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 //**************************************************************************************************
 //                                      SNOWBRIDGE
 //**************************************************************************************************
-import {IOGateway} from "../snowbridge-override/interfaces/IOGateway.sol";
-import {ParaID} from "@snowbridge/src/Types.sol";
+import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfaces/IOGateway.sol";
 
 import {SimpleKeyRegistry32} from "../libraries/SimpleKeyRegistry32.sol";
 import {MapWithTimeData} from "../libraries/MapWithTimeData.sol";
