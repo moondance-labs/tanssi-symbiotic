@@ -911,7 +911,7 @@ contract MiddlewareTest is Test {
         // We shhould not revert here
         // But we should not slash neither
         // We should put here a number bigger than 1 bill
-        uint256 slashPercentage = 1_000_000_000;
+        uint256 slashPercentage = 1_500_000_000;
 
         middleware.slash(currentEpoch, operator, slashPercentage);
 

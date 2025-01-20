@@ -528,6 +528,26 @@ contract MiddlewareTest is Test {
         middleware.slash(currentEpoch, operator2, slashingFraction);
     }
 
+    function testSlashTooBig() public {
+        vm.warp(NETWORK_EPOCH_DURATION * 2 + SLASHING_WINDOW / 2);
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        uint256 epochStartTs = middleware.getEpochStartTs(currentEpoch);
+
+        // We go directly to epochStart as it 100% ensure that the epoch is started and thus the slashing is invalid
+        vm.warp(epochStartTs);
+
+        //InvalidCaptureTimestamp
+        bytes memory data = "\x73\x21\x67\xd8";
+
+        // We want to slash 30 ether, so we need to calculate what percentage
+        uint256 slashingFraction = 1_500_000_000;
+
+        vm.prank(owner);
+        vm.expectEmit(true, true, true, true);
+        emit Middleware.SlashPercentageTooBig(currentEpoch, operator2, slashingFraction);
+        middleware.slash(currentEpoch, operator2, slashingFraction);
+    }
+
     function testSlashingOnOperator2AndExecuteSlashOnVetoVault() public {
         vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW - 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();

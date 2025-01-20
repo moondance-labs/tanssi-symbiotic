@@ -52,6 +52,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
 
     event SlashFailure(string stringFailure, bytes32 subnetwork, address operator, uint256 amount, uint48 timestamp);
     event SlashFailure(bytes bytesFailure, bytes32 subnetwork, address operator, uint256 amount, uint48 timestamp);
+    event SlashPercentageTooBig(uint48 epoch, address operator, uint256 percentage);
 
     error Middleware__NotOperator();
     error Middleware__NotVault();
@@ -368,6 +369,11 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
      */
     //INFO: this function can be made external. To check if it is possible to make it external
     function slash(uint48 epoch, address operator, uint256 percentage) public onlyOwner updateStakeCache(epoch) {
+        // Sanitization: check percentage is below 100% (or 1 billion in other words)
+        if (percentage > 1_000_000_000) {
+            emit SlashPercentageTooBig(epoch, operator, percentage);
+            return;
+        }
         SlashParams memory params;
         params.epochStartTs = getEpochStartTs(epoch);
         params.operator = operator;
