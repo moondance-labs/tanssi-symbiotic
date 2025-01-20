@@ -51,6 +51,7 @@ contract MiddlewareTest is Test {
     uint256 public constant OPERATOR_INITIAL_BALANCE = 1000 ether;
     uint256 public constant MIN_SLASHING_WINDOW = 1 days;
     bytes32 public constant OPERATOR_KEY = bytes32(uint256(1));
+    uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
 
     uint48 public constant START_TIME = 1;
 
@@ -870,7 +871,7 @@ contract MiddlewareTest is Test {
 
         // We want to slash half of it, and this is parts per billion. so this should be
         // 500000000
-        uint256 slashPercentage = 500_000_000;
+        uint256 slashPercentage = PARTS_PER_BILLION / 2;
         uint256 slashAmount = OPERATOR_STAKE / 2;
         middleware.slash(currentEpoch, operator, slashPercentage);
 
@@ -911,7 +912,7 @@ contract MiddlewareTest is Test {
         // We shhould not revert here
         // But we should not slash neither
         // We should put here a number bigger than 1 bill
-        uint256 slashPercentage = 1_500_000_000;
+        uint256 slashPercentage = 3 * PARTS_PER_BILLION / 2;
 
         middleware.slash(currentEpoch, operator, slashPercentage);
 
@@ -964,7 +965,7 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         // 50% of slashing
-        uint256 slashPercentage = 500_000_000;
+        uint256 slashPercentage = PARTS_PER_BILLION / 2;
         uint256 slashAmount = OPERATOR_STAKE / 2;
         middleware.slash(currentEpoch, operator, slashPercentage);
 
@@ -992,7 +993,7 @@ contract MiddlewareTest is Test {
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
-        uint256 slashPercentage = 500_000_000;
+        uint256 slashPercentage = PARTS_PER_BILLION / 2;
         middleware.slash(currentEpoch, operator, slashPercentage);
 
         vm.warp(SLASHING_WINDOW * 2 + 1);
@@ -1019,7 +1020,7 @@ contract MiddlewareTest is Test {
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
-        uint256 slashPercentage = 500_000_000;
+        uint256 slashPercentage = PARTS_PER_BILLION / 2;
 
         vm.expectEmit(true, true, true, true);
         emit Middleware.UnknownSlasherType();

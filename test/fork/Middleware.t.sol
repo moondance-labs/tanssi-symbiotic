@@ -62,6 +62,7 @@ contract MiddlewareTest is Test {
     uint128 public constant MAX_NETWORK_LIMIT = 1000 ether;
     uint128 public constant OPERATOR_NETWORK_LIMIT = 300 ether;
     uint256 public constant TOTAL_NETWORK_SHARES = 3;
+    uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
 
     uint256 ownerPrivateKey =
         vm.envOr("OWNER_PRIVATE_KEY", uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80));
@@ -429,7 +430,7 @@ contract MiddlewareTest is Test {
         //We calculate the amount slashable for only the operator2 since it's the only one that should be slashed. As a side effect operator3 will be slashed too since it's taking part in a NetworkRestake delegator based vault
         uint256 slashAmountSlashable = (SLASH_AMOUNT * remainingOperator2Stake) / totalOperator2Stake;
         uint256 amountToSlash = 30 ether;
-        uint256 slashingFraction = amountToSlash.mulDiv(1_000_000_000, totalOperator2Stake);
+        uint256 slashingFraction = amountToSlash.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
 
         vm.prank(owner);
         ecosystemEntities.middleware.slash(currentEpoch, operator2, slashingFraction);
@@ -470,7 +471,7 @@ contract MiddlewareTest is Test {
         //We calculate the amount slashable for only the operator2 since it's the only one that should be slashed. As a side effect operator3 will be slashed too since it's taking part in a NetworkRestake delegator based vault
         uint256 slashAmountSlashable = (SLASH_AMOUNT * remainingOperator2Stake) / totalOperator2Stake;
         uint256 amountToSlash = 30 ether;
-        uint256 slashingFraction = amountToSlash.mulDiv(1_000_000_000, totalOperator2Stake);
+        uint256 slashingFraction = amountToSlash.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
         vm.prank(owner);
         ecosystemEntities.middleware.slash(currentEpoch, operator2, slashingFraction);
 
@@ -512,7 +513,7 @@ contract MiddlewareTest is Test {
         uint256 slashAmountSlashable3 = (SLASH_AMOUNT * remainingOperator3Stake) / totalOperator3Stake;
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
-        uint256 slashingFraction = slashedAmount.mulDiv(1_000_000_000, totalOperator3Stake);
+        uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator3Stake);
 
         vm.prank(owner);
         ecosystemEntities.middleware.slash(currentEpoch, operator2, slashingFraction);
@@ -556,7 +557,8 @@ contract MiddlewareTest is Test {
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
 
-        uint256 slashingFraction = slashedAmount.mulDiv(1_000_000_000, totalOperator3Stake + remainingOperator3Stake);
+        uint256 slashingFraction =
+            slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator3Stake + remainingOperator3Stake);
 
         vm.prank(owner);
         ecosystemEntities.middleware.slash(currentEpoch, operator3, slashingFraction);
@@ -598,7 +600,7 @@ contract MiddlewareTest is Test {
 
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
-        uint256 slashingFraction = slashedAmount.mulDiv(1_000_000_000, totalOperator2Stake);
+        uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
 
         vm.prank(owner);
         ecosystemEntities.middleware.pauseVault(vaultAddresses.vaultSlashable);
@@ -635,7 +637,7 @@ contract MiddlewareTest is Test {
 
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
-        uint256 slashingFraction = slashedAmount.mulDiv(1_000_000_000, totalOperator2Stake);
+        uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
 
         vm.prank(owner);
         ecosystemEntities.middleware.pauseOperator(operator2);

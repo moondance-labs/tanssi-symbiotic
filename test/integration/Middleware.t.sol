@@ -90,6 +90,7 @@ contract MiddlewareTest is Test {
     bytes32 public constant OPERATOR3_KEY = bytes32(uint256(3));
     uint256 public constant OPERATOR_SHARE = 1;
     uint256 public constant TOTAL_NETWORK_SHARES = 3;
+    uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
 
     struct VaultAddresses {
         address vault;
@@ -482,7 +483,7 @@ contract MiddlewareTest is Test {
 
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
-        uint256 slashingFraction = slashedAmount.mulDiv(1_000_000_000, totalOperator2Stake);
+        uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
         middleware.slash(currentEpoch, operator2, slashingFraction);
 
         vm.prank(resolver1);
@@ -518,9 +519,9 @@ contract MiddlewareTest is Test {
             _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
-        uint256 slashingFraction = slashedAmount.mulDiv(1_000_000_000, totalOperator2Stake);
+        uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
 
-        uint256 slashedEvent = activeStakeInVetoed * slashingFraction / 1_000_000_000;
+        uint256 slashedEvent = activeStakeInVetoed * slashingFraction / PARTS_PER_BILLION;
 
         vm.prank(owner);
         vm.expectEmit(true, true, true, true);
@@ -537,7 +538,7 @@ contract MiddlewareTest is Test {
         vm.warp(epochStartTs);
 
         // We want to slash 30 ether, so we need to calculate what percentage
-        uint256 slashingFraction = 1_500_000_000;
+        uint256 slashingFraction = 3 * PARTS_PER_BILLION / 2;
 
         vm.prank(owner);
         vm.expectEmit(true, true, true, true);
@@ -569,7 +570,7 @@ contract MiddlewareTest is Test {
 
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
-        uint256 slashingFraction = slashedAmount.mulDiv(1_000_000_000, totalOperator2Stake);
+        uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
         middleware.slash(currentEpoch, operator2, slashingFraction);
 
         vm.warp(block.timestamp + VETO_DURATION);
@@ -613,7 +614,7 @@ contract MiddlewareTest is Test {
 
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
-        uint256 slashingFraction = slashedAmount.mulDiv(1_000_000_000, totalOperator3Stake);
+        uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator3Stake);
         middleware.slash(currentEpoch, operator3, slashingFraction);
 
         vm.prank(resolver1);
@@ -658,7 +659,8 @@ contract MiddlewareTest is Test {
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
 
-        uint256 slashingFraction = slashedAmount.mulDiv(1_000_000_000, totalOperator3Stake + remainingOperator3Stake);
+        uint256 slashingFraction =
+            slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator3Stake + remainingOperator3Stake);
         middleware.slash(currentEpoch, operator3, slashingFraction);
 
         vm.warp(block.timestamp + VETO_DURATION);
@@ -699,7 +701,7 @@ contract MiddlewareTest is Test {
 
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
-        uint256 slashingFraction = slashedAmount.mulDiv(1_000_000_000, totalOperator2Stake);
+        uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
 
         vm.prank(owner);
         middleware.pauseVault(vaultAddresses.vaultSlashable);
@@ -741,7 +743,7 @@ contract MiddlewareTest is Test {
 
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
-        uint256 slashingFraction = slashedAmount.mulDiv(1_000_000_000, totalOperator2Stake);
+        uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
         //! Why this slash should anyway go through if operator was paused? Shouldn't it revert?
         middleware.slash(currentEpoch, operator2, slashingFraction);
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);

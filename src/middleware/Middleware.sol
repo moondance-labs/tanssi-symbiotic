@@ -108,6 +108,8 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
     EnumerableMap.AddressToUintMap private s_vaults;
     IOGateway public gateway;
 
+    uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
+
     modifier updateStakeCache(
         uint48 epoch
     ) {
@@ -369,7 +371,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
     //INFO: this function can be made external. To check if it is possible to make it external
     function slash(uint48 epoch, address operator, uint256 percentage) public onlyOwner updateStakeCache(epoch) {
         // Sanitization: check percentage is below 100% (or 1 billion in other words)
-        if (percentage > 1_000_000_000) {
+        if (percentage > PARTS_PER_BILLION) {
             emit SlashPercentageTooBig(epoch, operator, percentage);
             return;
         }
@@ -405,7 +407,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
             );
             // Slash percentage is already in parts per billion
             // so we need to divide by a billion
-            uint256 slashAmount = params.slashPercentage.mulDiv(vaultStake, 1_000_000_000);
+            uint256 slashAmount = params.slashPercentage.mulDiv(vaultStake, PARTS_PER_BILLION);
 
             _slashVault(params.epochStartTs, vault, subnetwork, params.operator, slashAmount);
         }
