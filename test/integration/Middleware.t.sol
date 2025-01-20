@@ -536,9 +536,6 @@ contract MiddlewareTest is Test {
         // We go directly to epochStart as it 100% ensure that the epoch is started and thus the slashing is invalid
         vm.warp(epochStartTs);
 
-        //InvalidCaptureTimestamp
-        bytes memory data = "\x73\x21\x67\xd8";
-
         // We want to slash 30 ether, so we need to calculate what percentage
         uint256 slashingFraction = 1_500_000_000;
 

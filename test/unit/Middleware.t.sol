@@ -992,8 +992,8 @@ contract MiddlewareTest is Test {
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
-        uint256 slashAmount = OPERATOR_STAKE / 2;
-        middleware.slash(currentEpoch, operator, slashAmount);
+        uint256 slashPercentage = 500_000_000;
+        middleware.slash(currentEpoch, operator, slashPercentage);
 
         vm.warp(SLASHING_WINDOW * 2 + 1);
         currentEpoch = middleware.getCurrentEpoch();
@@ -1019,9 +1019,11 @@ contract MiddlewareTest is Test {
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
-        uint256 slashAmount = OPERATOR_STAKE / 2;
+        uint256 slashPercentage = 500_000_000;
 
-        middleware.slash(currentEpoch, operator, slashAmount);
+        vm.expectEmit(true, true, true, true);
+        emit Middleware.UnknownSlasherType();
+        middleware.slash(currentEpoch, operator, slashPercentage);
 
         uint256 totalStakeCached = middleware.calcAndCacheStakes(currentEpoch);
         uint256 totalStake = middleware.getTotalStake(currentEpoch);
