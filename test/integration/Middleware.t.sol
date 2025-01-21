@@ -755,6 +755,55 @@ contract MiddlewareTest is Test {
         assertEq(validators[1].stake, totalOperator3StakeAfter);
     }
 
+    function testSlashEvenIfWeChangeOperatorKey() public {
+        vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW - 1);
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+
+        Middleware.ValidatorData[] memory validators = middleware.getValidatorSet(currentEpoch);
+        //Since vaultVetoed is full restake, it exactly gets the amount deposited, so no need to calculations
+        uint256 activeStakeInVetoed = vaultVetoed.activeStake();
+
+        (uint256 totalOperator2Stake, uint256 remainingOperator2Stake) =
+            _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
+
+        (uint256 totalOperator3Stake, uint256 remainingOperator3Stake) =
+            _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
+
+        assertEq(validators[1].stake, totalOperator2Stake);
+        //We need to assert like this instead of putting OPERATOR_STAKE * 2 * 2 because of the precision loss. We know that remainingOperator3Stake will be the same even for the other vault so we can just sum it.
+        assertEq(validators[2].stake, totalOperator3Stake + remainingOperator3Stake);
+
+        //We calculate the amount slashable for only the operator2 since it's the only one that should be slashed. As a side effect operator3 will be slashed too since it's taking part in a NetworkRestake delegator based vault
+        uint256 slashAmountSlashable = (SLASH_AMOUNT * remainingOperator2Stake) / totalOperator2Stake;
+
+        vm.prank(owner);
+
+        uint256 slashedAmount = 30 ether;
+        // We want to slash 30 ether, so we need to calculate what percentage
+        uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
+
+        // Before slashing, we will change the operator2 key to something else, and prove we can still slash
+        bytes32 differentOperatorKey = bytes32(uint256(10));
+        middleware.updateOperatorKey(operator2, differentOperatorKey);
+
+        vm.prank(owner);
+        middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
+
+        vm.prank(resolver1);
+        vetoSlasher.vetoSlash(0, hex"");
+        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        uint48 newEpoch = middleware.getCurrentEpoch();
+        validators = middleware.getValidatorSet(newEpoch);
+
+        (uint256 totalOperator2StakeAfter,) =
+            _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, slashAmountSlashable);
+
+        (uint256 totalOperator3StakeAfter,) =
+            _calculateTotalOperatorStake(OPERATOR_STAKE * 2 * 2, activeStakeInVetoed, slashAmountSlashable);
+        assertEq(validators[1].stake, totalOperator2StakeAfter);
+        assertEq(validators[2].stake, totalOperator3StakeAfter);
+    }
+
     function testOperatorsOnlyInTanssiNetwork() public {
         address operator4 = makeAddr("operator4");
         address network2 = makeAddr("network2");

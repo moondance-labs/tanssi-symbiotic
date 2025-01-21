@@ -848,7 +848,7 @@ contract MiddlewareTest is Test {
     }
 
     // ************************************************************************************************
-    // *                                      GET VALIDATOR SET
+    // *                                      Slashes
     // ************************************************************************************************
 
     function testSlash() public {
@@ -1032,6 +1032,30 @@ contract MiddlewareTest is Test {
         assertEq(totalStake, totalStakeCached);
 
         vm.stopPrank();
+    }
+
+    function testSlashCannotBeAppliedToUnregisteredKey() public {
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+        _registerVaultToNetwork(address(vault), false, 0);
+
+        vm.startPrank(owner);
+        middleware.registerOperator(operator, OPERATOR_KEY);
+        vault.setSlasher(address(vetoSlasher));
+        vm.store(address(vetoSlasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
+        middleware.registerVault(address(vault));
+
+        vm.startPrank(operator);
+        vault.deposit(operator, OPERATOR_STAKE);
+
+        vm.startPrank(owner);
+        vm.warp(START_TIME + SLASHING_WINDOW + 1);
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        uint256 slashPercentage = PARTS_PER_BILLION / 2;
+        bytes32 unknownOperator = bytes32(uint256(2));
+
+        vm.expectEmit(true, true, true, true);
+        emit Middleware.OperatorNotFound(unknownOperator, currentEpoch);
+        middleware.slash(currentEpoch, unknownOperator, slashPercentage);
     }
 
     // ************************************************************************************************
