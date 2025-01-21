@@ -875,7 +875,7 @@ contract MiddlewareTest is Test {
         uint256 slashAmount = OPERATOR_STAKE / 2;
         middleware.slash(currentEpoch, operator, slashPercentage);
 
-        vm.warp(SLASHING_WINDOW * 2 + 1);
+        vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
         currentEpoch = middleware.getCurrentEpoch();
         uint256 totalStake = middleware.getTotalStake(currentEpoch);
         assertEq(totalStake, totalStakeCached - slashAmount);
@@ -890,7 +890,7 @@ contract MiddlewareTest is Test {
     function testSlashEpochTooOld() public {
         vm.startPrank(owner);
         uint48 currentEpoch = middleware.getCurrentEpoch();
-        vm.warp(SLASHING_WINDOW * 2 + 1);
+        vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
         vm.expectRevert(Middleware.Middleware__TooOldEpoch.selector);
         middleware.slash(currentEpoch, operator, OPERATOR_STAKE);
         vm.stopPrank();
@@ -969,7 +969,7 @@ contract MiddlewareTest is Test {
         uint256 slashAmount = OPERATOR_STAKE / 2;
         middleware.slash(currentEpoch, operator, slashPercentage);
 
-        vm.warp(SLASHING_WINDOW * 2 + 1);
+        vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
         currentEpoch = middleware.getCurrentEpoch();
         uint256 totalStake = middleware.getTotalStake(currentEpoch);
         assertEq(totalStake, OPERATOR_STAKE / 2); //Because it slashes the operator everywhere, but the operator has stake only in vault2, since the first vault is paused
@@ -996,7 +996,7 @@ contract MiddlewareTest is Test {
         uint256 slashPercentage = PARTS_PER_BILLION / 2;
         middleware.slash(currentEpoch, operator, slashPercentage);
 
-        vm.warp(SLASHING_WINDOW * 2 + 1);
+        vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
         currentEpoch = middleware.getCurrentEpoch();
         uint256 totalStake = middleware.getTotalStake(currentEpoch);
         assertEq(totalStake, OPERATOR_STAKE);
@@ -1023,7 +1023,7 @@ contract MiddlewareTest is Test {
         uint256 slashPercentage = PARTS_PER_BILLION / 2;
 
         vm.expectEmit(true, true, true, true);
-        emit Middleware.UnknownSlasherType();
+        emit Middleware.UnknownSlasherType(2);
         middleware.slash(currentEpoch, operator, slashPercentage);
 
         uint256 totalStakeCached = middleware.calcAndCacheStakes(currentEpoch);

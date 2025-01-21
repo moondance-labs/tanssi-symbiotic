@@ -50,10 +50,14 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
     using Subnetwork for address;
     using Math for uint256;
 
-    event SlashFailure(string stringFailure, bytes32 subnetwork, address operator, uint256 amount, uint48 timestamp);
-    event SlashFailure(bytes bytesFailure, bytes32 subnetwork, address operator, uint256 amount, uint48 timestamp);
-    event SlashPercentageTooBig(uint48 epoch, address operator, uint256 percentage);
-    event UnknownSlasherType();
+    event SlashFailure(
+        string stringFailure, bytes32 subnetwork, address indexed operator, uint256 amount, uint48 timestamp
+    );
+    event SlashFailure(
+        bytes bytesFailure, bytes32 subnetwork, address indexed operator, uint256 amount, uint48 timestamp
+    );
+    event SlashPercentageTooBig(uint48 epoch, address indexed operator, uint256 percentage);
+    event UnknownSlasherType(uint64 slaherType);
 
     error Middleware__NotOperator();
     error Middleware__NotVault();
@@ -452,7 +456,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
             }
         } else {
             // There is no slasher type we can apply and we cannot revert
-            emit UnknownSlasherType();
+            emit UnknownSlasherType(uint64(slasherType));
             return;
         }
     }
