@@ -58,6 +58,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
     );
     event SlashPercentageTooBig(uint48 epoch, address indexed operator, uint256 percentage);
     event UnknownSlasherType(uint64 slaherType);
+    event OperatorNotFound(bytes32 operatorKey, uint48 epoch);
 
     error Middleware__NotOperator();
     error Middleware__NotVault();
@@ -369,18 +370,27 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
      * @dev Only the owner can call this function
      * @dev This function first updates the stake cache for the target epoch
      * @param epoch The epoch number
-     * @param operator The operator to slash
+     * @param operatorKey The operator key to slash
      * @param percentage Percentage to slash, represented as parts per billion.
      */
     //INFO: this function can be made external. To check if it is possible to make it external
-    function slash(uint48 epoch, address operator, uint256 percentage) public onlyOwner updateStakeCache(epoch) {
+    function slash(uint48 epoch, bytes32 operatorKey, uint256 percentage) public onlyOwner updateStakeCache(epoch) {
+        uint48 epochStartTs = getEpochStartTs(epoch);
+        address operator = getOperatorByKey(operatorKey);
+
+        // If address is 0, then we should return
+        if (operator == address(0)) {
+            emit OperatorNotFound(operatorKey, epoch);
+            return;
+        }
+
         // Sanitization: check percentage is below 100% (or 1 billion in other words)
         if (percentage > PARTS_PER_BILLION) {
             emit SlashPercentageTooBig(epoch, operator, percentage);
             return;
         }
         SlashParams memory params;
-        params.epochStartTs = getEpochStartTs(epoch);
+        params.epochStartTs = epochStartTs;
         params.operator = operator;
         params.slashPercentage = percentage;
 

@@ -433,7 +433,7 @@ contract MiddlewareTest is Test {
         uint256 slashingFraction = amountToSlash.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
 
         vm.prank(owner);
-        ecosystemEntities.middleware.slash(currentEpoch, operator2, slashingFraction);
+        ecosystemEntities.middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
 
         vm.prank(resolver1);
         ecosystemEntities.vetoSlasher.vetoSlash(0, hex"");
@@ -473,7 +473,7 @@ contract MiddlewareTest is Test {
         uint256 amountToSlash = 30 ether;
         uint256 slashingFraction = amountToSlash.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
         vm.prank(owner);
-        ecosystemEntities.middleware.slash(currentEpoch, operator2, slashingFraction);
+        ecosystemEntities.middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
 
         vm.warp(block.timestamp + VETO_DURATION);
         vm.prank(address(ecosystemEntities.middleware));
@@ -516,7 +516,7 @@ contract MiddlewareTest is Test {
         uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator3Stake);
 
         vm.prank(owner);
-        ecosystemEntities.middleware.slash(currentEpoch, operator2, slashingFraction);
+        ecosystemEntities.middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
 
         vm.prank(resolver1);
         ecosystemEntities.vetoSlasher.vetoSlash(0, hex"");
@@ -561,7 +561,7 @@ contract MiddlewareTest is Test {
             slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator3Stake + remainingOperator3Stake);
 
         vm.prank(owner);
-        ecosystemEntities.middleware.slash(currentEpoch, operator3, slashingFraction);
+        ecosystemEntities.middleware.slash(currentEpoch, OPERATOR3_KEY, slashingFraction);
 
         vm.warp(block.timestamp + VETO_DURATION);
         vm.prank(address(ecosystemEntities.middleware));
@@ -606,7 +606,7 @@ contract MiddlewareTest is Test {
         ecosystemEntities.middleware.pauseVault(vaultAddresses.vaultSlashable);
 
         vm.prank(owner);
-        ecosystemEntities.middleware.slash(currentEpoch, operator2, slashingFraction);
+        ecosystemEntities.middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = ecosystemEntities.middleware.getCurrentEpoch();
         validators = ecosystemEntities.middleware.getValidatorSet(newEpoch);
@@ -644,7 +644,7 @@ contract MiddlewareTest is Test {
 
         vm.prank(owner);
         //! Why this slash should anyway go through if operator was paused? Shouldn't it revert?
-        ecosystemEntities.middleware.slash(currentEpoch, operator2, slashingFraction);
+        ecosystemEntities.middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = ecosystemEntities.middleware.getCurrentEpoch();
         validators = ecosystemEntities.middleware.getValidatorSet(newEpoch);

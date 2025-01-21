@@ -484,7 +484,7 @@ contract MiddlewareTest is Test {
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
         uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
-        middleware.slash(currentEpoch, operator2, slashingFraction);
+        middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
 
         vm.prank(resolver1);
         vetoSlasher.vetoSlash(0, hex"");
@@ -526,7 +526,7 @@ contract MiddlewareTest is Test {
         vm.prank(owner);
         vm.expectEmit(true, true, true, true);
         emit Middleware.SlashFailure(data, tanssi.subnetwork(0), operator2, slashedEvent, uint48(epochStartTs));
-        middleware.slash(currentEpoch, operator2, slashingFraction);
+        middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
     }
 
     function testSlashTooBig() public {
@@ -543,7 +543,7 @@ contract MiddlewareTest is Test {
         vm.prank(owner);
         vm.expectEmit(true, true, true, true);
         emit Middleware.SlashPercentageTooBig(currentEpoch, operator2, slashingFraction);
-        middleware.slash(currentEpoch, operator2, slashingFraction);
+        middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
     }
 
     function testSlashingOnOperator2AndExecuteSlashOnVetoVault() public {
@@ -571,7 +571,7 @@ contract MiddlewareTest is Test {
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
         uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
-        middleware.slash(currentEpoch, operator2, slashingFraction);
+        middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
 
         vm.warp(block.timestamp + VETO_DURATION);
         vm.prank(address(middleware));
@@ -615,7 +615,7 @@ contract MiddlewareTest is Test {
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
         uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator3Stake);
-        middleware.slash(currentEpoch, operator3, slashingFraction);
+        middleware.slash(currentEpoch, OPERATOR3_KEY, slashingFraction);
 
         vm.prank(resolver1);
         vetoSlasher.vetoSlash(0, hex"");
@@ -661,7 +661,7 @@ contract MiddlewareTest is Test {
 
         uint256 slashingFraction =
             slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator3Stake + remainingOperator3Stake);
-        middleware.slash(currentEpoch, operator3, slashingFraction);
+        middleware.slash(currentEpoch, OPERATOR3_KEY, slashingFraction);
 
         vm.warp(block.timestamp + VETO_DURATION);
         vm.prank(address(middleware));
@@ -707,7 +707,7 @@ contract MiddlewareTest is Test {
         middleware.pauseVault(vaultAddresses.vaultSlashable);
 
         vm.prank(owner);
-        middleware.slash(currentEpoch, operator2, slashingFraction);
+        middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = middleware.getValidatorSet(newEpoch);
@@ -745,7 +745,7 @@ contract MiddlewareTest is Test {
         // We want to slash 30 ether, so we need to calculate what percentage
         uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
         //! Why this slash should anyway go through if operator was paused? Shouldn't it revert?
-        middleware.slash(currentEpoch, operator2, slashingFraction);
+        middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = middleware.getValidatorSet(newEpoch);
