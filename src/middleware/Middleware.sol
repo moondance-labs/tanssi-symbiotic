@@ -56,9 +56,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
     event SlashFailure(
         bytes bytesFailure, bytes32 subnetwork, address indexed operator, uint256 amount, uint48 timestamp
     );
-    event SlashPercentageTooBig(uint48 epoch, address indexed operator, uint256 percentage);
     event UnknownSlasherType(uint64 slaherType);
-    event OperatorNotFound(bytes32 operatorKey, uint48 epoch);
 
     error Middleware__NotOperator();
     error Middleware__NotVault();
@@ -73,6 +71,9 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
     error Middleware__TooOldEpoch();
     error Middleware__InvalidEpoch();
     error Middleware__SlashingWindowTooShort();
+    error Middleware__UnknownSlasherType();
+    error Middleware__OperatorNotFound(bytes32 operatorKey, uint48 epoch);
+    error Middleware__SlashPercentageTooBig(uint48 epoch, address operator, uint256 percentage);
 
     struct ValidatorData {
         uint256 stake;
@@ -380,14 +381,12 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
 
         // If address is 0, then we should return
         if (operator == address(0)) {
-            emit OperatorNotFound(operatorKey, epoch);
-            return;
+            revert Middleware__OperatorNotFound(operatorKey, epoch);
         }
 
         // Sanitization: check percentage is below 100% (or 1 billion in other words)
         if (percentage > PARTS_PER_BILLION) {
-            emit SlashPercentageTooBig(epoch, operator, percentage);
-            return;
+            revert Middleware__SlashPercentageTooBig(epoch, operator, percentage);
         }
         SlashParams memory params;
         params.epochStartTs = epochStartTs;
@@ -449,25 +448,11 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
         }
         uint256 slasherType = IEntity(slasher).TYPE();
         if (slasherType == INSTANT_SLASHER_TYPE) {
-            try ISlasher(slasher).slash(subnetwork, operator, amount, timestamp, new bytes(0)) {
-                return;
-            } catch Error(string memory _err) {
-                emit SlashFailure(_err, subnetwork, operator, amount, timestamp);
-            } catch (bytes memory _err) {
-                emit SlashFailure(_err, subnetwork, operator, amount, timestamp);
-            }
+            ISlasher(slasher).slash(subnetwork, operator, amount, timestamp, new bytes(0));
         } else if (slasherType == VETO_SLASHER_TYPE) {
-            try IVetoSlasher(slasher).requestSlash(subnetwork, operator, amount, timestamp, new bytes(0)) {
-                return;
-            } catch Error(string memory _err) {
-                emit SlashFailure(_err, subnetwork, operator, amount, timestamp);
-            } catch (bytes memory _err) {
-                emit SlashFailure(_err, subnetwork, operator, amount, timestamp);
-            }
+            IVetoSlasher(slasher).requestSlash(subnetwork, operator, amount, timestamp, new bytes(0));
         } else {
-            // There is no slasher type we can apply and we cannot revert
-            emit UnknownSlasherType(uint64(slasherType));
-            return;
+            revert Middleware__UnknownSlasherType();
         }
     }
 
