@@ -50,14 +50,6 @@ contract Middleware is SimpleKeyRegistry32, Ownable {
     using Subnetwork for address;
     using Math for uint256;
 
-    event SlashFailure(
-        string stringFailure, bytes32 subnetwork, address indexed operator, uint256 amount, uint48 timestamp
-    );
-    event SlashFailure(
-        bytes bytesFailure, bytes32 subnetwork, address indexed operator, uint256 amount, uint48 timestamp
-    );
-    event UnknownSlasherType(uint64 slaherType);
-
     error Middleware__NotOperator();
     error Middleware__NotVault();
     error Middleware__OperatorNotOptedIn();

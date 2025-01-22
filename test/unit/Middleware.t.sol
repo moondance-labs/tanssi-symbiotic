@@ -909,11 +909,13 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
         uint256 totalStakeCached = middleware.calcAndCacheStakes(currentEpoch);
 
-        // We shhould not revert here
-        // But we should not slash neither
-        // We should put here a number bigger than 1 bill
         uint256 slashPercentage = 3 * PARTS_PER_BILLION / 2;
 
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Middleware.Middleware__SlashPercentageTooBig.selector, currentEpoch, operator, slashPercentage
+            )
+        );
         middleware.slash(currentEpoch, OPERATOR_KEY, slashPercentage);
 
         uint256 totalStake = middleware.getTotalStake(currentEpoch);
@@ -1022,8 +1024,7 @@ contract MiddlewareTest is Test {
 
         uint256 slashPercentage = PARTS_PER_BILLION / 2;
 
-        vm.expectEmit(true, true, true, true);
-        emit Middleware.UnknownSlasherType(2);
+        vm.expectRevert(Middleware.Middleware__UnknownSlasherType.selector);
         middleware.slash(currentEpoch, OPERATOR_KEY, slashPercentage);
 
         uint256 totalStakeCached = middleware.calcAndCacheStakes(currentEpoch);
@@ -1053,8 +1054,9 @@ contract MiddlewareTest is Test {
         uint256 slashPercentage = PARTS_PER_BILLION / 2;
         bytes32 unknownOperator = bytes32(uint256(2));
 
-        vm.expectEmit(true, true, true, true);
-        emit Middleware.OperatorNotFound(unknownOperator, currentEpoch);
+        vm.expectRevert(
+            abi.encodeWithSelector(Middleware.Middleware__OperatorNotFound.selector, unknownOperator, currentEpoch)
+        );
         middleware.slash(currentEpoch, unknownOperator, slashPercentage);
     }
 

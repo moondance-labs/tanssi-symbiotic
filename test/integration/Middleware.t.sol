@@ -26,6 +26,7 @@ import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestak
 import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
 import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
 import {IBaseSlasher} from "@symbiotic/interfaces/slasher/IBaseSlasher.sol";
+import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 import {OperatorRegistry} from "@symbiotic/contracts/OperatorRegistry.sol";
 import {NetworkRegistry} from "@symbiotic/contracts/NetworkRegistry.sol";
 import {OptInService} from "@symbiotic/contracts/service/OptInService.sol";
@@ -524,9 +525,9 @@ contract MiddlewareTest is Test {
         uint256 slashedEvent = activeStakeInVetoed * slashingFraction / PARTS_PER_BILLION;
 
         vm.prank(owner);
-        vm.expectEmit(true, true, true, true);
-        emit Middleware.SlashFailure(data, tanssi.subnetwork(0), operator2, slashedEvent, uint48(epochStartTs));
+        vm.expectRevert(IVetoSlasher.InvalidCaptureTimestamp.selector);
         middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
+        vm.stopPrank();
     }
 
     function testSlashTooBig() public {
@@ -541,8 +542,11 @@ contract MiddlewareTest is Test {
         uint256 slashingFraction = 3 * PARTS_PER_BILLION / 2;
 
         vm.prank(owner);
-        vm.expectEmit(true, true, true, true);
-        emit Middleware.SlashPercentageTooBig(currentEpoch, operator2, slashingFraction);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Middleware.Middleware__SlashPercentageTooBig.selector, currentEpoch, operator2, slashingFraction
+            )
+        );
         middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
     }
 
