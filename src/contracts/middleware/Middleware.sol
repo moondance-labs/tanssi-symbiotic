@@ -131,6 +131,13 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
         _;
     }
 
+    modifier onlyIfOperatorRewardSet() {
+        if (s_operatorRewards == address(0)) {
+            revert Middleware__OperatorRewardsNotSet();
+        }
+        _;
+    }
+
     constructor(
         address _network,
         address _operatorRegistry,
@@ -307,15 +314,35 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     /**
      * @inheritdoc IMiddleware
      */
-    function setRewardsContracts(
+    function setOperatorRewardsContract(
         address operatorRewardsAddress
     ) external onlyOwner {
         if (operatorRewardsAddress == address(0)) {
-            revert Middleware__InvalidOperatorRewardContractAddress();
+            revert Middleware__InvalidAddress();
         }
         s_operatorRewards = operatorRewardsAddress;
 
         emit OperatorRewardContractSet(operatorRewardsAddress);
+    }
+
+    /**
+     * inheritdoc IMiddleware
+     */
+    //TODO this will be removed and done automatically when registering a vault first time by creating staker contract from factory and then setting the mapping in operators for vault <=> staker contract
+    function setStakerRewardContract(
+        address stakerRewardsAddress,
+        address vault
+    ) external onlyOwner onlyIfOperatorRewardSet {
+        IODefaultOperatorRewards(s_operatorRewards).setStakerRewardContract(stakerRewardsAddress, vault);
+    }
+
+    /**
+     * inheritdoc IMiddleware
+     */
+    function setRewardTokenAddress(
+        address rewardTokenAddress
+    ) external onlyOwner onlyIfOperatorRewardSet {
+        IODefaultOperatorRewards(s_operatorRewards).setTokenAddress(rewardTokenAddress);
     }
 
     /**
@@ -327,7 +354,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
         uint256 totalPointsToken,
         uint256 tokensInflatedToken,
         bytes32 rewardsRoot
-    ) external onlyGateway {
+    ) external onlyGateway onlyIfOperatorRewardSet {
         IODefaultOperatorRewards(s_operatorRewards).distributeRewards(
             uint48(epoch), uint48(eraIndex), tokensInflatedToken, totalPointsToken, rewardsRoot
         );
@@ -482,7 +509,6 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     /**
      * @inheritdoc IMiddleware
      */
-    // TODO: THIS MUST BE RESTRICTED EITHER TO OWNER OR SOMEONE ELSE
     function sendCurrentOperatorsKeys() external returns (bytes32[] memory keys) {
         if (address(s_gateway) == address(0)) {
             revert Middleware__GatewayNotSet();

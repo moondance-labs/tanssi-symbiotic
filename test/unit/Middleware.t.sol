@@ -14,7 +14,7 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity ^0.8.13;
 
-import {Test, console2} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 
 //**************************************************************************************************
 //                                      SYMBIOTIC
@@ -42,6 +42,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfaces/IOGateway.sol";
 
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
+import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
@@ -1161,8 +1162,7 @@ contract MiddlewareTest is Test {
             new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), address(token), OPERATOR_SHARE);
 
         vm.startPrank(owner);
-
-        middleware.setRewardsContracts(address(operatorRewards));
+        middleware.setOperatorRewardsContract(address(operatorRewards));
         middleware.setGateway(gateway);
 
         vm.startPrank(address(middleware));
@@ -1203,7 +1203,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         vm.expectEmit(true, true, false, true);
         emit IMiddleware.OperatorRewardContractSet(address(operatorRewards));
-        middleware.setRewardsContracts(address(operatorRewards));
+        middleware.setOperatorRewardsContract(address(operatorRewards));
 
         assertEq(middleware.s_operatorRewards(), address(operatorRewards));
         vm.stopPrank();
@@ -1211,13 +1211,13 @@ contract MiddlewareTest is Test {
 
     function testSetRewardsContractsUnauthorized() public {
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
-        middleware.setRewardsContracts(address(0));
+        middleware.setOperatorRewardsContract(address(0));
     }
 
     function testSetRewardsContractsInvalid() public {
         vm.prank(owner);
-        vm.expectRevert(IMiddleware.Middleware__InvalidOperatorRewardContractAddress.selector);
-        middleware.setRewardsContracts(address(0));
+        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
+        middleware.setOperatorRewardsContract(address(0));
     }
 
     // ************************************************************************************************
@@ -1508,5 +1508,99 @@ contract MiddlewareTest is Test {
         assertEq(vaultIdx, 0);
         assertEq(vaults.length, 0);
         vm.stopPrank();
+    }
+
+    // ************************************************************************************************
+    // *                                  SET STAKER REWARD CONTRACT
+    // ************************************************************************************************
+
+    function testSetStakerRewardContract() public {
+        uint48 OPERATOR_SHARE = 20;
+        Token token = new Token("Test");
+        address stakerRewardAddress = makeAddr("StakerRewardAddress");
+
+        ODefaultOperatorRewards operatorRewards =
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), address(token), OPERATOR_SHARE);
+
+        vm.startPrank(owner);
+        middleware.setOperatorRewardsContract(address(operatorRewards));
+
+        vm.expectEmit(true, true, false, true);
+        emit IODefaultOperatorRewards.SetStakerRewardContract(stakerRewardAddress, address(vault));
+        middleware.setStakerRewardContract(stakerRewardAddress, address(vault));
+        assertEq(operatorRewards.s_vaultToStakerRewardsContract(address(vault)), stakerRewardAddress);
+        vm.stopPrank();
+    }
+
+    function testSetStakerRewardContractUnauthorized() public {
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
+        middleware.setStakerRewardContract(address(0), address(vault));
+    }
+
+    function testSetStakerRewardContractInvalid() public {
+        uint48 OPERATOR_SHARE = 20;
+        Token token = new Token("Test");
+
+        ODefaultOperatorRewards operatorRewards =
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), address(token), OPERATOR_SHARE);
+
+        vm.startPrank(owner);
+        middleware.setOperatorRewardsContract(address(operatorRewards));
+
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidAddress.selector);
+        middleware.setStakerRewardContract(address(0), address(vault));
+    }
+
+    function testSetStakerRewardContractButOperatorRewardsNotSet() public {
+        vm.prank(owner);
+        vm.expectRevert(IMiddleware.Middleware__OperatorRewardsNotSet.selector);
+        middleware.setStakerRewardContract(address(0), address(vault));
+    }
+
+    // ************************************************************************************************
+    // *                                  SET REWARD TOKEN ADDRESS
+    // ************************************************************************************************
+
+    function testSetRewardTokenAddress() public {
+        uint48 OPERATOR_SHARE = 20;
+        Token token = new Token("Test");
+
+        ODefaultOperatorRewards operatorRewards =
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), address(token), OPERATOR_SHARE);
+
+        vm.startPrank(owner);
+        middleware.setOperatorRewardsContract(address(operatorRewards));
+
+        address rewardTokenAddress = makeAddr("RewardTokenAddress");
+        vm.expectEmit(true, true, false, true);
+        emit IODefaultOperatorRewards.SetTokenAddress(rewardTokenAddress);
+        middleware.setRewardTokenAddress(rewardTokenAddress);
+        assertEq(operatorRewards.s_token(), rewardTokenAddress);
+        vm.stopPrank();
+    }
+
+    function testSetRewardTokenAddressUnauthorized() public {
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
+        middleware.setRewardTokenAddress(address(0));
+    }
+
+    function testSetRewardTokenAddressInvalid() public {
+        uint48 OPERATOR_SHARE = 20;
+        Token token = new Token("Test");
+
+        ODefaultOperatorRewards operatorRewards =
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), address(token), OPERATOR_SHARE);
+
+        vm.startPrank(owner);
+        middleware.setOperatorRewardsContract(address(operatorRewards));
+
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidAddress.selector);
+        middleware.setRewardTokenAddress(address(0));
+    }
+
+    function testSetRewardTokenAddressButOperatorRewardsNotSet() public {
+        vm.prank(owner);
+        vm.expectRevert(IMiddleware.Middleware__OperatorRewardsNotSet.selector);
+        middleware.setRewardTokenAddress(address(0));
     }
 }

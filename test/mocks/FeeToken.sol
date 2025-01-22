@@ -14,8 +14,6 @@
 
 pragma solidity 0.8.25;
 
-import {console2} from "forge-std/console2.sol";
-
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract MockFeeToken is ERC20 {

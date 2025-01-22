@@ -14,7 +14,7 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
-import {Test, console2} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 
 //**************************************************************************************************
 //                                      SYMBIOTIC
@@ -162,9 +162,9 @@ contract RewardsTest is Test {
 
         vm.startPrank(address(middleware));
         feeToken = new MockFeeToken("Test", 100); //Extreme but it's to test when amount is 0 after a safeTransfer
+        feeToken.mint(address(middleware), 1 ether);
         vm.stopPrank();
 
-        console2.log("Middleware for network: ", networkMiddlewareService.middleware(tanssi));
         operatorRewards =
             new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), address(token), OPERATOR_SHARE);
 
@@ -203,7 +203,7 @@ contract RewardsTest is Test {
     function testConstructors() public view {
         assertEq(operatorRewards.i_network(), tanssi);
         assertEq(operatorRewards.i_networkMiddlewareService(), address(networkMiddlewareService));
-        assertEq(operatorRewards.i_token(), address(token));
+        assertEq(operatorRewards.s_token(), address(token));
         assertEq(operatorRewards.s_vaultToStakerRewardsContract(address(vault)), address(stakerRewards));
         assertEq(operatorRewards.s_operatorShare(), OPERATOR_SHARE);
 
@@ -349,7 +349,6 @@ contract RewardsTest is Test {
 
         IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
             operatorKey: ALICE_KEY,
-            epoch: epoch,
             eraIndex: eraIndex,
             totalPointsClaimable: AMOUNT_TO_CLAIM,
             proof: proof,
@@ -372,7 +371,6 @@ contract RewardsTest is Test {
 
         IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
             operatorKey: ALICE_KEY,
-            epoch: epoch,
             eraIndex: eraIndex,
             totalPointsClaimable: AMOUNT_TO_CLAIM,
             proof: proof,
@@ -395,7 +393,6 @@ contract RewardsTest is Test {
         vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidProof.selector);
         IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
             operatorKey: ALICE_KEY,
-            epoch: epoch,
             eraIndex: eraIndex,
             totalPointsClaimable: AMOUNT_TO_CLAIM,
             proof: proof,
@@ -416,7 +413,6 @@ contract RewardsTest is Test {
         bytes32[] memory proof = _generateValidProof();
         IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
             operatorKey: ALICE_KEY,
-            epoch: epoch,
             eraIndex: eraIndex,
             totalPointsClaimable: AMOUNT_TO_CLAIM,
             proof: proof,
@@ -439,7 +435,6 @@ contract RewardsTest is Test {
         bytes32[] memory proof = _generateValidProof();
         IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
             operatorKey: ALICE_KEY,
-            epoch: epoch,
             eraIndex: eraIndex,
             totalPointsClaimable: AMOUNT_TO_CLAIM,
             proof: proof,
@@ -463,7 +458,6 @@ contract RewardsTest is Test {
 
         IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
             operatorKey: ALICE_KEY,
-            epoch: epoch,
             eraIndex: eraIndex,
             totalPointsClaimable: AMOUNT_TO_CLAIM,
             proof: proof,
@@ -485,7 +479,6 @@ contract RewardsTest is Test {
 
         IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
             operatorKey: ALICE_KEY,
-            epoch: epoch,
             eraIndex: eraIndex,
             totalPointsClaimable: AMOUNT_TO_CLAIM,
             proof: proof,
@@ -507,7 +500,6 @@ contract RewardsTest is Test {
 
         IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
             operatorKey: ALICE_KEY,
-            epoch: epoch,
             eraIndex: eraIndex,
             totalPointsClaimable: AMOUNT_TO_CLAIM,
             proof: proof,
@@ -525,6 +517,8 @@ contract RewardsTest is Test {
     function testSetOperatorShare() public {
         uint48 newOperatorShare = 30;
         vm.startPrank(address(middleware));
+        vm.expectEmit(true, true, false, true);
+        emit IODefaultOperatorRewards.SetOperatorShare(newOperatorShare);
         operatorRewards.setOperatorShare(newOperatorShare);
         assertEq(operatorRewards.s_operatorShare(), newOperatorShare);
     }
@@ -556,6 +550,8 @@ contract RewardsTest is Test {
         address newStakerRewards = makeAddr("newStakerRewards");
         address newVault = makeAddr("newVault");
         vm.startPrank(address(middleware));
+        vm.expectEmit(true, true, false, true);
+        emit IODefaultOperatorRewards.SetStakerRewardContract(newStakerRewards, newVault);
         operatorRewards.setStakerRewardContract(newStakerRewards, newVault);
         assertEq(operatorRewards.s_vaultToStakerRewardsContract(newVault), newStakerRewards);
     }
@@ -573,12 +569,52 @@ contract RewardsTest is Test {
         operatorRewards.setStakerRewardContract(address(stakerRewards), address(vault));
     }
 
-    function testSetStakerRewardContractInvalidStakerRewards() public {
+    function testSetStakerRewardContractInvalidStakerAddress() public {
         address newStakerRewards = address(0);
         address newVault = makeAddr("newVault");
         vm.startPrank(address(middleware));
-        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidStakerRewards.selector);
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidAddress.selector);
         operatorRewards.setStakerRewardContract(newStakerRewards, newVault);
+    }
+
+    function testSetStakerRewardContractInvalidVaultAddress() public {
+        address newStakerRewards = makeAddr("newStakerRewards");
+        address newVault = address(0);
+        vm.startPrank(address(middleware));
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidAddress.selector);
+        operatorRewards.setStakerRewardContract(newStakerRewards, newVault);
+    }
+
+    //**************************************************************************************************
+    //                                      setTokenAddress
+    //**************************************************************************************************
+
+    function testSetTokenAddress() public {
+        address newToken = makeAddr("newToken");
+        vm.startPrank(address(middleware));
+        vm.expectEmit(true, true, false, true);
+        emit IODefaultOperatorRewards.SetTokenAddress(newToken);
+        operatorRewards.setTokenAddress(newToken);
+        assertEq(operatorRewards.s_token(), newToken);
+    }
+
+    function testSetTokenAddressNotNetworkMiddleware() public {
+        address newToken = makeAddr("newToken");
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__NotNetworkMiddleware.selector);
+        operatorRewards.setTokenAddress(newToken);
+    }
+
+    function testSetTokenAddressAlreadySet() public {
+        vm.startPrank(address(middleware));
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__AlreadySet.selector);
+        operatorRewards.setTokenAddress(address(token));
+    }
+
+    function testSetTokenAddressInvalidToken() public {
+        address newToken = address(0);
+        vm.startPrank(address(middleware));
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidAddress.selector);
+        operatorRewards.setTokenAddress(newToken);
     }
 
     //**************************************************************************************************

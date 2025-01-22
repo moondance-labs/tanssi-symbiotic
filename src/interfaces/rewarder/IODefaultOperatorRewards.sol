@@ -18,12 +18,12 @@ interface IODefaultOperatorRewards {
     error ODefaultOperatorRewards__InsufficientBalance();
     error ODefaultOperatorRewards__InsufficientTotalClaimable();
     error ODefaultOperatorRewards__InsufficientTransfer();
-    error ODefaultOperatorRewards__InvalidProof();
     error ODefaultOperatorRewards__NotNetworkMiddleware();
     error ODefaultOperatorRewards__RootNotSet();
+    error ODefaultOperatorRewards__InvalidProof();
     error ODefaultOperatorRewards__InvalidTotalPoints();
     error ODefaultOperatorRewards__InvalidOperatorShare();
-    error ODefaultOperatorRewards__InvalidStakerRewards();
+    error ODefaultOperatorRewards__InvalidAddress();
     error ODefaultOperatorRewards__AlreadySet();
 
     /**
@@ -49,6 +49,25 @@ interface IODefaultOperatorRewards {
     );
 
     /**
+     * @notice Emitted when the staker rewards contract's address is set for a particular vault.
+     * @param stakerRewards address of the staker rewards contract
+     * @param vault address of the vault
+     */
+    event SetStakerRewardContract(address indexed stakerRewards, address indexed vault);
+
+    /**
+     * @notice Emitted when the token's address is set.
+     * @param token address of the reward token
+     */
+    event SetTokenAddress(address indexed token);
+
+    /**
+     * @notice Emitted when the operator share of the rewards is set.
+     * @param operatorShare operator share of the rewards
+     */
+    event SetOperatorShare(uint48 indexed operatorShare);
+
+    /**
      * @notice Struct to store the data related to rewards distribution per Starlight's era.
      * @param epoch network epoch of the middleware
      * @param amount amount of tokens received per eraIndex
@@ -61,6 +80,7 @@ interface IODefaultOperatorRewards {
         uint256 tokensPerPoint;
         bytes32 root;
     }
+
     /**
      * @notice Struct to store the data related to claim the rewards distribution per Starlight's era.
      * @param operatorKey operator key of the rewards' recipient
@@ -70,10 +90,8 @@ interface IODefaultOperatorRewards {
      * @param proof Merkle proof of the rewards distribution
      * @param data additional data to use to distribute rewards to stakers
      */
-
     struct ClaimRewardsInput {
         bytes32 operatorKey;
-        uint48 epoch;
         uint48 eraIndex;
         uint32 totalPointsClaimable; //! Are we sure this won't be bigger than a uint32?
         bytes32[] proof;
@@ -87,16 +105,16 @@ interface IODefaultOperatorRewards {
     function i_networkMiddlewareService() external view returns (address);
 
     /**
-     * @notice Get the token's address.
-     * @return address of the reward token
-     */
-    function i_token() external view returns (address);
-
-    /**
      * @notice Get the network identifier.
      * @return network identifier
      */
     function i_network() external view returns (address);
+
+    /**
+     * @notice Get the token's address.
+     * @return address of the reward token
+     */
+    function s_token() external view returns (address);
 
     /**
      * @notice Get the operator share.
@@ -188,5 +206,13 @@ interface IODefaultOperatorRewards {
      */
     function setOperatorShare(
         uint48 operatorShare
+    ) external;
+
+    /**
+     * @notice Set the address of the reward token
+     * @param token address of the reward token
+     */
+    function setTokenAddress(
+        address token
     ) external;
 }

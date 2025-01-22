@@ -50,12 +50,12 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
-    address public immutable i_token;
+    address public immutable i_network;
 
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
-    address public immutable i_network;
+    address public s_token;
 
     /**
      * @inheritdoc IODefaultOperatorRewards
@@ -92,7 +92,7 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
     constructor(address network, address networkMiddlewareService, address token, uint48 operatorShare) {
         i_network = network;
         i_networkMiddlewareService = networkMiddlewareService;
-        i_token = token;
+        s_token = token;
         s_operatorShare = operatorShare;
     }
 
@@ -107,9 +107,10 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         bytes32 root
     ) external nonReentrant onlyMiddleware {
         if (amount > 0) {
-            uint256 balanceBefore = IERC20(i_token).balanceOf(address(this));
-            IERC20(i_token).safeTransferFrom(msg.sender, address(this), amount);
-            amount = IERC20(i_token).balanceOf(address(this)) - balanceBefore;
+            // Check if the amount being sent is greater than 0
+            uint256 balanceBefore = IERC20(s_token).balanceOf(address(this));
+            IERC20(s_token).safeTransferFrom(msg.sender, address(this), amount);
+            amount = IERC20(s_token).balanceOf(address(this)) - balanceBefore;
 
             if (amount == 0) {
                 revert ODefaultOperatorRewards__InsufficientTransfer();
@@ -120,10 +121,12 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
             }
         }
 
+        // We need to calculate how much each point is worth in tokens
         uint256 tokensPerPoint = amount / totalPointsToken; // TODO: To change/check the math.
 
         EraRoot memory eraRoot = EraRoot({epoch: epoch, amount: amount, tokensPerPoint: tokensPerPoint, root: root});
-
+        // We store the eraRoot struct which contains useful information for the claimRewards function and for UI
+        // We store also the eraIndex in an array to be able to get all the eras for each epoch
         s_eraRoot[eraIndex] = eraRoot;
         s_eraIndexesPerEpoch[epoch].push(eraIndex);
 
@@ -137,10 +140,12 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         ClaimRewardsInput calldata input
     ) external nonReentrant returns (uint256 amount) {
         bytes32 root_ = s_eraRoot[input.eraIndex].root;
+        uint48 epoch = s_eraRoot[input.eraIndex].epoch;
         if (root_ == bytes32(0)) {
             revert ODefaultOperatorRewards__RootNotSet();
         }
 
+        // Check that the leaf composed by operatorKey and totalPointsClaimable is part of the proof
         if (
             !MerkleProof.verifyCalldata(
                 input.proof,
@@ -152,6 +157,7 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         }
 
         address middlewareAddress = INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network);
+        // Starlight sends back only the operator key, thus we need to get back the operator address
         address recipient = SimpleKeyRegistry32(middlewareAddress).getOperatorByKey(input.operatorKey);
 
         // Calculate the total amount of tokens that can be claimed which is:
@@ -174,10 +180,10 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         // On every claim send s_operatorShare% of the rewards to the operator
         // And then distribute rewards to the stakers
         // This is gonna send (1-s_operatorShare)% of the rewards
-        IERC20(i_token).safeTransfer(recipient, operatorAmount);
+        IERC20(s_token).safeTransfer(recipient, operatorAmount);
 
-        _distributeRewardsToStakers(input.epoch, input.eraIndex, stakerAmount, recipient, middlewareAddress, input.data);
-        emit ClaimRewards(recipient, input.epoch, msg.sender, input.eraIndex, amount);
+        _distributeRewardsToStakers(epoch, input.eraIndex, stakerAmount, recipient, middlewareAddress, input.data);
+        emit ClaimRewards(recipient, epoch, msg.sender, input.eraIndex, amount);
     }
 
     function _distributeRewardsToStakers(
@@ -192,7 +198,8 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
 
         //TODO: For now this is expected to be a single vault. Change it to be able to handle multiple vaults.
         (, address[] memory operatorVaults) = IMiddleware(middlewareAddress).getOperatorVaults(recipient, epochStartTs);
-        // TODO: Currently it's only for a specific vault. We don't care about making it able to send rewards for multiple vaults. It's hardcoded to the first vault of the operator.
+
+        // TODO: Currently it's only for a specific vault. We don't care now about making it able to send rewards for multiple vaults. It's hardcoded to the first vault of the operator.
         if (operatorVaults.length > 0) {
             IODefaultStakerRewards(s_vaultToStakerRewardsContract[operatorVaults[0]]).distributeRewards(
                 epoch, eraIndex, stakerAmount, data
@@ -205,8 +212,8 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
      * @inheritdoc IODefaultOperatorRewards
      */
     function setStakerRewardContract(address stakerRewards, address vault) external onlyMiddleware {
-        if (stakerRewards == address(0)) {
-            revert ODefaultOperatorRewards__InvalidStakerRewards();
+        if (stakerRewards == address(0) || vault == address(0)) {
+            revert ODefaultOperatorRewards__InvalidAddress();
         }
 
         if (s_vaultToStakerRewardsContract[vault] == stakerRewards) {
@@ -214,6 +221,8 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         }
 
         s_vaultToStakerRewardsContract[vault] = stakerRewards;
+
+        emit SetStakerRewardContract(stakerRewards, vault);
     }
 
     /**
@@ -231,5 +240,25 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         }
 
         s_operatorShare = operatorShare;
+
+        emit SetOperatorShare(operatorShare);
+    }
+
+    /**
+     * @inheritdoc IODefaultOperatorRewards
+     */
+    function setTokenAddress(
+        address token
+    ) external onlyMiddleware {
+        if (token == address(0)) {
+            revert ODefaultOperatorRewards__InvalidAddress();
+        }
+
+        if (token == s_token) {
+            revert ODefaultOperatorRewards__AlreadySet();
+        }
+        s_token = token;
+
+        emit SetTokenAddress(token);
     }
 }

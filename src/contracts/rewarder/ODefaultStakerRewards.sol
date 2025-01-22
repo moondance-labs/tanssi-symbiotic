@@ -14,7 +14,6 @@
 
 pragma solidity 0.8.25;
 
-import {IODefaultStakerRewards} from "../../interfaces/rewarder/IODefaultStakerRewards.sol";
 // *********************************************************************************************************************
 //                                                  SYMBIOTIC
 // *********************************************************************************************************************
@@ -33,6 +32,8 @@ import {MulticallUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/Mu
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
+
+import {IODefaultStakerRewards} from "../../interfaces/rewarder/IODefaultStakerRewards.sol";
 
 contract ODefaultStakerRewards is
     AccessControlUpgradeable,
@@ -212,6 +213,7 @@ contract ODefaultStakerRewards is
         uint256[] memory rewardsPerEpoch = s_rewards[epoch];
         uint256 rewardIndex = s_lastUnclaimedReward[account][epoch];
 
+        // Get the min between how many the user wants to claim and how many rewards are available
         uint256 rewardsToClaim = Math.min(maxRewards, rewardsPerEpoch.length - rewardIndex);
         uint48 epochTs = getEpochStartTs(epoch);
         for (uint256 i; i < rewardsToClaim;) {
@@ -244,15 +246,18 @@ contract ODefaultStakerRewards is
             abi.decode(data, (uint256, bytes, bytes));
 
         uint48 epochTs = getEpochStartTs(epoch);
+        // If the epoch is in the future, revert
         if (epochTs >= Time.timestamp()) {
             revert ODefaultStakerRewards__InvalidRewardTimestamp();
         }
 
         uint256 adminFee_ = s_adminFee;
+        // If the admin fee is higher than the max allowed, revert
         if (maxAdminFee < adminFee_) {
             revert ODefaultStakerRewards__HighAdminFee();
         }
 
+        // This is used to cache the active shares for the epoch and optimize the claiming process
         if (_s_activeSharesCache[epoch] == 0) {
             uint256 activeShares_ = IVault(s_vault).activeSharesAt(epochTs, activeSharesHint);
             uint256 activeStake_ = IVault(s_vault).activeStakeAt(epochTs, activeStakeHint);
@@ -264,6 +269,7 @@ contract ODefaultStakerRewards is
             _s_activeSharesCache[epoch] = activeShares_;
         }
 
+        // Check if the amount being sent is greater than 0
         uint256 balanceBefore = IERC20(i_token).balanceOf(address(this));
         IERC20(i_token).safeTransferFrom(msg.sender, address(this), amount);
         amount = IERC20(i_token).balanceOf(address(this)) - balanceBefore;
@@ -278,7 +284,9 @@ contract ODefaultStakerRewards is
     }
 
     function _updateAdminFeeAndRewards(uint256 amount, uint256 adminFee_, uint48 epoch) private {
+        // Take out the admin fee from the rewards
         uint256 adminFeeAmount = amount.mulDiv(adminFee_, ADMIN_FEE_BASE);
+        // And distribute the rest to the stakers
         uint256 distributeAmount = amount - adminFeeAmount;
 
         s_claimableAdminFee[epoch] += adminFeeAmount;
@@ -301,10 +309,13 @@ contract ODefaultStakerRewards is
         }
 
         uint256[] memory rewardsPerEpoch = s_rewards[epoch];
+        // Get the last unclaimed reward index
         uint256 lastUnclaimedReward_ = s_lastUnclaimedReward[msg.sender][epoch];
 
+        // Get the min between how many the user wants to claim and how many rewards are available
         uint256 rewardsToClaim = Math.min(maxRewards, rewardsPerEpoch.length - lastUnclaimedReward_);
 
+        // If there are no rewards to claim, revert
         if (rewardsToClaim == 0) {
             revert ODefaultStakerRewards__NoRewardsToClaim();
         }
@@ -315,11 +326,13 @@ contract ODefaultStakerRewards is
             revert ODefaultStakerRewards__InvalidHintsLength();
         }
 
-        uint256 rewardIndex = lastUnclaimedReward_;
-        uint256 amount = _claimRewardsPerEpoch(rewardsToClaim, rewardsPerEpoch, rewardIndex, epoch, activeSharesOfHints);
+        // Check the total amount for the user based on his shares in the vault and update the lastUnclaimedReward_
+        uint256 amount =
+            _claimRewardsPerEpoch(rewardsToClaim, rewardsPerEpoch, lastUnclaimedReward_, epoch, activeSharesOfHints);
 
-        s_lastUnclaimedReward[msg.sender][epoch] = rewardIndex;
+        s_lastUnclaimedReward[msg.sender][epoch] = lastUnclaimedReward_;
 
+        // if the amount is greater than 0, transfer the tokens to the recipient
         if (amount > 0) {
             IERC20(i_token).safeTransfer(recipient, amount);
         }

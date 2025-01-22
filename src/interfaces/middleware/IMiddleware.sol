@@ -35,6 +35,7 @@ interface IMiddleware {
     error Middleware__NotVault();
     error Middleware__CallerNotGateway();
     error Middleware__GatewayNotSet();
+    error Middleware__OperatorRewardsNotSet();
     error Middleware__OperatorNotOptedIn();
     error Middleware__OperatorNotRegistred();
     error Middleware__OperatorGracePeriodNotPassed();
@@ -48,7 +49,7 @@ interface IMiddleware {
     error Middleware__SlashingWindowTooShort();
     error Middleware__TooBigSlashAmount();
     error Middleware__UnknownSlasherType();
-    error Middleware__InvalidOperatorRewardContractAddress();
+    error Middleware__InvalidAddress();
 
     /**
      * @notice Slasher type enum
@@ -283,7 +284,7 @@ interface IMiddleware {
      * @notice Sets the rewards contracts
      * @param operatorRewardsAddress Address of the operator rewards contract
      */
-    function setRewardsContracts(
+    function setOperatorRewardsContract(
         address operatorRewardsAddress
     ) external;
 
