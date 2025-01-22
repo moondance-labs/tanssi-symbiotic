@@ -46,7 +46,7 @@ contract ODefaultStakerRewards is
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    uint64 public constant version = 1;
+    uint64 public constant VERSION = 1;
 
     /**
      * @inheritdoc IODefaultStakerRewards
@@ -134,6 +134,7 @@ contract ODefaultStakerRewards is
         address token,
         InitParams memory params
     ) {
+        //TODO For now these are immutable, but if we use initialize these won't be immutable anymore.
         i_network = network;
         i_vaultFactory = vaultFactory;
         i_networkMiddlewareService = networkMiddlewareService;
@@ -141,6 +142,7 @@ contract ODefaultStakerRewards is
         i_epochDuration = epochDuration;
         i_token = token;
 
+        //TODO: This will be moved probably into an initialize function. Use the factory from the symbiotic rewarder repo. Check `DefaultStakerRewards.sol` initialize function
         if (!IRegistry(i_vaultFactory).isEntity(params.vault)) {
             revert ODefaultStakerRewards__NotVault();
         }
@@ -199,18 +201,6 @@ contract ODefaultStakerRewards is
         return s_rewards[epoch].length;
     }
 
-    function setVault(
-        address vault
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (s_vault == vault) {
-            revert ODefaultStakerRewards__AlreadySet();
-        }
-        if (!IRegistry(i_vaultFactory).isEntity(vault)) {
-            revert ODefaultStakerRewards__NotVault();
-        }
-        s_vault = vault;
-    }
-
     /**
      * @inheritdoc IODefaultStakerRewards
      */
@@ -243,10 +233,10 @@ contract ODefaultStakerRewards is
      */
     function distributeRewards(
         uint48 epoch,
+        uint48 eraIndex,
         uint256 amount,
         bytes calldata data
     ) external override nonReentrant onlyRole(OPERATOR_REWARDS_ROLE) {
-        //! TODO This should be restricted to operator rewards
         // maxAdminFee - the maximum admin fee to allow
         // activeSharesHint - a hint index to optimize `activeSharesAt()` processing
         // activeStakeHint - a hint index to optimize `activeStakeAt()` processing
@@ -282,6 +272,12 @@ contract ODefaultStakerRewards is
             revert ODefaultStakerRewards__InsufficientReward();
         }
 
+        _updateAdminFeeAndRewards(amount, adminFee_, epoch);
+
+        emit DistributeRewards(i_network, eraIndex, epoch, amount, data);
+    }
+
+    function _updateAdminFeeAndRewards(uint256 amount, uint256 adminFee_, uint48 epoch) private {
         uint256 adminFeeAmount = amount.mulDiv(adminFee_, ADMIN_FEE_BASE);
         uint256 distributeAmount = amount - adminFeeAmount;
 
@@ -290,13 +286,11 @@ contract ODefaultStakerRewards is
         if (distributeAmount > 0) {
             s_rewards[epoch].push(distributeAmount);
         }
-
-        emit DistributeRewards(i_network, amount, data);
     }
-
     /**
      * @inheritdoc IODefaultStakerRewards
      */
+
     function claimRewards(address recipient, uint48 epoch, bytes calldata data) external override nonReentrant {
         // maxRewards - the maximum amount of rewards to process
         // activeSharesOfHints - hint indexes to optimize `activeSharesOf()` processing
@@ -320,8 +314,6 @@ contract ODefaultStakerRewards is
         } else if (activeSharesOfHints.length != rewardsToClaim) {
             revert ODefaultStakerRewards__InvalidHintsLength();
         }
-
-        //! TODO Should we add that rewards are gonna expire after 1 month?
 
         uint256 rewardIndex = lastUnclaimedReward_;
         uint256 amount = _claimRewardsPerEpoch(rewardsToClaim, rewardsPerEpoch, rewardIndex, epoch, activeSharesOfHints);

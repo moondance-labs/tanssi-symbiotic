@@ -47,25 +47,22 @@ interface IODefaultStakerRewards {
     }
 
     /**
-     * @notice Structure representing a reward distribution.
-     * @param amount Amount of tokens distributed as rewards.
-     */
-    struct Reward {
-        uint256 amount;
-    }
-
-    /**
      * @notice Emitted when a reward is distributed.
      * @param network network on behalf of which the reward is distributed
+     * @param eraIndex era index of Starlight's rewards distribution
+     * @param epoch epoch of the reward distribution
      * @param amount amount of tokens
      * @param data some used data
      */
-    event DistributeRewards(address indexed network, uint256 amount, bytes data);
+    event DistributeRewards(
+        address indexed network, uint48 indexed eraIndex, uint48 indexed epoch, uint256 amount, bytes data
+    );
 
     /**
      * @notice Emitted when rewards are claimed.
      * @param network address of the network
      * @param claimer account that claimed the reward
+     * @param epoch epoch of the reward
      * @param recipient account that received the reward
      * @param firstRewardIndex first index of the claimed rewards
      * @param numRewards number of rewards claimed
@@ -99,7 +96,7 @@ interface IODefaultStakerRewards {
      * @return version of the staker rewards contract
      * @dev Must return 1 for this one.
      */
-    function version() external view returns (uint64);
+    function VERSION() external view returns (uint64);
 
     /**
      * @notice Get the maximum admin fee (= 100%).
@@ -211,7 +208,7 @@ interface IODefaultStakerRewards {
     /**
      * @notice Get a total number of rewards for a given epoch.
      * @param epoch epoch of the rewards
-     * @return total number of the rewards using a given epoch
+     * @return total number of the rewards for a given epoch
      */
     function rewardsLength(
         uint48 epoch
@@ -229,10 +226,11 @@ interface IODefaultStakerRewards {
     /**
      * @notice Distribute rewards for a particular epoch
      * @param epoch epoch of the reward distribution
+     * @param eraIndex era index of Starlight's rewards distribution
      * @param amount amount of tokens
      * @param data some data to use
      */
-    function distributeRewards(uint48 epoch, uint256 amount, bytes calldata data) external;
+    function distributeRewards(uint48 epoch, uint48 eraIndex, uint256 amount, bytes calldata data) external;
 
     /**
      * @notice Claim rewards for a given epoch.

@@ -12,16 +12,15 @@
 // GNU General Public License for more details.
 // You should have received a copy of the GNU General Public License
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
-pragma solidity 0.8.25;
+pragma solidity ^0.8.0;
 
 interface IMiddleware {
     // Events
     /**
      * @notice Emitted when rewards contracts are set
-     * @param stakerRewardsAddress Address of the staker rewards contract
      * @param operatorRewardsAddress Address of the operator rewards contract
      */
-    event RewardsContractsSet(address indexed stakerRewardsAddress, address indexed operatorRewardsAddress);
+    event OperatorRewardContractSet(address indexed operatorRewardsAddress);
 
     /**
      * @notice Emitted when an invalid timeframe for slashing is detected
@@ -34,9 +33,11 @@ interface IMiddleware {
     // Errors
     error Middleware__NotOperator();
     error Middleware__NotVault();
+    error Middleware__CallerNotGateway();
+    error Middleware__GatewayNotSet();
     error Middleware__OperatorNotOptedIn();
     error Middleware__OperatorNotRegistred();
-    error Middleware__OperarorGracePeriodNotPassed();
+    error Middleware__OperatorGracePeriodNotPassed();
     error Middleware__OperatorAlreadyRegistred();
     error Middleware__VaultAlreadyRegistered();
     error Middleware__VaultEpochTooShort();
@@ -47,6 +48,7 @@ interface IMiddleware {
     error Middleware__SlashingWindowTooShort();
     error Middleware__TooBigSlashAmount();
     error Middleware__UnknownSlasherType();
+    error Middleware__InvalidOperatorRewardContractAddress();
 
     /**
      * @notice Slasher type enum
@@ -95,10 +97,64 @@ interface IMiddleware {
     }
 
     /**
+     * @notice Get the network epoch duration
+     * @return epoch duration
+     */
+    function i_epochDuration() external view returns (uint48);
+
+    /**
+     * @notice Get the network slashing window
+     * @return slashing window
+     */
+    function i_slashingWindow() external view returns (uint48);
+
+    /**
+     * @notice Get the network start time
+     * @return start time
+     */
+    function i_startTime() external view returns (uint48);
+
+    /**
+     * @notice Get the network address
+     * @return network address
+     */
+    function i_network() external view returns (address);
+
+    /**
+     * @notice Get the operator registry address
+     * @return operator registry address
+     */
+    function i_operatorRegistry() external view returns (address);
+
+    /**
+     * @notice Get the vault registry address
+     * @return vault registry address
+     */
+    function i_vaultRegistry() external view returns (address);
+
+    /**
+     * @notice Get the operator network optin address
+     * @return operator network optin address
+     */
+    function i_operatorNetworkOptin() external view returns (address);
+
+    /**
+     * @notice Get the owner address
+     * @return owner address
+     */
+    function i_owner() external view returns (address);
+
+    /**
      * @notice Get the network subnetwork count
      * @return amount of subnetworks in the network
      */
     function s_subnetworksCount() external view returns (uint256 amount);
+
+    /**
+     * @notice Get the operator rewards contract address
+     * @return operator rewards contract address
+     */
+    function s_operatorRewards() external view returns (address);
 
     /**
      * @notice Get the cached total stake amount for an epoch
@@ -128,6 +184,7 @@ interface IMiddleware {
 
     /**
      * @notice Registers a new operator with a key
+     * @dev Only the owner can call this function
      * @param operator The operator's address
      * @param key The operator's key
      */
@@ -135,6 +192,7 @@ interface IMiddleware {
 
     /**
      * @notice Updates an existing operator's key
+     * @dev Only the owner can call this function
      * @param operator The operator's address
      * @param key The new key
      */
@@ -142,6 +200,7 @@ interface IMiddleware {
 
     /**
      * @notice Pauses an operator
+     * @dev Only the owner can call this function
      * @param operator The operator to pause
      */
     function pauseOperator(
@@ -150,6 +209,7 @@ interface IMiddleware {
 
     /**
      * @notice Re-enables a paused operator
+     * @dev Only the owner can call this function
      * @param operator The operator to unpause
      */
     function unpauseOperator(
@@ -158,6 +218,7 @@ interface IMiddleware {
 
     /**
      * @notice Removes an operator after grace period
+     * @dev Only the owner can call this function
      * @param operator The operator to unregister
      */
     function unregisterOperator(
@@ -166,6 +227,7 @@ interface IMiddleware {
 
     /**
      * @notice Registers a new vault
+     * @dev Only the owner can call this function
      * @param vault The vault address to register
      */
     function registerVault(
@@ -174,6 +236,7 @@ interface IMiddleware {
 
     /**
      * @notice Pauses a vault
+     * @dev Only the owner can call this function
      * @param vault The vault to pause
      */
     function pauseVault(
@@ -182,6 +245,7 @@ interface IMiddleware {
 
     /**
      * @notice Re-enables a paused vault
+     * @dev Only the owner can call this function
      * @param vault The vault to unpause
      */
     function unpauseVault(
@@ -190,6 +254,7 @@ interface IMiddleware {
 
     /**
      * @notice Removes a vault after grace period
+     * @dev Only the owner can call this function
      * @param vault The vault to unregister
      */
     function unregisterVault(
@@ -198,6 +263,7 @@ interface IMiddleware {
 
     /**
      * @notice Updates the number of subnetworks
+     * @dev Only the owner can call this function
      * @param _subnetworksCount New subnetwork count
      */
     function setSubnetworksCount(
@@ -206,6 +272,7 @@ interface IMiddleware {
 
     /**
      * @notice Sets the gateway contract
+     * @dev Only the owner can call this function
      * @param _gateway The gateway contract address
      */
     function setGateway(
@@ -214,23 +281,33 @@ interface IMiddleware {
 
     /**
      * @notice Sets the rewards contracts
-     * @param stakerRewardsAddress Address of the staker rewards contract
      * @param operatorRewardsAddress Address of the operator rewards contract
      */
-    function setRewardsContracts(address stakerRewardsAddress, address operatorRewardsAddress) external;
+    function setRewardsContracts(
+        address operatorRewardsAddress
+    ) external;
 
     /**
      * @notice Distributes rewards
-     * @param data Additional data for distribution
+     * @param epoch The epoch for the rewards distribution
+     * @param eraIndex The era index of the rewards distribution
+     * @param totalPointsToken The total points token
+     * @param tokensInflatedToken The total tokens inflated token
+     * @param rewardsRoot The rewards root
+     * @dev This function is called by the gateway only
      */
     function distributeRewards(
-        bytes calldata data
+        uint256 epoch,
+        uint256 eraIndex,
+        uint256 totalPointsToken,
+        uint256 tokensInflatedToken,
+        bytes32 rewardsRoot
     ) external;
 
     /**
      * @notice Calculates and caches stakes for an epoch
      * @param epoch The epoch to calculate for
-     * @return Total stake amount
+     * @return totalStake The total stake amount
      */
     function calcAndCacheStakes(
         uint48 epoch
@@ -238,6 +315,8 @@ interface IMiddleware {
 
     /**
      * @notice Slashes an operator's stake
+     * @dev Only the owner can call this function
+     * @dev This function first updates the stake cache for the target epoch
      * @param epoch The epoch number
      * @param operator The operator to slash
      * @param amount Amount to slash
@@ -247,31 +326,43 @@ interface IMiddleware {
     /**
      * @notice Gets how many operators were active at a specific epoch
      * @param epoch The epoch at which to check how many operators were active
-     * @return Array of active operators
+     * @return activeOperators The array of active operators
      */
     function getOperatorsByEpoch(
         uint48 epoch
-    ) external view returns (address[] memory);
+    ) external view returns (address[] memory activeOperators);
 
     /**
      * @notice Gets the operators' keys for latest epoch
-     * @return Array of operator keys
+     * @return keys Array of operator keys
      */
-    function sendCurrentOperatorsKeys() external returns (bytes32[] memory);
+    function sendCurrentOperatorsKeys() external returns (bytes32[] memory keys);
 
     /**
      * @notice Gets operator-vault pairs for an epoch
      * @param epoch The epoch number
-     * @return Array of operator-vault pairs
+     * @return operatorVaultPairs Array of operator-vault pairs
      */
     function getOperatorVaultPairs(
         uint48 epoch
-    ) external view returns (OperatorVaultPair[] memory);
+    ) external view returns (OperatorVaultPair[] memory operatorVaultPairs);
+
+    /**
+     * @notice Gets operator-vault pairs for an operator
+     * @param operator the operator address
+     * @param epochStartTs the epoch start timestamp
+     * @return vaultIdx the index of the vault
+     * @return _vaults the array of vaults
+     */
+    function getOperatorVaults(
+        address operator,
+        uint48 epochStartTs
+    ) external view returns (uint256 vaultIdx, address[] memory _vaults);
 
     /**
      * @notice Checks if a vault is registered
      * @param vault The vault address to check
-     * @return True if vault is registered
+     * @return bool True if vault is registered
      */
     function isVaultRegistered(
         address vault
@@ -281,9 +372,9 @@ interface IMiddleware {
      * @notice Gets operator's stake for an epoch
      * @param operator The operator address
      * @param epoch The epoch number
-     * @return The operator's stake
+     * @return stake The operator's total stake
      */
-    function getOperatorStake(address operator, uint48 epoch) external view returns (uint256);
+    function getOperatorStake(address operator, uint48 epoch) external view returns (uint256 stake);
 
     /**
      * @notice Gets total stake for an epoch
@@ -297,33 +388,33 @@ interface IMiddleware {
     /**
      * @notice Gets validator set for an epoch
      * @param epoch The epoch number
-     * @return Array of validator data
+     * @return validatorsData Array of validator data
      */
     function getValidatorSet(
         uint48 epoch
-    ) external view returns (ValidatorData[] memory);
+    ) external view returns (ValidatorData[] memory validatorsData);
 
     /**
      * @notice Gets the timestamp when an epoch starts
      * @param epoch The epoch number
-     * @return The start time of the epoch
+     * @return timestamp The start time of the epoch
      */
     function getEpochStartTs(
         uint48 epoch
-    ) external view returns (uint48);
+    ) external view returns (uint48 timestamp);
 
     /**
      * @notice Determines which epoch a timestamp belongs to
      * @param timestamp The timestamp to check
-     * @return The corresponding epoch number
+     * @return epoch The corresponding epoch number
      */
     function getEpochAtTs(
         uint48 timestamp
-    ) external view returns (uint48);
+    ) external view returns (uint48 epoch);
 
     /**
      * @notice Gets the current epoch number
-     * @return The current epoch
+     * @return epoch The current epoch
      */
-    function getCurrentEpoch() external view returns (uint48);
+    function getCurrentEpoch() external view returns (uint48 epoch);
 }

@@ -53,26 +53,67 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     using MapWithTimeData for EnumerableMap.AddressToUintMap;
     using Subnetwork for address;
 
+    /**
+     * @inheritdoc IMiddleware
+     */
     uint48 public immutable i_epochDuration;
+    /**
+     * @inheritdoc IMiddleware
+     */
     uint48 public immutable i_slashingWindow;
+    /**
+     * @inheritdoc IMiddleware
+     */
     uint48 public immutable i_startTime;
+    /**
+     * @inheritdoc IMiddleware
+     */
     address public immutable i_network;
+    /**
+     * @inheritdoc IMiddleware
+     */
     address public immutable i_operatorRegistry;
+    /**
+     * @inheritdoc IMiddleware
+     */
     address public immutable i_vaultRegistry;
+    /**
+     * @inheritdoc IMiddleware
+     */
     address public immutable i_operatorNetworkOptin;
+    /**
+     * @inheritdoc IMiddleware
+     */
     address public immutable i_owner;
 
+    /**
+     * @inheritdoc IMiddleware
+     */
     uint256 public s_subnetworksCount;
 
+    /**
+     * @inheritdoc IMiddleware
+     */
+    address public s_operatorRewards;
+
+    /**
+     * @inheritdoc IMiddleware
+     */
     mapping(uint48 epoch => uint256 amount) public s_totalStakeCache;
+
+    /**
+     * @inheritdoc IMiddleware
+     */
     mapping(uint48 epoch => bool) public s_totalStakeCached;
+
+    /**
+     * @inheritdoc IMiddleware
+     */
     mapping(uint48 epoch => mapping(address operator => uint256 amount)) public s_operatorStakeCache;
 
     EnumerableMap.AddressToUintMap private s_operators;
     EnumerableMap.AddressToUintMap private s_vaults;
     IOGateway private s_gateway;
-    IODefaultOperatorRewards private s_operatorRewards;
-    IODefaultStakerRewards private s_stakerRewards;
 
     modifier updateStakeCache(
         uint48 epoch
@@ -84,7 +125,9 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     }
 
     modifier onlyGateway() {
-        require(msg.sender == address(s_gateway), "Middleware: caller is not the gateway");
+        if (msg.sender != address(s_gateway)) {
+            revert Middleware__CallerNotGateway();
+        }
         _;
     }
 
@@ -113,10 +156,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     }
 
     /**
-     * @notice Registers a new operator with a key
-     * @dev Only the owner can call this function
-     * @param operator The operator's address
-     * @param key The operator's key
+     * @inheritdoc IMiddleware
      */
     function registerOperator(address operator, bytes32 key) external onlyOwner {
         if (s_operators.contains(operator)) {
@@ -138,10 +178,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     }
 
     /**
-     * @notice Updates an existing operator's key
-     * @dev Only the owner can call this function
-     * @param operator The operator's address
-     * @param key The new key
+     * @inheritdoc IMiddleware
      */
     function updateOperatorKey(address operator, bytes32 key) external onlyOwner {
         if (!s_operators.contains(operator)) {
@@ -152,9 +189,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     }
 
     /**
-     * @notice Pauses an operator
-     * @dev Only the owner can call this function
-     * @param operator The operator to pause
+     * @inheritdoc IMiddleware
      */
     function pauseOperator(
         address operator
@@ -163,9 +198,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     }
 
     /**
-     * @notice Re-enables a paused operator
-     * @dev Only the owner can call this function
-     * @param operator The operator to unpause
+     * @inheritdoc IMiddleware
      */
     function unpauseOperator(
         address operator
@@ -174,26 +207,21 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     }
 
     /**
-     * @notice Removes an operator after grace period
-     * @dev Only the owner can call this function
-     * @param operator The operator to unregister
+     * @inheritdoc IMiddleware
      */
     function unregisterOperator(
         address operator
     ) external onlyOwner {
         (, uint48 disabledTime) = s_operators.getTimes(operator);
-
         if (disabledTime == 0 || disabledTime + i_slashingWindow > Time.timestamp()) {
-            revert Middleware__OperarorGracePeriodNotPassed();
+            revert Middleware__OperatorGracePeriodNotPassed();
         }
 
         s_operators.remove(operator);
     }
 
     /**
-     * @notice Registers a new vault
-     * @dev Only the owner can call this function
-     * @param vault The vault address to register
+     * @inheritdoc IMiddleware
      */
     function registerVault(
         address vault
@@ -222,9 +250,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     }
 
     /**
-     * @notice Pauses a vault
-     * @dev Only the owner can call this function
-     * @param vault The vault to pause
+     * @inheritdoc IMiddleware
      */
     function pauseVault(
         address vault
@@ -233,9 +259,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     }
 
     /**
-     * @notice Re-enables a paused vault
-     * @dev Only the owner can call this function
-     * @param vault The vault to unpause
+     * @inheritdoc IMiddleware
      */
     function unpauseVault(
         address vault
@@ -244,9 +268,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     }
 
     /**
-     * @notice Removes a vault after grace period
-     * @dev Only the owner can call this function
-     * @param vault The vault to unregister
+     * @inheritdoc IMiddleware
      */
     function unregisterVault(
         address vault
@@ -261,9 +283,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     }
 
     /**
-     * @notice Updates the number of subnetworks
-     * @dev Only the owner can call this function
-     * @param _subnetworksCount New subnetwork count
+     * @inheritdoc IMiddleware
      */
     function setSubnetworksCount(
         uint256 _subnetworksCount
@@ -276,9 +296,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     }
 
     /**
-     * @notice Sets the gateway contract
-     * @dev Only the owner can call this function
-     * @param _gateway The gateway contract address
+     * @inheritdoc IMiddleware
      */
     function setGateway(
         address _gateway
@@ -286,33 +304,37 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
         s_gateway = IOGateway(_gateway);
     }
 
-    function setRewardsContracts(address stakerRewardsAddress, address operatorRewardsAddress) external onlyOwner {
-        s_stakerRewards = IODefaultStakerRewards(stakerRewardsAddress);
-        s_operatorRewards = IODefaultOperatorRewards(operatorRewardsAddress);
+    /**
+     * @inheritdoc IMiddleware
+     */
+    function setRewardsContracts(
+        address operatorRewardsAddress
+    ) external onlyOwner {
+        if (operatorRewardsAddress == address(0)) {
+            revert Middleware__InvalidOperatorRewardContractAddress();
+        }
+        s_operatorRewards = operatorRewardsAddress;
 
-        emit RewardsContractsSet(stakerRewardsAddress, operatorRewardsAddress);
-    }
-
-    function distributeRewards(
-        bytes calldata data
-    ) external onlyGateway {
-        (
-            uint256 timestamp,
-            , // TODO do we need eraIndex somehow?
-            uint256 totalPointsToken,
-            uint256 tokensInflatedToken,
-            bytes32 rewardsRoot
-        ) = abi.decode(data, (uint256, uint256, uint256, uint256, bytes32));
-
-        uint48 epoch = getEpochAtTs(uint48(timestamp));
-
-        s_operatorRewards.distributeRewards(epoch, tokensInflatedToken, totalPointsToken, rewardsRoot);
+        emit OperatorRewardContractSet(operatorRewardsAddress);
     }
 
     /**
-     * @notice Calculates and caches stakes for an epoch
-     * @param epoch The epoch to calculate for
-     * @return totalStake The total stake amount
+     * inheritdoc IMiddleware
+     */
+    function distributeRewards(
+        uint256 epoch,
+        uint256 eraIndex,
+        uint256 totalPointsToken,
+        uint256 tokensInflatedToken,
+        bytes32 rewardsRoot
+    ) external onlyGateway {
+        IODefaultOperatorRewards(s_operatorRewards).distributeRewards(
+            uint48(epoch), uint48(eraIndex), tokensInflatedToken, totalPointsToken, rewardsRoot
+        );
+    }
+
+    /**
+     * @inheritdoc IMiddleware
      */
     function calcAndCacheStakes(
         uint48 epoch
@@ -347,15 +369,9 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     }
 
     /**
-     * @notice Slashes an operator's stake
-     * @dev Only the owner can call this function
-     * @dev This function first updates the stake cache for the target epoch
-     * @param epoch The epoch number
-     * @param operator The operator to slash
-     * @param amount Amount to slash
+     * @inheritdoc IMiddleware
      */
-    //INFO: this function can be made external. To check if it is possible to make it external
-    function slash(uint48 epoch, address operator, uint256 amount) public onlyOwner updateStakeCache(epoch) {
+    function slash(uint48 epoch, address operator, uint256 amount) external onlyOwner updateStakeCache(epoch) {
         SlashParams memory params;
         params.epochStartTs = getEpochStartTs(epoch);
         params.operator = operator;
@@ -438,9 +454,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     // **************************************************************************************************
 
     /**
-     * @notice Gets how many operators were active at a specific epoch
-     * @param epoch The epoch at which to check how many operators were active
-     * @return activeOperators The array of active operators
+     * @inheritdoc IMiddleware
      */
     function getOperatorsByEpoch(
         uint48 epoch
@@ -466,15 +480,20 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     }
 
     /**
-     * @notice Gets the operators' keys for latest epoch
-     * @return keys Array of operator keys
+     * @inheritdoc IMiddleware
      */
+    // TODO: THIS MUST BE RESTRICTED EITHER TO OWNER OR SOMEONE ELSE
     function sendCurrentOperatorsKeys() external returns (bytes32[] memory keys) {
+        if (address(s_gateway) == address(0)) {
+            revert Middleware__GatewayNotSet();
+        }
+
         uint48 epoch = getCurrentEpoch();
         keys = new bytes32[](s_operators.length());
 
         uint48 epochStartTs = getEpochStartTs(epoch);
         uint256 valIdx = 0;
+
         for (uint256 i; i < s_operators.length(); ++i) {
             (address operator, uint48 enabledTime, uint48 disabledTime) = s_operators.atWithTimes(i);
 
@@ -494,9 +513,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     }
 
     /**
-     * @notice Gets operator-vault pairs for an epoch
-     * @param epoch The epoch number
-     * @return operatorVaultPairs Array of operator-vault pairs
+     * @inheritdoc IMiddleware
      */
     function getOperatorVaultPairs(
         uint48 epoch
@@ -504,6 +521,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
         uint48 epochStartTs = getEpochStartTs(epoch);
 
         operatorVaultPairs = new OperatorVaultPair[](s_operators.length());
+
         uint256 valIdx = 0;
         for (uint256 i; i < s_operators.length(); ++i) {
             (address operator, uint48 enabledTime, uint48 disabledTime) = s_operators.atWithTimes(i);
@@ -513,7 +531,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
                 continue;
             }
 
-            (uint256 vaultIdx, address[] memory _vaults) = _getOperatorVaults(operator, epochStartTs);
+            (uint256 vaultIdx, address[] memory _vaults) = getOperatorVaults(operator, epochStartTs);
             assembly {
                 mstore(_vaults, vaultIdx)
             }
@@ -523,10 +541,13 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
         }
     }
 
-    function _getOperatorVaults(
+    /**
+     * @inheritdoc IMiddleware
+     */
+    function getOperatorVaults(
         address operator,
         uint48 epochStartTs
-    ) private view returns (uint256 vaultIdx, address[] memory _vaults) {
+    ) public view returns (uint256 vaultIdx, address[] memory _vaults) {
         _vaults = new address[](s_vaults.length());
         vaultIdx = 0;
         for (uint256 j; j < s_vaults.length(); ++j) {
@@ -550,9 +571,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     }
 
     /**
-     * @notice Checks if a vault is registered
-     * @param vault The vault address to check
-     * @return bool True if vault is registered
+     * @inheritdoc IMiddleware
      */
     function isVaultRegistered(
         address vault
@@ -561,10 +580,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     }
 
     /**
-     * @notice Gets operator's stake for an epoch
-     * @param operator The operator address
-     * @param epoch The epoch number
-     * @return stake The operator's total stake
+     * @inheritdoc IMiddleware
      */
     function getOperatorStake(address operator, uint48 epoch) public view returns (uint256 stake) {
         if (s_totalStakeCached[epoch]) {
@@ -590,9 +606,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     }
 
     /**
-     * @notice Gets total stake for an epoch
-     * @param epoch The epoch number
-     * @return Total stake amount
+     * @inheritdoc IMiddleware
      */
     function getTotalStake(
         uint48 epoch
@@ -604,9 +618,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     }
 
     /**
-     * @notice Gets validator set for an epoch
-     * @param epoch The epoch number
-     * @return validatorsData Array of validator data
+     * @inheritdoc IMiddleware
      */
     function getValidatorSet(
         uint48 epoch
@@ -642,9 +654,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     }
 
     /**
-     * @notice Gets the timestamp when an epoch starts
-     * @param epoch The epoch number
-     * @return timestamp The start time of the epoch
+     * @inheritdoc IMiddleware
      */
     function getEpochStartTs(
         uint48 epoch
@@ -653,9 +663,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     }
 
     /**
-     * @notice Determines which epoch a timestamp belongs to
-     * @param timestamp The timestamp to check
-     * @return epoch The corresponding epoch number
+     * @inheritdoc IMiddleware
      */
     function getEpochAtTs(
         uint48 timestamp
@@ -664,8 +672,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     }
 
     /**
-     * @notice Gets the current epoch number
-     * @return epoch The current epoch
+     * @inheritdoc IMiddleware
      */
     function getCurrentEpoch() public view returns (uint48 epoch) {
         return getEpochAtTs(Time.timestamp());

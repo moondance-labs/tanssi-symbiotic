@@ -14,16 +14,29 @@
 
 pragma solidity 0.8.25;
 
-import {IODefaultOperatorRewards} from "../../interfaces/rewarder/IODefaultOperatorRewards.sol";
-import {IODefaultStakerRewards} from "../../interfaces/rewarder/IODefaultStakerRewards.sol";
+//**************************************************************************************************
+//                                      SYMBIOTIC
+//**************************************************************************************************
 
 import {INetworkMiddlewareService} from "@symbiotic/interfaces/service/INetworkMiddlewareService.sol";
-import {SimpleKeyRegistry32} from "../libraries/SimpleKeyRegistry32.sol";
+
+//**************************************************************************************************
+//                                      OPENZEPPELIN
+//**************************************************************************************************
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+
+//**************************************************************************************************
+//                                      SNOWBRIDGE
+//**************************************************************************************************
 import {ScaleCodec} from "@tanssi-bridge-relayer/snowbridge/contracts/src/utils/ScaleCodec.sol";
+
+import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
+import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
+import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
+import {SimpleKeyRegistry32} from "../libraries/SimpleKeyRegistry32.sol";
 
 contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
     using SafeERC20 for IERC20;
@@ -47,27 +60,27 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
-    address public s_defaultStakerRewards;
-
-    /**
-     * @inheritdoc IODefaultOperatorRewards
-     */
     uint48 public s_operatorShare;
 
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
-    mapping(uint48 epoch => bytes32 value) public s_epochRoot;
+    mapping(uint48 eraIndex => EraRoot eraRoot) public s_eraRoot;
 
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
-    mapping(uint48 epoch => BalancePerEpoch balancePerEpoch) public s_balance;
+    mapping(uint48 epoch => uint48[] eraIndexes) public s_eraIndexesPerEpoch;
 
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
-    mapping(uint48 epoch => mapping(address account => uint256 amount)) public s_claimed;
+    mapping(uint48 eraIndex => mapping(address account => uint256 amount)) public s_claimed;
+
+    /**
+     * @inheritdoc IODefaultOperatorRewards
+     */
+    mapping(address vault => address stakerRewardsAddress) public s_vaultToStakerRewardsContract;
 
     modifier onlyMiddleware() {
         if (INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network) != msg.sender) {
@@ -88,6 +101,7 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
      */
     function distributeRewards(
         uint48 epoch,
+        uint48 eraIndex,
         uint256 amount,
         uint256 totalPointsToken,
         bytes32 root
@@ -104,73 +118,111 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
             if (totalPointsToken == 0) {
                 revert ODefaultOperatorRewards__InvalidTotalPoints();
             }
-
-            s_balance[epoch].amount = amount;
-            s_balance[epoch].tokensPerPoint = amount / totalPointsToken; // TODO: To change the math.
         }
 
-        s_epochRoot[epoch] = root;
+        uint256 tokensPerPoint = amount / totalPointsToken; // TODO: To change/check the math.
 
-        emit DistributeRewards(epoch, root);
+        EraRoot memory eraRoot = EraRoot({epoch: epoch, amount: amount, tokensPerPoint: tokensPerPoint, root: root});
+
+        s_eraRoot[eraIndex] = eraRoot;
+        s_eraIndexesPerEpoch[epoch].push(eraIndex);
+
+        emit DistributeRewards(eraIndex, epoch, tokensPerPoint, amount, root);
     }
 
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
     function claimRewards(
-        bytes32 operatorKey,
-        uint48 epoch,
-        uint32 totalPointsClaimable,
-        bytes32[] calldata proof,
-        bytes calldata data
+        ClaimRewardsInput calldata input
     ) external nonReentrant returns (uint256 amount) {
-        bytes32 root_ = s_epochRoot[epoch];
+        bytes32 root_ = s_eraRoot[input.eraIndex].root;
         if (root_ == bytes32(0)) {
             revert ODefaultOperatorRewards__RootNotSet();
         }
 
         if (
             !MerkleProof.verifyCalldata(
-                proof, root_, keccak256(abi.encodePacked(operatorKey, ScaleCodec.encodeU32(totalPointsClaimable)))
+                input.proof,
+                root_,
+                keccak256(abi.encodePacked(input.operatorKey, ScaleCodec.encodeU32(input.totalPointsClaimable)))
             )
         ) {
             revert ODefaultOperatorRewards__InvalidProof();
         }
 
-        address recipient = SimpleKeyRegistry32(
-            INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network)
-        ).getOperatorByKey(operatorKey);
+        address middlewareAddress = INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network);
+        address recipient = SimpleKeyRegistry32(middlewareAddress).getOperatorByKey(input.operatorKey);
 
-        uint256 claimed_ = s_claimed[epoch][recipient]; //TODO: This can become a bool. uint256 it's better even UI wise as we would know exactly how much was claimed instead of querying 2 times the contract.
+        // Calculate the total amount of tokens that can be claimed which is:
+        // total amount of tokens = total points claimable * tokens per point
+        amount = input.totalPointsClaimable * s_eraRoot[input.eraIndex].tokensPerPoint;
 
-        amount = totalPointsClaimable * s_balance[epoch].tokensPerPoint * 10 ** 18; //! TODO Is it fine to use 10**18 here? We are saying that are all IERC20 with 18 decimals. What if we use USDC as collateral? Should we get the decimals for each token?
-
-        if (amount <= claimed_) {
+        // You can only claim everything and if it's claimed before revert
+        if (s_claimed[input.eraIndex][recipient] > 0) {
             revert ODefaultOperatorRewards__InsufficientTotalClaimable();
         }
 
-        s_claimed[epoch][recipient] = amount;
+        s_claimed[input.eraIndex][recipient] = amount;
 
-        uint256 operatorAmount = amount.mulDiv(s_operatorShare, 100); // s_operatorShare% of the rewards to the operator
-        uint256 stakerAmount = amount - operatorAmount; // (1-s_operatorShare)% of the rewards to the stakers
+        // s_operatorShare% of the rewards to the operator
+        uint256 operatorAmount = amount.mulDiv(s_operatorShare, 100);
+
+        // (1-s_operatorShare)% of the rewards to the stakers
+        uint256 stakerAmount = amount - operatorAmount;
 
         // On every claim send s_operatorShare% of the rewards to the operator
         // And then distribute rewards to the stakers
-        IERC20(i_token).safeTransfer(recipient, operatorAmount); //This is gonna send (1-s_operatorShare)% of the rewards
-        IODefaultStakerRewards(s_defaultStakerRewards).distributeRewards(epoch, stakerAmount, data);
-        emit ClaimRewards(recipient, epoch, msg.sender, amount);
+        // This is gonna send (1-s_operatorShare)% of the rewards
+        IERC20(i_token).safeTransfer(recipient, operatorAmount);
+
+        _distributeRewardsToStakers(input.epoch, input.eraIndex, stakerAmount, recipient, middlewareAddress, input.data);
+        emit ClaimRewards(recipient, input.epoch, msg.sender, input.eraIndex, amount);
     }
 
-    function setStakerRewardContract(
-        address stakerRewards
-    ) external onlyMiddleware {
-        s_defaultStakerRewards = stakerRewards;
+    function _distributeRewardsToStakers(
+        uint48 epoch,
+        uint48 eraIndex,
+        uint256 stakerAmount,
+        address recipient,
+        address middlewareAddress,
+        bytes calldata data
+    ) private {
+        uint48 epochStartTs = IMiddleware(middlewareAddress).getEpochStartTs(epoch);
+
+        //TODO: For now this is expected to be a single vault. Change it to be able to handle multiple vaults.
+        (, address[] memory operatorVaults) = IMiddleware(middlewareAddress).getOperatorVaults(recipient, epochStartTs);
+        // TODO: Currently it's only for a specific vault. We don't care about making it able to send rewards for multiple vaults. It's hardcoded to the first vault of the operator.
+        if (operatorVaults.length > 0) {
+            IODefaultStakerRewards(s_vaultToStakerRewardsContract[operatorVaults[0]]).distributeRewards(
+                epoch, eraIndex, stakerAmount, data
+            );
+        }
     }
 
+    //TODO Probably this function should become a function triggered by middleware that create a new staker contract (calling the create on factory contract) and then set the staker contract address here. Probably this can be called during registration of the vault? `registerVault`
+    /**
+     * @inheritdoc IODefaultOperatorRewards
+     */
+    function setStakerRewardContract(address stakerRewards, address vault) external onlyMiddleware {
+        if (stakerRewards == address(0)) {
+            revert ODefaultOperatorRewards__InvalidStakerRewards();
+        }
+
+        if (s_vaultToStakerRewardsContract[vault] == stakerRewards) {
+            revert ODefaultOperatorRewards__AlreadySet();
+        }
+
+        s_vaultToStakerRewardsContract[vault] = stakerRewards;
+    }
+
+    /**
+     * @inheritdoc IODefaultOperatorRewards
+     */
     function setOperatorShare(
         uint48 operatorShare
     ) external onlyMiddleware {
-        //A maximum value for the operatorShare should be chosen. 100% shouldn't be a valid option.
+        //TODO A maximum value for the operatorShare should be chosen. 100% shouldn't be a valid option.
         if (operatorShare >= 100) {
             revert ODefaultOperatorRewards__InvalidOperatorShare();
         }

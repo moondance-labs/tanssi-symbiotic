@@ -23,33 +23,61 @@ interface IODefaultOperatorRewards {
     error ODefaultOperatorRewards__RootNotSet();
     error ODefaultOperatorRewards__InvalidTotalPoints();
     error ODefaultOperatorRewards__InvalidOperatorShare();
+    error ODefaultOperatorRewards__InvalidStakerRewards();
     error ODefaultOperatorRewards__AlreadySet();
 
     /**
      * @notice Emitted when rewards are distributed by providing a Merkle root.
      * @param epoch epoch of the rewards distribution
+     * @param eraIndex era index of Starlight's rewards distribution
      * @param root Merkle root of the rewards distribution
      * @dev The Merkle tree's leaves must represent an account and a claimable amount (the total amount of the reward tokens for the whole time).
      */
-    event DistributeRewards(uint48 indexed epoch, bytes32 indexed root);
+    event DistributeRewards(
+        uint48 indexed epoch, uint48 indexed eraIndex, uint256 tokensPerPoint, uint256 amount, bytes32 indexed root
+    );
 
     /**
      * @notice Emitted when rewards are claimed by a particular account.
      * @param recipient address of the rewards' recipient
-     * @param epoch epoch for which the rewards are claimed
+     * @param epoch network epoch of the middleware
      * @param claimer address of the rewards' claimer
      * @param amount amount of tokens claimed
      */
-    event ClaimRewards(address indexed recipient, uint48 indexed epoch, address indexed claimer, uint256 amount);
+    event ClaimRewards(
+        address indexed recipient, uint48 epoch, address indexed claimer, uint48 indexed eraIndex, uint256 amount
+    );
 
     /**
-     * @notice Struct to store the amount of tokens received per epoch and the amount of tokens per point.
-     * @param amount amount of tokens received per epoch
+     * @notice Struct to store the data related to rewards distribution per Starlight's era.
+     * @param epoch network epoch of the middleware
+     * @param amount amount of tokens received per eraIndex
      * @param tokensPerPoint amount of tokens per point
+     * @param root Merkle root of the rewards distribution
      */
-    struct BalancePerEpoch {
+    struct EraRoot {
+        uint48 epoch;
         uint256 amount;
         uint256 tokensPerPoint;
+        bytes32 root;
+    }
+    /**
+     * @notice Struct to store the data related to claim the rewards distribution per Starlight's era.
+     * @param operatorKey operator key of the rewards' recipient
+     * @param epoch network epoch of the middleware
+     * @param eraIndex era index of Starlight's rewards distribution
+     * @param totalPointsClaimable total amount of points that can be claimed
+     * @param proof Merkle proof of the rewards distribution
+     * @param data additional data to use to distribute rewards to stakers
+     */
+
+    struct ClaimRewardsInput {
+        bytes32 operatorKey;
+        uint48 epoch;
+        uint48 eraIndex;
+        uint32 totalPointsClaimable; //! Are we sure this won't be bigger than a uint32?
+        bytes32[] proof;
+        bytes data;
     }
 
     /**
@@ -71,66 +99,94 @@ interface IODefaultOperatorRewards {
     function i_network() external view returns (address);
 
     /**
-     * @notice Get the default staker rewards contract's address.
-     * @return address of the default staker rewards contract
-     */
-    function s_defaultStakerRewards() external view returns (address);
-
-    /**
      * @notice Get the operator share.
      * @return operator share
      */
     function s_operatorShare() external view returns (uint48);
 
     /**
-     * @notice Get a Merkle root of a reward distribution for a particular epoch.
-     * @param epoch epoch of the reward distribution
-     * @return Merkle root of the reward distribution
-     */
-    function s_epochRoot(
-        uint48 epoch
-    ) external view returns (bytes32);
-
-    /**
-     * @notice Get an amount of tokens that can be claimed for a particular epoch.
-     * @param epoch epoch of the related available rewards
+     * @notice Get an information of a particular era rewards data distribution
+     * @param eraIndex era index of Starlight's rewards distribution
+     * @return epoch network epoch of the middleware
      * @return amount of tokens that can be claimed
      * @return tokensPerPoints amount of tokens per point
+     * @return root Merkle root of the reward distribution
      */
-    function s_balance(
-        uint48 epoch
-    ) external view returns (uint256 amount, uint256 tokensPerPoints);
+    function s_eraRoot(
+        uint48 eraIndex
+    ) external view returns (uint48 epoch, uint256 amount, uint256 tokensPerPoints, bytes32 root);
+
+    /**
+     * @notice Get an array of era indexes for a particular epoch.
+     * @param epoch network epoch of the middleware
+     * @param index in the array of era indexes
+     * @return eraIndex era index of Starlight's rewards distribution
+     */
+    function s_eraIndexesPerEpoch(uint48 epoch, uint256 index) external view returns (uint48 eraIndex);
 
     /**
      * @notice Get a claimed amount of rewards for a particular account and epoch
-     * @param epoch epoch of the related claimed rewards
+     * @param eraIndex era index of Starlight's rewards distribution
      * @param account address of the claimer
      * @return claimed amount of tokens
      */
-    function s_claimed(uint48 epoch, address account) external view returns (uint256);
+    function s_claimed(uint48 eraIndex, address account) external view returns (uint256);
 
     /**
-     * @notice Distribute rewards by providing a Merkle root.
-     * @param epoch epoch of the rewards distribution
-     * @param amount amount of tokens to distribute
-     * @param root Merkle root of the reward distribution
+     * @notice Get the staker rewards contract's address for a particular vault
+     * @param vault address of the vault
+     * @return stakerRewardsAddress address of the staker rewards contract
      */
-    function distributeRewards(uint48 epoch, uint256 amount, uint256 totalPointsToken, bytes32 root) external;
+    function s_vaultToStakerRewardsContract(
+        address vault
+    ) external view returns (address stakerRewardsAddress);
+
+    /**
+     * @notice Distribute rewards for a specific era contained in an epoch by providing a Merkle root, total points, and total amount of tokens.
+     * @param epoch network epoch of the middleware
+     * @param eraIndex era index of Starlight's rewards distribution
+     * @param amount amount of tokens to distribute
+     * @param totalPointsToken total amount of points for the reward distribution
+     * @param root Merkle root of the reward distribution
+     * @dev Emit DistributeRewards event.
+     */
+    function distributeRewards(
+        uint48 epoch,
+        uint48 eraIndex,
+        uint256 amount,
+        uint256 totalPointsToken,
+        bytes32 root
+    ) external;
 
     /**
      * @notice Claim rewards for a particular epoch by providing a Merkle proof.
-     * @param operatorKey operator key of the rewards' recipient
-     * @param epoch epoch for which the rewards are claimed
-     * @param totalClaimable total amount of tokens that can be claimed
-     * @param proof Merkle proof of the reward distribution
-     * @param data additional data to use to distribute rewards to stakers
+     * @param input data to claim rewards
      * @return amount amount of tokens claimed
+     * @dev Emit ClaimRewards event.
+     * @dev The input data must contain:
+     * @dev - operatorKey operator key of the rewards' recipient
+     * @dev - epoch network epoch of the middleware
+     * @dev - eraIndex era index of Starlight's rewards distribution
+     * @dev - totalPointsClaimable total amount of tokens that can be claimed
+     * @dev - proof Merkle proof of the reward distribution
+     * @dev - data additional data to use to distribute rewards to stakers
      */
     function claimRewards(
-        bytes32 operatorKey,
-        uint48 epoch,
-        uint32 totalClaimable,
-        bytes32[] calldata proof,
-        bytes calldata data
+        ClaimRewardsInput calldata input
     ) external returns (uint256 amount);
+
+    /**
+     * @notice Set the staker rewards contract's address for a particular vault.
+     * @param stakerRewards The address of the staker rewards contract
+     * @param vault The address of the vault
+     */
+    function setStakerRewardContract(address stakerRewards, address vault) external;
+
+    /**
+     * @notice Set the operator share of the rewards.
+     * @param operatorShare operator share of the rewards
+     */
+    function setOperatorShare(
+        uint48 operatorShare
+    ) external;
 }
