@@ -1464,6 +1464,29 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
     }
 
+    function testGetOperatorVaultsButNoVaultsActive() public {
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+        _registerVaultToNetwork(address(vault), false, 0);
+
+        vm.mockCall(
+            address(vault), abi.encodeWithSelector(IVault.activeBalanceOf.selector, operator), abi.encode(1 ether)
+        );
+
+        vm.startPrank(owner);
+        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerVault(address(vault));
+        middleware.pauseVault(address(vault));
+        vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
+
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        (uint256 vaultIdx, address[] memory vaults) = middleware.getOperatorVaults(operator, currentEpoch);
+
+        assertEq(vaultIdx, 0);
+        assertEq(vaults.length, 1);
+        assertEq(vaults[0], address(0));
+        vm.stopPrank();
+    }
+
     function testGetOperatorVaultsButNoVaults() public {
         _registerOperatorToNetwork(operator, address(vault), false, false);
         _registerVaultToNetwork(address(vault), false, 0);
@@ -1486,33 +1509,4 @@ contract MiddlewareTest is Test {
         assertEq(vaults.length, 0);
         vm.stopPrank();
     }
-
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
-    // function getOperatorVaults(
-    //     address operator,
-    //     uint48 epochStartTs
-    // ) public view returns (uint256 vaultIdx, address[] memory _vaults) {
-    //     _vaults = new address[](s_vaults.length());
-    //     vaultIdx = 0;
-    //     for (uint256 j; j < s_vaults.length(); ++j) {
-    //         (address vault, uint48 vaultEnabledTime, uint48 vaultDisabledTime) = s_vaults.atWithTimes(j);
-
-    //         // just skip the vault if it was enabled after the target epoch or not enabled
-    //         if (!_wasActiveAt(vaultEnabledTime, vaultDisabledTime, epochStartTs)) {
-    //             continue;
-    //         }
-    //         uint256 operatorStake = 0;
-    //         for (uint96 k = 0; k < s_subnetworksCount; ++k) {
-    //             operatorStake += IBaseDelegator(IVault(vault).delegator()).stakeAt(
-    //                 i_network.subnetwork(k), operator, epochStartTs, new bytes(0)
-    //             );
-    //         }
-
-    //         if (operatorStake > 0) {
-    //             _vaults[vaultIdx++] = vault;
-    //         }
-    //     }
-    // }
 }
