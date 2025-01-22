@@ -31,8 +31,8 @@ import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {IDefaultCollateralFactory} from
     "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateralFactory.sol";
 
-import {Middleware} from "src/middleware/Middleware.sol";
-import {Token} from "../test/mocks/Token.sol";
+import {Middleware} from "src/contracts/middleware/Middleware.sol";
+import {Token} from "test/mocks/Token.sol";
 import {DeployCollateral} from "./DeployCollateral.s.sol";
 import {DeployVault} from "./DeployVault.s.sol";
 import {DeploySymbiotic} from "./DeploySymbiotic.s.sol";

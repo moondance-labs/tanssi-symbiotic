@@ -14,7 +14,7 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
-import {Test, console2} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 
 //**************************************************************************************************
 //                                      SYMBIOTIC
@@ -64,8 +64,8 @@ import {Gateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Gateway.s
 import {MockOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/test/mocks/MockOGateway.sol";
 
 import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
-
-import {Middleware} from "src/middleware/Middleware.sol";
+import {Middleware} from "src/contracts/middleware/Middleware.sol";
+import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {Token} from "test/mocks/Token.sol";
 import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
@@ -506,7 +506,7 @@ contract MiddlewareTest is Test {
 
         vm.prank(owner);
         vm.expectEmit(true, true, true, true);
-        emit Middleware.InvalidSlashTimeframe(currentEpoch, operator2, 30 ether);
+        emit IMiddleware.InvalidSlashTimeframe(currentEpoch, operator2, 30 ether);
         middleware.slash(currentEpoch, operator2, 30 ether);
     }
 

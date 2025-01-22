@@ -14,7 +14,6 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
-import {console2} from "forge-std/console2.sol";
 import {BaseDelegator} from "@symbiotic/contracts/delegator/BaseDelegator.sol";
 import {Entity} from "@symbiotic/contracts/common/Entity.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";

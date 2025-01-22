@@ -14,8 +14,6 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
-import {console2} from "forge-std/console2.sol";
-
 import {IOptInService} from "@symbiotic/interfaces/service/IOptInService.sol";
 
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
