@@ -510,9 +510,6 @@ contract MiddlewareTest is Test {
         // We go directly to epochStart as it 100% ensure that the epoch is started and thus the slashing is invalid
         vm.warp(epochStartTs);
 
-        //InvalidCaptureTimestamp
-        bytes memory data = "\x26\xaf\x59\x22";
-
         //Since vaultVetoed is full restake, it exactly gets the amount deposited, so no need to calculations
         uint256 activeStakeInVetoed = vaultVetoed.activeStake();
 
@@ -780,17 +777,19 @@ contract MiddlewareTest is Test {
         //We calculate the amount slashable for only the operator2 since it's the only one that should be slashed. As a side effect operator3 will be slashed too since it's taking part in a NetworkRestake delegator based vault
         uint256 slashAmountSlashable = (SLASH_AMOUNT * remainingOperator2Stake) / totalOperator2Stake;
 
-        vm.prank(owner);
+        // Everything below should be call with the owner key
+        vm.startPrank(owner);
 
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
         uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
 
         // Before slashing, we will change the operator2 key to something else, and prove we can still slash
+        // This is because operator keys work with timestamps and old keys are maintained, not removed
+        // Therefore we will always be able to slash
         bytes32 differentOperatorKey = bytes32(uint256(10));
         middleware.updateOperatorKey(operator2, differentOperatorKey);
 
-        vm.prank(owner);
         middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
 
         vm.prank(resolver1);
