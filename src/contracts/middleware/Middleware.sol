@@ -20,6 +20,7 @@ pragma solidity 0.8.25;
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {EnumerableMap} from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 //**************************************************************************************************
 //                                      SYMBIOTIC
@@ -52,6 +53,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     using EnumerableMap for EnumerableMap.AddressToUintMap;
     using MapWithTimeData for EnumerableMap.AddressToUintMap;
     using Subnetwork for address;
+    using Math for uint256;
 
     /**
      * @inheritdoc IMiddleware
@@ -114,6 +116,8 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     EnumerableMap.AddressToUintMap private s_operators;
     EnumerableMap.AddressToUintMap private s_vaults;
     IOGateway private s_gateway;
+
+    uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
 
     modifier updateStakeCache(
         uint48 epoch
@@ -398,30 +402,30 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     /**
      * @inheritdoc IMiddleware
      */
-    function slash(uint48 epoch, address operator, uint256 amount) external onlyOwner updateStakeCache(epoch) {
+    function slash(uint48 epoch, bytes32 operatorKey, uint256 percentage) external onlyOwner updateStakeCache(epoch) {
+        uint48 epochStartTs = getEpochStartTs(epoch);
+        address operator = getOperatorByKey(operatorKey);
+
+        // If address is 0, then we should return
+        if (operator == address(0)) {
+            revert Middleware__OperatorNotFound(operatorKey, epoch);
+        }
+
+        // Sanitization: check percentage is below 100% (or 1 billion in other words)
+        if (percentage > PARTS_PER_BILLION) {
+            revert Middleware__SlashPercentageTooBig(epoch, operator, percentage);
+        }
         SlashParams memory params;
-        params.epochStartTs = getEpochStartTs(epoch);
+        params.epochStartTs = epochStartTs;
         params.operator = operator;
-        params.slashAmount = amount;
+        params.slashPercentage = percentage;
 
         params.totalOperatorStake = getOperatorStake(operator, epoch);
-
-        if (params.totalOperatorStake < amount) {
-            revert Middleware__TooBigSlashAmount();
-        }
         // simple pro-rata slasher
         for (uint256 i; i < s_vaults.length(); ++i) {
             (address vault, uint48 enabledTime, uint48 disabledTime) = s_vaults.atWithTimes(i);
             // just skip the vault if it was enabled after the target epoch or not enabled
             if (!_wasActiveAt(enabledTime, disabledTime, params.epochStartTs)) {
-                continue;
-            }
-
-            if (
-                params.epochStartTs < Time.timestamp() - IVault(vault).epochDuration()
-                    || params.epochStartTs >= Time.timestamp()
-            ) {
-                emit InvalidSlashTimeframe(epoch, operator, amount);
                 continue;
             }
 
@@ -441,7 +445,9 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
             uint256 vaultStake = IBaseDelegator(IVault(vault).delegator()).stakeAt(
                 subnetwork, params.operator, params.epochStartTs, new bytes(0)
             );
-            uint256 slashAmount = (params.slashAmount * vaultStake) / params.totalOperatorStake;
+            // Slash percentage is already in parts per billion
+            // so we need to divide by a billion
+            uint256 slashAmount = params.slashPercentage.mulDiv(vaultStake, PARTS_PER_BILLION);
 
             _slashVault(params.epochStartTs, vault, subnetwork, params.operator, slashAmount);
         }
@@ -463,6 +469,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
         uint256 amount
     ) private {
         address slasher = IVault(vault).slasher();
+
         if (slasher == address(0) || amount == 0) {
             return;
         }

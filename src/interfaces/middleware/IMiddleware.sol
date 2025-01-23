@@ -47,9 +47,10 @@ interface IMiddleware {
     error Middleware__TooOldEpoch();
     error Middleware__InvalidEpoch();
     error Middleware__SlashingWindowTooShort();
-    error Middleware__TooBigSlashAmount();
     error Middleware__UnknownSlasherType();
     error Middleware__InvalidAddress();
+    error Middleware__OperatorNotFound(bytes32 operatorKey, uint48 epoch);
+    error Middleware__SlashPercentageTooBig(uint48 epoch, address operator, uint256 percentage);
 
     /**
      * @notice Slasher type enum
@@ -84,7 +85,7 @@ interface IMiddleware {
         address vault;
         address operator;
         uint256 totalOperatorStake;
-        uint256 slashAmount;
+        uint256 slashPercentage;
     }
 
     /**
@@ -319,10 +320,10 @@ interface IMiddleware {
      * @dev Only the owner can call this function
      * @dev This function first updates the stake cache for the target epoch
      * @param epoch The epoch number
-     * @param operator The operator to slash
-     * @param amount Amount to slash
+     * @param operatorKey The operator key to slash
+     * @param percentage Percentage to slash, represented as parts per billion.
      */
-    function slash(uint48 epoch, address operator, uint256 amount) external;
+    function slash(uint48 epoch, bytes32 operatorKey, uint256 percentage) external;
 
     /**
      * @notice Gets how many operators were active at a specific epoch

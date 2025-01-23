@@ -64,6 +64,7 @@ contract MiddlewareTest is Test {
     uint256 public constant OPERATOR_INITIAL_BALANCE = 1000 ether;
     uint256 public constant MIN_SLASHING_WINDOW = 1 days;
     bytes32 public constant OPERATOR_KEY = bytes32(uint256(1));
+    uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
 
     uint48 public constant START_TIME = 1;
 
@@ -861,7 +862,7 @@ contract MiddlewareTest is Test {
     }
 
     // ************************************************************************************************
-    // *                                      GET VALIDATOR SET
+    // *                                      Slashes
     // ************************************************************************************************
 
     function testSlash() public {
@@ -882,10 +883,13 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
         uint256 totalStakeCached = middleware.calcAndCacheStakes(currentEpoch);
 
+        // We want to slash half of it, and this is parts per billion. so this should be
+        // 500000000
+        uint256 slashPercentage = PARTS_PER_BILLION / 2;
         uint256 slashAmount = OPERATOR_STAKE / 2;
-        middleware.slash(currentEpoch, operator, slashAmount);
+        middleware.slash(currentEpoch, OPERATOR_KEY, slashPercentage);
 
-        vm.warp(SLASHING_WINDOW * 2 + 1);
+        vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
         currentEpoch = middleware.getCurrentEpoch();
         uint256 totalStake = middleware.getTotalStake(currentEpoch);
         assertEq(totalStake, totalStakeCached - slashAmount);
@@ -894,15 +898,15 @@ contract MiddlewareTest is Test {
 
     function testSlashUnauthorized() public {
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
-        middleware.slash(0, operator, 0);
+        middleware.slash(0, OPERATOR_KEY, 0);
     }
 
     function testSlashEpochTooOld() public {
         vm.startPrank(owner);
         uint48 currentEpoch = middleware.getCurrentEpoch();
-        vm.warp(SLASHING_WINDOW * 2 + 1);
+        vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
         vm.expectRevert(IMiddleware.Middleware__TooOldEpoch.selector);
-        middleware.slash(currentEpoch, operator, OPERATOR_STAKE);
+        middleware.slash(currentEpoch, OPERATOR_KEY, OPERATOR_STAKE);
         vm.stopPrank();
     }
 
@@ -919,9 +923,14 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
         uint256 totalStakeCached = middleware.calcAndCacheStakes(currentEpoch);
 
-        uint256 slashAmount = OPERATOR_STAKE * 2;
-        vm.expectRevert(IMiddleware.Middleware__TooBigSlashAmount.selector);
-        middleware.slash(currentEpoch, operator, slashAmount);
+        uint256 slashPercentage = 3 * PARTS_PER_BILLION / 2;
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IMiddleware.Middleware__SlashPercentageTooBig.selector, currentEpoch, operator, slashPercentage
+            )
+        );
+        middleware.slash(currentEpoch, OPERATOR_KEY, slashPercentage);
 
         uint256 totalStake = middleware.getTotalStake(currentEpoch);
         assertEq(totalStake, totalStakeCached);
@@ -971,10 +980,12 @@ contract MiddlewareTest is Test {
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
+        // 50% of slashing
+        uint256 slashPercentage = PARTS_PER_BILLION / 2;
         uint256 slashAmount = OPERATOR_STAKE / 2;
-        middleware.slash(currentEpoch, operator, slashAmount);
+        middleware.slash(currentEpoch, OPERATOR_KEY, slashPercentage);
 
-        vm.warp(SLASHING_WINDOW * 2 + 1);
+        vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
         currentEpoch = middleware.getCurrentEpoch();
         uint256 totalStake = middleware.getTotalStake(currentEpoch);
         assertEq(totalStake, OPERATOR_STAKE / 2); //Because it slashes the operator everywhere, but the operator has stake only in vault2, since the first vault is paused
@@ -998,10 +1009,10 @@ contract MiddlewareTest is Test {
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
-        uint256 slashAmount = OPERATOR_STAKE / 2;
-        middleware.slash(currentEpoch, operator, slashAmount);
+        uint256 slashPercentage = PARTS_PER_BILLION / 2;
+        middleware.slash(currentEpoch, OPERATOR_KEY, slashPercentage);
 
-        vm.warp(SLASHING_WINDOW * 2 + 1);
+        vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
         currentEpoch = middleware.getCurrentEpoch();
         uint256 totalStake = middleware.getTotalStake(currentEpoch);
         assertEq(totalStake, OPERATOR_STAKE);
@@ -1025,11 +1036,42 @@ contract MiddlewareTest is Test {
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
-        uint256 slashAmount = OPERATOR_STAKE / 2;
+        uint256 slashPercentage = PARTS_PER_BILLION / 2;
+
         vm.expectRevert(IMiddleware.Middleware__UnknownSlasherType.selector);
-        middleware.slash(currentEpoch, operator, slashAmount);
+        middleware.slash(currentEpoch, OPERATOR_KEY, slashPercentage);
+
+        uint256 totalStakeCached = middleware.calcAndCacheStakes(currentEpoch);
+        uint256 totalStake = middleware.getTotalStake(currentEpoch);
+
+        assertEq(totalStake, totalStakeCached);
 
         vm.stopPrank();
+    }
+
+    function testSlashCannotBeAppliedToUnregisteredKey() public {
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+        _registerVaultToNetwork(address(vault), false, 0);
+
+        vm.startPrank(owner);
+        middleware.registerOperator(operator, OPERATOR_KEY);
+        vault.setSlasher(address(vetoSlasher));
+        vm.store(address(vetoSlasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
+        middleware.registerVault(address(vault));
+
+        vm.startPrank(operator);
+        vault.deposit(operator, OPERATOR_STAKE);
+
+        vm.startPrank(owner);
+        vm.warp(START_TIME + SLASHING_WINDOW + 1);
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        uint256 slashPercentage = PARTS_PER_BILLION / 2;
+        bytes32 unknownOperator = bytes32(uint256(2));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(IMiddleware.Middleware__OperatorNotFound.selector, unknownOperator, currentEpoch)
+        );
+        middleware.slash(currentEpoch, unknownOperator, slashPercentage);
     }
 
     // ************************************************************************************************
