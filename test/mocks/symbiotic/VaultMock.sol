@@ -14,7 +14,6 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
-import {console2} from "forge-std/console2.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {VaultStorage} from "@symbiotic/contracts/vault/VaultStorage.sol";
 import {IVaultStorage} from "@symbiotic/interfaces/vault/IVaultStorage.sol";

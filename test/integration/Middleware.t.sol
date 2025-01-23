@@ -14,7 +14,7 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
-import {Test, console2} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 
 //**************************************************************************************************
 //                                      SYMBIOTIC
@@ -65,8 +65,8 @@ import {Gateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Gateway.s
 import {MockOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/test/mocks/MockOGateway.sol";
 
 import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
-
-import {Middleware} from "src/middleware/Middleware.sol";
+import {Middleware} from "src/contracts/middleware/Middleware.sol";
+import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {Token} from "test/mocks/Token.sol";
 import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
@@ -541,7 +541,7 @@ contract MiddlewareTest is Test {
         vm.prank(owner);
         vm.expectRevert(
             abi.encodeWithSelector(
-                Middleware.Middleware__SlashPercentageTooBig.selector, currentEpoch, operator2, slashingFraction
+                IMiddleware.Middleware__SlashPercentageTooBig.selector, currentEpoch, operator2, slashingFraction
             )
         );
         middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
@@ -792,7 +792,7 @@ contract MiddlewareTest is Test {
 
         middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
 
-        vm.prank(resolver1);
+        vm.startPrank(resolver1);
         vetoSlasher.vetoSlash(0, hex"");
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();

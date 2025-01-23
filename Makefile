@@ -19,6 +19,7 @@ install :; 	forge install foundry-rs/forge-std@v1.8.2 --no-commit && \
 			forge install openzeppelin/openzeppelin-contracts-upgradeable@v5.0.2 --no-commit && \
 			forge install symbioticfi/core --no-commit  && \
 			forge install symbioticfi/collateral --no-commit  && \
+			forge install symbioticfi/rewards --no-commit  && \
 			forge install Cyfrin/foundry-devops --no-commit && \
 			forge install PaulRBerg/prb-math@release-v4 --no-commit &&\
 			forge install moondance-labs/tanssi-bridge-relayer --no-commit --no-git && \
@@ -35,7 +36,9 @@ test :; forge test
 
 testv :; forge test -vvvv
 
-coverage :; forge coverage
+coverage :; forge coverage --nmp test/fork/*
+
+dcoverage :; forge coverage --nmp test/fork/* --report debug > coverage.txt
 
 snapshot :; forge snapshot
 

@@ -14,7 +14,7 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity ^0.8.13;
 
-import {Test, console2} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 
 //**************************************************************************************************
 //                                      SYMBIOTIC
@@ -28,19 +28,32 @@ import {Slasher} from "@symbiotic/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "@symbiotic/contracts/slasher/VetoSlasher.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {NetworkMiddlewareService} from "@symbiotic/contracts/service/NetworkMiddlewareService.sol";
+import {IRegistry} from "@symbiotic/interfaces/common/IRegistry.sol";
+import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-import {Middleware} from "../../src/middleware/Middleware.sol";
-import {SimpleKeyRegistry32} from "../../src/libraries/SimpleKeyRegistry32.sol";
+//**************************************************************************************************
+//                                      SNOWBRIDGE
+//**************************************************************************************************
+import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfaces/IOGateway.sol";
+
+import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
+import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
+import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
+import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
+import {Middleware} from "src/contracts/middleware/Middleware.sol";
+import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
+import {SimpleKeyRegistry32} from "src/contracts/libraries/SimpleKeyRegistry32.sol";
 
 import {DelegatorMock} from "../mocks/symbiotic/DelegatorMock.sol";
 import {OptInServiceMock} from "../mocks/symbiotic/OptInServiceMock.sol";
 import {RegistryMock} from "../mocks/symbiotic/RegistryMock.sol";
 import {VaultMock} from "../mocks/symbiotic/VaultMock.sol";
+import {Token} from "../mocks/Token.sol";
 
 contract MiddlewareTest is Test {
     using Subnetwork for address;
@@ -55,13 +68,14 @@ contract MiddlewareTest is Test {
 
     uint48 public constant START_TIME = 1;
 
-    address network = makeAddr("network");
+    address tanssi = makeAddr("tanssi");
     address vaultFactory = makeAddr("vaultFactory");
     address slasherFactory = makeAddr("vaultFactory");
     address delegatorFactory = makeAddr("delegatorFactory");
 
     address owner = makeAddr("owner");
     address operator = makeAddr("operator");
+    NetworkMiddlewareService networkMiddlewareService;
     OptInServiceMock operatorNetworkOptInServiceMock;
     OptInServiceMock operatorVaultOptInServiceMock;
     DelegatorMock delegator;
@@ -82,7 +96,7 @@ contract MiddlewareTest is Test {
         operatorVaultOptInServiceMock =
             new OptInServiceMock(address(registry), address(vaultFactory), "OperatorVaultOptInService");
 
-        NetworkMiddlewareService networkMiddlewareService = new NetworkMiddlewareService(address(registry));
+        networkMiddlewareService = new NetworkMiddlewareService(address(registry));
 
         delegator = new DelegatorMock(
             address(registry),
@@ -102,7 +116,7 @@ contract MiddlewareTest is Test {
 
         vm.store(address(delegator), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
         middleware = new Middleware(
-            address(network),
+            address(tanssi),
             address(registry),
             address(registry),
             address(operatorNetworkOptInServiceMock),
@@ -111,7 +125,7 @@ contract MiddlewareTest is Test {
             SLASHING_WINDOW
         );
 
-        vm.startPrank(network);
+        vm.startPrank(tanssi);
         registry.register();
         networkMiddlewareService.setMiddleware(address(middleware));
         vm.stopPrank();
@@ -123,7 +137,7 @@ contract MiddlewareTest is Test {
             registry.register();
         }
         if (!skipOptIn) {
-            operatorNetworkOptInServiceMock.optIn(network);
+            operatorNetworkOptInServiceMock.optIn(tanssi);
             operatorVaultOptInServiceMock.optIn(address(_vault));
         }
         vm.stopPrank();
@@ -134,7 +148,7 @@ contract MiddlewareTest is Test {
         uint48 SHORT_SLASHING_WINDOW_ = 99;
 
         vm.startPrank(owner);
-        vm.expectRevert(Middleware.Middleware__SlashingWindowTooShort.selector);
+        vm.expectRevert(IMiddleware.Middleware__SlashingWindowTooShort.selector);
 
         new Middleware(
             address(0),
@@ -211,7 +225,7 @@ contract MiddlewareTest is Test {
     }
 
     function testInitialState() public view {
-        assertEq(middleware.i_network(), address(network));
+        assertEq(middleware.i_network(), address(tanssi));
         assertEq(middleware.i_operatorRegistry(), address(registry));
         assertEq(middleware.i_vaultRegistry(), address(registry));
         assertEq(middleware.i_epochDuration(), NETWORK_EPOCH_DURATION);
@@ -248,7 +262,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         middleware.registerOperator(operator, OPERATOR_KEY);
 
-        vm.expectRevert(Middleware.Middleware__OperatorAlreadyRegistred.selector);
+        vm.expectRevert(IMiddleware.Middleware__OperatorAlreadyRegistred.selector);
         middleware.registerOperator(operator, OPERATOR_KEY);
         vm.stopPrank();
     }
@@ -257,7 +271,7 @@ contract MiddlewareTest is Test {
         _registerOperatorToNetwork(operator, address(vault), true, false);
 
         vm.startPrank(owner);
-        vm.expectRevert(Middleware.Middleware__NotOperator.selector);
+        vm.expectRevert(IMiddleware.Middleware__NotOperator.selector);
         middleware.registerOperator(owner, OPERATOR_KEY);
         vm.stopPrank();
     }
@@ -266,7 +280,7 @@ contract MiddlewareTest is Test {
         _registerOperatorToNetwork(operator, address(vault), false, true);
 
         vm.startPrank(owner);
-        vm.expectRevert(Middleware.Middleware__OperatorNotOptedIn.selector);
+        vm.expectRevert(IMiddleware.Middleware__OperatorNotOptedIn.selector);
         middleware.registerOperator(operator, OPERATOR_KEY);
         vm.stopPrank();
     }
@@ -314,7 +328,7 @@ contract MiddlewareTest is Test {
 
     function testUpdateOperatorKeyNotRegistered() public {
         vm.startPrank(owner);
-        vm.expectRevert(Middleware.Middleware__OperatorNotRegistred.selector);
+        vm.expectRevert(IMiddleware.Middleware__OperatorNotRegistred.selector);
         middleware.updateOperatorKey(operator, OPERATOR_KEY);
         vm.stopPrank();
     }
@@ -390,7 +404,7 @@ contract MiddlewareTest is Test {
 
         middleware.pauseOperator(operator);
         vm.warp(START_TIME + SLASHING_WINDOW - 1);
-        vm.expectRevert(Middleware.Middleware__OperarorGracePeriodNotPassed.selector);
+        vm.expectRevert(IMiddleware.Middleware__OperatorGracePeriodNotPassed.selector);
         middleware.unregisterOperator(operator);
         vm.stopPrank();
     }
@@ -425,14 +439,14 @@ contract MiddlewareTest is Test {
 
         middleware.registerVault(address(vault));
 
-        vm.expectRevert(Middleware.Middleware__VaultAlreadyRegistered.selector);
+        vm.expectRevert(IMiddleware.Middleware__VaultAlreadyRegistered.selector);
         middleware.registerVault(address(vault));
         vm.stopPrank();
     }
 
     function testRegisterVaultNotVault() public {
         vm.startPrank(owner);
-        vm.expectRevert(Middleware.Middleware__NotVault.selector);
+        vm.expectRevert(IMiddleware.Middleware__NotVault.selector);
         middleware.registerVault(owner);
         vm.stopPrank();
     }
@@ -443,7 +457,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         vault.setSlasher(address(vetoSlasher));
         vm.store(address(vetoSlasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        vm.expectRevert(Middleware.Middleware__VaultEpochTooShort.selector);
+        vm.expectRevert(IMiddleware.Middleware__VaultEpochTooShort.selector);
         middleware.registerVault(address(vault));
         vm.stopPrank();
     }
@@ -538,7 +552,7 @@ contract MiddlewareTest is Test {
 
         middleware.pauseVault(address(vault));
         vm.warp(START_TIME + SLASHING_WINDOW - 1);
-        vm.expectRevert(Middleware.Middleware__VaultGracePeriodNotPassed.selector);
+        vm.expectRevert(IMiddleware.Middleware__VaultGracePeriodNotPassed.selector);
         middleware.unregisterVault(address(vault));
         vm.stopPrank();
     }
@@ -559,14 +573,14 @@ contract MiddlewareTest is Test {
         middleware.setSubnetworksCount(10);
         assertEq(middleware.s_subnetworksCount(), 10);
 
-        vm.expectRevert(Middleware.Middleware__InvalidSubnetworksCnt.selector);
+        vm.expectRevert(IMiddleware.Middleware__InvalidSubnetworksCnt.selector);
         middleware.setSubnetworksCount(8);
         vm.stopPrank();
     }
 
     function testSetSubnetworksCntInvalid() public {
         vm.startPrank(owner);
-        vm.expectRevert(Middleware.Middleware__InvalidSubnetworksCnt.selector);
+        vm.expectRevert(IMiddleware.Middleware__InvalidSubnetworksCnt.selector);
         middleware.setSubnetworksCount(0);
         vm.stopPrank();
     }
@@ -747,7 +761,7 @@ contract MiddlewareTest is Test {
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         vm.warp(SLASHING_WINDOW * 2 + 1);
-        vm.expectRevert(Middleware.Middleware__TooOldEpoch.selector);
+        vm.expectRevert(IMiddleware.Middleware__TooOldEpoch.selector);
         middleware.getTotalStake(currentEpoch);
         vm.stopPrank();
     }
@@ -764,7 +778,7 @@ contract MiddlewareTest is Test {
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         vm.warp(START_TIME + SLASHING_WINDOW - 1);
-        vm.expectRevert(Middleware.Middleware__InvalidEpoch.selector);
+        vm.expectRevert(IMiddleware.Middleware__InvalidEpoch.selector);
         middleware.getTotalStake(currentEpoch + 1);
         vm.stopPrank();
     }
@@ -891,7 +905,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
-        vm.expectRevert(Middleware.Middleware__TooOldEpoch.selector);
+        vm.expectRevert(IMiddleware.Middleware__TooOldEpoch.selector);
         middleware.slash(currentEpoch, OPERATOR_KEY, OPERATOR_STAKE);
         vm.stopPrank();
     }
@@ -913,7 +927,7 @@ contract MiddlewareTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                Middleware.Middleware__SlashPercentageTooBig.selector, currentEpoch, operator, slashPercentage
+                IMiddleware.Middleware__SlashPercentageTooBig.selector, currentEpoch, operator, slashPercentage
             )
         );
         middleware.slash(currentEpoch, OPERATOR_KEY, slashPercentage);
@@ -1024,7 +1038,7 @@ contract MiddlewareTest is Test {
 
         uint256 slashPercentage = PARTS_PER_BILLION / 2;
 
-        vm.expectRevert(Middleware.Middleware__UnknownSlasherType.selector);
+        vm.expectRevert(IMiddleware.Middleware__UnknownSlasherType.selector);
         middleware.slash(currentEpoch, OPERATOR_KEY, slashPercentage);
 
         uint256 totalStakeCached = middleware.calcAndCacheStakes(currentEpoch);
@@ -1055,7 +1069,7 @@ contract MiddlewareTest is Test {
         bytes32 unknownOperator = bytes32(uint256(2));
 
         vm.expectRevert(
-            abi.encodeWithSelector(Middleware.Middleware__OperatorNotFound.selector, unknownOperator, currentEpoch)
+            abi.encodeWithSelector(IMiddleware.Middleware__OperatorNotFound.selector, unknownOperator, currentEpoch)
         );
         middleware.slash(currentEpoch, unknownOperator, slashPercentage);
     }
@@ -1099,7 +1113,7 @@ contract MiddlewareTest is Test {
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         vm.warp(SLASHING_WINDOW * 2 + 1);
-        vm.expectRevert(Middleware.Middleware__TooOldEpoch.selector);
+        vm.expectRevert(IMiddleware.Middleware__TooOldEpoch.selector);
         middleware.calcAndCacheStakes(currentEpoch);
         vm.stopPrank();
     }
@@ -1117,7 +1131,7 @@ contract MiddlewareTest is Test {
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         vm.warp(START_TIME + SLASHING_WINDOW - 1);
-        vm.expectRevert(Middleware.Middleware__InvalidEpoch.selector);
+        vm.expectRevert(IMiddleware.Middleware__InvalidEpoch.selector);
         middleware.calcAndCacheStakes(currentEpoch + 1);
         vm.stopPrank();
     }
@@ -1161,5 +1175,474 @@ contract MiddlewareTest is Test {
         assertEq(middleware.getCurrentOperatorKey(operator), bytes32(0));
         assertEq(middleware.getOperatorByKey(OPERATOR_KEY), address(0));
         assertEq(middleware.getOperatorKeyAt(operator, uint48(block.timestamp) + 10 days), bytes32(0));
+    }
+
+    // ************************************************************************************************
+    // *                                  DISTRIBUTE REWARDS
+    // ************************************************************************************************
+
+    // function distributeRewards(
+    //     uint256 epoch,
+    //     uint256 eraIndex,
+    //     uint256 totalPointsToken,
+    //     uint256 tokensInflatedToken,
+    //     bytes32 rewardsRoot
+    // ) external onlyGateway {
+    //     IODefaultOperatorRewards(s_operatorRewards).distributeRewards(
+    //         uint48(epoch), uint48(eraIndex), tokensInflatedToken, totalPointsToken, rewardsRoot
+    //     );
+    // }
+
+    function testDistributeRewards() public {
+        uint48 OPERATOR_SHARE = 20;
+        address gateway = makeAddr("Gateway");
+
+        Token token = new Token("Test");
+        token.transfer(address(middleware), 1000);
+
+        ODefaultOperatorRewards operatorRewards =
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), address(token), OPERATOR_SHARE);
+
+        vm.startPrank(owner);
+        middleware.setOperatorRewardsContract(address(operatorRewards));
+        middleware.setGateway(gateway);
+
+        vm.startPrank(address(middleware));
+        token.approve(address(operatorRewards), 1000);
+
+        uint256 epoch = 0;
+        uint256 eraIndex = 0;
+        uint256 totalPointsToken = 100;
+        uint256 tokensInflatedToken = 1000;
+        bytes32 rewardsRoot = 0x4b0ddd8b9b8ec6aec84bcd2003c973254c41d976f6f29a163054eec4e7947810;
+
+        vm.startPrank(gateway);
+        middleware.distributeRewards(epoch, eraIndex, totalPointsToken, tokensInflatedToken, rewardsRoot);
+    }
+
+    function testDistributeRewardsUnauthorized() public {
+        uint256 epoch = 0;
+        uint256 eraIndex = 0;
+        uint256 totalPointsToken = 100;
+        uint256 tokensInflatedToken = 1000;
+        bytes32 rewardsRoot = 0x4b0ddd8b9b8ec6aec84bcd2003c973254c41d976f6f29a163054eec4e7947810;
+
+        vm.expectRevert(IMiddleware.Middleware__CallerNotGateway.selector);
+        middleware.distributeRewards(epoch, eraIndex, totalPointsToken, tokensInflatedToken, rewardsRoot);
+    }
+
+    // ************************************************************************************************
+    // *                                  SET REWARDS CONTRACTS
+    // ************************************************************************************************
+
+    function testSetRewardsContracts() public {
+        uint48 OPERATOR_SHARE = 20;
+        Token token = new Token("Test");
+
+        ODefaultOperatorRewards operatorRewards =
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), address(token), OPERATOR_SHARE);
+
+        vm.startPrank(owner);
+        vm.expectEmit(true, true, false, true);
+        emit IMiddleware.OperatorRewardContractSet(address(operatorRewards));
+        middleware.setOperatorRewardsContract(address(operatorRewards));
+
+        assertEq(middleware.s_operatorRewards(), address(operatorRewards));
+        vm.stopPrank();
+    }
+
+    function testSetRewardsContractsUnauthorized() public {
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
+        middleware.setOperatorRewardsContract(address(0));
+    }
+
+    function testSetRewardsContractsInvalid() public {
+        vm.prank(owner);
+        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
+        middleware.setOperatorRewardsContract(address(0));
+    }
+
+    // ************************************************************************************************
+    // *                                  GET OPERATORS BY EPOCH
+    // ************************************************************************************************
+
+    function testGetOperatorsByEpoch() public {
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+
+        vm.startPrank(owner);
+        middleware.registerOperator(operator, OPERATOR_KEY);
+
+        // Get validator set for current epoch
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        address[] memory operators = middleware.getOperatorsByEpoch(currentEpoch);
+
+        assertEq(operators.length, 1);
+        assertEq(operators[0], operator);
+        vm.stopPrank();
+    }
+
+    function testGetMultipleOperatorsByEpoch() public {
+        address operator2 = makeAddr("operator2");
+        bytes32 OPERATOR2_KEY = bytes32(uint256(2));
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+        _registerOperatorToNetwork(operator2, address(vault), false, false);
+
+        vm.startPrank(owner);
+        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator2, OPERATOR2_KEY);
+
+        // Get validator set for current epoch
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        address[] memory operators = middleware.getOperatorsByEpoch(currentEpoch);
+
+        assertEq(operators.length, 2);
+        assertEq(operators[0], operator);
+        assertEq(operators[1], operator2);
+        vm.stopPrank();
+    }
+
+    function testGetOperatorsByEpochButOperatorNotActive() public {
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+
+        vm.startPrank(owner);
+        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.pauseOperator(operator);
+        vm.warp(NETWORK_EPOCH_DURATION + 1);
+
+        // Get validator set for current epoch
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        address[] memory operators = middleware.getOperatorsByEpoch(currentEpoch);
+
+        assertEq(operators.length, 0);
+        vm.stopPrank();
+    }
+
+    // ************************************************************************************************
+    // *                                  SEND CURRENT OPERATORS KEYS
+    // ************************************************************************************************
+
+    function testSendCurrentOperatorKeys() public {
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+        address gateway = makeAddr("Gateway");
+
+        vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
+        vm.startPrank(owner);
+        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.setGateway(address(gateway));
+
+        bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
+        assertEq(keys.length, 1);
+    }
+
+    function testSendCurrentOperatorKeysButNoOperators() public {
+        address gateway = makeAddr("Gateway");
+
+        vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
+        vm.startPrank(owner);
+        middleware.setGateway(address(gateway));
+
+        bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
+        assertEq(keys.length, 0);
+    }
+
+    function testSendCurrentOperatorKeysButOperatorUnregistered() public {
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+        _registerVaultToNetwork(address(vault), false, 0);
+
+        vm.startPrank(owner);
+        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerVault(address(vault));
+
+        middleware.pauseOperator(operator);
+        vm.warp(START_TIME + SLASHING_WINDOW + 1);
+        middleware.unregisterOperator(operator);
+
+        address gateway = makeAddr("Gateway");
+
+        vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
+        vm.startPrank(owner);
+        middleware.setGateway(address(gateway));
+
+        bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
+        assertEq(keys.length, 0);
+    }
+
+    function testSendCurrentOperatorKeysButOperatorDisabled() public {
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+        _registerVaultToNetwork(address(vault), false, 0);
+
+        vm.startPrank(owner);
+        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerVault(address(vault));
+
+        middleware.pauseOperator(operator);
+        vm.warp(START_TIME + SLASHING_WINDOW + 1);
+
+        address gateway = makeAddr("Gateway");
+
+        vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
+        vm.startPrank(owner);
+        middleware.setGateway(address(gateway));
+
+        bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
+        assertEq(keys.length, 0);
+    }
+
+    function testSendCurrentOperatorKeysButGatewayNotSet() public {
+        vm.expectRevert(IMiddleware.Middleware__GatewayNotSet.selector);
+        middleware.sendCurrentOperatorsKeys();
+    }
+
+    // ************************************************************************************************
+    // *                                  GET OPERATOR VAULT PAIRS
+    // ************************************************************************************************
+
+    function testGetOperatorVaultPairs() public {
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+        _registerVaultToNetwork(address(vault), false, 0);
+
+        vm.startPrank(owner);
+        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerVault(address(vault));
+
+        vm.mockCall(
+            address(vault), abi.encodeWithSelector(IVault.activeBalanceOf.selector, operator), abi.encode(1 ether)
+        );
+
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        IMiddleware.OperatorVaultPair[] memory operatorVaultPairs = middleware.getOperatorVaultPairs(currentEpoch);
+
+        assertEq(operatorVaultPairs.length, 1);
+        assertEq(operatorVaultPairs[0].operator, operator);
+        assertEq(operatorVaultPairs[0].vaults.length, 1);
+        assertEq(operatorVaultPairs[0].vaults[0], address(vault));
+        vm.stopPrank();
+    }
+
+    function testGetOperatorVaultPairsButOperatorNotActive() public {
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+        _registerVaultToNetwork(address(vault), false, 0);
+
+        vm.startPrank(owner);
+        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerVault(address(vault));
+
+        middleware.pauseOperator(operator);
+        vm.warp(START_TIME + SLASHING_WINDOW + 1);
+        middleware.unregisterOperator(operator);
+
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        IMiddleware.OperatorVaultPair[] memory operatorVaultPairs = middleware.getOperatorVaultPairs(currentEpoch);
+
+        assertEq(operatorVaultPairs.length, 0);
+        vm.stopPrank();
+    }
+
+    function testGetOperatorVaultPairsButOperatorPaused() public {
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+        _registerVaultToNetwork(address(vault), false, 0);
+
+        vm.startPrank(owner);
+        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerVault(address(vault));
+        middleware.pauseOperator(operator);
+        vm.warp(NETWORK_EPOCH_DURATION + 1);
+
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        IMiddleware.OperatorVaultPair[] memory operatorVaultPairs = middleware.getOperatorVaultPairs(currentEpoch);
+
+        assertEq(operatorVaultPairs.length, 1);
+        assertEq(operatorVaultPairs[0].operator, address(0));
+        assertEq(operatorVaultPairs[0].vaults.length, 0);
+        vm.stopPrank();
+    }
+
+    // ************************************************************************************************
+    // *                                  GET OPERATOR VAULT PAIRS
+    // ************************************************************************************************
+
+    function testGetOperatorVaults() public {
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+        _registerVaultToNetwork(address(vault), false, 0);
+
+        vm.startPrank(owner);
+        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerVault(address(vault));
+
+        vm.mockCall(
+            address(vault), abi.encodeWithSelector(IVault.activeBalanceOf.selector, operator), abi.encode(1 ether)
+        );
+
+        vm.warp(NETWORK_EPOCH_DURATION + 1);
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        (uint256 vaultIdx, address[] memory vaults) = middleware.getOperatorVaults(operator, currentEpoch);
+
+        assertEq(vaultIdx, 1);
+        assertEq(vaults.length, 1);
+        assertEq(vaults[0], address(vault));
+        vm.stopPrank();
+    }
+
+    function testGetOperatorVaultsButOperatorNotActive() public {
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+        _registerVaultToNetwork(address(vault), false, 0);
+
+        vm.startPrank(owner);
+        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerVault(address(vault));
+        middleware.pauseOperator(operator);
+
+        vm.mockCall(
+            address(vault), abi.encodeWithSelector(IVault.activeBalanceOf.selector, operator), abi.encode(1 ether)
+        );
+
+        vm.warp(NETWORK_EPOCH_DURATION + 1);
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        (uint256 vaultIdx, address[] memory vaults) = middleware.getOperatorVaults(operator, currentEpoch);
+
+        assertEq(vaultIdx, 1);
+        assertEq(vaults.length, 1);
+        assertEq(vaults[0], address(vault));
+        vm.stopPrank();
+    }
+
+    function testGetOperatorVaultsButNoVaultsActive() public {
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+        _registerVaultToNetwork(address(vault), false, 0);
+
+        vm.mockCall(
+            address(vault), abi.encodeWithSelector(IVault.activeBalanceOf.selector, operator), abi.encode(1 ether)
+        );
+
+        vm.startPrank(owner);
+        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerVault(address(vault));
+        middleware.pauseVault(address(vault));
+        vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
+
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        (uint256 vaultIdx, address[] memory vaults) = middleware.getOperatorVaults(operator, currentEpoch);
+
+        assertEq(vaultIdx, 0);
+        assertEq(vaults.length, 1);
+        assertEq(vaults[0], address(0));
+        vm.stopPrank();
+    }
+
+    function testGetOperatorVaultsButNoVaults() public {
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+        _registerVaultToNetwork(address(vault), false, 0);
+
+        vm.mockCall(
+            address(vault), abi.encodeWithSelector(IVault.activeBalanceOf.selector, operator), abi.encode(1 ether)
+        );
+
+        vm.startPrank(owner);
+        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerVault(address(vault));
+        middleware.pauseVault(address(vault));
+        vm.warp(START_TIME + SLASHING_WINDOW + 1);
+        middleware.unregisterVault(address(vault));
+
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        (uint256 vaultIdx, address[] memory vaults) = middleware.getOperatorVaults(operator, currentEpoch);
+
+        assertEq(vaultIdx, 0);
+        assertEq(vaults.length, 0);
+        vm.stopPrank();
+    }
+
+    // ************************************************************************************************
+    // *                                  SET STAKER REWARD CONTRACT
+    // ************************************************************************************************
+
+    function testSetStakerRewardContract() public {
+        uint48 OPERATOR_SHARE = 20;
+        Token token = new Token("Test");
+        address stakerRewardAddress = makeAddr("StakerRewardAddress");
+
+        ODefaultOperatorRewards operatorRewards =
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), address(token), OPERATOR_SHARE);
+
+        vm.startPrank(owner);
+        middleware.setOperatorRewardsContract(address(operatorRewards));
+
+        vm.expectEmit(true, true, false, true);
+        emit IODefaultOperatorRewards.SetStakerRewardContract(stakerRewardAddress, address(vault));
+        middleware.setStakerRewardContract(stakerRewardAddress, address(vault));
+        assertEq(operatorRewards.s_vaultToStakerRewardsContract(address(vault)), stakerRewardAddress);
+        vm.stopPrank();
+    }
+
+    function testSetStakerRewardContractUnauthorized() public {
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
+        middleware.setStakerRewardContract(address(0), address(vault));
+    }
+
+    function testSetStakerRewardContractInvalid() public {
+        uint48 OPERATOR_SHARE = 20;
+        Token token = new Token("Test");
+
+        ODefaultOperatorRewards operatorRewards =
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), address(token), OPERATOR_SHARE);
+
+        vm.startPrank(owner);
+        middleware.setOperatorRewardsContract(address(operatorRewards));
+
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidAddress.selector);
+        middleware.setStakerRewardContract(address(0), address(vault));
+    }
+
+    function testSetStakerRewardContractButOperatorRewardsNotSet() public {
+        vm.prank(owner);
+        vm.expectRevert(IMiddleware.Middleware__OperatorRewardsNotSet.selector);
+        middleware.setStakerRewardContract(address(0), address(vault));
+    }
+
+    // ************************************************************************************************
+    // *                                  SET REWARD TOKEN ADDRESS
+    // ************************************************************************************************
+
+    function testSetRewardTokenAddress() public {
+        uint48 OPERATOR_SHARE = 20;
+        Token token = new Token("Test");
+
+        ODefaultOperatorRewards operatorRewards =
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), address(token), OPERATOR_SHARE);
+
+        vm.startPrank(owner);
+        middleware.setOperatorRewardsContract(address(operatorRewards));
+
+        address rewardTokenAddress = makeAddr("RewardTokenAddress");
+        vm.expectEmit(true, true, false, true);
+        emit IODefaultOperatorRewards.SetTokenAddress(rewardTokenAddress);
+        middleware.setRewardTokenAddress(rewardTokenAddress);
+        assertEq(operatorRewards.s_token(), rewardTokenAddress);
+        vm.stopPrank();
+    }
+
+    function testSetRewardTokenAddressUnauthorized() public {
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
+        middleware.setRewardTokenAddress(address(0));
+    }
+
+    function testSetRewardTokenAddressInvalid() public {
+        uint48 OPERATOR_SHARE = 20;
+        Token token = new Token("Test");
+
+        ODefaultOperatorRewards operatorRewards =
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), address(token), OPERATOR_SHARE);
+
+        vm.startPrank(owner);
+        middleware.setOperatorRewardsContract(address(operatorRewards));
+
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidAddress.selector);
+        middleware.setRewardTokenAddress(address(0));
+    }
+
+    function testSetRewardTokenAddressButOperatorRewardsNotSet() public {
+        vm.prank(owner);
+        vm.expectRevert(IMiddleware.Middleware__OperatorRewardsNotSet.selector);
+        middleware.setRewardTokenAddress(address(0));
     }
 }
