@@ -904,6 +904,8 @@ contract MiddlewareTest is Test {
         SetOperatingModeParams memory operatingModeParams = SetOperatingModeParams({mode: OperatingMode.Normal});
         MockGateway(address(gateway)).setOperatingModePublic(abi.encode(operatingModeParams));
 
+        IOGateway(address(gateway)).setMiddleware(address(middleware));
+
         return address(gateway);
     }
 
