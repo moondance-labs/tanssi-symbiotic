@@ -83,3 +83,12 @@ $ make clean-all
 ```shell
 $ make remove
 ```
+
+### Add dependency
+
+Run `forge install DEPENDENCY_TO_INSTALL --no-commit`.
+
+### Update dependency version
+
+`cd` into the dependency folder in `lib`, then run `git checkout XXXXX` where XXXXX is the wanted
+commit/tag. Then return in the root folder and add the git submodule diff to your commit.
