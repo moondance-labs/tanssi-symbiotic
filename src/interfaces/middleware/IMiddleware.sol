@@ -296,6 +296,7 @@ interface IMiddleware {
      * @param totalPointsToken The total points token
      * @param tokensInflatedToken The total tokens inflated token
      * @param rewardsRoot The rewards root
+     * @param tokenAddress The token address
      * @dev This function is called by the gateway only
      */
     function distributeRewards(
