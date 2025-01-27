@@ -382,7 +382,6 @@ contract ODefaultStakerRewards is
         uint48 epoch,
         address tokenAddress
     ) external nonReentrant onlyRole(ADMIN_FEE_CLAIM_ROLE) {
-        // This implies that we have only one token address which should be the case initially.
         uint256 claimableAdminFee_ = s_claimableAdminFee[epoch][tokenAddress];
 
         if (claimableAdminFee_ == 0) {
