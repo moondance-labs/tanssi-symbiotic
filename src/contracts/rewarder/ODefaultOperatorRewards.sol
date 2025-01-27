@@ -55,11 +55,6 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
-    address public s_token;
-
-    /**
-     * @inheritdoc IODefaultOperatorRewards
-     */
     uint48 public s_operatorShare;
 
     /**
@@ -92,7 +87,6 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
     constructor(address network, address networkMiddlewareService, address token, uint48 operatorShare) {
         i_network = network;
         i_networkMiddlewareService = networkMiddlewareService;
-        s_token = token;
         s_operatorShare = operatorShare;
     }
 
@@ -104,13 +98,14 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         uint48 eraIndex,
         uint256 amount,
         uint256 totalPointsToken,
-        bytes32 root
+        bytes32 root,
+        address tokenAddress
     ) external nonReentrant onlyMiddleware {
         if (amount > 0) {
             // Check if the amount being sent is greater than 0
-            uint256 balanceBefore = IERC20(s_token).balanceOf(address(this));
-            IERC20(s_token).safeTransferFrom(msg.sender, address(this), amount);
-            amount = IERC20(s_token).balanceOf(address(this)) - balanceBefore;
+            uint256 balanceBefore = IERC20(tokenAddress).balanceOf(address(this));
+            IERC20(tokenAddress).safeTransferFrom(msg.sender, address(this), amount);
+            amount = IERC20(tokenAddress).balanceOf(address(this)) - balanceBefore;
 
             if (amount == 0) {
                 revert ODefaultOperatorRewards__InsufficientTransfer();
@@ -124,13 +119,19 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         // We need to calculate how much each point is worth in tokens
         uint256 tokensPerPoint = amount / totalPointsToken; // TODO: To change/check the math.
 
-        EraRoot memory eraRoot = EraRoot({epoch: epoch, amount: amount, tokensPerPoint: tokensPerPoint, root: root});
+        EraRoot memory eraRoot = EraRoot({
+            epoch: epoch,
+            amount: amount,
+            tokensPerPoint: tokensPerPoint,
+            root: root,
+            tokenAddress: tokenAddress
+        });
         // We store the eraRoot struct which contains useful information for the claimRewards function and for UI
         // We store also the eraIndex in an array to be able to get all the eras for each epoch
         s_eraRoot[eraIndex] = eraRoot;
         s_eraIndexesPerEpoch[epoch].push(eraIndex);
 
-        emit DistributeRewards(eraIndex, epoch, tokensPerPoint, amount, root);
+        emit DistributeRewards(eraIndex, epoch, tokenAddress, tokensPerPoint, amount, root);
     }
 
     /**
@@ -139,9 +140,10 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
     function claimRewards(
         ClaimRewardsInput calldata input
     ) external nonReentrant returns (uint256 amount) {
-        bytes32 root_ = s_eraRoot[input.eraIndex].root;
-        uint48 epoch = s_eraRoot[input.eraIndex].epoch;
-        if (root_ == bytes32(0)) {
+        EraRoot memory eraRoot = s_eraRoot[input.eraIndex];
+        uint48 epoch = eraRoot.epoch;
+        address tokenAddress = eraRoot.tokenAddress;
+        if (eraRoot.root == bytes32(0)) {
             revert ODefaultOperatorRewards__RootNotSet();
         }
 
@@ -149,7 +151,7 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         if (
             !MerkleProof.verifyCalldata(
                 input.proof,
-                root_,
+                eraRoot.root,
                 keccak256(abi.encodePacked(input.operatorKey, ScaleCodec.encodeU32(input.totalPointsClaimable)))
             )
         ) {
@@ -162,7 +164,7 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
 
         // Calculate the total amount of tokens that can be claimed which is:
         // total amount of tokens = total points claimable * tokens per point
-        amount = input.totalPointsClaimable * s_eraRoot[input.eraIndex].tokensPerPoint;
+        amount = input.totalPointsClaimable * eraRoot.tokensPerPoint;
 
         // You can only claim everything and if it's claimed before revert
         if (s_claimed[input.eraIndex][recipient] > 0) {
@@ -180,10 +182,12 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         // On every claim send s_operatorShare% of the rewards to the operator
         // And then distribute rewards to the stakers
         // This is gonna send (1-s_operatorShare)% of the rewards
-        IERC20(s_token).safeTransfer(recipient, operatorAmount);
+        IERC20(tokenAddress).safeTransfer(recipient, operatorAmount);
 
-        _distributeRewardsToStakers(epoch, input.eraIndex, stakerAmount, recipient, middlewareAddress, input.data);
-        emit ClaimRewards(recipient, epoch, msg.sender, input.eraIndex, amount);
+        _distributeRewardsToStakers(
+            epoch, input.eraIndex, stakerAmount, recipient, middlewareAddress, tokenAddress, input.data
+        );
+        emit ClaimRewards(recipient, tokenAddress, input.eraIndex, epoch, msg.sender, amount);
     }
 
     function _distributeRewardsToStakers(
@@ -192,6 +196,7 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         uint256 stakerAmount,
         address recipient,
         address middlewareAddress,
+        address tokenAddress,
         bytes calldata data
     ) private {
         uint48 epochStartTs = IMiddleware(middlewareAddress).getEpochStartTs(epoch);
@@ -202,7 +207,7 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         // TODO: Currently it's only for a specific vault. We don't care now about making it able to send rewards for multiple vaults. It's hardcoded to the first vault of the operator.
         if (operatorVaults.length > 0) {
             IODefaultStakerRewards(s_vaultToStakerRewardsContract[operatorVaults[0]]).distributeRewards(
-                epoch, eraIndex, stakerAmount, data
+                epoch, eraIndex, stakerAmount, tokenAddress, data
             );
         }
     }
@@ -242,23 +247,5 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         s_operatorShare = operatorShare;
 
         emit SetOperatorShare(operatorShare);
-    }
-
-    /**
-     * @inheritdoc IODefaultOperatorRewards
-     */
-    function setTokenAddress(
-        address token
-    ) external onlyMiddleware {
-        if (token == address(0)) {
-            revert ODefaultOperatorRewards__InvalidAddress();
-        }
-
-        if (token == s_token) {
-            revert ODefaultOperatorRewards__AlreadySet();
-        }
-        s_token = token;
-
-        emit SetTokenAddress(token);
     }
 }

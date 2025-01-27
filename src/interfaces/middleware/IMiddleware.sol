@@ -303,7 +303,8 @@ interface IMiddleware {
         uint256 eraIndex,
         uint256 totalPointsToken,
         uint256 tokensInflatedToken,
-        bytes32 rewardsRoot
+        bytes32 rewardsRoot,
+        address tokenAddress
     ) external;
 
     /**
