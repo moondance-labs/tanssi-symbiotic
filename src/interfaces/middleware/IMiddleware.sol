@@ -290,14 +290,15 @@ interface IMiddleware {
     ) external;
 
     /**
-     * @notice Distributes rewards
-     * @param epoch The epoch for the rewards distribution
-     * @param eraIndex The era index of the rewards distribution
-     * @param totalPointsToken The total points token
-     * @param tokensInflatedToken The total tokens inflated token
-     * @param rewardsRoot The rewards root
-     * @param tokenAddress The token address
+     * @notice Distribute rewards for a specific era contained in an epoch by providing a Merkle root, total points, total amount of tokens and the token address of the rewards.
+     * @param epoch network epoch of the middleware
+     * @param eraIndex era index of Starlight's rewards distribution
+     * @param totalPointsToken total amount of points for the reward distribution
+     * @param tokensInflatedToken amount of tokens to distribute
+     * @param rewardsRoot Merkle root of the reward distribution
+     * @param tokenAddress The token address of the rewards
      * @dev This function is called by the gateway only
+     * @dev Emit DistributeRewards event.
      */
     function distributeRewards(
         uint256 epoch,
