@@ -163,16 +163,16 @@ interface IODefaultOperatorRewards {
      * @notice Distribute rewards for a specific era contained in an epoch by providing a Merkle root, total points, and total amount of tokens.
      * @param epoch network epoch of the middleware
      * @param eraIndex era index of Starlight's rewards distribution
-     * @param amount amount of tokens to distribute
      * @param totalPointsToken total amount of points for the reward distribution
+     * @param amount amount of tokens to distribute
      * @param root Merkle root of the reward distribution
      * @dev Emit DistributeRewards event.
      */
     function distributeRewards(
         uint48 epoch,
         uint48 eraIndex,
-        uint256 amount,
         uint256 totalPointsToken,
+        uint256 amount,
         bytes32 root
     ) external;
 

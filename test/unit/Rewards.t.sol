@@ -328,7 +328,7 @@ contract RewardsTest is Test {
         vm.startPrank(address(middleware));
         token.approve(address(operatorRewards), type(uint256).max);
         vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidTotalPoints.selector);
-        operatorRewards.distributeRewards(epoch, eraIndex, AMOUNT_TO_DISTRIBUTE, 0, REWARDS_ROOT);
+        operatorRewards.distributeRewards(epoch, eraIndex, 0, AMOUNT_TO_DISTRIBUTE, REWARDS_ROOT);
     }
 
     //**************************************************************************************************
