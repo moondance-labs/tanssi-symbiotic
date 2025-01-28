@@ -63,11 +63,11 @@ jobs:
             echo " Tanssi Middleware contract deployment completed" 
           elif [[ ${{ github.event.inputs.command }} = "register-vault" ]]; then
             echo " Registering Tanssi vault..."
-            forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url ${{ secrets.RPC_URL }} --private-key ${{ secrets.PRIVATE_KEY }} --broadcast 
+            forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url ${{ secrets.RPC_URL }} --private-key ${{ secrets.PRIVATE_KEY }} --broadcast --sig "registerVault()"
             echo " Tanssi vault registration completed" 
           elif [[ ${{ github.event.inputs.command }} = "deploy-vault" ]]; then
             echo " Deploying Tanssi vaults..."
-            forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url ${{ secrets.RPC_URL }} --private-key ${{ secrets.PRIVATE_KEY }} --broadcast --sig "deployVaults()"
+            forge script script/DeployVault.s.sol:DeployVault --rpc-url ${{ secrets.RPC_URL }} --private-key ${{ secrets.PRIVATE_KEY }} --broadcast --sig "deployVault()"
             echo " Tanssi vaults deployment completed" 
           elif [[ ${{ github.event.inputs.command }} = "opt-in-by-network-to-vault" ]]; then
             echo " Opting in by Tanssi network to vault..."
