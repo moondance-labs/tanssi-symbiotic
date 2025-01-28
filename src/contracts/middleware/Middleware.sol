@@ -341,26 +341,18 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     }
 
     /**
-     * inheritdoc IMiddleware
-     */
-    function setRewardTokenAddress(
-        address rewardTokenAddress
-    ) external onlyOwner onlyIfOperatorRewardSet {
-        IODefaultOperatorRewards(s_operatorRewards).setTokenAddress(rewardTokenAddress);
-    }
-
-    /**
-     * inheritdoc IMiddleware
+     * @inheritdoc IMiddleware
      */
     function distributeRewards(
         uint256 epoch,
         uint256 eraIndex,
         uint256 totalPointsToken,
         uint256 tokensInflatedToken,
-        bytes32 rewardsRoot
+        bytes32 rewardsRoot,
+        address tokenAddress
     ) external onlyGateway onlyIfOperatorRewardSet {
         IODefaultOperatorRewards(s_operatorRewards).distributeRewards(
-            uint48(epoch), uint48(eraIndex), tokensInflatedToken, totalPointsToken, rewardsRoot
+            uint48(epoch), uint48(eraIndex), tokensInflatedToken, totalPointsToken, rewardsRoot, tokenAddress
         );
     }
 
@@ -542,7 +534,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
             mstore(keys, valIdx)
         }
 
-        s_gateway.sendOperatorsData(keys);
+        s_gateway.sendOperatorsData(keys, epoch);
     }
 
     /**

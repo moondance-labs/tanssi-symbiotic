@@ -34,18 +34,30 @@ interface IODefaultOperatorRewards {
      * @dev The Merkle tree's leaves must represent an account and a claimable amount (the total amount of the reward tokens for the whole time).
      */
     event DistributeRewards(
-        uint48 indexed epoch, uint48 indexed eraIndex, uint256 tokensPerPoint, uint256 amount, bytes32 indexed root
+        uint48 indexed epoch,
+        uint48 indexed eraIndex,
+        address indexed tokenAddress,
+        uint256 tokensPerPoint,
+        uint256 amount,
+        bytes32 root
     );
 
     /**
      * @notice Emitted when rewards are claimed by a particular account.
      * @param recipient address of the rewards' recipient
+     * @param tokenAddress address of the reward token
+     * @param eraIndex era index of Starlight's rewards distribution
      * @param epoch network epoch of the middleware
      * @param claimer address of the rewards' claimer
      * @param amount amount of tokens claimed
      */
     event ClaimRewards(
-        address indexed recipient, uint48 epoch, address indexed claimer, uint48 indexed eraIndex, uint256 amount
+        address indexed recipient,
+        address indexed tokenAddress,
+        uint48 indexed eraIndex,
+        uint48 epoch,
+        address claimer,
+        uint256 amount
     );
 
     /**
@@ -73,12 +85,14 @@ interface IODefaultOperatorRewards {
      * @param amount amount of tokens received per eraIndex
      * @param tokensPerPoint amount of tokens per point
      * @param root Merkle root of the rewards distribution
+     * @param tokenAddress address of the reward token
      */
     struct EraRoot {
         uint48 epoch;
         uint256 amount;
         uint256 tokensPerPoint;
         bytes32 root;
+        address tokenAddress;
     }
 
     /**
@@ -111,12 +125,6 @@ interface IODefaultOperatorRewards {
     function i_network() external view returns (address);
 
     /**
-     * @notice Get the token's address.
-     * @return address of the reward token
-     */
-    function s_token() external view returns (address);
-
-    /**
      * @notice Get the operator share.
      * @return operator share
      */
@@ -129,10 +137,14 @@ interface IODefaultOperatorRewards {
      * @return amount of tokens that can be claimed
      * @return tokensPerPoints amount of tokens per point
      * @return root Merkle root of the reward distribution
+     * @return tokenAddress address of the reward token
      */
     function s_eraRoot(
         uint48 eraIndex
-    ) external view returns (uint48 epoch, uint256 amount, uint256 tokensPerPoints, bytes32 root);
+    )
+        external
+        view
+        returns (uint48 epoch, uint256 amount, uint256 tokensPerPoints, bytes32 root, address tokenAddress);
 
     /**
      * @notice Get an array of era indexes for a particular epoch.
@@ -166,6 +178,7 @@ interface IODefaultOperatorRewards {
      * @param totalPointsToken total amount of points for the reward distribution
      * @param amount amount of tokens to distribute
      * @param root Merkle root of the reward distribution
+     * @param tokenAddress address of the reward token
      * @dev Emit DistributeRewards event.
      */
     function distributeRewards(
@@ -173,7 +186,8 @@ interface IODefaultOperatorRewards {
         uint48 eraIndex,
         uint256 totalPointsToken,
         uint256 amount,
-        bytes32 root
+        bytes32 root,
+        address tokenAddress
     ) external;
 
     /**
@@ -206,13 +220,5 @@ interface IODefaultOperatorRewards {
      */
     function setOperatorShare(
         uint48 operatorShare
-    ) external;
-
-    /**
-     * @notice Set the address of the reward token
-     * @param token address of the reward token
-     */
-    function setTokenAddress(
-        address token
     ) external;
 }

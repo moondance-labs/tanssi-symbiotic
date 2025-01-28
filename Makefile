@@ -14,15 +14,19 @@ clean-all :; forge clean && rm -rf broadcast && rm -rf cache
 # Remove modules
 remove :; rm -rf .gitmodules && rm -rf .git/modules/* && rm -rf lib && touch .gitmodules
 
-install :; 	forge install foundry-rs/forge-std@v1.8.2 --no-commit && \
-			forge install openzeppelin/openzeppelin-contracts@v5.0.2 --no-commit && \
-			forge install openzeppelin/openzeppelin-contracts-upgradeable@v5.0.2 --no-commit && \
-			forge install symbioticfi/core --no-commit  && \
-			forge install symbioticfi/collateral --no-commit  && \
-			forge install symbioticfi/rewards --no-commit  && \
-			forge install Cyfrin/foundry-devops --no-commit && \
-			forge install PaulRBerg/prb-math@release-v4 --no-commit &&\
-			forge install moondance-labs/tanssi-bridge-relayer --no-commit --no-git && \
+# TODO: This changes the commit of the submodules which we don't want.
+# install :; 	forge install foundry-rs/forge-std@v1.8.2 --no-commit && \
+# 			forge install openzeppelin/openzeppelin-contracts@v5.0.2 --no-commit && \
+# 			forge install openzeppelin/openzeppelin-contracts-upgradeable@v5.0.2 --no-commit && \
+# 			forge install symbioticfi/core --no-commit && \
+# 			forge install symbioticfi/collateral --no-commit && \
+# 			forge install symbioticfi/rewards --no-commit && \
+# 			forge install Cyfrin/foundry-devops --no-commit && \
+# 			forge install PaulRBerg/prb-math@release-v4 --no-commit&&\
+# 			forge install moondance-labs/tanssi-bridge-relayer --no-commit --no-git && \
+# 			cd lib/tanssi-bridge-relayer && ./add_overridden_contracts.sh
+
+install :; 	git submodule update --init --recursive && \
 			cd lib/tanssi-bridge-relayer && ./add_overridden_contracts.sh
 
 
