@@ -294,10 +294,10 @@ contract DeployTanssiEcosystem is Script {
     }
 
     function registerVault(
-        address vaultConfiguratorAddress
-    ) {
+        address vaultAddress
+    ) external {
         vm.startBroadcast(ownerPrivateKey);
-        ecosystemEntities.vaultConfigurator = IVaultConfigurator(vaultConfiguratorAddress);
+        ecosystemEntities.middleware.registerVault(vaultAddress);
         vm.stopBroadcast();
     }
 
