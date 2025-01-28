@@ -293,7 +293,17 @@ contract DeployTanssiEcosystem is Script {
         console2.log("Slasher Vetoed: ", vaultAddresses.slasherVetoed);
     }
 
+    function optInByNetworkToVault(
+         address operatorNetworkOptInServiceAddress,
+         address vaultAddress
+    ) external {
+        IOptInService operatorNetworkOptInService = IOptInService(operatorNetworkOptInServiceAddress);
 
+        vm.startBroadcast(ownerPrivateKey);
+        isTest = false;
+        operatorNetworkOptInService.optIn(vaultAddress);
+        vm.stopBroadcast();
+    }
 
     function registerMiddlewareToSymbiotic(address networkMiddlewareServiceAddress) external {
         INetworkMiddlewareService networkMiddlewareService = INetworkMiddlewareService(networkMiddlewareServiceAddress);
