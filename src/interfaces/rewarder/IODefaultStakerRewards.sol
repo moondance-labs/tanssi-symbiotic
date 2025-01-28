@@ -45,22 +45,39 @@ interface IODefaultStakerRewards {
         address adminFeeSetRoleHolder;
         address operatorRewardsRoleHolder;
     }
+    /**
+     * @notice Reward data structure.
+     * @param amount amount of tokens
+     * @param tokenAddress address of the reward token
+     */
+
+    struct Reward {
+        uint256 amount;
+        address tokenAddress;
+    }
 
     /**
      * @notice Emitted when a reward is distributed.
      * @param network network on behalf of which the reward is distributed
+     * @param tokenAddress address of the reward token
      * @param eraIndex era index of Starlight's rewards distribution
      * @param epoch epoch of the reward distribution
      * @param amount amount of tokens
      * @param data some used data
      */
     event DistributeRewards(
-        address indexed network, uint48 indexed eraIndex, uint48 indexed epoch, uint256 amount, bytes data
+        address network,
+        address indexed tokenAddress,
+        uint48 indexed eraIndex,
+        uint48 indexed epoch,
+        uint256 amount,
+        bytes data
     );
 
     /**
      * @notice Emitted when rewards are claimed.
      * @param network address of the network
+     * @param tokenAddress address of the reward token
      * @param claimer account that claimed the reward
      * @param epoch epoch of the reward
      * @param recipient account that received the reward
@@ -69,7 +86,8 @@ interface IODefaultStakerRewards {
      * @param amount amount of tokens claimed
      */
     event ClaimRewards(
-        address indexed network,
+        address network,
+        address indexed tokenAddress,
         address indexed claimer,
         uint48 indexed epoch,
         address recipient,
@@ -81,9 +99,10 @@ interface IODefaultStakerRewards {
     /**
      * @notice Emitted when an admin fee is claimed.
      * @param recipient account that received the fee
+     * @param tokenAddress address of the reward token
      * @param amount amount of the fee claimed
      */
-    event ClaimAdminFee(address indexed recipient, uint256 amount);
+    event ClaimAdminFee(address indexed recipient, address indexed tokenAddress, uint256 amount);
 
     /**
      * @notice Emitted when an admin fee is set.
@@ -135,12 +154,6 @@ interface IODefaultStakerRewards {
     function i_networkMiddlewareService() external view returns (address);
 
     /**
-     * @notice Get the token's address.
-     * @return address of the reward token
-     */
-    function i_token() external view returns (address);
-
-    /**
      * @notice Get the start time of network epoch.
      * @return start time of the epoch
      */
@@ -173,27 +186,32 @@ interface IODefaultStakerRewards {
     /**
      * @notice Get a specific reward for a given epoch.
      * @param epoch The epoch of the reward.
+     * @param tokenAddress The address of the token for the specified reward.
      * @param index The index of the reward for the epoch.
      * @return amount The amount of tokens for the specified reward.
      */
-    function s_rewards(uint48 epoch, uint256 index) external view returns (uint256 amount);
+    function s_rewards(uint48 epoch, address tokenAddress, uint256 index) external view returns (uint256 amount);
 
     /**
      * @notice Get the first index of the unclaimed rewards using a given epoch for a given account.
      * @param account address of the account
      * @param epoch epoch to check for unclaimed rewards
-     * @return first index of the unclaimed rewards
+     * @param tokenAddress address of the token for the rewards
+     * @return rewardIndex first index of the unclaimed rewards
      */
-    function s_lastUnclaimedReward(address account, uint48 epoch) external view returns (uint256);
+    function s_lastUnclaimedReward(
+        address account,
+        uint48 epoch,
+        address tokenAddress
+    ) external view returns (uint256 rewardIndex);
 
     /**
      * @notice Get a claimable admin fee amount for a given epoch.
      * @param epoch epoch for which the admin fee can be claimed
-     * @return claimable admin fee
+     * @param tokenAddress address of the token for the admin fee
+     * @return amount claimable admin fee
      */
-    function s_claimableAdminFee(
-        uint48 epoch
-    ) external view returns (uint256);
+    function s_claimableAdminFee(uint48 epoch, address tokenAddress) external view returns (uint256 amount);
 
     /**
      * @dev Added to allow to calculate timestamp in order to access activeSharesOfAt
@@ -208,45 +226,59 @@ interface IODefaultStakerRewards {
     /**
      * @notice Get a total number of rewards for a given epoch.
      * @param epoch epoch of the rewards
+     * @param tokenAddress address of the reward token
      * @return total number of the rewards for a given epoch
      */
-    function rewardsLength(
-        uint48 epoch
-    ) external view returns (uint256);
+    function rewardsLength(uint48 epoch, address tokenAddress) external view returns (uint256);
 
     /**
      * @notice Get an amount of rewards claimable by a particular account for a given epoch.
      * @param epoch epoch for which the rewards can be claimed
      * @param account address of the claimer
      * @param maxRewards maximum number of rewards to claim
+     * @param tokenAddress address of the reward token
      * @return amount of claimable tokens
      */
-    function claimable(uint48 epoch, address account, uint256 maxRewards) external view returns (uint256);
+    function claimable(
+        uint48 epoch,
+        address account,
+        uint256 maxRewards,
+        address tokenAddress
+    ) external view returns (uint256);
 
     /**
      * @notice Distribute rewards for a particular epoch
      * @param epoch epoch of the reward distribution
      * @param eraIndex era index of Starlight's rewards distribution
      * @param amount amount of tokens
+     * @param tokenAddress address of the reward token
      * @param data some data to use
      */
-    function distributeRewards(uint48 epoch, uint48 eraIndex, uint256 amount, bytes calldata data) external;
+    function distributeRewards(
+        uint48 epoch,
+        uint48 eraIndex,
+        uint256 amount,
+        address tokenAddress,
+        bytes calldata data
+    ) external;
 
     /**
      * @notice Claim rewards for a given epoch.
      * @param recipient address of the tokens' recipient
      * @param epoch epoch for which the rewards are being claimed.
+     * @param tokenAddress address of the reward token
      * @param data some data to use
      */
-    function claimRewards(address recipient, uint48 epoch, bytes calldata data) external;
+    function claimRewards(address recipient, uint48 epoch, address tokenAddress, bytes calldata data) external;
 
     /**
      * @notice Claim an admin fee.
      * @param recipient account that will receive the fee
      * @param epoch epoch for which the fee is being claimed
+     * @param tokenAddress address of the token for the admin fee
      * @dev Only the vault owner can call this function.
      */
-    function claimAdminFee(address recipient, uint48 epoch) external;
+    function claimAdminFee(address recipient, uint48 epoch, address tokenAddress) external;
 
     /**
      * @notice Set an admin fee.
