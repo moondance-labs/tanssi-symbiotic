@@ -6,6 +6,9 @@ on:
       sha:
         description: full sha to deploy the contracts from
         required: true
+      vault-address:
+        description: address of the vault contract (used for register-vault command)
+        required: false
       command:
         description: list of available commands to run
         required: true
@@ -20,17 +23,27 @@ on:
 
 env:
   FOUNDRY_PROFILE: ci
-
+  
 jobs:
   deploy:
     strategy:
       fail-fast: true
     name: Contracts deployment
     runs-on: ubuntu-latest
+    env:
+      ETH_RPC_URL: "https://eth.llamarpc.com"
+      HOLESKY_RPC_URL: "https://holesky.drpc.org"
+      OWNER_PRIVATE_KEY: ${{ secrets.OWNER_PRIVATE_KEY }}
+      NETWORK_PRIVATE_KEY: ${{ secrets.NETWORK_PRIVATE_KEY }}
+      RESOLVER_PRIVATE_KEY: ${{ secrets.RESOLVER_PRIVATE_KEY }}
+      OPERATOR_PRIVATE_KEY: ${{ secrets.OPERATOR_PRIVATE_KEY }}
+      VAULT_ADDRESS: ${{ github.event.inputs.vault-address }}
+
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+          ref: ${{ github.event.inputs.sha }}
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -59,22 +72,22 @@ jobs:
         run: |
           if [[ ${{ github.event.inputs.command }} = "deploy-middleware" ]]; then
             echo " Deploying Tanssi Middleware contract..."
-            forge script script/DeployTanssiEcosystem.sol:DeployTanssiEcosystem --rpc-url ${{ secrets.RPC_URL }} --private-key ${{ secrets.PRIVATE_KEY }} --broadcast
+            forge script script/DeployTanssiEcosystem.sol:DeployTanssiEcosystem --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast
             echo " Tanssi Middleware contract deployment completed" 
           elif [[ ${{ github.event.inputs.command }} = "register-vault" ]]; then
             echo " Registering Tanssi vault..."
-            forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url ${{ secrets.RPC_URL }} --private-key ${{ secrets.PRIVATE_KEY }} --broadcast --sig "registerVault()"
+            forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "registerVault(address)" $VAULT_ADDRESS
             echo " Tanssi vault registration completed" 
           elif [[ ${{ github.event.inputs.command }} = "deploy-vault" ]]; then
             echo " Deploying Tanssi vaults..."
-            forge script script/DeployVault.s.sol:DeployVault --rpc-url ${{ secrets.RPC_URL }} --private-key ${{ secrets.PRIVATE_KEY }} --broadcast --sig "deployVault()"
+            forge script script/DeployVault.s.sol:DeployVault --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "deployVault()"
             echo " Tanssi vaults deployment completed" 
           elif [[ ${{ github.event.inputs.command }} = "opt-in-by-network-to-vault" ]]; then
             echo " Opting in by Tanssi network to vault..."
-            forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url ${{ secrets.RPC_URL }} --private-key ${{ secrets.PRIVATE_KEY }} --broadcast --sig "optInByNetworkToVault()"
+            forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "optInByNetworkToVault()"
             echo " Tanssi opted in to vault"
           elif [[ ${{ github.event.inputs.command }} = "register-middleware-to-symbiotic" ]]; then 
             echo " Registering Tanssi Middleware contract to Symbiotic..."
-            forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url ${{ secrets.RPC_URL }} --private-key ${{ secrets.PRIVATE_KEY }} --broadcast --sig "registerMiddlewareToSymbiotic()"
+            forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "registerMiddlewareToSymbiotic()"
             echo " Tanssi Middleware contract registration completed" 
           fi
