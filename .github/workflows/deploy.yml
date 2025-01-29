@@ -5,21 +5,51 @@ on:
     inputs:
       sha:
         description: full sha to deploy the contracts from
+        type: string
         required: true
       vault-address:
         description: address of the vault contract (used for register-vault command)
+        type: string
         required: false
       middleware-address:
         description: address of the middleware contract (used for register-vault command)
+        type: string
         required: false
       operator-registry-address:
-        description: address of the operator registry address (used for deploy-middleware command)
+        description: address of the operator registry (used for deploy-middleware command)
+        type: string
         required: false
       vault-registry-address:
-        description: address of the vault registry address (used for deploy-middleware command)
+        description: address of the vault registry (used for deploy-middleware command)
+        type: string
         required: false
       operator-netowrk-opt-in-address:
-        description: address of the operator network opt in address (used for deploy-middleware command)
+        description: address of the operator network opt in  (used for deploy-middleware command)
+        type: string
+        required: false
+      vault-configurator-address:
+        description: address of the vault configurator (used for deploy-vault)
+        type: string
+        required: false
+      vaulut-owner-address:
+        description: address of the vault owner (used for deploy-vault)
+        type: string
+        required: false
+      vault-collateral-address:
+        description: address of the vault collateral (used for deploy-vault)
+        type: string
+        required: false
+      vault-is-slashable:
+        description: specifies if vault is slashable (used for deploy-vault)
+        type: boolean
+        required: false
+      vault-slasher-index:
+        description: specifies the vault slasher index (used for deploy-vault)
+        type: number
+        required: false
+      vault-veto-duration:
+        description: specifies the vault veto duration (used for deploy-vault)
+        type: number
         required: false
       command:
         description: list of available commands to run
@@ -28,8 +58,8 @@ on:
         default: deploy-middleware
         options:
           - deploy-middleware
-          - register-vault
           - deploy-vault
+          - register-vault
           - register-middleware-to-symbiotic
 
 env:
@@ -53,6 +83,12 @@ jobs:
       OPERATOR_REGISTRY_ADDRESS: ${{ github.event.inputs.operator-registry-address }}
       VAULT_REGISTRY_ADDRESS: ${{ github.event.inputs.vault-registry-address }}
       OPERATOR_NETWORK_OPT_IN_ADDRESS: ${{ github.event.inputs.operator-netowrk-opt-in-address }}
+      VAULT_CONFIGURATOR_ADDRESS: ${{ github.event.inputs.vault-configurator-address }}
+      OWNER_ADDRESS: ${{ github.event.inputs.vaulut-owner-address }}
+      COLLATERAL_ADDRESS: ${{ github.event.inputs.vault-collateral-address }}
+      IS_SLASHABLE: ${{ github.event.inputs.vault-is-slashable }}
+      SLASHER_INDEX: ${{ github.event.inputs.vault-slasher-index }}
+      VEOT_DURATION: ${{ github.event.inputs.vault-veto-duration }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -85,19 +121,19 @@ jobs:
       - name: Execute deployment command
         run: |
           if [[ ${{ github.event.inputs.command }} = "deploy-middleware" ]]; then
-            echo " Deploying Tanssi Middleware contract..."
+            echo "Deploying Tanssi Middleware contract..."
             forge script script/DeployTanssiEcosystem.sol:DeployTanssiEcosystem --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "deployMiddleware(address,address,adresss)" $OPERATOR_REGISTRY_ADDRESS $VAULT_REGISTRY_ADDRESS $OPERATOR_NETWORK_OPT_IN_ADDRESS 
-            echo " Tanssi Middleware contract deployment completed" 
-          elif [[ ${{ github.event.inputs.command }} = "register-vault" ]]; then
-            echo " Registering Tanssi vault..."
-            forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "registerVault(address)" $VAULT_ADDRESS
-            echo " Tanssi vault registration completed" 
+            echo "Tanssi Middleware contract deployment completed" 
           elif [[ ${{ github.event.inputs.command }} = "deploy-vault" ]]; then
-            echo " Deploying Tanssi vaults..."
-            forge script script/DeployVault.s.sol:DeployVault --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "run()"
-            echo " Tanssi vaults deployment completed" 
+            echo "Deploying Tanssi vault..."
+            forge script script/DeployVault.s.sol:DeployVault --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "run(address,address,address,uint48,bool,uin256,uint64,bool,uint64,uint48)" $VAULT_CONFIGURATOR_ADDRESS $OWNER_ADDRESS $COLLATERAL_ADDRESS false 0 0 $IS_SLASHABLE $SLASHER_INDEX $VETO_DURATION
+            echo "Tanssi vault deployment completed" 
+          elif [[ ${{ github.event.inputs.command }} = "register-vault" ]]; then
+            echo "Registering Tanssi vault..."
+            forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "registerVault(address)" $VAULT_ADDRESS
+            echo "Tanssi vault registration completed" 
           elif [[ ${{ github.event.inputs.command }} = "register-middleware-to-symbiotic" ]]; then 
-            echo " Registering Tanssi Middleware contract to Symbiotic..."
+            echo "Registering Tanssi Middleware contract to Symbiotic..."
             forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "registerMiddlewareToSymbiotic(address)" $MIDDLEWARE_ADDRESS
-            echo " Tanssi Middleware contract registration completed" 
+            echo "Tanssi Middleware contract registration completed" 
           fi
