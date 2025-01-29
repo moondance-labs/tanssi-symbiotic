@@ -301,15 +301,6 @@ contract DeployTanssiEcosystem is Script {
         vm.stopBroadcast();
     }
 
-    function optInByNetworkToVault(address operatorNetworkOptInServiceAddress, address vaultAddress) external {
-        IOptInService operatorNetworkOptInService = IOptInService(operatorNetworkOptInServiceAddress);
-
-        vm.startBroadcast(ownerPrivateKey);
-        isTest = false;
-        operatorNetworkOptInService.optIn(vaultAddress);
-        vm.stopBroadcast();
-    }
-
     function registerMiddlewareToSymbiotic(
         address networkMiddlewareServiceAddress
     ) external {

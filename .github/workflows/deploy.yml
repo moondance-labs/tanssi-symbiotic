@@ -9,6 +9,9 @@ on:
       vault-address:
         description: address of the vault contract (used for register-vault command)
         required: false
+      middleware-address:
+        description: address of the vault contract (used for register-vault command)
+        required: false
       command:
         description: list of available commands to run
         required: true
@@ -18,7 +21,6 @@ on:
           - deploy-middleware
           - register-vault
           - deploy-vault
-          - opt-in-by-network-to-vault
           - register-middleware-to-symbiotic
 
 env:
@@ -38,7 +40,7 @@ jobs:
       RESOLVER_PRIVATE_KEY: ${{ secrets.RESOLVER_PRIVATE_KEY }}
       OPERATOR_PRIVATE_KEY: ${{ secrets.OPERATOR_PRIVATE_KEY }}
       VAULT_ADDRESS: ${{ github.event.inputs.vault-address }}
-
+      MIDDLEWARE_ADDRESS: ${{ github.event.inputs.middleware-address }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -80,12 +82,8 @@ jobs:
             echo " Tanssi vault registration completed" 
           elif [[ ${{ github.event.inputs.command }} = "deploy-vault" ]]; then
             echo " Deploying Tanssi vaults..."
-            forge script script/DeployVault.s.sol:DeployVault --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "deployVault()"
+            forge script script/DeployVault.s.sol:DeployVault --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "run()"
             echo " Tanssi vaults deployment completed" 
-          elif [[ ${{ github.event.inputs.command }} = "opt-in-by-network-to-vault" ]]; then
-            echo " Opting in by Tanssi network to vault..."
-            forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "optInByNetworkToVault()"
-            echo " Tanssi opted in to vault"
           elif [[ ${{ github.event.inputs.command }} = "register-middleware-to-symbiotic" ]]; then 
             echo " Registering Tanssi Middleware contract to Symbiotic..."
             forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "registerMiddlewareToSymbiotic()"
