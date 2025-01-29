@@ -88,7 +88,7 @@ jobs:
       COLLATERAL_ADDRESS: ${{ github.event.inputs.vault-collateral-address }}
       IS_SLASHABLE: ${{ github.event.inputs.vault-is-slashable }}
       SLASHER_INDEX: ${{ github.event.inputs.vault-slasher-index }}
-      VEOT_DURATION: ${{ github.event.inputs.vault-veto-duration }}
+      VETO_DURATION: ${{ github.event.inputs.vault-veto-duration }}
     steps:
       - uses: actions/checkout@v4
         with:
