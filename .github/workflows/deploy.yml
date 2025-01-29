@@ -10,7 +10,16 @@ on:
         description: address of the vault contract (used for register-vault command)
         required: false
       middleware-address:
-        description: address of the vault contract (used for register-vault command)
+        description: address of the middleware contract (used for register-vault command)
+        required: false
+      operator-registry-address:
+        description: address of the operator registry address (used for deploy-middleware command)
+        required: false
+      vault-registry-address:
+        description: address of the vault registry address (used for deploy-middleware command)
+        required: false
+      operator-netowrk-opt-in-address:
+        description: address of the operator network opt in address (used for deploy-middleware command)
         required: false
       command:
         description: list of available commands to run
@@ -41,6 +50,9 @@ jobs:
       OPERATOR_PRIVATE_KEY: ${{ secrets.OPERATOR_PRIVATE_KEY }}
       VAULT_ADDRESS: ${{ github.event.inputs.vault-address }}
       MIDDLEWARE_ADDRESS: ${{ github.event.inputs.middleware-address }}
+      OPERATOR_REGISTRY_ADDRESS: ${{ github.event.inputs.operator-registry-address }}
+      VAULT_REGISTRY_ADDRESS: ${{ github.event.inputs.vault-registry-address }}
+      OPERATOR_NETWORK_OPT_IN_ADDRESS: ${{ github.event.inputs.operator-netowrk-opt-in-address }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -74,7 +86,7 @@ jobs:
         run: |
           if [[ ${{ github.event.inputs.command }} = "deploy-middleware" ]]; then
             echo " Deploying Tanssi Middleware contract..."
-            forge script script/DeployTanssiEcosystem.sol:DeployTanssiEcosystem --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast
+            forge script script/DeployTanssiEcosystem.sol:DeployTanssiEcosystem --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "deployMiddleware(address,address,adresss)" $OPERATOR_REGISTRY_ADDRESS $VAULT_REGISTRY_ADDRESS $OPERATOR_NETWORK_OPT_IN_ADDRESS 
             echo " Tanssi Middleware contract deployment completed" 
           elif [[ ${{ github.event.inputs.command }} = "register-vault" ]]; then
             echo " Registering Tanssi vault..."
@@ -86,6 +98,6 @@ jobs:
             echo " Tanssi vaults deployment completed" 
           elif [[ ${{ github.event.inputs.command }} = "register-middleware-to-symbiotic" ]]; then 
             echo " Registering Tanssi Middleware contract to Symbiotic..."
-            forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "registerMiddlewareToSymbiotic()"
+            forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "registerMiddlewareToSymbiotic(address)" $MIDDLEWARE_ADDRESS
             echo " Tanssi Middleware contract registration completed" 
           fi

@@ -293,6 +293,24 @@ contract DeployTanssiEcosystem is Script {
         console2.log("Slasher Vetoed: ", vaultAddresses.slasherVetoed);
     }
 
+    function deployMiddleware(
+        address operatorRegistryAddress,
+        address vaultRegistryAddress,
+        address operatorNetworkOptInServiceAddress
+    ) external {
+        vm.startBroadcast(ownerPrivateKey);
+        ecosystemEntities.middleware = new Middleware(
+            tanssi,
+            operatorRegistryAddress,
+            vaultRegistryAddress,
+            operatorNetworkOptInServiceAddress,
+            tanssi,
+            NETWORK_EPOCH_DURATION,
+            SLASHING_WINDOW
+        );
+        vm.stopBroadcast();
+    }
+
     function registerVault(
         address vaultAddress
     ) external {
@@ -306,7 +324,6 @@ contract DeployTanssiEcosystem is Script {
     ) external {
         INetworkMiddlewareService networkMiddlewareService = INetworkMiddlewareService(networkMiddlewareServiceAddress);
         vm.startBroadcast(ownerPrivateKey);
-        isTest = false;
         networkMiddlewareService.setMiddleware(address(ecosystemEntities.middleware));
         vm.stopBroadcast();
     }
