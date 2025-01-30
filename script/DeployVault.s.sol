@@ -97,7 +97,7 @@ contract DeployVault is Script {
         uint64 slasherIndex,
         bool withSlasher,
         uint48 vetoDuration
-    ) public returns (address vault_, address delegator_, address slasher_) {
+    ) private returns (address vault_, address delegator_, address slasher_) {
         if (address(params.vaultConfigurator) == address(0) || address(params.collateral) == address(0)) {
             revert DeployVault__VaultConfiguratorOrCollateralNotDeployed();
         }

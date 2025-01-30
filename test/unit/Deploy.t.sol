@@ -46,6 +46,7 @@ import {HelperConfig} from "script/HelperConfig.s.sol";
 contract DeployTest is Test {
     using Subnetwork for address;
 
+    uint48 public constant VAULT_EPOCH_DURATION = 12 days;
     address constant ZERO_ADDRESS = address(0);
     string constant HOLESKY_RPC = "https://ethereum-holesky-rpc.publicnode.com";
     DeployCollateral deployCollateral;
@@ -95,7 +96,7 @@ contract DeployTest is Test {
         deployCollateral.run();
     }
 
-    function testDeploySymbiotic() public {
+    function testDeploySymbioticBroadcast() public {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
         assertNotEq(addresses.vaultFactory, ZERO_ADDRESS);
         assertNotEq(addresses.delegatorFactory, ZERO_ADDRESS);
@@ -121,6 +122,17 @@ contract DeployTest is Test {
 
         Vm.Log[] memory entries = vm.getRecordedLogs();
 
+        for (uint256 i = 0; i < entries.length; i++) {
+            assertNotEq(entries[i].topics[0], DeploySymbiotic.DeploySymbiotic__VaultsAddresseslNotDeployed.selector);
+        }
+    }
+
+    function testDeploySymbioticRun() public {
+        vm.recordLogs();
+        deploySymbiotic.setCollateral(deployCollateral.deployCollateral("Test"));
+        deploySymbiotic.run();
+
+        Vm.Log[] memory entries = vm.getRecordedLogs();
         for (uint256 i = 0; i < entries.length; i++) {
             assertNotEq(entries[i].topics[0], DeploySymbiotic.DeploySymbiotic__VaultsAddresseslNotDeployed.selector);
         }
@@ -485,5 +497,121 @@ contract DeployTest is Test {
         assertEq(middleware.i_epochDuration(), deployTanssiEcosystem.NETWORK_EPOCH_DURATION());
         assertEq(middleware.i_slashingWindow(), deployTanssiEcosystem.SLASHING_WINDOW());
         vm.stopPrank();
+    }
+
+    function testDeployVaultWithVaultConfiguratorEmpty() public {
+        (Middleware middleware, IVaultConfigurator vaultConfigurator, address defaultCollateralAddress) =
+            deployTanssiEcosystem.ecosystemEntities();
+
+        DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
+            epochDuration: VAULT_EPOCH_DURATION,
+            depositWhitelist: false,
+            depositLimit: 0,
+            delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
+            shouldBroadcast: false,
+            vaultConfigurator: address(0),
+            collateral: address(1),
+            owner: tanssi
+        });
+
+        vm.expectRevert(DeployVault.DeployVault__VaultConfiguratorOrCollateralNotDeployed.selector);
+        deployVault.createBaseVault(params);
+    }
+
+    function testDeployVaultWithCollateralEmpty() public {
+        (Middleware middleware, IVaultConfigurator vaultConfigurator, address defaultCollateralAddress) =
+            deployTanssiEcosystem.ecosystemEntities();
+
+        DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
+            epochDuration: VAULT_EPOCH_DURATION,
+            depositWhitelist: false,
+            depositLimit: 0,
+            delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
+            shouldBroadcast: false,
+            vaultConfigurator: address(vaultConfigurator),
+            collateral: address(0),
+            owner: tanssi
+        });
+
+        vm.expectRevert(DeployVault.DeployVault__VaultConfiguratorOrCollateralNotDeployed.selector);
+        deployVault.createBaseVault(params);
+    }
+
+    function testDeployVaultRun() public {
+        vm.recordLogs();
+        (Middleware middleware, IVaultConfigurator vaultConfigurator, address defaultCollateralAddress) =
+            deployTanssiEcosystem.ecosystemEntities();
+
+        deployVault.run(address(vaultConfigurator), tanssi, address(1), VAULT_EPOCH_DURATION, false, 0, 0, false, 0, 0);
+
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        for (uint256 i = 0; i < entries.length; i++) {
+            assertNotEq(
+                entries[i].topics[0], DeployVault.DeployVault__VaultConfiguratorOrCollateralNotDeployed.selector
+            );
+        }
+    }
+
+    function testDeployVaultWithIndex1() public {
+        vm.recordLogs();
+        (Middleware middleware, IVaultConfigurator vaultConfigurator, address defaultCollateralAddress) =
+            deployTanssiEcosystem.ecosystemEntities();
+
+        deployVault.run(address(vaultConfigurator), tanssi, address(1), VAULT_EPOCH_DURATION, false, 0, 1, false, 0, 0);
+
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        for (uint256 i = 0; i < entries.length; i++) {
+            assertNotEq(
+                entries[i].topics[0], DeployVault.DeployVault__VaultConfiguratorOrCollateralNotDeployed.selector
+            );
+        }
+    }
+
+    function testDeployVaultWithIndex2() public {
+        vm.recordLogs();
+        (Middleware middleware, IVaultConfigurator vaultConfigurator, address defaultCollateralAddress) =
+            deployTanssiEcosystem.ecosystemEntities();
+
+        IRegistry operatorRegistry = IRegistry(middleware.i_operatorRegistry());
+        vm.mockCall(
+            address(operatorRegistry), abi.encodeWithSelector(operatorRegistry.isEntity.selector), abi.encode(true)
+        );
+        deployVault.run(address(vaultConfigurator), tanssi, address(1), VAULT_EPOCH_DURATION, false, 0, 2, false, 0, 0);
+
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        for (uint256 i = 0; i < entries.length; i++) {
+            assertNotEq(
+                entries[i].topics[0], DeployVault.DeployVault__VaultConfiguratorOrCollateralNotDeployed.selector
+            );
+        }
+    }
+
+    function testDeployVaultDirectCall() public {
+        vm.recordLogs();
+
+        (Middleware middleware, IVaultConfigurator vaultConfigurator, address defaultCollateralAddress) =
+            deployTanssiEcosystem.ecosystemEntities();
+
+        DeployVault.VaultDeployParams memory deployParams = DeployVault.VaultDeployParams({
+            vaultConfigurator: address(vaultConfigurator),
+            owner: tanssi,
+            collateral: address(1),
+            epochDuration: VAULT_EPOCH_DURATION,
+            depositWhitelist: false,
+            depositLimit: 0,
+            delegatorIndex: uint64(0),
+            withSlasher: true,
+            slasherIndex: 0,
+            vetoDuration: 0
+        });
+
+        deployVault.deployVault(deployParams);
+
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        for (uint256 i = 0; i < entries.length; i++) {
+            assertNotEq(
+                entries[i].topics[0], DeployVault.DeployVault__VaultConfiguratorOrCollateralNotDeployed.selector
+            );
+        }
     }
 }
