@@ -31,6 +31,7 @@ import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {IDefaultCollateralFactory} from
     "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateralFactory.sol";
 
+import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {Token} from "test/mocks/Token.sol";
 import {DeployCollateral} from "./DeployCollateral.s.sol";
@@ -279,6 +280,11 @@ contract DeployTanssiEcosystem is Script {
         _registerEntitiesToMiddleware();
         networkMiddlewareService.setMiddleware(address(ecosystemEntities.middleware));
 
+        ODefaultOperatorRewards operatorRewards =
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), 20);
+
+        ecosystemEntities.middleware.setOperatorRewardsContract(address(operatorRewards));
+
         console2.log("VaultConfigurator: ", address(ecosystemEntities.vaultConfigurator));
         console2.log("OperatorRegistry: ", address(operatorRegistry));
         console2.log("NetworkRegistry: ", address(networkRegistry));
@@ -288,6 +294,7 @@ contract DeployTanssiEcosystem is Script {
         console2.log("DefaultCollateralFactory: ", address(defaultCollateralFactory));
         console2.log("DefaultCollateral: ", ecosystemEntities.defaultCollateralAddress);
         console2.log("Middleware: ", address(ecosystemEntities.middleware));
+        console2.log("OperatorRewards: ", address(operatorRewards));
         console2.log("Vault: ", vaultAddresses.vault);
         console2.log("Delegator: ", vaultAddresses.delegator);
         console2.log("Slasher: ", vaultAddresses.slasher);

@@ -1188,14 +1188,11 @@ contract MiddlewareTest is Test {
         token.transfer(address(middleware), 1000);
 
         ODefaultOperatorRewards operatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), address(token), OPERATOR_SHARE);
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
 
         vm.startPrank(owner);
         middleware.setOperatorRewardsContract(address(operatorRewards));
         middleware.setGateway(gateway);
-
-        vm.startPrank(address(middleware));
-        token.approve(address(operatorRewards), 1000);
 
         uint256 epoch = 0;
         uint256 eraIndex = 0;
@@ -1221,6 +1218,33 @@ contract MiddlewareTest is Test {
         middleware.distributeRewards(epoch, eraIndex, totalPointsToken, tokensInflatedToken, rewardsRoot, tokenAddress);
     }
 
+    function testDistributeRewardsWithInsufficientBalance() public {
+        uint48 OPERATOR_SHARE = 20;
+
+        uint256 epoch = 0;
+        uint256 eraIndex = 0;
+        uint256 totalPointsToken = 100;
+        uint256 tokensInflatedToken = 1000;
+        bytes32 rewardsRoot = 0x4b0ddd8b9b8ec6aec84bcd2003c973254c41d976f6f29a163054eec4e7947810;
+        address gateway = makeAddr("Gateway");
+
+        Token token = new Token("Test");
+        token.transfer(address(middleware), 800);
+
+        ODefaultOperatorRewards operatorRewards =
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
+
+        vm.startPrank(owner);
+        middleware.setOperatorRewardsContract(address(operatorRewards));
+        middleware.setGateway(gateway);
+
+        vm.startPrank(gateway);
+        vm.expectRevert(IMiddleware.Middleware__InsufficientBalance.selector);
+        middleware.distributeRewards(
+            epoch, eraIndex, totalPointsToken, tokensInflatedToken, rewardsRoot, address(token)
+        );
+    }
+
     // ************************************************************************************************
     // *                                  SET REWARDS CONTRACTS
     // ************************************************************************************************
@@ -1230,7 +1254,7 @@ contract MiddlewareTest is Test {
         Token token = new Token("Test");
 
         ODefaultOperatorRewards operatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), address(token), OPERATOR_SHARE);
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
 
         vm.startPrank(owner);
         vm.expectEmit(true, true, false, true);
@@ -1552,7 +1576,7 @@ contract MiddlewareTest is Test {
         address stakerRewardAddress = makeAddr("StakerRewardAddress");
 
         ODefaultOperatorRewards operatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), address(token), OPERATOR_SHARE);
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
 
         vm.startPrank(owner);
         middleware.setOperatorRewardsContract(address(operatorRewards));
@@ -1574,7 +1598,7 @@ contract MiddlewareTest is Test {
         Token token = new Token("Test");
 
         ODefaultOperatorRewards operatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), address(token), OPERATOR_SHARE);
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
 
         vm.startPrank(owner);
         middleware.setOperatorRewardsContract(address(operatorRewards));

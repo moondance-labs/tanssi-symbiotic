@@ -46,9 +46,10 @@ interface IMiddleware {
     error Middleware__InvalidSubnetworksCnt();
     error Middleware__TooOldEpoch();
     error Middleware__InvalidEpoch();
+    error Middleware__InvalidAddress();
+    error Middleware__InsufficientBalance();
     error Middleware__SlashingWindowTooShort();
     error Middleware__UnknownSlasherType();
-    error Middleware__InvalidAddress();
     error Middleware__OperatorNotFound(bytes32 operatorKey, uint48 epoch);
     error Middleware__SlashPercentageTooBig(uint48 epoch, address operator, uint256 percentage);
 
