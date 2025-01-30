@@ -1188,7 +1188,7 @@ contract MiddlewareTest is Test {
         token.transfer(address(middleware), 1000);
 
         ODefaultOperatorRewards operatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), address(token), OPERATOR_SHARE);
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
 
         vm.startPrank(owner);
         middleware.setOperatorRewardsContract(address(operatorRewards));
@@ -1232,7 +1232,7 @@ contract MiddlewareTest is Test {
         token.transfer(address(middleware), 800);
 
         ODefaultOperatorRewards operatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), address(token), OPERATOR_SHARE);
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
 
         vm.startPrank(owner);
         middleware.setOperatorRewardsContract(address(operatorRewards));
@@ -1254,7 +1254,7 @@ contract MiddlewareTest is Test {
         Token token = new Token("Test");
 
         ODefaultOperatorRewards operatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), address(token), OPERATOR_SHARE);
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
 
         vm.startPrank(owner);
         vm.expectEmit(true, true, false, true);
@@ -1576,7 +1576,7 @@ contract MiddlewareTest is Test {
         address stakerRewardAddress = makeAddr("StakerRewardAddress");
 
         ODefaultOperatorRewards operatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), address(token), OPERATOR_SHARE);
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
 
         vm.startPrank(owner);
         middleware.setOperatorRewardsContract(address(operatorRewards));
@@ -1598,7 +1598,7 @@ contract MiddlewareTest is Test {
         Token token = new Token("Test");
 
         ODefaultOperatorRewards operatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), address(token), OPERATOR_SHARE);
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
 
         vm.startPrank(owner);
         middleware.setOperatorRewardsContract(address(operatorRewards));

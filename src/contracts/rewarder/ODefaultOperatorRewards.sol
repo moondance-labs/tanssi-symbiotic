@@ -84,7 +84,7 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         _;
     }
 
-    constructor(address network, address networkMiddlewareService, address token, uint48 operatorShare) {
+    constructor(address network, address networkMiddlewareService, uint48 operatorShare) {
         i_network = network;
         i_networkMiddlewareService = networkMiddlewareService;
         s_operatorShare = operatorShare;
