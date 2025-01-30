@@ -165,8 +165,7 @@ contract RewardsTest is Test {
         feeToken.mint(address(middleware), 1 ether);
         vm.stopPrank();
 
-        operatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), address(token), OPERATOR_SHARE);
+        operatorRewards = new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
 
         IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
             vault: address(vault),
@@ -310,8 +309,7 @@ contract RewardsTest is Test {
         uint48 epoch = 0;
         uint48 eraIndex = 0;
 
-        operatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), address(feeToken), OPERATOR_SHARE);
+        operatorRewards = new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
         vm.startPrank(address(middleware));
         feeToken.approve(address(operatorRewards), type(uint256).max);
         vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InsufficientTransfer.selector);
