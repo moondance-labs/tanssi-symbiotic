@@ -124,15 +124,6 @@ contract DeployTanssiEcosystem is Script {
         tokensAddresses.rETHToken.mint(owner, 10_000 ether);
         tokensAddresses.wBTCToken.mint(owner, 10_000 ether);
 
-        // vm.startBroadcast(ownerPrivateKey);
-        tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator, 1000 ether);
-        tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator3, 1000 ether);
-
-        tokensAddresses.rETHToken.transfer(operator, 1000 ether);
-        tokensAddresses.rETHToken.transfer(operator2, 1000 ether);
-        tokensAddresses.rETHToken.transfer(operator3, 1000 ether);
-
-        tokensAddresses.wBTCToken.transfer(operator3, 1000 ether);
         // vm.stopBroadcast();
 
         // if (!isTest) {
@@ -202,7 +193,7 @@ contract DeployTanssiEcosystem is Script {
         return vaultAddresses;
     }
 
-    function _setDelegatorConfigs() public {
+    function _setDelegatorConfigs() private {
         if (block.chainid == 31_337 || block.chainid == 11_155_111 || isTest) {
             INetworkRestakeDelegator(vaultAddresses.delegator).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
             INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
@@ -219,12 +210,24 @@ contract DeployTanssiEcosystem is Script {
         );
     }
 
-    function _registerEntitiesToMiddleware() public {
+    function _registerEntitiesToMiddleware() private {
         if (block.chainid == 31_337 || block.chainid == 11_155_111 || isTest) {
             ecosystemEntities.middleware.registerVault(vaultAddresses.vault);
             ecosystemEntities.middleware.registerVault(vaultAddresses.vaultVetoed);
         }
         ecosystemEntities.middleware.registerVault(vaultAddresses.vaultSlashable);
+    }
+
+    function _transferTokensToOperators() private {
+        // vm.startBroadcast(ownerPrivateKey);
+        tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator, 1000 ether);
+        tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator3, 1000 ether);
+
+        tokensAddresses.rETHToken.transfer(operator, 1000 ether);
+        tokensAddresses.rETHToken.transfer(operator2, 1000 ether);
+        tokensAddresses.rETHToken.transfer(operator3, 1000 ether);
+
+        tokensAddresses.wBTCToken.transfer(operator3, 1000 ether);
     }
 
     function _deploy() private {
@@ -258,6 +261,7 @@ contract DeployTanssiEcosystem is Script {
         if (block.chainid == 31_337 || block.chainid == 11_155_111) {
             // Deploy simple ERC20 collateral tokens
             deployTokens(tanssi);
+            _transferTokensToOperators();
         } else {
             networkRegistry.registerNetwork();
         }

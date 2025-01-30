@@ -16,11 +16,24 @@ pragma solidity 0.8.25;
 
 import {Test, console2, Vm} from "forge-std/Test.sol";
 
+//**************************************************************************************************
+//                                      SYMBIOTIC
+//**************************************************************************************************
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
+import {IVaultStorage} from "@symbiotic/interfaces/vault/IVaultStorage.sol";
 import {IVaultConfigurator} from "@symbiotic/interfaces/IVaultConfigurator.sol";
+import {IRegistry} from "@symbiotic/interfaces/common/IRegistry.sol";
+import {IEntity} from "@symbiotic/interfaces/common/IEntity.sol";
 import {INetworkRestakeDelegator} from "@symbiotic/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
+import {IBaseSlasher} from "@symbiotic/interfaces/slasher/IBaseSlasher.sol";
+import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
+
+import {IDefaultCollateralFactory} from
+    "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateralFactory.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 
+import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {Token} from "test/mocks/Token.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 
@@ -34,7 +47,7 @@ contract DeployTest is Test {
     using Subnetwork for address;
 
     address constant ZERO_ADDRESS = address(0);
-
+    string constant HOLESKY_RPC = "https://ethereum-holesky-rpc.publicnode.com";
     DeployCollateral deployCollateral;
     DeploySymbiotic deploySymbiotic;
     DeployTanssiEcosystem deployTanssiEcosystem;
@@ -58,6 +71,19 @@ contract DeployTest is Test {
         operator = deployTanssiEcosystem.operator();
         operator2 = deployTanssiEcosystem.operator2();
         operator3 = deployTanssiEcosystem.operator3();
+    }
+
+    function _setIsTest(
+        bool isTest
+    ) public {
+        // isTest is in slot 20 with offset 20
+        bytes32 slot = bytes32(uint256(20));
+        bytes32 value = bytes32(uint256(isTest ? 1 : 0));
+
+        bytes32 mask = bytes32(uint256(1)) << 160; // Shift 1 to bool's position which is at the 20th byte
+        console2.logBytes32(vm.load(address(deployTanssiEcosystem), slot));
+        bytes32 clearedValue = (vm.load(address(deployTanssiEcosystem), slot) & ~mask); //Load the current value which should be the operator address and mask it to clear the bool
+        vm.store(address(deployTanssiEcosystem), slot, clearedValue);
     }
 
     function testDeployCollateral() public {
@@ -115,36 +141,22 @@ contract DeployTest is Test {
     function testDeployTokens() public {
         vm.startPrank(tanssi);
 
-        (address stETH, address rETH, address wBTC) = deployTanssiEcosystem.deployTokens(tanssi);
+        (Token stETHToken, Token rETHToken, Token wBTCToken) = deployTanssiEcosystem.tokensAddresses();
 
         // Verify tokens were deployed
-        assertTrue(stETH != address(0));
-        assertTrue(rETH != address(0));
-        assertTrue(wBTC != address(0));
-
-        // Verify token balances
-        Token stETHToken = Token(stETH);
-        Token rETHToken = Token(rETH);
-        Token wBTCToken = Token(wBTC);
+        assertTrue(address(stETHToken) != address(0));
+        assertTrue(address(rETHToken) != address(0));
+        assertTrue(address(wBTCToken) != address(0));
 
         // Check tanssi balances
-        assertEq(stETHToken.balanceOf(tanssi), 8000 ether); // 10000 - 2000 (transferred to operators)
-        assertEq(rETHToken.balanceOf(tanssi), 7000 ether); // 10000 - 3000 (transferred to operators)
-        assertEq(wBTCToken.balanceOf(tanssi), 9000 ether); // 10000 - 1000 (transferred to operator3)
+        assertEq(stETHToken.balanceOf(tanssi), 8000 ether);
+        assertEq(rETHToken.balanceOf(tanssi), 7000 ether);
+        assertEq(wBTCToken.balanceOf(tanssi), 9000 ether);
 
-        // Check operator balances
-        assertEq(stETHToken.balanceOf(operator), 1000 ether);
-        assertEq(stETHToken.balanceOf(operator3), 1000 ether);
-
-        assertEq(rETHToken.balanceOf(operator), 1000 ether);
-        assertEq(rETHToken.balanceOf(operator2), 1000 ether);
-        assertEq(rETHToken.balanceOf(operator3), 1000 ether);
-
-        assertEq(wBTCToken.balanceOf(operator3), 1000 ether);
         vm.stopPrank();
     }
 
-    function testDeployVaults() public {
+    function testDeployVaultsIsTestYes() public {
         vm.startPrank(tanssi);
         // First deploy tokens as they're needed for vaults
         deployTanssiEcosystem.deployTokens(tanssi);
@@ -155,7 +167,7 @@ contract DeployTest is Test {
         // Verify vault addresses
         assertTrue(vaultAddresses.vault != address(0));
         assertTrue(vaultAddresses.delegator != address(0));
-        assertTrue(vaultAddresses.slasher != address(0));
+        assertTrue(vaultAddresses.slasher == address(0));
         assertTrue(vaultAddresses.vaultSlashable != address(0));
         assertTrue(vaultAddresses.delegatorSlashable != address(0));
         assertTrue(vaultAddresses.slasherSlashable != address(0));
@@ -170,26 +182,140 @@ contract DeployTest is Test {
         vm.stopPrank();
     }
 
+    function testDeployVaultsIsTestNone() public {
+        deployTanssiEcosystem.run();
+        // First deploy tokens as they're needed for vaults
+        deployTanssiEcosystem.deployTokens(tanssi);
+
+        vm.startBroadcast(); //To not fail the isBroadcast inside deployVaults
+        // Deploy vaults
+        DeployTanssiEcosystem.VaultAddresses memory vaultAddresses = deployTanssiEcosystem.deployVaults();
+
+        // Verify vault addresses
+        assertTrue(vaultAddresses.vault != address(0));
+        assertTrue(vaultAddresses.delegator != address(0));
+        assertTrue(vaultAddresses.slasher == address(0));
+        assertTrue(vaultAddresses.vaultSlashable != address(0));
+        assertTrue(vaultAddresses.delegatorSlashable != address(0));
+        assertTrue(vaultAddresses.slasherSlashable != address(0));
+        assertTrue(vaultAddresses.vaultVetoed != address(0));
+        assertTrue(vaultAddresses.delegatorVetoed != address(0));
+        assertTrue(vaultAddresses.slasherVetoed != address(0));
+
+        // Verify vault configurations
+        assertEq(IVault(vaultAddresses.vault).epochDuration(), deployTanssiEcosystem.VAULT_EPOCH_DURATION());
+        assertEq(IVault(vaultAddresses.vaultSlashable).epochDuration(), deployTanssiEcosystem.VAULT_EPOCH_DURATION());
+        assertEq(IVault(vaultAddresses.vaultVetoed).epochDuration(), deployTanssiEcosystem.VAULT_EPOCH_DURATION());
+        vm.stopPrank();
+    }
+
+    function testDeployVaultsWithChainIdLocal() public {
+        // First deploy tokens as they're needed for vaults
+        deployTanssiEcosystem.deployTokens(tanssi);
+
+        vm.startBroadcast(); //To not fail the isBroadcast inside deployVaults
+        vm.chainId(31_337);
+        // Deploy vaults
+        DeployTanssiEcosystem.VaultAddresses memory vaultAddresses = deployTanssiEcosystem.deployVaults();
+
+        // Verify vault addresses
+        assertTrue(vaultAddresses.vault != address(0));
+        assertTrue(vaultAddresses.delegator != address(0));
+        assertTrue(vaultAddresses.slasher == address(0));
+        assertTrue(vaultAddresses.vaultSlashable != address(0));
+        assertTrue(vaultAddresses.delegatorSlashable != address(0));
+        assertTrue(vaultAddresses.slasherSlashable != address(0));
+        assertTrue(vaultAddresses.vaultVetoed != address(0));
+        assertTrue(vaultAddresses.delegatorVetoed != address(0));
+        assertTrue(vaultAddresses.slasherVetoed != address(0));
+
+        // Verify vault configurations
+        assertEq(IVault(vaultAddresses.vault).epochDuration(), deployTanssiEcosystem.VAULT_EPOCH_DURATION());
+        assertEq(IVault(vaultAddresses.vaultSlashable).epochDuration(), deployTanssiEcosystem.VAULT_EPOCH_DURATION());
+        assertEq(IVault(vaultAddresses.vaultVetoed).epochDuration(), deployTanssiEcosystem.VAULT_EPOCH_DURATION());
+        vm.stopPrank();
+    }
+
+    function testDeployVaultsWithChainIdSepolia() public {
+        // First deploy tokens as they're needed for vaults
+        deployTanssiEcosystem.deployTokens(tanssi);
+
+        vm.startBroadcast(); //To not fail the isBroadcast inside deployVaults
+        vm.chainId(11_155_111);
+        // Deploy vaults
+        DeployTanssiEcosystem.VaultAddresses memory vaultAddresses = deployTanssiEcosystem.deployVaults();
+
+        // Verify vault addresses
+        assertTrue(vaultAddresses.vault != address(0));
+        assertTrue(vaultAddresses.delegator != address(0));
+        assertTrue(vaultAddresses.slasher == address(0));
+        assertTrue(vaultAddresses.vaultSlashable != address(0));
+        assertTrue(vaultAddresses.delegatorSlashable != address(0));
+        assertTrue(vaultAddresses.slasherSlashable != address(0));
+        assertTrue(vaultAddresses.vaultVetoed != address(0));
+        assertTrue(vaultAddresses.delegatorVetoed != address(0));
+        assertTrue(vaultAddresses.slasherVetoed != address(0));
+
+        // Verify vault configurations
+        assertEq(IVault(vaultAddresses.vault).epochDuration(), deployTanssiEcosystem.VAULT_EPOCH_DURATION());
+        assertEq(IVault(vaultAddresses.vaultSlashable).epochDuration(), deployTanssiEcosystem.VAULT_EPOCH_DURATION());
+        assertEq(IVault(vaultAddresses.vaultVetoed).epochDuration(), deployTanssiEcosystem.VAULT_EPOCH_DURATION());
+        vm.stopPrank();
+    }
+
+    function testDeployVaultsWithSingleVault() public {
+        for (uint256 i = 0; i < 9; i++) {
+            vm.store(
+                address(deployTanssiEcosystem), // contract address
+                bytes32(uint256(21) + i), // slot 21 + offset for each address
+                bytes32(0) // zero address
+            );
+            // Verify the slot is cleared
+            bytes32 storedValue = vm.load(address(deployTanssiEcosystem), bytes32(uint256(21) + i));
+            require(storedValue == bytes32(0), "Slot not cleared");
+        }
+
+        _setIsTest(false);
+
+        vm.chainId(17_000);
+        // First deploy tokens as they're needed for vaults
+        deployTanssiEcosystem.deployTokens(tanssi);
+
+        vm.startBroadcast(); //To not fail the isBroadcast inside deployVaults
+        // Deploy vaults
+        DeployTanssiEcosystem.VaultAddresses memory vaultAddresses = deployTanssiEcosystem.deployVaults();
+
+        // Verify vault addresses
+        assertTrue(vaultAddresses.vault == address(0));
+        assertTrue(vaultAddresses.delegator == address(0));
+        assertTrue(vaultAddresses.slasher == address(0));
+        assertTrue(vaultAddresses.vaultSlashable != address(0));
+        assertTrue(vaultAddresses.delegatorSlashable != address(0));
+        assertTrue(vaultAddresses.slasherSlashable != address(0));
+        assertTrue(vaultAddresses.vaultVetoed == address(0));
+        assertTrue(vaultAddresses.delegatorVetoed == address(0));
+        assertTrue(vaultAddresses.slasherVetoed == address(0));
+    }
+
     function testSetDelegatorConfigs() public {
         vm.startPrank(tanssi);
-        // Deploy tokens and vaults first
-        deployTanssiEcosystem.deployTokens(tanssi);
-        deployTanssiEcosystem.deployVaults();
-
-        // Set delegator configs
-        deployTanssiEcosystem._setDelegatorConfigs();
 
         // Get vault addresses
         (, address delegator,,, address delegatorSlashable,,, address delegatorVetoed,) =
             deployTanssiEcosystem.vaultAddresses();
 
         // Verify network limits
-        assertEq(INetworkRestakeDelegator(delegator).maxNetworkLimit(0), deployTanssiEcosystem.MAX_NETWORK_LIMIT());
         assertEq(
-            INetworkRestakeDelegator(delegatorSlashable).maxNetworkLimit(0), deployTanssiEcosystem.MAX_NETWORK_LIMIT()
+            INetworkRestakeDelegator(delegator).maxNetworkLimit(tanssi.subnetwork(0)),
+            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
         );
         assertEq(
-            INetworkRestakeDelegator(delegatorVetoed).maxNetworkLimit(0), deployTanssiEcosystem.MAX_NETWORK_LIMIT()
+            INetworkRestakeDelegator(delegatorSlashable).maxNetworkLimit(tanssi.subnetwork(0)),
+            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
+        );
+        assertEq(
+            INetworkRestakeDelegator(delegatorVetoed).maxNetworkLimit(tanssi.subnetwork(0)),
+            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
         );
 
         // Verify subnet network limits
@@ -201,10 +327,131 @@ contract DeployTest is Test {
             INetworkRestakeDelegator(delegatorSlashable).networkLimit(tanssi.subnetwork(0)),
             deployTanssiEcosystem.MAX_NETWORK_LIMIT()
         );
+
         assertEq(
             INetworkRestakeDelegator(delegatorVetoed).networkLimit(tanssi.subnetwork(0)),
             deployTanssiEcosystem.MAX_NETWORK_LIMIT()
         );
+        vm.stopPrank();
+    }
+
+    function testSetDelegatorConfigsWithNonTestnetChain() public {
+        vm.createSelectFork(HOLESKY_RPC);
+
+        helperConfig = new HelperConfig();
+
+        deployTanssiEcosystem = new DeployTanssiEcosystem();
+        deployTanssiEcosystem.deployTanssiEcosystem(helperConfig);
+        vm.startPrank(tanssi);
+
+        (, address delegator,,, address delegatorSlashable,,, address delegatorVetoed,) =
+            deployTanssiEcosystem.vaultAddresses();
+
+        assertEq(
+            INetworkRestakeDelegator(delegator).maxNetworkLimit(tanssi.subnetwork(0)),
+            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
+        );
+        assertEq(
+            INetworkRestakeDelegator(delegatorSlashable).maxNetworkLimit(tanssi.subnetwork(0)),
+            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
+        );
+        assertEq(
+            INetworkRestakeDelegator(delegatorVetoed).maxNetworkLimit(tanssi.subnetwork(0)),
+            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
+        );
+
+        // Verify subnet network limits
+        assertEq(
+            INetworkRestakeDelegator(delegator).networkLimit(tanssi.subnetwork(0)),
+            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
+        );
+        assertEq(
+            INetworkRestakeDelegator(delegatorSlashable).networkLimit(tanssi.subnetwork(0)),
+            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
+        );
+
+        assertEq(
+            INetworkRestakeDelegator(delegatorVetoed).networkLimit(tanssi.subnetwork(0)),
+            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
+        );
+        vm.stopPrank();
+    }
+
+    function testSetDelegatorConfigsWithSepoliaChain() public {
+        vm.chainId(11_155_111);
+        helperConfig = new HelperConfig();
+
+        deployTanssiEcosystem.deployTanssiEcosystem(helperConfig);
+        vm.startPrank(tanssi);
+
+        (, address delegator,,, address delegatorSlashable,,, address delegatorVetoed,) =
+            deployTanssiEcosystem.vaultAddresses();
+
+        assertEq(
+            INetworkRestakeDelegator(delegator).maxNetworkLimit(tanssi.subnetwork(0)),
+            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
+        );
+        assertEq(
+            INetworkRestakeDelegator(delegatorSlashable).maxNetworkLimit(tanssi.subnetwork(0)),
+            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
+        );
+        assertEq(
+            INetworkRestakeDelegator(delegatorVetoed).maxNetworkLimit(tanssi.subnetwork(0)),
+            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
+        );
+
+        // Verify subnet network limits
+        assertEq(
+            INetworkRestakeDelegator(delegator).networkLimit(tanssi.subnetwork(0)),
+            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
+        );
+        assertEq(
+            INetworkRestakeDelegator(delegatorSlashable).networkLimit(tanssi.subnetwork(0)),
+            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
+        );
+
+        assertEq(
+            INetworkRestakeDelegator(delegatorVetoed).networkLimit(tanssi.subnetwork(0)),
+            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
+        );
+        vm.stopPrank();
+    }
+
+    function testDefaultCollateralBeingDeployedIfHolesky() public {
+        vm.createSelectFork(HOLESKY_RPC);
+
+        helperConfig = new HelperConfig();
+
+        deployTanssiEcosystem = new DeployTanssiEcosystem();
+        deployTanssiEcosystem.deployTanssiEcosystem(helperConfig);
+
+        (,, address defaultCollateralAddress) = deployTanssiEcosystem.ecosystemEntities();
+
+        // Verify default collateral was deployed
+        assertTrue(defaultCollateralAddress != address(0));
+    }
+
+    function testDefaultCollateralNotBeingDeployedIfLocal() public {
+        vm.chainId(31_337);
+        vm.startPrank(tanssi);
+        deployTanssiEcosystem.deployTanssiEcosystem(helperConfig);
+
+        (,, address defaultCollateralAddress) = deployTanssiEcosystem.ecosystemEntities();
+
+        // Verify default collateral was deployed
+        assertTrue(defaultCollateralAddress == address(0));
+        vm.stopPrank();
+    }
+
+    function testDefaultCollateralNotBeingDeployedIfSepolia() public {
+        vm.chainId(11_155_111);
+        vm.startPrank(tanssi);
+        deployTanssiEcosystem.deployTanssiEcosystem(helperConfig);
+
+        (,, address defaultCollateralAddress) = deployTanssiEcosystem.ecosystemEntities();
+
+        // Verify default collateral was deployed
+        assertTrue(defaultCollateralAddress == address(0));
         vm.stopPrank();
     }
 

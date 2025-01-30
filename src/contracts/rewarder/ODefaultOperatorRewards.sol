@@ -96,8 +96,8 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
     function distributeRewards(
         uint48 epoch,
         uint48 eraIndex,
-        uint256 totalPointsToken,
         uint256 amount,
+        uint256 totalPointsToken,
         bytes32 root,
         address tokenAddress
     ) external nonReentrant onlyMiddleware {
