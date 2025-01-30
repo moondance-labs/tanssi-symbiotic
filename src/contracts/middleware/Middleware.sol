@@ -21,6 +21,7 @@ import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {EnumerableMap} from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 //**************************************************************************************************
 //                                      SYMBIOTIC
@@ -351,6 +352,12 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
         bytes32 rewardsRoot,
         address tokenAddress
     ) external onlyGateway onlyIfOperatorRewardSet {
+        if (IERC20(tokenAddress).balanceOf(address(this)) < tokensInflatedToken) {
+            revert Middleware__InsufficientBalance();
+        }
+
+        IERC20(tokenAddress).approve(s_operatorRewards, tokensInflatedToken);
+
         IODefaultOperatorRewards(s_operatorRewards).distributeRewards(
             uint48(epoch), uint48(eraIndex), tokensInflatedToken, totalPointsToken, rewardsRoot, tokenAddress
         );
