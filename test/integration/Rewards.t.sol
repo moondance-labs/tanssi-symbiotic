@@ -555,4 +555,48 @@ contract MiddlewareTest is Test {
 
         assert(Token(tokenAddress).balanceOf(address(operatorRewards)) == amount);
     }
+
+    function testSubmitRewardsWithTaxToken() public {
+        uint48 OPERATOR_SHARE = 20;
+        deal(assetHubAgent, 50 ether);       
+
+        uint256 amount = 1.2 ether;
+        (Command command, bytes memory params, address tokenAddress) = _makeReportRewardsCommand(amount);
+
+        ODefaultOperatorRewards operatorRewards =
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), tokenAddress, OPERATOR_SHARE);
+
+        vm.startPrank(owner);
+        middleware.setOperatorRewardsContract(address(operatorRewards));
+        vm.stopPrank();
+
+        // TODO: This should be done by the middleware on its own
+        vm.startPrank(address(middleware));
+        Token(tokenAddress).approve(address(operatorRewards), amount);
+        vm.stopPrank();
+
+
+        vm.expectEmit(false, true, true, true);
+        uint48 epoch = 1;
+        emit IODefaultOperatorRewards.DistributeRewards(epoch, 0, tokenAddress, 1, amount, bytes32(uint256(1)));
+
+
+        // Expect the gateway to emit error event.
+        vm.expectEmit(true, true, true, true);
+        emit IGateway.InboundMessageDispatched(assetHubParaID.into(), 1, messageID, false);
+
+        // Mock mint to not actually mint tokens, which means gateway will try to send more that it owns.
+        vm.mockCall(tokenAddress, abi.encodeWithSelector(Token.mint.selector), abi.encode());       
+
+         // Expect the gateway to emit `InboundMessageDispatched`
+        vm.expectEmit(true, true, true, true);
+        emit IGateway.InboundMessageDispatched(assetHubParaID.into(), 1, messageID, false); // false because failed 
+
+        hoax(relayer, 1 ether);
+        IGateway(address(gateway)).submitV1(
+            InboundMessage(assetHubParaID.into(), 1, command, params, maxDispatchGas, maxRefund, reward, messageID),
+            proof,
+            makeMockProof()
+        );
+    }
 }
