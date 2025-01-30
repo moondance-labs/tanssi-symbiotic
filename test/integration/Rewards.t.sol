@@ -50,12 +50,19 @@ import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 //**************************************************************************************************
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {Errors} from "@openzeppelin/contracts/utils/Errors.sol";
 
 //**************************************************************************************************
 //                                      SNOWBRIDGE
 //**************************************************************************************************
-import {CreateAgentParams, CreateChannelParams, RegisterForeignTokenParams} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Params.sol";
-import {OperatingMode, ParaID, Command, InboundMessage} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Types.sol";
+import {
+    CreateAgentParams,
+    CreateChannelParams,
+    RegisterForeignTokenParams
+} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Params.sol";
+import {
+    OperatingMode, ParaID, Command, InboundMessage
+} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Types.sol";
 import {MockGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/test/mocks/MockGateway.sol";
 import {GatewayProxy} from "@tanssi-bridge-relayer/snowbridge/contracts/src/GatewayProxy.sol";
 import {Verification} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Verification.sol";
@@ -96,6 +103,7 @@ contract MiddlewareTest is Test {
     uint256 public constant OPERATOR_SHARE = 1;
     uint256 public constant TOTAL_NETWORK_SHARES = 3;
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
+    uint256 public constant ONE_DAY = 86_400;
 
     struct VaultAddresses {
         address vault;
@@ -191,7 +199,6 @@ contract MiddlewareTest is Test {
     uint256 public maxRefund = 1 ether;
     uint256 public reward = 1 ether;
     bytes32 public messageID = keccak256("cabbage");
-
 
     // For DOT
     uint8 public foreignTokenDecimals = 10;
@@ -465,8 +472,10 @@ contract MiddlewareTest is Test {
         relayer = makeAddr("relayer");
     }
 
-    function _makeReportRewardsCommand(uint256 amount) public returns (Command, bytes memory, address) {
-        uint256 epoch = 0;
+    function _makeReportRewardsCommand(
+        uint256 amount
+    ) public returns (Command, bytes memory, address) {
+        uint256 timestamp = ONE_DAY * 3;
         uint256 eraIndex = 1;
         uint256 totalPointsToken = amount;
         uint256 tokensInflatedToken = amount;
@@ -484,7 +493,7 @@ contract MiddlewareTest is Test {
 
         return (
             Command.ReportRewards,
-            abi.encode(epoch, eraIndex, totalPointsToken, tokensInflatedToken, rewardsRoot, foreignTokenId),
+            abi.encode(timestamp, eraIndex, totalPointsToken, tokensInflatedToken, rewardsRoot, foreignTokenId),
             tokenAddress
         );
     }
@@ -519,8 +528,10 @@ contract MiddlewareTest is Test {
     }
 
     function testSubmitRewards() public {
+        vm.warp(64_000);
+
         uint48 OPERATOR_SHARE = 20;
-        deal(assetHubAgent, 50 ether);       
+        deal(assetHubAgent, 50 ether);
 
         uint256 amount = 1.2 ether;
         (Command command, bytes memory params, address tokenAddress) = _makeReportRewardsCommand(amount);
@@ -537,9 +548,8 @@ contract MiddlewareTest is Test {
         Token(tokenAddress).approve(address(operatorRewards), amount);
         vm.stopPrank();
 
-
-        vm.expectEmit(false, true, true, true);
         uint48 epoch = 1;
+        vm.expectEmit(false, true, true, true);
         emit IODefaultOperatorRewards.DistributeRewards(epoch, 0, tokenAddress, 1, amount, bytes32(uint256(1)));
 
         // Expect the gateway to emit `InboundMessageDispatched`
@@ -556,9 +566,9 @@ contract MiddlewareTest is Test {
         assert(Token(tokenAddress).balanceOf(address(operatorRewards)) == amount);
     }
 
-    function testSubmitRewardsWithTaxToken() public {
+    function testSubmitRewardsWithBogusToken() public {
         uint48 OPERATOR_SHARE = 20;
-        deal(assetHubAgent, 50 ether);       
+        deal(assetHubAgent, 50 ether);
 
         uint256 amount = 1.2 ether;
         (Command command, bytes memory params, address tokenAddress) = _makeReportRewardsCommand(amount);
@@ -575,22 +585,27 @@ contract MiddlewareTest is Test {
         Token(tokenAddress).approve(address(operatorRewards), amount);
         vm.stopPrank();
 
-
-        vm.expectEmit(false, true, true, true);
-        uint48 epoch = 1;
-        emit IODefaultOperatorRewards.DistributeRewards(epoch, 0, tokenAddress, 1, amount, bytes32(uint256(1)));
-
-
         // Expect the gateway to emit error event.
+        vm.expectEmit(true, true, true, false);
+        emit IOGateway.UnableToProcessRewardsMessageB(
+            abi.encodeWithSelector(
+                Gateway.EUnableToProcessRewardsB.selector,
+                ONE_DAY * 3,
+                0,
+                tokenAddress,
+                amount,
+                amount,
+                bytes32(uint256(1)),
+                abi.encodeWithSelector(Errors.InsufficientBalance.selector, 0, amount)
+            )
+        );
+
+        // Expect the gateway to emit `InboundMessageDispatched`
         vm.expectEmit(true, true, true, true);
-        emit IGateway.InboundMessageDispatched(assetHubParaID.into(), 1, messageID, false);
+        emit IGateway.InboundMessageDispatched(assetHubParaID.into(), 1, messageID, false); // false because failed
 
         // Mock mint to not actually mint tokens, which means gateway will try to send more that it owns.
-        vm.mockCall(tokenAddress, abi.encodeWithSelector(Token.mint.selector), abi.encode());       
-
-         // Expect the gateway to emit `InboundMessageDispatched`
-        vm.expectEmit(true, true, true, true);
-        emit IGateway.InboundMessageDispatched(assetHubParaID.into(), 1, messageID, false); // false because failed 
+        vm.mockCall(tokenAddress, abi.encodeWithSelector(Token.mint.selector), abi.encode());
 
         hoax(relayer, 1 ether);
         IGateway(address(gateway)).submitV1(
