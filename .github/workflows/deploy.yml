@@ -122,7 +122,7 @@ jobs:
         run: |
           if [[ ${{ github.event.inputs.command }} = "deploy-middleware" ]]; then
             echo "Deploying Tanssi Middleware contract..."
-            forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "deployMiddleware(address,address,adresss)" $OPERATOR_REGISTRY_ADDRESS $VAULT_REGISTRY_ADDRESS $OPERATOR_NETWORK_OPT_IN_ADDRESS 
+            forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "deployMiddleware(address,address,adress)" $OPERATOR_REGISTRY_ADDRESS $VAULT_REGISTRY_ADDRESS $OPERATOR_NETWORK_OPT_IN_ADDRESS 
             echo "Tanssi Middleware contract deployment completed" 
           elif [[ ${{ github.event.inputs.command }} = "deploy-vault" ]]; then
             echo "Deploying Tanssi vault..."
