@@ -75,6 +75,7 @@ contract DeploySymbiotic is Script {
     using Subnetwork for address;
 
     error DeploySymbiotic__VaultConfiguratorOrCollateralNotDeployed();
+    error DeploySymbiotic__VaultsAddresseslNotDeployed();
 
     uint48 public constant VAULT_EPOCH_DURATION = 12 days;
 
@@ -137,27 +138,18 @@ contract DeploySymbiotic is Script {
 
     }
 
-    enum DelegatorIndex {
-        NETWORK_RESTAKE, // 0
-        FULL_RESTAKE, // 1
-        OPERATOR_SPECIFIC // 2
-
-    }
-
     function setCollateral(
         address collateralAddress
     ) public {
         collateral = Token(collateralAddress);
     }
 
-    function getCollateral() public returns (address) {
-        address tokenAddress = DevOpsTools.get_most_recent_deployment("Token", block.chainid);
-        collateral = Token(tokenAddress);
+    function getCollateral() public view returns (address) {
         console2.log("Collateral: ", address(collateral));
         console2.log("Owner: ", owner);
         console2.log("Balance owner: ", collateral.balanceOf(owner));
 
-        return tokenAddress;
+        return address(collateral);
     }
 
     function deployFactories(
@@ -335,34 +327,8 @@ contract DeploySymbiotic is Script {
         deploySymbioticBroadcast();
         deployVault = new DeployVault();
 
-        DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
-            epochDuration: VAULT_EPOCH_DURATION,
-            depositWhitelist: false,
-            depositLimit: 0,
-            delegatorIndex: DelegatorIndex.NETWORK_RESTAKE,
-            shouldBroadcast: true,
-            vaultConfigurator: address(vaultConfigurator),
-            collateral: address(collateral),
-            owner: owner
-        });
-
-        (address vault, address delegator, address slasher) = deployVault.createBaseVault(params);
-        console2.log("Vault: ", vault);
-        console2.log("Delegator: ", delegator);
-        console2.log("Slasher: ", slasher);
-
-        (address vaultSlashable, address delegatorSlashable, address slasherSlashable) =
-            deployVault.createSlashableVault(params);
-        console2.log("VaultSlashable: ", vaultSlashable);
-        console2.log("DelegatorSlashable: ", delegatorSlashable);
-        console2.log("SlasherSlashable: ", slasherSlashable);
-
-        params.delegatorIndex = DelegatorIndex.FULL_RESTAKE;
-
-        (address vaultVetoed, address delegatorVetoed, address slasherVetoed) =
-            deployVault.createVaultVetoed(params, 1 days);
-        console2.log("VaultVetoed: ", vaultVetoed);
-        console2.log("DelegatorVetoed: ", delegatorVetoed);
-        console2.log("SlasherVetoed: ", slasherVetoed);
+        deployVault.deployAllVaults(
+            address(vaultConfigurator), address(collateral), address(owner), VAULT_EPOCH_DURATION
+        );
     }
 }

@@ -49,11 +49,18 @@ contract DeployVault is Script {
         uint48 epochDuration;
         bool depositWhitelist;
         uint256 depositLimit;
-        DeploySymbiotic.DelegatorIndex delegatorIndex;
+        DelegatorIndex delegatorIndex;
         bool shouldBroadcast;
         address vaultConfigurator;
         address collateral;
         address owner;
+    }
+
+    enum DelegatorIndex {
+        NETWORK_RESTAKE, // 0
+        FULL_RESTAKE, // 1
+        OPERATOR_SPECIFIC // 2
+
     }
 
     function createBaseVault(
@@ -90,7 +97,7 @@ contract DeployVault is Script {
         uint64 slasherIndex,
         bool withSlasher,
         uint48 vetoDuration
-    ) public returns (address vault_, address delegator_, address slasher_) {
+    ) private returns (address vault_, address delegator_, address slasher_) {
         if (address(params.vaultConfigurator) == address(0) || address(params.collateral) == address(0)) {
             revert DeployVault__VaultConfiguratorOrCollateralNotDeployed();
         }
@@ -211,6 +218,42 @@ contract DeployVault is Script {
                 slasherParams: slasherParams
             })
         );
+    }
+
+    function deployAllVaults(
+        address vaultConfigurator,
+        address collateral,
+        address owner,
+        uint48 vaultEpochDuration
+    ) public {
+        CreateVaultBaseParams memory params = CreateVaultBaseParams({
+            epochDuration: vaultEpochDuration,
+            depositWhitelist: false,
+            depositLimit: 0,
+            delegatorIndex: DelegatorIndex.NETWORK_RESTAKE,
+            shouldBroadcast: true,
+            vaultConfigurator: vaultConfigurator,
+            collateral: collateral,
+            owner: owner
+        });
+
+        (address vault, address delegator, address slasher) = createBaseVault(params);
+
+        console2.log("Vault: ", vault);
+        console2.log("Delegator: ", delegator);
+        console2.log("Slasher: ", slasher);
+
+        (address vaultSlashable, address delegatorSlashable, address slasherSlashable) = createSlashableVault(params);
+        console2.log("VaultSlashable: ", vaultSlashable);
+        console2.log("DelegatorSlashable: ", delegatorSlashable);
+        console2.log("SlasherSlashable: ", slasherSlashable);
+
+        params.delegatorIndex = DelegatorIndex.FULL_RESTAKE;
+
+        (address vaultVetoed, address delegatorVetoed, address slasherVetoed) = createVaultVetoed(params, 1 days);
+        console2.log("VaultVetoed: ", vaultVetoed);
+        console2.log("DelegatorVetoed: ", delegatorVetoed);
+        console2.log("SlasherVetoed: ", slasherVetoed);
     }
 
     function run(

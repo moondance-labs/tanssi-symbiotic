@@ -31,6 +31,7 @@ import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {IDefaultCollateralFactory} from
     "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateralFactory.sol";
 
+import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {Token} from "test/mocks/Token.sol";
 import {DeployCollateral} from "./DeployCollateral.s.sol";
@@ -102,7 +103,9 @@ contract DeployTanssiEcosystem is Script {
         address slasherVetoed;
     }
 
-    function deployTokens() public returns (address, address, address) {
+    function deployTokens(
+        address owner
+    ) public returns (address, address, address) {
         // if (!isTest) {
         //     vm.stopBroadcast();
         // }
@@ -118,19 +121,10 @@ contract DeployTanssiEcosystem is Script {
         tokensAddresses.rETHToken = Token(rETH);
         tokensAddresses.wBTCToken = Token(wBTC);
 
-        tokensAddresses.stETHToken.mint{gas: 1_000_000}(tanssi, 10_000 ether);
-        tokensAddresses.rETHToken.mint(tanssi, 10_000 ether);
-        tokensAddresses.wBTCToken.mint(tanssi, 10_000 ether);
+        tokensAddresses.stETHToken.mint{gas: 1_000_000}(owner, 10_000 ether);
+        tokensAddresses.rETHToken.mint(owner, 10_000 ether);
+        tokensAddresses.wBTCToken.mint(owner, 10_000 ether);
 
-        // vm.startBroadcast(ownerPrivateKey);
-        tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator, 1000 ether);
-        tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator3, 1000 ether);
-
-        tokensAddresses.rETHToken.transfer(operator, 1000 ether);
-        tokensAddresses.rETHToken.transfer(operator2, 1000 ether);
-        tokensAddresses.rETHToken.transfer(operator3, 1000 ether);
-
-        tokensAddresses.wBTCToken.transfer(operator3, 1000 ether);
         // vm.stopBroadcast();
 
         // if (!isTest) {
@@ -145,7 +139,7 @@ contract DeployTanssiEcosystem is Script {
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
             depositLimit: 0,
-            delegatorIndex: DeploySymbiotic.DelegatorIndex.NETWORK_RESTAKE,
+            delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
             shouldBroadcast: !isTest,
             vaultConfigurator: address(ecosystemEntities.vaultConfigurator),
             collateral: ecosystemEntities.defaultCollateralAddress != address(0)
@@ -181,7 +175,7 @@ contract DeployTanssiEcosystem is Script {
         console2.log(" ");
 
         if (isTest || block.chainid == 31_337 || block.chainid == 11_155_111) {
-            params.delegatorIndex = DeploySymbiotic.DelegatorIndex.FULL_RESTAKE;
+            params.delegatorIndex = DeployVault.DelegatorIndex.FULL_RESTAKE;
             if (block.chainid == 31_337 || block.chainid == 11_155_111) {
                 params.collateral = address(tokensAddresses.wBTCToken);
             }
@@ -200,7 +194,7 @@ contract DeployTanssiEcosystem is Script {
         return vaultAddresses;
     }
 
-    function _setDelegatorConfigs() public {
+    function _setDelegatorConfigs() private {
         if (block.chainid == 31_337 || block.chainid == 11_155_111 || isTest) {
             INetworkRestakeDelegator(vaultAddresses.delegator).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
             INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
@@ -217,12 +211,24 @@ contract DeployTanssiEcosystem is Script {
         );
     }
 
-    function _registerEntitiesToMiddleware() public {
+    function _registerEntitiesToMiddleware() private {
         if (block.chainid == 31_337 || block.chainid == 11_155_111 || isTest) {
             ecosystemEntities.middleware.registerVault(vaultAddresses.vault);
             ecosystemEntities.middleware.registerVault(vaultAddresses.vaultVetoed);
         }
         ecosystemEntities.middleware.registerVault(vaultAddresses.vaultSlashable);
+    }
+
+    function _transferTokensToOperators() private {
+        // vm.startBroadcast(ownerPrivateKey);
+        tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator, 1000 ether);
+        tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator3, 1000 ether);
+
+        tokensAddresses.rETHToken.transfer(operator, 1000 ether);
+        tokensAddresses.rETHToken.transfer(operator2, 1000 ether);
+        tokensAddresses.rETHToken.transfer(operator3, 1000 ether);
+
+        tokensAddresses.wBTCToken.transfer(operator3, 1000 ether);
     }
 
     function _deploy() private {
@@ -255,7 +261,8 @@ contract DeployTanssiEcosystem is Script {
 
         if (block.chainid == 31_337 || block.chainid == 11_155_111) {
             // Deploy simple ERC20 collateral tokens
-            deployTokens();
+            deployTokens(tanssi);
+            _transferTokensToOperators();
         } else {
             networkRegistry.registerNetwork();
         }
@@ -273,6 +280,11 @@ contract DeployTanssiEcosystem is Script {
         _registerEntitiesToMiddleware();
         networkMiddlewareService.setMiddleware(address(ecosystemEntities.middleware));
 
+        ODefaultOperatorRewards operatorRewards =
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), 20);
+
+        ecosystemEntities.middleware.setOperatorRewardsContract(address(operatorRewards));
+
         console2.log("VaultConfigurator: ", address(ecosystemEntities.vaultConfigurator));
         console2.log("OperatorRegistry: ", address(operatorRegistry));
         console2.log("NetworkRegistry: ", address(networkRegistry));
@@ -282,6 +294,7 @@ contract DeployTanssiEcosystem is Script {
         console2.log("DefaultCollateralFactory: ", address(defaultCollateralFactory));
         console2.log("DefaultCollateral: ", ecosystemEntities.defaultCollateralAddress);
         console2.log("Middleware: ", address(ecosystemEntities.middleware));
+        console2.log("OperatorRewards: ", address(operatorRewards));
         console2.log("Vault: ", vaultAddresses.vault);
         console2.log("Delegator: ", vaultAddresses.delegator);
         console2.log("Slasher: ", vaultAddresses.slasher);
