@@ -543,11 +543,6 @@ contract MiddlewareTest is Test {
         middleware.setOperatorRewardsContract(address(operatorRewards));
         vm.stopPrank();
 
-        // TODO: This should be done by the middleware on its own
-        vm.startPrank(address(middleware));
-        Token(tokenAddress).approve(address(operatorRewards), amount);
-        vm.stopPrank();
-
         uint48 epoch = 1;
         vm.expectEmit(false, true, true, true);
         emit IODefaultOperatorRewards.DistributeRewards(epoch, 0, tokenAddress, 1, amount, bytes32(uint256(1)));
@@ -578,11 +573,6 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(owner);
         middleware.setOperatorRewardsContract(address(operatorRewards));
-        vm.stopPrank();
-
-        // TODO: This should be done by the middleware on its own
-        vm.startPrank(address(middleware));
-        Token(tokenAddress).approve(address(operatorRewards), amount);
         vm.stopPrank();
 
         // Expect the gateway to emit error event.
