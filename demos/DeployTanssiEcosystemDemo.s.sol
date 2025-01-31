@@ -32,6 +32,7 @@ import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {IDefaultCollateralFactory} from
     "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateralFactory.sol";
 
+import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {Token} from "test/mocks/Token.sol";
 import {DeployCollateral} from "../DeployCollateral.s.sol";
@@ -324,6 +325,12 @@ contract DeployTanssiEcosystem is Script {
         _setDelegatorConfigs();
         _registerEntitiesToMiddleware();
         networkMiddlewareService.setMiddleware(address(ecosystemEntities.middleware));
+
+        ODefaultOperatorRewards operatorRewards =
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), 20);
+
+        ecosystemEntities.middleware.setOperatorRewardsContract(address(operatorRewards));
+
         vm.stopBroadcast();
 
         vm.startBroadcast(ownerPrivateKey);
