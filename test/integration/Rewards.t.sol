@@ -19,14 +19,8 @@ import {Test} from "forge-std/Test.sol";
 //**************************************************************************************************
 //                                      SYMBIOTIC
 //**************************************************************************************************
-import {IVaultConfigurator} from "@symbiotic/interfaces/IVaultConfigurator.sol";
-import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {INetworkRestakeDelegator} from "@symbiotic/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestakeDelegator.sol";
-import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
-import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
-import {IBaseSlasher} from "@symbiotic/interfaces/slasher/IBaseSlasher.sol";
-import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 import {OperatorRegistry} from "@symbiotic/contracts/OperatorRegistry.sol";
 import {NetworkRegistry} from "@symbiotic/contracts/NetworkRegistry.sol";
 import {OptInService} from "@symbiotic/contracts/service/OptInService.sol";
@@ -37,29 +31,19 @@ import {SlasherFactory} from "@symbiotic/contracts/SlasherFactory.sol";
 import {VaultFactory} from "@symbiotic/contracts/VaultFactory.sol";
 import {VaultConfigurator} from "@symbiotic/contracts/VaultConfigurator.sol";
 import {Vault} from "@symbiotic/contracts/vault/Vault.sol";
-import {VaultTokenized} from "@symbiotic/contracts/vault/VaultTokenized.sol";
-import {NetworkRestakeDelegator} from "@symbiotic/contracts/delegator/NetworkRestakeDelegator.sol";
-import {FullRestakeDelegator} from "@symbiotic/contracts/delegator/FullRestakeDelegator.sol";
-import {OperatorSpecificDelegator} from "@symbiotic/contracts/delegator/OperatorSpecificDelegator.sol";
-import {Slasher} from "@symbiotic/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "@symbiotic/contracts/slasher/VetoSlasher.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Errors} from "@openzeppelin/contracts/utils/Errors.sol";
 
 //**************************************************************************************************
 //                                      SNOWBRIDGE
 //**************************************************************************************************
-import {
-    CreateAgentParams,
-    CreateChannelParams,
-    RegisterForeignTokenParams
-} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Params.sol";
+import {RegisterForeignTokenParams} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Params.sol";
 import {
     OperatingMode, ParaID, Command, InboundMessage
 } from "@tanssi-bridge-relayer/snowbridge/contracts/src/Types.sol";
@@ -71,11 +55,9 @@ import {SetOperatingModeParams} from "@tanssi-bridge-relayer/snowbridge/contract
 import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfaces/IOGateway.sol";
 import {IGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfaces/IGateway.sol";
 import {Gateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Gateway.sol";
-import {MockOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/test/mocks/MockOGateway.sol";
 
 import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
-import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {Token} from "test/mocks/Token.sol";
 import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
