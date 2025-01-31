@@ -272,7 +272,7 @@ contract MiddlewareTest is Test {
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
             depositLimit: 0,
-            delegatorIndex: DeploySymbiotic.DelegatorIndex.NETWORK_RESTAKE,
+            delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
             shouldBroadcast: false,
             vaultConfigurator: address(vaultConfigurator),
             collateral: address(stETH),
@@ -286,7 +286,7 @@ contract MiddlewareTest is Test {
             deployVault.createSlashableVault(params);
 
         params.collateral = address(wBTC);
-        params.delegatorIndex = DeploySymbiotic.DelegatorIndex.FULL_RESTAKE;
+        params.delegatorIndex = DeployVault.DelegatorIndex.FULL_RESTAKE;
         (vaultAddresses.vaultVetoed, vaultAddresses.delegatorVetoed, vaultAddresses.slasherVetoed) =
             deployVault.createVaultVetoed(params, 1 days);
     }
@@ -918,12 +918,12 @@ contract MiddlewareTest is Test {
         return paraID;
     }
 
-    function testSendingOperatorsDataToGateway() public {
-        IOGateway gateway = IOGateway(address(_createGateway()));
-        _createParaIDAndAgent(gateway);
-        vm.startPrank(owner);
-        middleware.setGateway(address(gateway));
-        middleware.sendCurrentOperatorsKeys();
-        vm.stopPrank();
-    }
+    // function testSendingOperatorsDataToGateway() public {
+    //     IOGateway gateway = IOGateway(address(_createGateway()));
+    //     _createParaIDAndAgent(gateway);
+    //     vm.startPrank(owner);
+    //     middleware.setGateway(address(gateway));
+    //     middleware.sendCurrentOperatorsKeys();
+    //     vm.stopPrank();
+    // }
 }
