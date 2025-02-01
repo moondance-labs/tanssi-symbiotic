@@ -15,16 +15,40 @@
 pragma solidity ^0.8.0;
 
 interface IODefaultOperatorRewards {
-    error ODefaultOperatorRewards__InsufficientBalance();
-    error ODefaultOperatorRewards__InsufficientTotalClaimable();
-    error ODefaultOperatorRewards__InsufficientTransfer();
-    error ODefaultOperatorRewards__NotNetworkMiddleware();
-    error ODefaultOperatorRewards__RootNotSet();
-    error ODefaultOperatorRewards__InvalidProof();
-    error ODefaultOperatorRewards__InvalidTotalPoints();
-    error ODefaultOperatorRewards__InvalidOperatorShare();
-    error ODefaultOperatorRewards__InvalidAddress();
-    error ODefaultOperatorRewards__AlreadySet();
+    /**
+     * @notice Struct to store the data related to rewards distribution per Starlight's era.
+     * @param epoch network epoch of the middleware
+     * @param timestamp time point stakes must taken into account at
+     * @param tokenAddress address of the reward token
+     * @param amount amount of tokens received per eraIndex
+     * @param tokensPerPoint amount of tokens per point
+     * @param root Merkle root of the rewards distribution
+     */
+    struct EraRoot {
+        uint48 epoch;
+        uint48 timestamp;
+        address tokenAddress;
+        uint256 amount;
+        uint256 tokensPerPoint;
+        bytes32 root;
+    }
+
+    /**
+     * @notice Struct to store the data related to claim the rewards distribution per Starlight's era.
+     * @param operatorKey operator key of the rewards' recipient
+     * @param epoch network epoch of the middleware
+     * @param eraIndex era index of Starlight's rewards distribution
+     * @param totalPointsClaimable total amount of points that can be claimed
+     * @param proof Merkle proof of the rewards distribution
+     * @param data additional data to use to distribute rewards to stakers
+     */
+    struct ClaimRewardsInput {
+        bytes32 operatorKey;
+        uint48 eraIndex;
+        uint32 totalPointsClaimable; //! Are we sure this won't be bigger than a uint32?
+        bytes32[] proof;
+        bytes data;
+    }
 
     /**
      * @notice Emitted when rewards are distributed by providing a Merkle root.
@@ -79,38 +103,16 @@ interface IODefaultOperatorRewards {
      */
     event SetOperatorShare(uint48 indexed operatorShare);
 
-    /**
-     * @notice Struct to store the data related to rewards distribution per Starlight's era.
-     * @param epoch network epoch of the middleware
-     * @param amount amount of tokens received per eraIndex
-     * @param tokensPerPoint amount of tokens per point
-     * @param root Merkle root of the rewards distribution
-     * @param tokenAddress address of the reward token
-     */
-    struct EraRoot {
-        uint48 epoch;
-        uint256 amount;
-        uint256 tokensPerPoint;
-        bytes32 root;
-        address tokenAddress;
-    }
-
-    /**
-     * @notice Struct to store the data related to claim the rewards distribution per Starlight's era.
-     * @param operatorKey operator key of the rewards' recipient
-     * @param epoch network epoch of the middleware
-     * @param eraIndex era index of Starlight's rewards distribution
-     * @param totalPointsClaimable total amount of points that can be claimed
-     * @param proof Merkle proof of the rewards distribution
-     * @param data additional data to use to distribute rewards to stakers
-     */
-    struct ClaimRewardsInput {
-        bytes32 operatorKey;
-        uint48 eraIndex;
-        uint32 totalPointsClaimable; //! Are we sure this won't be bigger than a uint32?
-        bytes32[] proof;
-        bytes data;
-    }
+    error ODefaultOperatorRewards__InsufficientBalance();
+    error ODefaultOperatorRewards__InsufficientTotalClaimable();
+    error ODefaultOperatorRewards__InsufficientTransfer();
+    error ODefaultOperatorRewards__NotNetworkMiddleware();
+    error ODefaultOperatorRewards__RootNotSet();
+    error ODefaultOperatorRewards__InvalidProof();
+    error ODefaultOperatorRewards__InvalidTotalPoints();
+    error ODefaultOperatorRewards__InvalidOperatorShare();
+    error ODefaultOperatorRewards__InvalidAddress();
+    error ODefaultOperatorRewards__AlreadySet();
 
     /**
      * @notice Get the network middleware service's address.
@@ -134,17 +136,25 @@ interface IODefaultOperatorRewards {
      * @notice Get an information of a particular era rewards data distribution
      * @param eraIndex era index of Starlight's rewards distribution
      * @return epoch network epoch of the middleware
+     * @return timestamp time point stakes must taken into account at
+     * @return tokenAddress address of the reward token
      * @return amount of tokens that can be claimed
      * @return tokensPerPoints amount of tokens per point
      * @return root Merkle root of the reward distribution
-     * @return tokenAddress address of the reward token
      */
     function s_eraRoot(
         uint48 eraIndex
     )
         external
         view
-        returns (uint48 epoch, uint256 amount, uint256 tokensPerPoints, bytes32 root, address tokenAddress);
+        returns (
+            uint48 epoch,
+            uint48 timestamp,
+            address tokenAddress,
+            uint256 amount,
+            uint256 tokensPerPoints,
+            bytes32 root
+        );
 
     /**
      * @notice Get an array of era indexes for a particular epoch.
@@ -174,6 +184,7 @@ interface IODefaultOperatorRewards {
     /**
      * @notice Distribute rewards for a specific era contained in an epoch by providing a Merkle root, total points, and total amount of tokens.
      * @param epoch network epoch of the middleware
+     * @param timestamp time point stakes must taken into account at
      * @param eraIndex era index of Starlight's rewards distribution
      * @param amount amount of tokens to distribute
      * @param totalPointsToken total amount of points for the reward distribution
@@ -183,6 +194,7 @@ interface IODefaultOperatorRewards {
      */
     function distributeRewards(
         uint48 epoch,
+        uint48 timestamp,
         uint48 eraIndex,
         uint256 amount,
         uint256 totalPointsToken,

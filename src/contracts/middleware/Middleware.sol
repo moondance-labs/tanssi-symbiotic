@@ -345,21 +345,21 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
      * @inheritdoc IMiddleware
      */
     function distributeRewards(
-        uint256 epoch,
-        uint256 eraIndex,
+        uint48 timestamp,
+        uint48 eraIndex,
+        address tokenAddress,
         uint256 totalPointsToken,
         uint256 tokensInflatedToken,
-        bytes32 rewardsRoot,
-        address tokenAddress
+        bytes32 rewardsRoot
     ) external onlyGateway onlyIfOperatorRewardSet {
         if (IERC20(tokenAddress).balanceOf(address(this)) < tokensInflatedToken) {
             revert Middleware__InsufficientBalance();
         }
 
         IERC20(tokenAddress).approve(s_operatorRewards, tokensInflatedToken);
-
+        uint48 epoch = getEpochAtTs(timestamp);
         IODefaultOperatorRewards(s_operatorRewards).distributeRewards(
-            uint48(epoch), uint48(eraIndex), tokensInflatedToken, totalPointsToken, rewardsRoot, tokenAddress
+            epoch, timestamp, eraIndex, tokensInflatedToken, totalPointsToken, rewardsRoot, tokenAddress
         );
     }
 

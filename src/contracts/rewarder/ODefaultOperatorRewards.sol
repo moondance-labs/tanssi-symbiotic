@@ -95,6 +95,7 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
      */
     function distributeRewards(
         uint48 epoch,
+        uint48 timestamp,
         uint48 eraIndex,
         uint256 amount,
         uint256 totalPointsToken,
@@ -116,22 +117,21 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
             }
         }
 
-        // We need to calculate how much each point is worth in tokens
-        uint256 tokensPerPoint = amount / totalPointsToken; // TODO: To change/check the math.
-
         EraRoot memory eraRoot = EraRoot({
             epoch: epoch,
+            timestamp: timestamp,
+            tokenAddress: tokenAddress,
             amount: amount,
-            tokensPerPoint: tokensPerPoint,
-            root: root,
-            tokenAddress: tokenAddress
+            // We need to calculate how much each point is worth in tokens
+            tokensPerPoint: amount / totalPointsToken, // TODO: To change/check the math.
+            root: root
         });
         // We store the eraRoot struct which contains useful information for the claimRewards function and for UI
         // We store also the eraIndex in an array to be able to get all the eras for each epoch
         s_eraRoot[eraIndex] = eraRoot;
         s_eraIndexesPerEpoch[epoch].push(eraIndex);
 
-        emit DistributeRewards(eraIndex, epoch, tokenAddress, tokensPerPoint, amount, root);
+        emit DistributeRewards(eraIndex, epoch, tokenAddress, eraRoot.tokensPerPoint, amount, root);
     }
 
     /**
@@ -185,13 +185,13 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         IERC20(tokenAddress).safeTransfer(recipient, operatorAmount);
 
         _distributeRewardsToStakers(
-            epoch, input.eraIndex, stakerAmount, recipient, middlewareAddress, tokenAddress, input.data
+            eraRoot.timestamp, input.eraIndex, stakerAmount, recipient, middlewareAddress, tokenAddress, input.data
         );
         emit ClaimRewards(recipient, tokenAddress, input.eraIndex, epoch, msg.sender, amount);
     }
 
     function _distributeRewardsToStakers(
-        uint48 epoch,
+        uint48 timestamp,
         uint48 eraIndex,
         uint256 stakerAmount,
         address recipient,
@@ -199,15 +199,13 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         address tokenAddress,
         bytes calldata data
     ) private {
-        uint48 epochStartTs = IMiddleware(middlewareAddress).getEpochStartTs(epoch);
-
         //TODO: For now this is expected to be a single vault. Change it to be able to handle multiple vaults.
-        (, address[] memory operatorVaults) = IMiddleware(middlewareAddress).getOperatorVaults(recipient, epochStartTs);
+        (, address[] memory operatorVaults) = IMiddleware(middlewareAddress).getOperatorVaults(recipient, timestamp);
 
         // TODO: Currently it's only for a specific vault. We don't care now about making it able to send rewards for multiple vaults. It's hardcoded to the first vault of the operator.
         if (operatorVaults.length > 0) {
             IODefaultStakerRewards(s_vaultToStakerRewardsContract[operatorVaults[0]]).distributeRewards(
-                epoch, eraIndex, stakerAmount, tokenAddress, data
+                timestamp, eraIndex, stakerAmount, tokenAddress, data
             );
         }
     }

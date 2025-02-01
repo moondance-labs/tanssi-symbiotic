@@ -1194,35 +1194,37 @@ contract MiddlewareTest is Test {
         middleware.setOperatorRewardsContract(address(operatorRewards));
         middleware.setGateway(gateway);
 
-        uint256 epoch = 0;
-        uint256 eraIndex = 0;
+        uint48 timestamp = 1 days;
+        uint48 eraIndex = 0;
         uint256 totalPointsToken = 100;
         uint256 tokensInflatedToken = 1000;
         bytes32 rewardsRoot = 0x4b0ddd8b9b8ec6aec84bcd2003c973254c41d976f6f29a163054eec4e7947810;
 
         vm.startPrank(gateway);
         middleware.distributeRewards(
-            epoch, eraIndex, totalPointsToken, tokensInflatedToken, rewardsRoot, address(token)
+            timestamp, eraIndex, address(token), totalPointsToken, tokensInflatedToken, rewardsRoot
         );
     }
 
     function testDistributeRewardsUnauthorized() public {
-        uint256 epoch = 0;
-        uint256 eraIndex = 0;
+        uint48 timestamp = 1 days;
+        uint48 eraIndex = 0;
         uint256 totalPointsToken = 100;
         uint256 tokensInflatedToken = 1000;
         bytes32 rewardsRoot = 0x4b0ddd8b9b8ec6aec84bcd2003c973254c41d976f6f29a163054eec4e7947810;
         address tokenAddress = makeAddr("TanssiToken");
 
         vm.expectRevert(IMiddleware.Middleware__CallerNotGateway.selector);
-        middleware.distributeRewards(epoch, eraIndex, totalPointsToken, tokensInflatedToken, rewardsRoot, tokenAddress);
+        middleware.distributeRewards(
+            timestamp, eraIndex, tokenAddress, totalPointsToken, tokensInflatedToken, rewardsRoot
+        );
     }
 
     function testDistributeRewardsWithInsufficientBalance() public {
         uint48 OPERATOR_SHARE = 20;
 
-        uint256 epoch = 0;
-        uint256 eraIndex = 0;
+        uint48 timestamp = 1 days;
+        uint48 eraIndex = 0;
         uint256 totalPointsToken = 100;
         uint256 tokensInflatedToken = 1000;
         bytes32 rewardsRoot = 0x4b0ddd8b9b8ec6aec84bcd2003c973254c41d976f6f29a163054eec4e7947810;
@@ -1241,7 +1243,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(gateway);
         vm.expectRevert(IMiddleware.Middleware__InsufficientBalance.selector);
         middleware.distributeRewards(
-            epoch, eraIndex, totalPointsToken, tokensInflatedToken, rewardsRoot, address(token)
+            timestamp, eraIndex, address(token), totalPointsToken, tokensInflatedToken, rewardsRoot
         );
     }
 
@@ -1251,7 +1253,6 @@ contract MiddlewareTest is Test {
 
     function testSetRewardsContracts() public {
         uint48 OPERATOR_SHARE = 20;
-        Token token = new Token("Test");
 
         ODefaultOperatorRewards operatorRewards =
             new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
@@ -1572,7 +1573,6 @@ contract MiddlewareTest is Test {
 
     function testSetStakerRewardContract() public {
         uint48 OPERATOR_SHARE = 20;
-        Token token = new Token("Test");
         address stakerRewardAddress = makeAddr("StakerRewardAddress");
 
         ODefaultOperatorRewards operatorRewards =
@@ -1595,7 +1595,6 @@ contract MiddlewareTest is Test {
 
     function testSetStakerRewardContractInvalid() public {
         uint48 OPERATOR_SHARE = 20;
-        Token token = new Token("Test");
 
         ODefaultOperatorRewards operatorRewards =
             new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
