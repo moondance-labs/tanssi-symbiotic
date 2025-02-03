@@ -7,50 +7,6 @@ on:
         description: full sha to deploy the contracts from
         type: string
         required: true
-      vault-address:
-        description: address of the vault contract (used for register-vault command)
-        type: string
-        required: false
-      middleware-address:
-        description: address of the middleware contract (used for register-vault command)
-        type: string
-        required: false
-      operator-registry-address:
-        description: address of the operator registry (used for deploy-middleware command)
-        type: string
-        required: false
-      vault-registry-address:
-        description: address of the vault registry (used for deploy-middleware command)
-        type: string
-        required: false
-      operator-netowrk-opt-in-address:
-        description: address of the operator network opt in  (used for deploy-middleware command)
-        type: string
-        required: false
-      vault-configurator-address:
-        description: address of the vault configurator (used for deploy-vault)
-        type: string
-        required: false
-      vaulut-owner-address:
-        description: address of the vault owner (used for deploy-vault)
-        type: string
-        required: false
-      vault-collateral-address:
-        description: address of the vault collateral (used for deploy-vault)
-        type: string
-        required: false
-      vault-is-slashable:
-        description: specifies if vault is slashable (used for deploy-vault)
-        type: boolean
-        required: false
-      vault-slasher-index:
-        description: specifies the vault slasher index (used for deploy-vault)
-        type: number
-        required: false
-      vault-veto-duration:
-        description: specifies the vault veto duration (used for deploy-vault)
-        type: number
-        required: false
       command:
         description: list of available commands to run
         required: true
@@ -61,7 +17,67 @@ on:
           - deploy-vault
           - register-vault
           - register-middleware-to-symbiotic
+      owner-address:
+        description: address of the vault / middleware owner (used for deploy-middleware and deploy-vault commands)
+        type: string
+        required: false
+      network-address:
+        description: address of the vault / middleware owner (used for deploy-middleware command)
+        type: string
+        required: false
+      operator-registry-address:
+        description: address of the operator registry (used for deploy-middleware command)
+        type: string
+        required: false
+      vault-registry-address:
+        description: address of the vault registry (used for deploy-middleware command)
+        type: string
+        required: false
+      operator-network-opt-in-address:
+        description: address of the operator network opt in  (used for deploy-middleware command)
+        type: string
+        required: false
+      network-epoch-duration:
+        description: specifies the network epoch duration (used for deploy-middleware command)
+        type: number
+        required: false
+      slashing-window:
+        description: specifies the slashing window duration (used for deploy-middleware command)
+        type: number
+        required: false
+      vault-configurator-address:
+        description: address of the vault configurator (used for deploy-vault command)
+        type: string
+        required: false
 
+      vault-collateral-address:
+        description: address of the vault collateral (used for deploy-vault command)
+        type: string
+        required: false
+      vault-epoch-duration:
+        description: specifies the vault epoch duration (used for deploy-vault command)
+        type: number
+        required: false
+      vault-is-slashable:
+        description: specifies if vault is slashable (used for deploy-vault command)
+        type: boolean
+        required: false
+      vault-slasher-index:
+        description: specifies the vault slasher index (used for deploy-vault command)
+        type: number
+        required: false
+      vault-veto-duration:
+        description: specifies the vault veto duration (used for deploy-vault command)
+        type: number
+        required: false
+      vault-address:
+        description: address of the vault contract (used for register-vault command)
+        type: string
+        required: false
+      middleware-address:
+        description: address of the middleware contract (used for register-middleware-to-symbiotic command)
+        type: string
+        required: false
 env:
   FOUNDRY_PROFILE: ci
   
@@ -79,17 +95,20 @@ jobs:
       RESOLVER_PRIVATE_KEY: ${{ secrets.RESOLVER_PRIVATE_KEY }}
       OPERATOR_PRIVATE_KEY: ${{ secrets.OPERATOR_PRIVATE_KEY }}
       VAULT_ADDRESS: ${{ github.event.inputs.vault-address }}
+      OWNER_ADDRESS: ${{ github.event.inputs.owner-address }}
+      NETWORK_ADDRESS: ${{ github.event.inputs.network-address }}
       NETWORK_MIDDLEWARE_SERVICE_ADDRESS: ${{ github.event.inputs.middleware-address }}
       OPERATOR_REGISTRY_ADDRESS: ${{ github.event.inputs.operator-registry-address }}
       VAULT_REGISTRY_ADDRESS: ${{ github.event.inputs.vault-registry-address }}
-      OPERATOR_NETWORK_OPT_IN_ADDRESS: ${{ github.event.inputs.operator-netowrk-opt-in-address }}
+      OPERATOR_NETWORK_OPT_IN_ADDRESS: ${{ github.event.inputs.operator-network-opt-in-address }}
+      NETWORK_EPOCH_DURATION: ${{ github.event.inputs.network-epoch-duration }}
+      SLASHING_WINDOW: ${{ github.event.inputs.slashing-window }}
       VAULT_CONFIGURATOR_ADDRESS: ${{ github.event.inputs.vault-configurator-address }}
-      OWNER_ADDRESS: ${{ github.event.inputs.vaulut-owner-address }}
       COLLATERAL_ADDRESS: ${{ github.event.inputs.vault-collateral-address }}
+      VAULT_EPOCH_DURATION: ${{ github.event.inputs.vault-epoch-duration }}
       IS_SLASHABLE: ${{ github.event.inputs.vault-is-slashable }}
       SLASHER_INDEX: ${{ github.event.inputs.vault-slasher-index }}
       VETO_DURATION: ${{ github.event.inputs.vault-veto-duration }}
-      EPOCH_DURATION: 86400
     steps:
       - uses: actions/checkout@v4
         with:
@@ -123,11 +142,11 @@ jobs:
         run: |
           if [[ ${{ github.event.inputs.command }} = "deploy-middleware" ]]; then
             echo "Deploying Tanssi Middleware contract..."
-            forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "deployMiddleware(address,address,address)" $OPERATOR_REGISTRY_ADDRESS $VAULT_REGISTRY_ADDRESS $OPERATOR_NETWORK_OPT_IN_ADDRESS 
+            forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "deployMiddleware(address,address,address,address,address,uint48,uint48)" $NETWORK_ADDRESS $OPERATOR_REGISTRY_ADDRESS $VAULT_REGISTRY_ADDRESS $OPERATOR_NETWORK_OPT_IN_ADDRESS $OWNER_ADDRESS $NETWORK_EPOCH_DURATION $SLASHING_WINDOW
             echo "Tanssi Middleware contract deployment completed" 
           elif [[ ${{ github.event.inputs.command }} = "deploy-vault" ]]; then
             echo "Deploying Tanssi vault..."
-            forge script script/DeployVault.s.sol:DeployVault --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "run(address,address,address,uint48,bool,uint256,uint64,bool,uint64,uint48)" $VAULT_CONFIGURATOR_ADDRESS $OWNER_ADDRESS $COLLATERAL_ADDRESS $EPOCH_DURATION false 0 0 $IS_SLASHABLE $SLASHER_INDEX $VETO_DURATION
+            forge script script/DeployVault.s.sol:DeployVault --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "run(address,address,address,uint48,bool,uint256,uint64,bool,uint64,uint48)" $VAULT_CONFIGURATOR_ADDRESS $OWNER_ADDRESS $COLLATERAL_ADDRESS $VAULT_EPOCH_DURATION false 0 0 $IS_SLASHABLE $SLASHER_INDEX $VETO_DURATION
             echo "Tanssi vault deployment completed" 
           elif [[ ${{ github.event.inputs.command }} = "register-vault" ]]; then
             echo "Registering Tanssi vault..."

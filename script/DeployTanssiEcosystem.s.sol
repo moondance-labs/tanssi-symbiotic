@@ -294,19 +294,23 @@ contract DeployTanssiEcosystem is Script {
     }
 
     function deployMiddleware(
+        address networkAddress,
         address operatorRegistryAddress,
         address vaultRegistryAddress,
-        address operatorNetworkOptInServiceAddress
+        address operatorNetworkOptInServiceAddress,
+        address ownerAddress,
+        uint48 epochDuration,
+        uint48 slashingWindow
     ) external {
         vm.startBroadcast(ownerPrivateKey);
         ecosystemEntities.middleware = new Middleware(
-            tanssi,
+            networkAddress,
             operatorRegistryAddress,
             vaultRegistryAddress,
             operatorNetworkOptInServiceAddress,
-            tanssi,
-            NETWORK_EPOCH_DURATION,
-            SLASHING_WINDOW
+            ownerAddress,
+            epochDuration,
+            slashingWindow
         );
         vm.stopBroadcast();
     }
