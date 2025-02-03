@@ -89,6 +89,7 @@ jobs:
       IS_SLASHABLE: ${{ github.event.inputs.vault-is-slashable }}
       SLASHER_INDEX: ${{ github.event.inputs.vault-slasher-index }}
       VETO_DURATION: ${{ github.event.inputs.vault-veto-duration }}
+      EPOCH_DURATION: 86400
     steps:
       - uses: actions/checkout@v4
         with:
@@ -126,7 +127,7 @@ jobs:
             echo "Tanssi Middleware contract deployment completed" 
           elif [[ ${{ github.event.inputs.command }} = "deploy-vault" ]]; then
             echo "Deploying Tanssi vault..."
-            forge script script/DeployVault.s.sol:DeployVault --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "run(address,address,address,uint48,bool,uin256,uint64,bool,uint64,uint48)" $VAULT_CONFIGURATOR_ADDRESS $OWNER_ADDRESS $COLLATERAL_ADDRESS false 0 0 $IS_SLASHABLE $SLASHER_INDEX $VETO_DURATION
+            forge script script/DeployVault.s.sol:DeployVault --rpc-url $HOLESKY_RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "run(address,address,address,uint48,bool,uin256,uint64,bool,uint64,uint48)" $VAULT_CONFIGURATOR_ADDRESS $OWNER_ADDRESS $COLLATERAL_ADDRESS $EPOCH_DURATION false 0 0 $IS_SLASHABLE $SLASHER_INDEX $VETO_DURATION
             echo "Tanssi vault deployment completed" 
           elif [[ ${{ github.event.inputs.command }} = "register-vault" ]]; then
             echo "Registering Tanssi vault..."
