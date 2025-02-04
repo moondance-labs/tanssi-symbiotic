@@ -92,12 +92,12 @@ contract ODefaultStakerRewards is
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    address public immutable i_network;
+    address public NETWORK;
 
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    address public s_vault;
+    address public VAULT;
 
     /**
      * @inheritdoc IODefaultStakerRewards
@@ -122,22 +122,17 @@ contract ODefaultStakerRewards is
 
     mapping(uint48 epoch => uint256 amount) private _s_activeSharesCache;
 
-    constructor(
-        address network,
-        address vaultFactory,
-        address networkMiddlewareService,
-        uint48 startTime,
-        uint48 epochDuration,
-        InitParams memory params
-    ) {
-        //TODO For now these are immutable, but if we use initialize these won't be immutable anymore.
-        i_network = network;
+    constructor(address vaultFactory, address networkMiddlewareService, uint48 startTime, uint48 epochDuration) {
+        _disableInitializers();
         i_vaultFactory = vaultFactory;
         i_networkMiddlewareService = networkMiddlewareService;
         i_startTime = startTime;
         i_epochDuration = epochDuration;
+    }
 
-        //TODO: This will be moved probably into an initialize function. Use the factory from the symbiotic rewarder repo. Check `DefaultStakerRewards.sol` initialize function
+    function initialize(
+        InitParams calldata params
+    ) external initializer {
         if (!IRegistry(i_vaultFactory).isEntity(params.vault)) {
             revert ODefaultStakerRewards__NotVault();
         }
@@ -160,7 +155,9 @@ contract ODefaultStakerRewards is
             revert ODefaultStakerRewards__MissingRoles();
         }
 
-        s_vault = params.vault;
+        __ReentrancyGuard_init();
+        VAULT = params.vault;
+        NETWORK = params.network;
 
         _setAdminFee(params.adminFee);
 
@@ -213,7 +210,7 @@ contract ODefaultStakerRewards is
         for (uint256 i; i < rewardsToClaim;) {
             uint256 rewardAmount = rewardsPerEpoch[rewardIndex];
 
-            amount += IVault(s_vault).activeSharesOfAt(account, epochTs, new bytes(0)).mulDiv(
+            amount += IVault(VAULT).activeSharesOfAt(account, epochTs, new bytes(0)).mulDiv(
                 rewardAmount, _s_activeSharesCache[epoch]
             );
 
@@ -266,7 +263,7 @@ contract ODefaultStakerRewards is
 
         _updateAdminFeeAndRewards(amount, adminFee_, epoch, tokenAddress);
 
-        emit DistributeRewards(i_network, tokenAddress, eraIndex, epoch, amount, data);
+        emit DistributeRewards(NETWORK, tokenAddress, eraIndex, epoch, amount, data);
     }
 
     function _cacheActiveShares(
@@ -276,8 +273,8 @@ contract ODefaultStakerRewards is
         bytes memory activeStakeHint
     ) private {
         if (_s_activeSharesCache[epoch] == 0) {
-            uint256 activeShares_ = IVault(s_vault).activeSharesAt(epochTs, activeSharesHint);
-            uint256 activeStake_ = IVault(s_vault).activeStakeAt(epochTs, activeStakeHint);
+            uint256 activeShares_ = IVault(VAULT).activeSharesAt(epochTs, activeSharesHint);
+            uint256 activeStake_ = IVault(VAULT).activeStakeAt(epochTs, activeStakeHint);
 
             if (activeShares_ == 0 || activeStake_ == 0) {
                 revert ODefaultStakerRewards__InvalidRewardTimestamp();
@@ -348,7 +345,7 @@ contract ODefaultStakerRewards is
         }
 
         emit ClaimRewards(
-            i_network, tokenAddress, msg.sender, epoch, recipient, lastUnclaimedReward_, rewardsToClaim, amount
+            NETWORK, tokenAddress, msg.sender, epoch, recipient, lastUnclaimedReward_, rewardsToClaim, amount
         );
     }
 
@@ -363,7 +360,7 @@ contract ODefaultStakerRewards is
         for (uint256 i; i < rewardsToClaim;) {
             uint256 rewardAmount = rewardsPerEpoch[rewardIndex];
 
-            amount += IVault(s_vault).activeSharesOfAt(msg.sender, epochTs, activeSharesOfHints[i]).mulDiv(
+            amount += IVault(VAULT).activeSharesOfAt(msg.sender, epochTs, activeSharesOfHints[i]).mulDiv(
                 rewardAmount, _s_activeSharesCache[epoch]
             );
 

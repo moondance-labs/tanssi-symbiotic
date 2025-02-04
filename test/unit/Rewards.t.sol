@@ -46,6 +46,7 @@ import {ScaleCodec} from "@tanssi-bridge-relayer/snowbridge/contracts/src/utils/
 import {SimpleKeyRegistry32} from "src/contracts/libraries/SimpleKeyRegistry32.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
+import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
@@ -88,6 +89,7 @@ contract RewardsTest is Test {
     NetworkMiddlewareService networkMiddlewareService;
     ODefaultOperatorRewards operatorRewards;
     ODefaultStakerRewards stakerRewards;
+    ODefaultStakerRewardsFactory stakerRewardsFactory;
     DelegatorMock delegator;
     Slasher slasher;
     VaultMock vault;
@@ -173,20 +175,20 @@ contract RewardsTest is Test {
             defaultAdminRoleHolder: address(middleware),
             adminFeeClaimRoleHolder: address(middleware),
             adminFeeSetRoleHolder: address(middleware),
-            operatorRewardsRoleHolder: address(operatorRewards)
+            operatorRewardsRoleHolder: address(operatorRewards),
+            network: tanssi
         });
 
         vm.mockCall(
             address(vaultFactory), abi.encodeWithSelector(IRegistry.isEntity.selector, address(vault)), abi.encode(true)
         );
-        stakerRewards = new ODefaultStakerRewards(
-            tanssi,
-            address(vaultFactory),
-            address(networkMiddlewareService),
-            epochStartTs,
-            NETWORK_EPOCH_DURATION,
-            params
+
+        ODefaultStakerRewards stakerRewardsImpl = new ODefaultStakerRewards(
+            address(vaultFactory), address(networkMiddlewareService), epochStartTs, NETWORK_EPOCH_DURATION
         );
+
+        stakerRewardsFactory = new ODefaultStakerRewardsFactory(address(stakerRewardsImpl));
+        stakerRewards = ODefaultStakerRewards(stakerRewardsFactory.create(params));
 
         vm.startPrank(address(middleware));
         operatorRewards.setStakerRewardContract(address(stakerRewards), address(vault));
@@ -204,11 +206,12 @@ contract RewardsTest is Test {
         assertEq(operatorRewards.s_vaultToStakerRewardsContract(address(vault)), address(stakerRewards));
         assertEq(operatorRewards.s_operatorShare(), OPERATOR_SHARE);
 
-        assertEq(stakerRewards.i_network(), tanssi);
+        assertEq(stakerRewards.NETWORK(), tanssi);
+        assertEq(stakerRewards.VAULT(), address(vault));
         assertEq(stakerRewards.i_vaultFactory(), address(vaultFactory));
         assertEq(stakerRewards.i_networkMiddlewareService(), address(networkMiddlewareService));
         assertEq(stakerRewards.i_epochDuration(), NETWORK_EPOCH_DURATION);
-        assertEq(stakerRewards.s_vault(), address(vault));
+        assertEq(stakerRewards.i_startTime(), middleware.getEpochStartTs(0));
         assertEq(stakerRewards.s_adminFee(), ADMIN_FEE);
     }
 
@@ -258,6 +261,53 @@ contract RewardsTest is Test {
             abi.encodeWithSelector(IMiddleware.getOperatorVaults.selector, alice, epochStartTs),
             abi.encode(1, vaults)
         );
+    }
+
+    function _setSRewardsMapping(uint48 epoch, bool multipleRewards, address newToken) private {
+        // For s_rewards[epoch][tokenAddress] = [10 ether]
+
+        // Get base slot for first mapping
+        bytes32 slot = keccak256(abi.encode(epoch, uint256(3)));
+
+        // Get slot for second mapping with tokenAddress
+        bytes32 tokenSlot = keccak256(abi.encode(address(token), slot));
+
+        // Store array length
+        vm.store(address(stakerRewards), tokenSlot, bytes32(uint256(1)));
+
+        // Store array value
+        bytes32 arrayLoc = keccak256(abi.encode(tokenSlot));
+        vm.store(address(stakerRewards), arrayLoc, bytes32(uint256(10 ether)));
+
+        if (multipleRewards) {
+            // Get slot for second mapping with tokenAddress
+            tokenSlot = keccak256(abi.encode(address(newToken), slot));
+
+            // Store array length
+            vm.store(address(stakerRewards), tokenSlot, bytes32(uint256(1)));
+
+            // Store array value
+            arrayLoc = keccak256(abi.encode(tokenSlot));
+            vm.store(address(stakerRewards), arrayLoc, bytes32(uint256(10 ether)));
+        }
+    }
+
+    function _setActiveSharesCache(uint48 epoch, address _stakerRewards) private {
+        bytes32 slot = keccak256(abi.encode(epoch, uint256(6))); // 6 is mapping slot number for the variable _s_activeSharesCache
+        vm.store(address(_stakerRewards), slot, bytes32(uint256(AMOUNT_TO_DISTRIBUTE / 10)));
+    }
+
+    function _setClaimableAdminFee(uint48 epoch, address _token) private {
+        // For s_claimableAdminFee[epoch][tokenAddress]
+
+        // Get base slot for first mapping
+        bytes32 slot = keccak256(abi.encode(epoch, uint256(5))); // For s_claimableAdminFee mapping at slot 4
+
+        // Get final slot with tokenAddress
+        bytes32 finalSlot = keccak256(abi.encode(_token, slot));
+
+        // Store value
+        vm.store(address(stakerRewards), finalSlot, bytes32(uint256(10 ether)));
     }
 
     //**************************************************************************************************
@@ -600,7 +650,8 @@ contract RewardsTest is Test {
             defaultAdminRoleHolder: address(0),
             adminFeeClaimRoleHolder: address(0),
             adminFeeSetRoleHolder: address(middleware),
-            operatorRewardsRoleHolder: address(operatorRewards)
+            operatorRewardsRoleHolder: address(operatorRewards),
+            network: tanssi
         });
 
         vm.mockCall(
@@ -610,14 +661,7 @@ contract RewardsTest is Test {
         );
 
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__NotVault.selector);
-        new ODefaultStakerRewards(
-            tanssi,
-            address(vaultFactory),
-            address(networkMiddlewareService),
-            epochStartTs,
-            NETWORK_EPOCH_DURATION,
-            params
-        );
+        stakerRewardsFactory.create(params);
     }
 
     function testStakerRewardsConstructorWithNoAdminFeeAndNoAdminFeeClaimRoleHolder() public {
@@ -628,18 +672,12 @@ contract RewardsTest is Test {
             defaultAdminRoleHolder: address(0),
             adminFeeClaimRoleHolder: address(0),
             adminFeeSetRoleHolder: address(middleware),
-            operatorRewardsRoleHolder: address(operatorRewards)
+            operatorRewardsRoleHolder: address(operatorRewards),
+            network: tanssi
         });
 
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__MissingRoles.selector);
-        new ODefaultStakerRewards(
-            tanssi,
-            address(vaultFactory),
-            address(networkMiddlewareService),
-            epochStartTs,
-            NETWORK_EPOCH_DURATION,
-            params
-        );
+        stakerRewardsFactory.create(params);
     }
 
     function testStakerRewardsConstructorWithNoAdminFeeAndBothAdminRole() public {
@@ -650,19 +688,13 @@ contract RewardsTest is Test {
             defaultAdminRoleHolder: address(0),
             adminFeeClaimRoleHolder: address(middleware),
             adminFeeSetRoleHolder: address(middleware),
-            operatorRewardsRoleHolder: address(operatorRewards)
+            operatorRewardsRoleHolder: address(operatorRewards),
+            network: tanssi
         });
 
-        ODefaultStakerRewards sr = new ODefaultStakerRewards(
-            tanssi,
-            address(vaultFactory),
-            address(networkMiddlewareService),
-            epochStartTs,
-            NETWORK_EPOCH_DURATION,
-            params
-        );
+        IODefaultStakerRewards newStakerRewards = IODefaultStakerRewards(stakerRewardsFactory.create(params));
 
-        assertEq(sr.s_adminFee(), 0);
+        assertEq(newStakerRewards.s_adminFee(), 0);
     }
 
     function testStakerRewardsConstructorWithInvalidAdminFee() public {
@@ -673,18 +705,12 @@ contract RewardsTest is Test {
             defaultAdminRoleHolder: address(middleware),
             adminFeeClaimRoleHolder: address(middleware),
             adminFeeSetRoleHolder: address(middleware),
-            operatorRewardsRoleHolder: address(operatorRewards)
+            operatorRewardsRoleHolder: address(operatorRewards),
+            network: tanssi
         });
 
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__InvalidAdminFee.selector);
-        new ODefaultStakerRewards(
-            tanssi,
-            address(vaultFactory),
-            address(networkMiddlewareService),
-            epochStartTs,
-            NETWORK_EPOCH_DURATION,
-            params
-        );
+        stakerRewardsFactory.create(params);
     }
 
     function testStakerRewardsConstructorWithNoAdminFeeSetRoleHolder() public {
@@ -695,18 +721,12 @@ contract RewardsTest is Test {
             defaultAdminRoleHolder: address(0),
             adminFeeClaimRoleHolder: address(middleware),
             adminFeeSetRoleHolder: address(0),
-            operatorRewardsRoleHolder: address(operatorRewards)
+            operatorRewardsRoleHolder: address(operatorRewards),
+            network: tanssi
         });
 
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__MissingRoles.selector);
-        new ODefaultStakerRewards(
-            tanssi,
-            address(vaultFactory),
-            address(networkMiddlewareService),
-            epochStartTs,
-            NETWORK_EPOCH_DURATION,
-            params
-        );
+        stakerRewardsFactory.create(params);
     }
 
     function testStakerRewardsConstructorWithNoAdminFeeClaimRoleHolder() public {
@@ -717,18 +737,12 @@ contract RewardsTest is Test {
             defaultAdminRoleHolder: address(0),
             adminFeeClaimRoleHolder: address(0),
             adminFeeSetRoleHolder: address(middleware),
-            operatorRewardsRoleHolder: address(operatorRewards)
+            operatorRewardsRoleHolder: address(operatorRewards),
+            network: tanssi
         });
 
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__MissingRoles.selector);
-        new ODefaultStakerRewards(
-            tanssi,
-            address(vaultFactory),
-            address(networkMiddlewareService),
-            epochStartTs,
-            NETWORK_EPOCH_DURATION,
-            params
-        );
+        stakerRewardsFactory.create(params);
     }
 
     function testStakerRewardsConstructorWithNoOperatorRewardsRoleHolder() public {
@@ -739,18 +753,12 @@ contract RewardsTest is Test {
             defaultAdminRoleHolder: address(middleware),
             adminFeeClaimRoleHolder: address(middleware),
             adminFeeSetRoleHolder: address(middleware),
-            operatorRewardsRoleHolder: address(0)
+            operatorRewardsRoleHolder: address(0),
+            network: tanssi
         });
 
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__MissingRoles.selector);
-        new ODefaultStakerRewards(
-            tanssi,
-            address(vaultFactory),
-            address(networkMiddlewareService),
-            epochStartTs,
-            NETWORK_EPOCH_DURATION,
-            params
-        );
+        stakerRewardsFactory.create(params);
     }
 
     function testStakerRewardsConstructorWithAdminFeeClaimRoleHolder() public {
@@ -761,19 +769,13 @@ contract RewardsTest is Test {
             defaultAdminRoleHolder: address(0),
             adminFeeClaimRoleHolder: address(middleware),
             adminFeeSetRoleHolder: address(middleware),
-            operatorRewardsRoleHolder: address(operatorRewards)
+            operatorRewardsRoleHolder: address(operatorRewards),
+            network: tanssi
         });
 
-        new ODefaultStakerRewards(
-            tanssi,
-            address(vaultFactory),
-            address(networkMiddlewareService),
-            epochStartTs,
-            NETWORK_EPOCH_DURATION,
-            params
-        );
+        IODefaultStakerRewards newStakerRewards = IODefaultStakerRewards(stakerRewardsFactory.create(params));
 
-        assertEq(stakerRewards.s_adminFee(), ADMIN_FEE);
+        assertEq(newStakerRewards.s_adminFee(), ADMIN_FEE);
     }
 
     //**************************************************************************************************
@@ -806,8 +808,7 @@ contract RewardsTest is Test {
         uint48 epochTs = middleware.getEpochStartTs(epoch);
         _setSRewardsMapping(epoch, false, address(0));
 
-        bytes32 slot = keccak256(abi.encode(epoch, uint256(5))); // 5 is mapping slot number for the variable _s_activeSharesCache
-        vm.store(address(stakerRewards), slot, bytes32(uint256(AMOUNT_TO_DISTRIBUTE / 10)));
+        _setActiveSharesCache(epoch, address(stakerRewards));
 
         vm.mockCall(
             address(vault),
@@ -826,8 +827,7 @@ contract RewardsTest is Test {
 
         _setSRewardsMapping(epoch, false, address(0));
 
-        bytes32 slot = keccak256(abi.encode(epoch, uint256(5))); // 5 is mapping slot number for the variable: _s_activeSharesCache
-        vm.store(address(stakerRewards), slot, bytes32(uint256(AMOUNT_TO_DISTRIBUTE / 10)));
+        _setActiveSharesCache(epoch, address(stakerRewards));
 
         vm.mockCall(
             address(vault),
@@ -847,8 +847,7 @@ contract RewardsTest is Test {
 
         _setSRewardsMapping(epoch, true, address(newToken));
 
-        bytes32 slot = keccak256(abi.encode(epoch, uint256(5))); // 5 is mapping slot number for the variable: _s_activeSharesCache
-        vm.store(address(stakerRewards), slot, bytes32(uint256(AMOUNT_TO_DISTRIBUTE / 10)));
+        _setActiveSharesCache(epoch, address(stakerRewards));
 
         vm.mockCall(
             address(vault),
@@ -876,25 +875,18 @@ contract RewardsTest is Test {
             defaultAdminRoleHolder: address(middleware),
             adminFeeClaimRoleHolder: address(middleware),
             adminFeeSetRoleHolder: address(middleware),
-            operatorRewardsRoleHolder: address(operatorRewards)
+            operatorRewardsRoleHolder: address(operatorRewards),
+            network: tanssi
         });
-        stakerRewards = new ODefaultStakerRewards(
-            tanssi,
-            address(vaultFactory),
-            address(networkMiddlewareService),
-            epochStartTs,
-            NETWORK_EPOCH_DURATION,
-            params
-        );
+        IODefaultStakerRewards newStakerRewards = IODefaultStakerRewards(stakerRewardsFactory.create(params));
 
-        bytes32 slot = keccak256(abi.encode(epoch, uint256(5))); // 5 is mapping slot number for the variable: _s_activeSharesCache
-        vm.store(address(stakerRewards), slot, bytes32(uint256(AMOUNT_TO_DISTRIBUTE / 10)));
+        _setActiveSharesCache(epoch, address(newStakerRewards));
 
         vm.startPrank(address(operatorRewards));
-        feeToken.approve(address(stakerRewards), type(uint256).max);
+        feeToken.approve(address(newStakerRewards), type(uint256).max);
 
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__InsufficientReward.selector);
-        stakerRewards.distributeRewards(epoch, eraIndex, AMOUNT_TO_CLAIM, address(feeToken), REWARDS_ADDITIONAL_DATA);
+        newStakerRewards.distributeRewards(epoch, eraIndex, AMOUNT_TO_CLAIM, address(feeToken), REWARDS_ADDITIONAL_DATA);
     }
 
     function testStakerDistributeRewardsWrongRole() public {
@@ -909,65 +901,29 @@ contract RewardsTest is Test {
             defaultAdminRoleHolder: address(middleware),
             adminFeeClaimRoleHolder: address(middleware),
             adminFeeSetRoleHolder: address(middleware),
-            operatorRewardsRoleHolder: address(operatorRewards)
+            operatorRewardsRoleHolder: address(operatorRewards),
+            network: tanssi
         });
-        stakerRewards = new ODefaultStakerRewards(
-            tanssi,
-            address(vaultFactory),
-            address(networkMiddlewareService),
-            epochStartTs,
-            NETWORK_EPOCH_DURATION,
-            params
-        );
+        IODefaultStakerRewards newStakerRewards = IODefaultStakerRewards(stakerRewardsFactory.create(params));
 
         bytes32 operatoRewardsRoleHolder = stakerRewards.OPERATOR_REWARDS_ROLE();
 
-        bytes32 slot = keccak256(abi.encode(epoch, uint256(5))); // 5 is mapping slot number for the variable: _s_activeSharesCache
-        vm.store(address(stakerRewards), slot, bytes32(uint256(AMOUNT_TO_DISTRIBUTE / 10)));
+        _setActiveSharesCache(epoch, address(stakerRewards));
 
         vm.startPrank(address(middleware));
-        feeToken.approve(address(stakerRewards), type(uint256).max);
+        feeToken.approve(address(newStakerRewards), type(uint256).max);
 
         vm.expectRevert(
             abi.encodeWithSelector(
                 IAccessControl.AccessControlUnauthorizedAccount.selector, address(middleware), operatoRewardsRoleHolder
             )
         );
-        stakerRewards.distributeRewards(epoch, eraIndex, AMOUNT_TO_CLAIM, address(token), REWARDS_ADDITIONAL_DATA);
+        newStakerRewards.distributeRewards(epoch, eraIndex, AMOUNT_TO_CLAIM, address(token), REWARDS_ADDITIONAL_DATA);
     }
 
     //**************************************************************************************************
     //                                      claimRewards
     //**************************************************************************************************
-
-    function _setSRewardsMapping(uint48 epoch, bool multipleRewards, address newToken) private {
-        // For s_rewards[epoch][tokenAddress] = [10 ether]
-
-        // Get base slot for first mapping
-        bytes32 slot = keccak256(abi.encode(epoch, uint256(2)));
-
-        // Get slot for second mapping with tokenAddress
-        bytes32 tokenSlot = keccak256(abi.encode(address(token), slot));
-
-        // Store array length
-        vm.store(address(stakerRewards), tokenSlot, bytes32(uint256(1)));
-
-        // Store array value
-        bytes32 arrayLoc = keccak256(abi.encode(tokenSlot));
-        vm.store(address(stakerRewards), arrayLoc, bytes32(uint256(10 ether)));
-
-        if (multipleRewards) {
-            // Get slot for second mapping with tokenAddress
-            tokenSlot = keccak256(abi.encode(address(newToken), slot));
-
-            // Store array length
-            vm.store(address(stakerRewards), tokenSlot, bytes32(uint256(1)));
-
-            // Store array value
-            arrayLoc = keccak256(abi.encode(tokenSlot));
-            vm.store(address(stakerRewards), arrayLoc, bytes32(uint256(10 ether)));
-        }
-    }
 
     function testClaimStakerRewards() public {
         uint48 epoch = 0;
@@ -978,8 +934,7 @@ contract RewardsTest is Test {
         vm.prank(address(middleware));
         token.transfer(address(stakerRewards), AMOUNT_TO_DISTRIBUTE / 10);
 
-        bytes32 slot = keccak256(abi.encode(epoch, uint256(5))); // 5 is mapping slot number for the variable: _s_activeSharesCache
-        vm.store(address(stakerRewards), slot, bytes32(uint256(AMOUNT_TO_DISTRIBUTE / 10)));
+        _setActiveSharesCache(epoch, address(stakerRewards));
 
         vm.mockCall(
             address(vault),
@@ -1003,8 +958,7 @@ contract RewardsTest is Test {
         vm.prank(address(middleware));
         token.transfer(address(stakerRewards), AMOUNT_TO_DISTRIBUTE / 10);
 
-        bytes32 slot = keccak256(abi.encode(epoch, uint256(5))); // 5 is mapping slot number for the variable: _s_activeSharesCache
-        vm.store(address(stakerRewards), slot, bytes32(uint256(AMOUNT_TO_DISTRIBUTE / 10)));
+        _setActiveSharesCache(epoch, address(stakerRewards));
 
         vm.mockCall(
             address(vault),
@@ -1027,8 +981,7 @@ contract RewardsTest is Test {
         vm.prank(address(middleware));
         token.transfer(address(stakerRewards), AMOUNT_TO_DISTRIBUTE / 10);
 
-        bytes32 slot = keccak256(abi.encode(epoch, uint256(5))); // 5 is mapping slot number for the variable: _s_activeSharesCache
-        vm.store(address(stakerRewards), slot, bytes32(uint256(AMOUNT_TO_DISTRIBUTE / 10)));
+        _setActiveSharesCache(epoch, address(stakerRewards));
 
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
@@ -1073,8 +1026,7 @@ contract RewardsTest is Test {
         vm.prank(address(middleware));
         token.transfer(address(stakerRewards), AMOUNT_TO_DISTRIBUTE / 10);
 
-        bytes32 slot = keccak256(abi.encode(epoch, uint256(5))); // 5 is mapping slot number for the variable: _s_activeSharesCache
-        vm.store(address(stakerRewards), slot, bytes32(uint256(AMOUNT_TO_DISTRIBUTE / 10)));
+        _setActiveSharesCache(epoch, address(stakerRewards));
 
         vm.mockCall(
             address(vault),
@@ -1105,8 +1057,7 @@ contract RewardsTest is Test {
         vm.prank(address(middleware));
         token.transfer(address(stakerRewards), AMOUNT_TO_DISTRIBUTE / 10);
 
-        bytes32 slot = keccak256(abi.encode(epoch, uint256(5))); // 5 is mapping slot number for the variable: _s_activeSharesCache
-        vm.store(address(stakerRewards), slot, bytes32(uint256(AMOUNT_TO_DISTRIBUTE / 10)));
+        _setActiveSharesCache(epoch, address(stakerRewards));
 
         vm.mockCall(
             address(vault),
@@ -1129,8 +1080,7 @@ contract RewardsTest is Test {
         vm.prank(address(middleware));
         newToken.transfer(address(stakerRewards), AMOUNT_TO_DISTRIBUTE / 10);
 
-        bytes32 slot = keccak256(abi.encode(epoch, uint256(5))); // 5 is mapping slot number for the variable: _s_activeSharesCache
-        vm.store(address(stakerRewards), slot, bytes32(uint256(AMOUNT_TO_DISTRIBUTE / 10)));
+        _setActiveSharesCache(epoch, address(stakerRewards));
 
         vm.mockCall(
             address(vault),
@@ -1189,19 +1139,6 @@ contract RewardsTest is Test {
     //**************************************************************************************************
     //                                      claimAdminFee
     //**************************************************************************************************
-
-    function _setClaimableAdminFee(uint48 epoch, address token) private {
-        // For s_claimableAdminFee[epoch][tokenAddress]
-
-        // Get base slot for first mapping
-        bytes32 slot = keccak256(abi.encode(epoch, uint256(4))); // For s_claimableAdminFee mapping at slot 4
-
-        // Get final slot with tokenAddress
-        bytes32 finalSlot = keccak256(abi.encode(token, slot));
-
-        // Store value
-        vm.store(address(stakerRewards), finalSlot, bytes32(uint256(10 ether)));
-    }
 
     function testClaimAdminFee() public {
         uint48 epoch = 0;

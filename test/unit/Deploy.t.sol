@@ -41,18 +41,21 @@ import {DeployCollateral} from "script/DeployCollateral.s.sol";
 import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
 import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
 import {DeployVault} from "script/DeployVault.s.sol";
+import {DeployRewards} from "script/DeployRewards.s.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
 
 contract DeployTest is Test {
     using Subnetwork for address;
 
     uint48 public constant VAULT_EPOCH_DURATION = 12 days;
+    uint48 public constant NETWORK_EPOCH_DURATION = 7 days;
     address constant ZERO_ADDRESS = address(0);
     string constant HOLESKY_RPC = "https://ethereum-holesky-rpc.publicnode.com";
     DeployCollateral deployCollateral;
     DeploySymbiotic deploySymbiotic;
     DeployTanssiEcosystem deployTanssiEcosystem;
     DeployVault deployVault;
+    DeployRewards deployRewards;
     HelperConfig helperConfig;
 
     address tanssi;
@@ -65,6 +68,7 @@ contract DeployTest is Test {
         deploySymbiotic = new DeploySymbiotic();
         deployTanssiEcosystem = new DeployTanssiEcosystem();
         deployVault = new DeployVault();
+        deployRewards = new DeployRewards();
         helperConfig = new HelperConfig();
 
         deployTanssiEcosystem.deployTanssiEcosystem(helperConfig);
@@ -87,6 +91,9 @@ contract DeployTest is Test {
         vm.store(address(deployTanssiEcosystem), slot, clearedValue);
     }
 
+    //**************************************************************************************************
+    //                                      DEPLOY COLLATERAL
+    //**************************************************************************************************
     function testDeployCollateral() public {
         address tokenAddress = deployCollateral.deployCollateral("Test");
         assertNotEq(tokenAddress, ZERO_ADDRESS);
@@ -96,6 +103,9 @@ contract DeployTest is Test {
         deployCollateral.run();
     }
 
+    //**************************************************************************************************
+    //                                      DEPLOY SYMBIOTIC
+    //**************************************************************************************************
     function testDeploySymbioticBroadcast() public {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
         assertNotEq(addresses.vaultFactory, ZERO_ADDRESS);
@@ -129,8 +139,9 @@ contract DeployTest is Test {
 
     function testDeploySymbioticRun() public {
         vm.recordLogs();
-        deploySymbiotic.setCollateral(deployCollateral.deployCollateral("Test"));
-        deploySymbiotic.run();
+        address _collateral = deployCollateral.deployCollateral("Test");
+        deploySymbiotic.setCollateral(_collateral);
+        deploySymbiotic.run(_collateral);
 
         Vm.Log[] memory entries = vm.getRecordedLogs();
         for (uint256 i = 0; i < entries.length; i++) {
@@ -150,6 +161,9 @@ contract DeployTest is Test {
         assertEq(collateralAddress, tokenAddress);
     }
 
+    //**************************************************************************************************
+    //                                      DEPLOY TANSSI ECOSYSTEM
+    //**************************************************************************************************
     function testDeployTokens() public {
         vm.startPrank(tanssi);
 
@@ -518,6 +532,9 @@ contract DeployTest is Test {
         deployVault.createBaseVault(params);
     }
 
+    //**************************************************************************************************
+    //                                      DEPLOY VAULT
+    //**************************************************************************************************
     function testDeployVaultWithCollateralEmpty() public {
         (Middleware middleware, IVaultConfigurator vaultConfigurator, address defaultCollateralAddress) =
             deployTanssiEcosystem.ecosystemEntities();
@@ -613,5 +630,69 @@ contract DeployTest is Test {
                 entries[i].topics[0], DeployVault.DeployVault__VaultConfiguratorOrCollateralNotDeployed.selector
             );
         }
+    }
+
+    //**************************************************************************************************
+    //                                      DEPLOY REWARDS
+    //**************************************************************************************************
+
+    function testDeployRewards() public {
+        DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
+        (address vault,,,,,,,,) = deployTanssiEcosystem.vaultAddresses();
+
+        DeployRewards.DeployParams memory params = DeployRewards.DeployParams({
+            vault: vault,
+            vaultFactory: addresses.vaultFactory,
+            adminFee: 0,
+            defaultAdminRole: tanssi,
+            adminFeeClaimRole: tanssi,
+            adminFeeSetRole: tanssi,
+            operatorRewardsRole: tanssi,
+            network: tanssi,
+            networkMiddlewareService: addresses.networkMiddlewareService,
+            startTime: 1 days,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            operatorShare: 20
+        });
+
+        vm.mockCall(addresses.vaultFactory, abi.encodeWithSelector(IRegistry.isEntity.selector), abi.encode(true));
+
+        vm.expectEmit(true, false, false, false);
+        emit DeployRewards.Done();
+        deployRewards.run(params);
+    }
+
+    function testDeployRewardsOperator() public {
+        DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
+        (address vault,,,,,,,,) = deployTanssiEcosystem.vaultAddresses();
+
+        address operatorRewards =
+            deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20);
+        assertNotEq(operatorRewards, ZERO_ADDRESS);
+    }
+
+    function testDeployRewardsStakerFactory() public {
+        DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
+        (address vault,,,,,,,,) = deployTanssiEcosystem.vaultAddresses();
+
+        (address stakerFactory, address stakerImpl) = deployRewards.deployStakerRewardsFactoryContract(
+            addresses.vaultFactory, addresses.networkMiddlewareService, 1 days, NETWORK_EPOCH_DURATION
+        );
+        assertNotEq(stakerFactory, ZERO_ADDRESS);
+        assertNotEq(stakerImpl, ZERO_ADDRESS);
+    }
+
+    function testDeployRewardsStaker() public {
+        DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
+        (address vault,,,,,,,,) = deployTanssiEcosystem.vaultAddresses();
+
+        (address stakerFactory, address stakerImpl) = deployRewards.deployStakerRewardsFactoryContract(
+            addresses.vaultFactory, addresses.networkMiddlewareService, 1 days, NETWORK_EPOCH_DURATION
+        );
+        vm.mockCall(addresses.vaultFactory, abi.encodeWithSelector(IRegistry.isEntity.selector), abi.encode(true));
+
+        address stakerRewards =
+            deployRewards.deployStakerRewardsContract(vault, 0, tanssi, tanssi, tanssi, tanssi, tanssi);
+        assertNotEq(stakerRewards, ZERO_ADDRESS);
     }
 }
