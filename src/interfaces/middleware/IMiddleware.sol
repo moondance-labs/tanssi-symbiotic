@@ -46,9 +46,10 @@ interface IMiddleware {
     error Middleware__InvalidSubnetworksCnt();
     error Middleware__TooOldEpoch();
     error Middleware__InvalidEpoch();
+    error Middleware__InvalidAddress();
+    error Middleware__InsufficientBalance();
     error Middleware__SlashingWindowTooShort();
     error Middleware__UnknownSlasherType();
-    error Middleware__InvalidAddress();
     error Middleware__OperatorNotFound(bytes32 operatorKey, uint48 epoch);
     error Middleware__SlashPercentageTooBig(uint48 epoch, address operator, uint256 percentage);
 
@@ -290,20 +291,23 @@ interface IMiddleware {
     ) external;
 
     /**
-     * @notice Distributes rewards
-     * @param epoch The epoch for the rewards distribution
-     * @param eraIndex The era index of the rewards distribution
-     * @param totalPointsToken The total points token
-     * @param tokensInflatedToken The total tokens inflated token
-     * @param rewardsRoot The rewards root
+     * @notice Distribute rewards for a specific era contained in an epoch by providing a Merkle root, total points, total amount of tokens and the token address of the rewards.
+     * @param epoch network epoch of the middleware
+     * @param eraIndex era index of Starlight's rewards distribution
+     * @param totalPointsToken total amount of points for the reward distribution
+     * @param tokensInflatedToken amount of tokens to distribute
+     * @param rewardsRoot Merkle root of the reward distribution
+     * @param tokenAddress The token address of the rewards
      * @dev This function is called by the gateway only
+     * @dev Emit DistributeRewards event.
      */
     function distributeRewards(
         uint256 epoch,
         uint256 eraIndex,
         uint256 totalPointsToken,
         uint256 tokensInflatedToken,
-        bytes32 rewardsRoot
+        bytes32 rewardsRoot,
+        address tokenAddress
     ) external;
 
     /**

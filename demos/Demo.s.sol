@@ -115,7 +115,7 @@ contract Demo is Script {
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
             depositLimit: 0,
-            delegatorIndex: DeploySymbiotic.DelegatorIndex.NETWORK_RESTAKE,
+            delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
             shouldBroadcast: true,
             vaultConfigurator: address(vaultConfigurator),
             collateral: address(stETHToken),
@@ -138,7 +138,7 @@ contract Demo is Script {
         console2.log("SlasherSlashable: ", vaultAddresses.slasherSlashable);
         console2.log(" ");
 
-        params.delegatorIndex = DeploySymbiotic.DelegatorIndex.FULL_RESTAKE;
+        params.delegatorIndex = DeployVault.DelegatorIndex.FULL_RESTAKE;
         params.collateral = address(wBTCToken);
         (vaultAddresses.vaultVetoed, vaultAddresses.delegatorVetoed, vaultAddresses.slasherVetoed) =
             deployVault.createVaultVetoed(params, 1 days);

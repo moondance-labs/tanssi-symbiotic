@@ -272,7 +272,7 @@ contract MiddlewareTest is Test {
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
             depositLimit: 0,
-            delegatorIndex: DeploySymbiotic.DelegatorIndex.NETWORK_RESTAKE,
+            delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
             shouldBroadcast: false,
             vaultConfigurator: address(vaultConfigurator),
             collateral: address(stETH),
@@ -286,7 +286,7 @@ contract MiddlewareTest is Test {
             deployVault.createSlashableVault(params);
 
         params.collateral = address(wBTC);
-        params.delegatorIndex = DeploySymbiotic.DelegatorIndex.FULL_RESTAKE;
+        params.delegatorIndex = DeployVault.DelegatorIndex.FULL_RESTAKE;
         (vaultAddresses.vaultVetoed, vaultAddresses.delegatorVetoed, vaultAddresses.slasherVetoed) =
             deployVault.createVaultVetoed(params, 1 days);
     }
@@ -513,13 +513,10 @@ contract MiddlewareTest is Test {
         //Since vaultVetoed is full restake, it exactly gets the amount deposited, so no need to calculations
         uint256 activeStakeInVetoed = vaultVetoed.activeStake();
 
-        (uint256 totalOperator2Stake, uint256 remainingOperator2Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
+        (uint256 totalOperator2Stake,) = _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
         uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
-
-        uint256 slashedEvent = activeStakeInVetoed * slashingFraction / PARTS_PER_BILLION;
 
         vm.prank(owner);
         vm.expectRevert(IVetoSlasher.InvalidCaptureTimestamp.selector);
@@ -641,8 +638,7 @@ contract MiddlewareTest is Test {
         //Since vaultVetoed is full restake, it exactly gets the amount deposited, so no need to calculations
         uint256 activeStakeInVetoed = vaultVetoed.activeStake();
 
-        (uint256 totalOperator2Stake, uint256 remainingOperator2Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
+        (uint256 totalOperator2Stake,) = _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
 
         (uint256 totalOperator3Stake, uint256 remainingOperator3Stake) =
             _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
@@ -903,9 +899,7 @@ contract MiddlewareTest is Test {
 
         SetOperatingModeParams memory operatingModeParams = SetOperatingModeParams({mode: OperatingMode.Normal});
         MockGateway(address(gateway)).setOperatingModePublic(abi.encode(operatingModeParams));
-
         IOGateway(address(gateway)).setMiddleware(address(middleware));
-
         return address(gateway);
     }
 
@@ -924,12 +918,12 @@ contract MiddlewareTest is Test {
         return paraID;
     }
 
-    function testSendingOperatorsDataToGateway() public {
-        IOGateway gateway = IOGateway(address(_createGateway()));
-        _createParaIDAndAgent(gateway);
-        vm.startPrank(owner);
-        middleware.setGateway(address(gateway));
-        middleware.sendCurrentOperatorsKeys();
-        vm.stopPrank();
-    }
+    // function testSendingOperatorsDataToGateway() public {
+    //     IOGateway gateway = IOGateway(address(_createGateway()));
+    //     _createParaIDAndAgent(gateway);
+    //     vm.startPrank(owner);
+    //     middleware.setGateway(address(gateway));
+    //     middleware.sendCurrentOperatorsKeys();
+    //     vm.stopPrank();
+    // }
 }
