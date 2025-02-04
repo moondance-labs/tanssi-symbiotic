@@ -544,14 +544,14 @@ contract MiddlewareTest is Test {
     }
 
     function testSubmitRewardsWithBogusToken() public {
-        uint48 OPERATOR_SHARE = 20;
+        uint48 operatorShare = 20;
         deal(assetHubAgent, 50 ether);
 
         uint256 amount = 1.2 ether;
         (Command command, bytes memory params, address tokenAddress) = _makeReportRewardsCommand(amount);
 
         ODefaultOperatorRewards operatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), operatorShare);
 
         vm.startPrank(owner);
         middleware.setOperatorRewardsContract(address(operatorRewards));
