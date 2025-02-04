@@ -50,7 +50,7 @@ jobs:
     name: Tanssi's Middleware contract deployment
     runs-on: ubuntu-latest
     env:
-      RPC_URL: {{ github.event.inputs.rpc_url }}
+      RPC_URL: ${{ github.event.inputs.rpc_url }}
       OWNER_PRIVATE_KEY: ${{ secrets.OWNER_PRIVATE_KEY }}
       NETWORK_PRIVATE_KEY: ${{ secrets.NETWORK_PRIVATE_KEY }}
       RESOLVER_PRIVATE_KEY: ${{ secrets.RESOLVER_PRIVATE_KEY }}
