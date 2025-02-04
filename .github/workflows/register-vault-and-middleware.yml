@@ -1,0 +1,83 @@
+name: Registering Tanssi's vaults and middleware
+
+on:
+  workflow_dispatch:
+    inputs:
+      rpc_url:
+        description: URL of the RPC endpoint on which to register vault / middleware
+        required: true
+        type: string
+        default: "https://holesky.drpc.org"
+      command:
+        description: list of available commands to run
+        required: true
+        type: choice
+        default: register-vault
+        options:
+          - register-vault
+          - register-middleware-to-symbiotic
+      vault-address:
+        description: address of the vault contract (used for register-vault command)
+        type: string
+        required: false
+      middleware-address:
+        description: address of the middleware contract (used for register-middleware-to-symbiotic command)
+        type: string
+        required: false
+env:
+  FOUNDRY_PROFILE: ci
+  
+jobs:
+  deploy:
+    strategy:
+      fail-fast: true
+    name: Registering Tanssi's vault / middleware
+    runs-on: ubuntu-latest
+    env:
+      RPC_URL: ${{ github.event.inputs.rpc_url }}
+      OWNER_PRIVATE_KEY: ${{ secrets.OWNER_PRIVATE_KEY }}
+      NETWORK_PRIVATE_KEY: ${{ secrets.NETWORK_PRIVATE_KEY }}
+      RESOLVER_PRIVATE_KEY: ${{ secrets.RESOLVER_PRIVATE_KEY }}
+      OPERATOR_PRIVATE_KEY: ${{ secrets.OPERATOR_PRIVATE_KEY }}
+      NETWORK_MIDDLEWARE_SERVICE_ADDRESS: ${{ github.event.inputs.middleware-address }}
+      VAULT_ADDRESS: ${{ github.event.inputs.vault-address }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          ref: ${{ github.event.inputs.sha }}
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Show Forge version
+        run: |
+          forge --version
+
+      - name: Install dependencies
+        run: |
+          make install-tanssi-relayer
+
+      - name: Run Forge fmt
+        run: |
+          forge fmt --check
+        id: fmt
+
+      - name: Run Forge build
+        run: |
+          forge build --sizes
+        id: build
+
+      - name: Execute deployment command
+        run: |
+          if [[ ${{ github.event.inputs.command }} = "register-vault" ]]; then
+            echo "Registering Tanssi vault..."
+            forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url $RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "registerVault(address)" $VAULT_ADDRESS
+            echo "Tanssi vault registration completed" 
+          elif [[ ${{ github.event.inputs.command }} = "register-middleware-to-symbiotic" ]]; then 
+            echo "Registering Tanssi Middleware contract to Symbiotic..."
+            forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url $RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "registerMiddlewareToSymbiotic(address)" $NETWORK_MIDDLEWARE_SERVICE_ADDRESS
+            echo "Tanssi Middleware contract registration completed" 
+          fi

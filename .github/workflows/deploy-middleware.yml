@@ -1,0 +1,99 @@
+name: Deploy Tanssi's Middleware Contract
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: full sha to deploy the contract the middleware contract from
+        type: string
+        required: true
+      rpc_url:
+        description: URL of the RPC endpoint on which to deploy the middleware contract
+        type: string
+        required: true
+        default: "https://holesky.drpc.org"
+      owner-address:
+        description: address of the middleware owner
+        type: string
+        required: true
+      network-address:
+        description: address of the middleware network
+        type: string
+        required: true
+      operator-registry-address:
+        description: address of the operator registry 
+        type: string
+        required: true
+      vault-registry-address:
+        description: address of the vault registry 
+        type: string
+        required: true
+      operator-network-opt-in-address:
+        description: address of the operator network opt in service
+        type: string
+        required: true
+      network-epoch-duration:
+        description: specifies the network epoch duration 
+        type: number
+        required: true
+      slashing-window:
+        description: specifies the slashing window duration 
+        type: number
+        required: true
+env:
+  FOUNDRY_PROFILE: ci
+  
+jobs:
+  deploy:
+    strategy:
+      fail-fast: true
+    name: Tanssi's Middleware contract deployment
+    runs-on: ubuntu-latest
+    env:
+      RPC_URL: {{ github.event.inputs.rpc_url }}
+      OWNER_PRIVATE_KEY: ${{ secrets.OWNER_PRIVATE_KEY }}
+      NETWORK_PRIVATE_KEY: ${{ secrets.NETWORK_PRIVATE_KEY }}
+      RESOLVER_PRIVATE_KEY: ${{ secrets.RESOLVER_PRIVATE_KEY }}
+      OPERATOR_PRIVATE_KEY: ${{ secrets.OPERATOR_PRIVATE_KEY }}
+      OWNER_ADDRESS: ${{ github.event.inputs.owner-address }}
+      NETWORK_ADDRESS: ${{ github.event.inputs.network-address }}
+      OPERATOR_REGISTRY_ADDRESS: ${{ github.event.inputs.operator-registry-address }}
+      VAULT_REGISTRY_ADDRESS: ${{ github.event.inputs.vault-registry-address }}
+      OPERATOR_NETWORK_OPT_IN_ADDRESS: ${{ github.event.inputs.operator-network-opt-in-address }}
+      NETWORK_EPOCH_DURATION: ${{ github.event.inputs.network-epoch-duration }}
+      SLASHING_WINDOW: ${{ github.event.inputs.slashing-window }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          ref: ${{ github.event.inputs.sha }}
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Show Forge version
+        run: |
+          forge --version
+
+      - name: Install dependencies
+        run: |
+          make install-tanssi-relayer
+
+      - name: Run Forge fmt
+        run: |
+          forge fmt --check
+        id: fmt
+
+      - name: Run Forge build
+        run: |
+          forge build --sizes
+        id: build
+
+      - name: Deploy Tanssi Middleware contract
+        run: |
+          echo "Deploying Tanssi Middleware contract..."
+          forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url $RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "deployMiddleware(address,address,address,address,address,uint48,uint48)" $NETWORK_ADDRESS $OPERATOR_REGISTRY_ADDRESS $VAULT_REGISTRY_ADDRESS $OPERATOR_NETWORK_OPT_IN_ADDRESS $OWNER_ADDRESS $NETWORK_EPOCH_DURATION $SLASHING_WINDOW
+          echo "Tanssi Middleware contract deployment completed" 
+         
