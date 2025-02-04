@@ -116,13 +116,11 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
             }
         }
 
-        // We need to calculate how much each point is worth in tokens
-        uint256 tokensPerPoint = amount / totalPointsToken; // TODO: To change/check the math.
-
         EraRoot memory eraRoot = EraRoot({
             epoch: epoch,
             amount: amount,
-            tokensPerPoint: tokensPerPoint,
+            // We need to calculate how much each point is worth in tokens
+            tokensPerPoint: amount / totalPointsToken, // TODO: To change/check the math.
             root: root,
             tokenAddress: tokenAddress
         });
@@ -131,7 +129,7 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         s_eraRoot[eraIndex] = eraRoot;
         s_eraIndexesPerEpoch[epoch].push(eraIndex);
 
-        emit DistributeRewards(eraIndex, epoch, tokenAddress, tokensPerPoint, amount, root);
+        emit DistributeRewards(eraIndex, epoch, tokenAddress, eraRoot.tokensPerPoint, amount, root);
     }
 
     /**

@@ -30,33 +30,6 @@ interface IODefaultStakerRewards {
     error ODefaultStakerRewards__NotVault();
 
     /**
-     * @notice Initial parameters needed for a staker rewards contract deployment.
-     * @param vault address of the vault to get stakers' data from
-     * @param adminFee admin fee (up to ADMIN_FEE_BASE inclusively)
-     * @param defaultAdminRoleHolder address of the initial DEFAULT_ADMIN_ROLE holder
-     * @param adminFeeClaimRoleHolder address of the initial ADMIN_FEE_CLAIM_ROLE holder
-     * @param adminFeeSetRoleHolder address of the initial ADMIN_FEE_SET_ROLE holder
-     */
-    struct InitParams {
-        address vault;
-        uint256 adminFee;
-        address defaultAdminRoleHolder;
-        address adminFeeClaimRoleHolder;
-        address adminFeeSetRoleHolder;
-        address operatorRewardsRoleHolder;
-    }
-    /**
-     * @notice Reward data structure.
-     * @param amount amount of tokens
-     * @param tokenAddress address of the reward token
-     */
-
-    struct Reward {
-        uint256 amount;
-        address tokenAddress;
-    }
-
-    /**
      * @notice Emitted when a reward is distributed.
      * @param network network on behalf of which the reward is distributed
      * @param tokenAddress address of the reward token
@@ -109,6 +82,35 @@ interface IODefaultStakerRewards {
      * @param adminFee admin fee
      */
     event SetAdminFee(uint256 adminFee);
+
+    /**
+     * @notice Initial parameters needed for a staker rewards contract deployment.
+     * @param vault address of the vault to get stakers' data from
+     * @param adminFee admin fee (up to ADMIN_FEE_BASE inclusively)
+     * @param defaultAdminRoleHolder address of the initial DEFAULT_ADMIN_ROLE holder
+     * @param adminFeeClaimRoleHolder address of the initial ADMIN_FEE_CLAIM_ROLE holder
+     * @param adminFeeSetRoleHolder address of the initial ADMIN_FEE_SET_ROLE holder
+     * @param network address of the network
+     */
+    struct InitParams {
+        address vault;
+        uint256 adminFee;
+        address defaultAdminRoleHolder;
+        address adminFeeClaimRoleHolder;
+        address adminFeeSetRoleHolder;
+        address operatorRewardsRoleHolder;
+        address network;
+    }
+    /**
+     * @notice Reward data structure.
+     * @param amount amount of tokens
+     * @param tokenAddress address of the reward token
+     */
+
+    struct Reward {
+        uint256 amount;
+        address tokenAddress;
+    }
 
     /**
      * @notice Get a version of the staker rewards contract (different versions mean different interfaces).
@@ -168,14 +170,16 @@ interface IODefaultStakerRewards {
     /**
      * @notice Get the network's address.
      * @return address of the network
+     * @dev set during initalization, so it's immutable
      */
-    function i_network() external view returns (address);
+    function NETWORK() external view returns (address);
 
     /**
      * @notice Get the vault's address.
      * @return address of the vault
+     * @dev set during initalization, so it's immutable
      */
-    function s_vault() external view returns (address);
+    function VAULT() external view returns (address);
 
     /**
      * @notice Get an admin fee.

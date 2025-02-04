@@ -322,8 +322,10 @@ contract DeploySymbiotic is Script {
         vm.stopBroadcast();
     }
 
-    function run() external {
-        getCollateral();
+    function run(
+        address _collateral
+    ) external {
+        setCollateral(_collateral);
         deploySymbioticBroadcast();
         deployVault = new DeployVault();
 
