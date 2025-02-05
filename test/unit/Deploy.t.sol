@@ -208,7 +208,7 @@ contract DeployTest is Test {
         vm.stopPrank();
 
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
-        deployTanssiEcosystem.registerVault(middleware, _vault);
+        deployTanssiEcosystem.registerVault(address(middleware), _vault);
     }
 
     function testDeployRegisterMiddlewareToSymbiotic() public {
