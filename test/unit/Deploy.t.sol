@@ -22,7 +22,9 @@ import {Test, console2, Vm} from "forge-std/Test.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {IVaultStorage} from "@symbiotic/interfaces/vault/IVaultStorage.sol";
 import {IVaultConfigurator} from "@symbiotic/interfaces/IVaultConfigurator.sol";
+import {INetworkMiddlewareService} from "@symbiotic/interfaces/service/INetworkMiddlewareService.sol";
 import {IRegistry} from "@symbiotic/interfaces/common/IRegistry.sol";
+import {INetworkRegistry} from "@symbiotic/interfaces/INetworkRegistry.sol";
 import {IEntity} from "@symbiotic/interfaces/common/IEntity.sol";
 import {INetworkRestakeDelegator} from "@symbiotic/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
@@ -180,6 +182,53 @@ contract DeployTest is Test {
         assertEq(wBTCToken.balanceOf(tanssi), 9000 ether);
 
         vm.stopPrank();
+    }
+
+    function testDeployMiddleware() public {
+        DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
+        address operatorRegistry = addresses.operatorRegistry;
+        address vaultFactory = addresses.vaultFactory;
+        address operatorNetworkOptIn = addresses.operatorNetworkOptInService;
+
+        address middleware = deployTanssiEcosystem.deployMiddleware(
+            tanssi, operatorRegistry, vaultFactory, operatorNetworkOptIn, tanssi, NETWORK_EPOCH_DURATION, 8 days
+        );
+        assertNotEq(middleware, ZERO_ADDRESS);
+    }
+
+    function testDeployRegisterVault() public {
+        (address _vault,,,,,,,,) = deployTanssiEcosystem.vaultAddresses();
+
+        (IMiddleware middleware,,) = deployTanssiEcosystem.ecosystemEntities();
+
+        vm.startPrank(tanssi);
+        middleware.pauseVault(_vault);
+        vm.warp(NETWORK_EPOCH_DURATION + 1);
+        middleware.unregisterVault(_vault);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        deployTanssiEcosystem.registerVault(address(middleware), _vault);
+    }
+
+    function testDeployRegisterMiddlewareToSymbiotic() public {
+        DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
+        address operatorRegistry = addresses.operatorRegistry;
+        address vaultFactory = addresses.vaultFactory;
+        address operatorNetworkOptIn = addresses.operatorNetworkOptInService;
+        address networkMiddlewareService = addresses.networkMiddlewareService;
+
+        uint256 ownerPrivateKey =
+            vm.envOr("OWNER_PRIVATE_KEY", uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80));
+        address _tanssi = vm.addr(ownerPrivateKey);
+
+        address middleware = deployTanssiEcosystem.deployMiddleware(
+            _tanssi, operatorRegistry, vaultFactory, operatorNetworkOptIn, _tanssi, NETWORK_EPOCH_DURATION, 9 days
+        );
+
+        vm.expectEmit(true, true, false, false);
+        emit INetworkMiddlewareService.SetMiddleware(_tanssi, middleware);
+        deployTanssiEcosystem.registerMiddlewareToSymbiotic(networkMiddlewareService);
     }
 
     function testDeployVaultsIsTestYes() public {

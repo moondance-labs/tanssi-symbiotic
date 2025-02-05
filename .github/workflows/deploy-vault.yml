@@ -1,0 +1,99 @@
+name: Deploy Tanssi's Vault Contract
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: full sha to deploy the contract from
+        type: string
+        required: true
+      rpc_url:
+        description: URL of the RPC endpoint on which to deploy the vault contract
+        type: string
+        required: true
+        default: "https://holesky.drpc.org"
+      owner-address:
+        description: address of the vault owner
+        type: string
+        required: true
+      vault-configurator-address:
+        description: address of the vault configurator
+        type: string
+        required: true
+      vault-collateral-address:
+        description: address of the vault collateral
+        type: string
+        required: true
+      vault-epoch-duration:
+        description: specifies the vault epoch duration
+        type: number
+        required: true
+      vault-is-slashable:
+        description: specifies if vault is slashable
+        type: boolean
+        required: true
+      vault-slasher-index:
+        description: specifies the vault slasher index
+        type: number
+        required: true
+      vault-veto-duration:
+        description: specifies the vault veto duration
+        type: number
+        required: true
+env:
+  FOUNDRY_PROFILE: ci
+  
+jobs:
+  deploy:
+    strategy:
+      fail-fast: true
+    name: Tanssi's vault contract deployment
+    runs-on: ubuntu-latest
+    env:
+      RPC_URL: ${{ github.event.inputs.rpc_url }}
+      OWNER_PRIVATE_KEY: ${{ secrets.OWNER_PRIVATE_KEY }}
+      NETWORK_PRIVATE_KEY: ${{ secrets.NETWORK_PRIVATE_KEY }}
+      RESOLVER_PRIVATE_KEY: ${{ secrets.RESOLVER_PRIVATE_KEY }}
+      OPERATOR_PRIVATE_KEY: ${{ secrets.OPERATOR_PRIVATE_KEY }}
+      VAULT_ADDRESS: ${{ github.event.inputs.vault-address }}
+      OWNER_ADDRESS: ${{ github.event.inputs.owner-address }}
+      SLASHING_WINDOW: ${{ github.event.inputs.slashing-window }}
+      VAULT_CONFIGURATOR_ADDRESS: ${{ github.event.inputs.vault-configurator-address }}
+      COLLATERAL_ADDRESS: ${{ github.event.inputs.vault-collateral-address }}
+      VAULT_EPOCH_DURATION: ${{ github.event.inputs.vault-epoch-duration }}
+      IS_SLASHABLE: ${{ github.event.inputs.vault-is-slashable }}
+      SLASHER_INDEX: ${{ github.event.inputs.vault-slasher-index }}
+      VETO_DURATION: ${{ github.event.inputs.vault-veto-duration }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          ref: ${{ github.event.inputs.sha }}
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Show Forge version
+        run: |
+          forge --version
+
+      - name: Install dependencies
+        run: |
+          make install-tanssi-relayer
+
+      - name: Run Forge fmt
+        run: |
+          forge fmt --check
+        id: fmt
+
+      - name: Run Forge build
+        run: |
+          forge build --sizes
+        id: build
+
+      - name: Execute deployment command
+        run: |
+          echo "Deploying Tanssi vault..."
+          forge script script/DeployVault.s.sol:DeployVault --rpc-url $RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "run(address,address,address,uint48,bool,uint256,uint64,bool,uint64,uint48)" $VAULT_CONFIGURATOR_ADDRESS $OWNER_ADDRESS $COLLATERAL_ADDRESS $VAULT_EPOCH_DURATION true 0 0 $IS_SLASHABLE $SLASHER_INDEX $VETO_DURATION
+          echo "Tanssi vault deployment completed" 

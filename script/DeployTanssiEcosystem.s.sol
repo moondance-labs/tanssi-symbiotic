@@ -306,6 +306,45 @@ contract DeployTanssiEcosystem is Script {
         console2.log("Slasher Vetoed: ", vaultAddresses.slasherVetoed);
     }
 
+    function deployMiddleware(
+        address networkAddress,
+        address operatorRegistryAddress,
+        address vaultRegistryAddress,
+        address operatorNetworkOptInServiceAddress,
+        address ownerAddress,
+        uint48 epochDuration,
+        uint48 slashingWindow
+    ) external returns (address) {
+        vm.startBroadcast(ownerPrivateKey);
+        ecosystemEntities.middleware = new Middleware(
+            networkAddress,
+            operatorRegistryAddress,
+            vaultRegistryAddress,
+            operatorNetworkOptInServiceAddress,
+            ownerAddress,
+            epochDuration,
+            slashingWindow
+        );
+        vm.stopBroadcast();
+        return address(ecosystemEntities.middleware);
+    }
+
+    function registerVault(address middlewareAddress, address vaultAddress) external {
+        Middleware middleware = Middleware(middlewareAddress);
+        vm.startBroadcast(ownerPrivateKey);
+        middleware.registerVault(vaultAddress);
+        vm.stopBroadcast();
+    }
+
+    function registerMiddlewareToSymbiotic(
+        address networkMiddlewareServiceAddress
+    ) external {
+        INetworkMiddlewareService networkMiddlewareService = INetworkMiddlewareService(networkMiddlewareServiceAddress);
+        vm.startBroadcast(ownerPrivateKey);
+        networkMiddlewareService.setMiddleware(address(ecosystemEntities.middleware));
+        vm.stopBroadcast();
+    }
+
     function deployTanssiEcosystem(
         HelperConfig _helperConfig
     ) external {
