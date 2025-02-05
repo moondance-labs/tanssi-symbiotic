@@ -329,11 +329,10 @@ contract DeployTanssiEcosystem is Script {
         return address(ecosystemEntities.middleware);
     }
 
-    function registerVault(
-        address vaultAddress
-    ) external {
+    function registerVault(address middlewareAddress, address vaultAddress) external {
+        Middleware middleware = Middleware(middlewareAddress);
         vm.startBroadcast(ownerPrivateKey);
-        ecosystemEntities.middleware.registerVault(vaultAddress);
+        middleware.registerVault(vaultAddress);
         vm.stopBroadcast();
     }
 
@@ -341,7 +340,6 @@ contract DeployTanssiEcosystem is Script {
         address networkMiddlewareServiceAddress
     ) external {
         INetworkMiddlewareService networkMiddlewareService = INetworkMiddlewareService(networkMiddlewareServiceAddress);
-
         vm.startBroadcast(ownerPrivateKey);
         networkMiddlewareService.setMiddleware(address(ecosystemEntities.middleware));
         vm.stopBroadcast();

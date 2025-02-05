@@ -16,11 +16,15 @@ on:
         options:
           - register-vault
           - register-middleware-to-symbiotic
+      middleware-address:
+        description: address of the middleware contract (used for register-vault command)
+        type: string
+        required: false
       vault-address:
         description: address of the vault contract (used for register-vault command)
         type: string
         required: false
-      middleware-address:
+      middleware-service-address:
         description: address of the middleware contract (used for register-middleware-to-symbiotic command)
         type: string
         required: false
@@ -39,8 +43,9 @@ jobs:
       NETWORK_PRIVATE_KEY: ${{ secrets.NETWORK_PRIVATE_KEY }}
       RESOLVER_PRIVATE_KEY: ${{ secrets.RESOLVER_PRIVATE_KEY }}
       OPERATOR_PRIVATE_KEY: ${{ secrets.OPERATOR_PRIVATE_KEY }}
-      NETWORK_MIDDLEWARE_SERVICE_ADDRESS: ${{ github.event.inputs.middleware-address }}
+      MIDDLEWARE_ADDRESS: ${{ github.event.inputs.middleware-address }}
       VAULT_ADDRESS: ${{ github.event.inputs.vault-address }}
+      NETWORK_MIDDLEWARE_SERVICE_ADDRESS: ${{ github.event.inputs.middleware-service-address }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -74,7 +79,7 @@ jobs:
         run: |
           if [[ ${{ github.event.inputs.command }} = "register-vault" ]]; then
             echo "Registering Tanssi vault..."
-            forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url $RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "registerVault(address)" $VAULT_ADDRESS
+            forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url $RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "registerVault(address,address)" $MIDDLEWARE_ADDRESS $VAULT_ADDRESS
             echo "Tanssi vault registration completed" 
           elif [[ ${{ github.event.inputs.command }} = "register-middleware-to-symbiotic" ]]; then 
             echo "Registering Tanssi Middleware contract to Symbiotic..."
