@@ -400,31 +400,6 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
     }
 
-    /**
-     * @param _operatorStake the total stake of the operator in each vault he is registered
-     * @param _activeStake the active stake of vault's FullRestake delegated
-     * @param _amountSlashed the amount slashed from the operator
-     * @return totalOperatorStake
-     * @return remainingOperatorStake
-     */
-    function _calculateTotalOperatorStake(
-        uint256 _operatorStake,
-        uint256 _activeStake,
-        uint256 _amountSlashed
-    ) public pure returns (uint256 totalOperatorStake, uint256 remainingOperatorStake) {
-        remainingOperatorStake =
-            _calculateRemainingStake(OPERATOR_SHARE, TOTAL_NETWORK_SHARES, _operatorStake - _amountSlashed);
-        totalOperatorStake = remainingOperatorStake + _activeStake;
-    }
-
-    function _calculateRemainingStake(
-        uint256 sharesCount,
-        uint256 totalShares,
-        uint256 stake
-    ) public pure returns (uint256) {
-        return sharesCount.mulDiv(stake, totalShares);
-    }
-
     function _setupGateway() public {
         AgentExecutor executor = new AgentExecutor();
         gatewayLogic = new MockGateway(

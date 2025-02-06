@@ -366,6 +366,38 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     /**
      * @inheritdoc IMiddleware
      */
+    function sendCurrentOperatorsKeys() external returns (bytes32[] memory keys) {
+        if (address(s_gateway) == address(0)) {
+            revert Middleware__GatewayNotSet();
+        }
+
+        uint48 epoch = getCurrentEpoch();
+        keys = new bytes32[](s_operators.length());
+
+        uint48 epochStartTs = getEpochStartTs(epoch);
+        uint256 valIdx = 0;
+
+        for (uint256 i; i < s_operators.length(); ++i) {
+            (address operator, uint48 enabledTime, uint48 disabledTime) = s_operators.atWithTimes(i);
+
+            // just skip operator if it was added after the target epoch or paused
+            if (!_wasActiveAt(enabledTime, disabledTime, epochStartTs)) {
+                continue;
+            }
+
+            keys[valIdx++] = getCurrentOperatorKey(operator);
+        }
+
+        assembly {
+            mstore(keys, valIdx)
+        }
+
+        s_gateway.sendOperatorsData(keys, epoch);
+    }
+
+    /**
+     * @inheritdoc IMiddleware
+     */
     function calcAndCacheStakes(
         uint48 epoch
     ) public returns (uint256 totalStake) {
@@ -401,7 +433,11 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     /**
      * @inheritdoc IMiddleware
      */
-    function slash(uint48 epoch, bytes32 operatorKey, uint256 percentage) external onlyOwner updateStakeCache(epoch) {
+    function slash(
+        uint48 epoch,
+        bytes32 operatorKey,
+        uint256 percentage
+    ) external onlyGateway updateStakeCache(epoch) {
         uint48 epochStartTs = getEpochStartTs(epoch);
         address operator = getOperatorByKey(operatorKey);
 
@@ -510,38 +546,6 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
         assembly {
             mstore(activeOperators, valIdx)
         }
-    }
-
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function sendCurrentOperatorsKeys() external returns (bytes32[] memory keys) {
-        if (address(s_gateway) == address(0)) {
-            revert Middleware__GatewayNotSet();
-        }
-
-        uint48 epoch = getCurrentEpoch();
-        keys = new bytes32[](s_operators.length());
-
-        uint48 epochStartTs = getEpochStartTs(epoch);
-        uint256 valIdx = 0;
-
-        for (uint256 i; i < s_operators.length(); ++i) {
-            (address operator, uint48 enabledTime, uint48 disabledTime) = s_operators.atWithTimes(i);
-
-            // just skip operator if it was added after the target epoch or paused
-            if (!_wasActiveAt(enabledTime, disabledTime, epochStartTs)) {
-                continue;
-            }
-
-            keys[valIdx++] = getCurrentOperatorKey(operator);
-        }
-
-        assembly {
-            mstore(keys, valIdx)
-        }
-
-        s_gateway.sendOperatorsData(keys, epoch);
     }
 
     /**
