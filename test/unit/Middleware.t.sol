@@ -75,6 +75,8 @@ contract MiddlewareTest is Test {
 
     address owner = makeAddr("owner");
     address operator = makeAddr("operator");
+    address gateway = makeAddr("gateway");
+
     NetworkMiddlewareService networkMiddlewareService;
     OptInServiceMock operatorNetworkOptInServiceMock;
     OptInServiceMock operatorVaultOptInServiceMock;
@@ -124,6 +126,7 @@ contract MiddlewareTest is Test {
             NETWORK_EPOCH_DURATION,
             SLASHING_WINDOW
         );
+        middleware.setGateway(address(gateway));
 
         vm.startPrank(tanssi);
         registry.register();
@@ -887,6 +890,8 @@ contract MiddlewareTest is Test {
         // 500000000
         uint256 slashPercentage = PARTS_PER_BILLION / 2;
         uint256 slashAmount = OPERATOR_STAKE / 2;
+
+        vm.startPrank(gateway);
         middleware.slash(currentEpoch, OPERATOR_KEY, slashPercentage);
 
         vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
@@ -897,12 +902,12 @@ contract MiddlewareTest is Test {
     }
 
     function testSlashUnauthorized() public {
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
+        vm.expectRevert(abi.encodeWithSelector(IMiddleware.Middleware__CallerNotGateway.selector));
         middleware.slash(0, OPERATOR_KEY, 0);
     }
 
     function testSlashEpochTooOld() public {
-        vm.startPrank(owner);
+        vm.startPrank(gateway);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
         vm.expectRevert(IMiddleware.Middleware__TooOldEpoch.selector);
@@ -930,6 +935,7 @@ contract MiddlewareTest is Test {
                 IMiddleware.Middleware__SlashPercentageTooBig.selector, currentEpoch, operator, slashPercentage
             )
         );
+        vm.startPrank(gateway);
         middleware.slash(currentEpoch, OPERATOR_KEY, slashPercentage);
 
         uint256 totalStake = middleware.getTotalStake(currentEpoch);
@@ -982,6 +988,8 @@ contract MiddlewareTest is Test {
 
         // 50% of slashing
         uint256 slashPercentage = PARTS_PER_BILLION / 2;
+
+        vm.startPrank(gateway);
         middleware.slash(currentEpoch, OPERATOR_KEY, slashPercentage);
 
         vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
@@ -1009,6 +1017,8 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 slashPercentage = PARTS_PER_BILLION / 2;
+
+        vm.startPrank(gateway);
         middleware.slash(currentEpoch, OPERATOR_KEY, slashPercentage);
 
         vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
@@ -1037,6 +1047,7 @@ contract MiddlewareTest is Test {
 
         uint256 slashPercentage = PARTS_PER_BILLION / 2;
 
+        vm.startPrank(gateway);
         vm.expectRevert(IMiddleware.Middleware__UnknownSlasherType.selector);
         middleware.slash(currentEpoch, OPERATOR_KEY, slashPercentage);
 
@@ -1067,6 +1078,7 @@ contract MiddlewareTest is Test {
         uint256 slashPercentage = PARTS_PER_BILLION / 2;
         bytes32 unknownOperator = bytes32(uint256(2));
 
+        vm.startPrank(gateway);
         vm.expectRevert(
             abi.encodeWithSelector(IMiddleware.Middleware__OperatorNotFound.selector, unknownOperator, currentEpoch)
         );
@@ -1182,7 +1194,6 @@ contract MiddlewareTest is Test {
 
     function testDistributeRewards() public {
         uint48 OPERATOR_SHARE = 20;
-        address gateway = makeAddr("Gateway");
 
         Token token = new Token("Test");
         token.transfer(address(middleware), 1000);
@@ -1192,7 +1203,6 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(owner);
         middleware.setOperatorRewardsContract(address(operatorRewards));
-        middleware.setGateway(gateway);
 
         uint256 epoch = 0;
         uint256 eraIndex = 0;
@@ -1226,7 +1236,6 @@ contract MiddlewareTest is Test {
         uint256 totalPointsToken = 100;
         uint256 tokensInflatedToken = 1000;
         bytes32 rewardsRoot = 0x4b0ddd8b9b8ec6aec84bcd2003c973254c41d976f6f29a163054eec4e7947810;
-        address gateway = makeAddr("Gateway");
 
         Token token = new Token("Test");
         token.transfer(address(middleware), 800);
@@ -1236,7 +1245,6 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(owner);
         middleware.setOperatorRewardsContract(address(operatorRewards));
-        middleware.setGateway(gateway);
 
         vm.startPrank(gateway);
         vm.expectRevert(IMiddleware.Middleware__InsufficientBalance.selector);
@@ -1337,23 +1345,18 @@ contract MiddlewareTest is Test {
 
     function testSendCurrentOperatorKeys() public {
         _registerOperatorToNetwork(operator, address(vault), false, false);
-        address gateway = makeAddr("Gateway");
 
         vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
         vm.startPrank(owner);
         middleware.registerOperator(operator, OPERATOR_KEY);
-        middleware.setGateway(address(gateway));
 
         bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
         assertEq(keys.length, 1);
     }
 
     function testSendCurrentOperatorKeysButNoOperators() public {
-        address gateway = makeAddr("Gateway");
-
         vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
         vm.startPrank(owner);
-        middleware.setGateway(address(gateway));
 
         bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
         assertEq(keys.length, 0);
@@ -1371,11 +1374,8 @@ contract MiddlewareTest is Test {
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         middleware.unregisterOperator(operator);
 
-        address gateway = makeAddr("Gateway");
-
         vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
         vm.startPrank(owner);
-        middleware.setGateway(address(gateway));
 
         bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
         assertEq(keys.length, 0);
@@ -1392,17 +1392,17 @@ contract MiddlewareTest is Test {
         middleware.pauseOperator(operator);
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
 
-        address gateway = makeAddr("Gateway");
-
         vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
         vm.startPrank(owner);
-        middleware.setGateway(address(gateway));
 
         bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
         assertEq(keys.length, 0);
     }
 
     function testSendCurrentOperatorKeysButGatewayNotSet() public {
+        vm.prank(owner);
+        middleware.setGateway(address(0));
+        
         vm.expectRevert(IMiddleware.Middleware__GatewayNotSet.selector);
         middleware.sendCurrentOperatorsKeys();
     }

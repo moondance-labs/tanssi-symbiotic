@@ -151,6 +151,7 @@ contract MiddlewareTest is Test {
 
     address tanssi;
     address otherNetwork;
+    address gateway;
 
     VaultAddresses public vaultAddresses;
     Vault vault;
@@ -208,7 +209,7 @@ contract MiddlewareTest is Test {
         wBTC.transfer(operator3, OPERATOR_INITIAL_BALANCE);
 
         _deployVaults(tanssi);
-
+        
         middleware = new Middleware(
             tanssi,
             address(operatorRegistry),
@@ -218,7 +219,9 @@ contract MiddlewareTest is Test {
             NETWORK_EPOCH_DURATION,
             SLASHING_WINDOW
         );
+        gateway =_createGateway();
         networkMiddlewareService.setMiddleware(address(middleware));
+        middleware.setGateway(address(gateway));
 
         vetoSlasher = VetoSlasher(vaultAddresses.slasherVetoed);
 
@@ -480,11 +483,12 @@ contract MiddlewareTest is Test {
         //We calculate the amount slashable for only the operator2 since it's the only one that should be slashed. As a side effect operator3 will be slashed too since it's taking part in a NetworkRestake delegator based vault
         uint256 slashAmountSlashable = (SLASH_AMOUNT * remainingOperator2Stake) / totalOperator2Stake;
 
-        vm.prank(owner);
-
+        
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
         uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
+
+        vm.prank(gateway);
         middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
 
         vm.prank(resolver1);
@@ -518,7 +522,7 @@ contract MiddlewareTest is Test {
         // We want to slash 30 ether, so we need to calculate what percentage
         uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
 
-        vm.prank(owner);
+        vm.prank(gateway);
         vm.expectRevert(IVetoSlasher.InvalidCaptureTimestamp.selector);
         middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
         vm.stopPrank();
@@ -535,7 +539,7 @@ contract MiddlewareTest is Test {
         // We want to slash 30 ether, so we need to calculate what percentage
         uint256 slashingFraction = 3 * PARTS_PER_BILLION / 2;
 
-        vm.prank(owner);
+        vm.prank(gateway);
         vm.expectRevert(
             abi.encodeWithSelector(
                 IMiddleware.Middleware__SlashPercentageTooBig.selector, currentEpoch, operator2, slashingFraction
@@ -564,11 +568,12 @@ contract MiddlewareTest is Test {
 
         //We calculate the amount slashable for only the operator2 since it's the only one that should be slashed. As a side effect operator3 will be slashed too since it's taking part in a NetworkRestake delegator based vault
         uint256 slashAmountSlashable = (SLASH_AMOUNT * remainingOperator2Stake) / totalOperator2Stake;
-        vm.prank(owner);
-
+        
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
         uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
+
+        vm.prank(gateway);
         middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
 
         vm.warp(block.timestamp + VETO_DURATION);
@@ -608,11 +613,12 @@ contract MiddlewareTest is Test {
         //We calculate the amount slashable for only the operator3 since it's the only one that should be slashed. As a side effect operator2 will be slashed too since it's taking part in a NetworkRestake delegator based vault
         uint256 slashAmountSlashable3 = (SLASH_AMOUNT * remainingOperator3Stake) / totalOperator3Stake;
 
-        vm.prank(owner);
-
+        
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
         uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator3Stake);
+
+        vm.prank(gateway);
         middleware.slash(currentEpoch, OPERATOR3_KEY, slashingFraction);
 
         vm.prank(resolver1);
@@ -651,13 +657,14 @@ contract MiddlewareTest is Test {
         uint256 slashAmountSlashable3 =
             (SLASH_AMOUNT * remainingOperator3Stake) / (totalOperator3Stake + remainingOperator3Stake);
 
-        vm.prank(owner);
-
+            
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
-
+        
         uint256 slashingFraction =
-            slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator3Stake + remainingOperator3Stake);
+        slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator3Stake + remainingOperator3Stake);
+        
+        vm.prank(gateway);
         middleware.slash(currentEpoch, OPERATOR3_KEY, slashingFraction);
 
         vm.warp(block.timestamp + VETO_DURATION);
@@ -703,8 +710,9 @@ contract MiddlewareTest is Test {
         vm.prank(owner);
         middleware.pauseVault(vaultAddresses.vaultSlashable);
 
-        vm.prank(owner);
+        vm.prank(gateway);
         middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
+
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = middleware.getValidatorSet(newEpoch);
@@ -736,13 +744,15 @@ contract MiddlewareTest is Test {
         vm.prank(owner);
         middleware.pauseOperator(operator2);
 
-        vm.prank(owner);
-
+        
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
         uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
+
+        vm.prank(gateway);
         //! Why this slash should anyway go through if operator was paused? Shouldn't it revert?
         middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
+
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = middleware.getValidatorSet(newEpoch);
@@ -786,6 +796,7 @@ contract MiddlewareTest is Test {
         bytes32 differentOperatorKey = bytes32(uint256(10));
         middleware.updateOperatorKey(operator2, differentOperatorKey);
 
+        vm.startPrank(gateway);
         middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
 
         vm.startPrank(resolver1);
