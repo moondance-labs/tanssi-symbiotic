@@ -74,6 +74,7 @@ contract MiddlewareTest is Test {
     address public operator3 = makeAddr("operator3");
     address public resolver1 = makeAddr("resolver1");
     address public resolver2 = makeAddr("resolver2");
+    address public gateway = makeAddr("gateway");
 
     HelperConfig helperConfig;
 
@@ -112,6 +113,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(tanssi);
         ecosystemEntities.vetoSlasher.setResolver(0, resolver1, hex"");
         ecosystemEntities.vetoSlasher.setResolver(0, resolver2, hex"");
+        ecosystemEntities.middleware.setGateway(gateway);
         vm.stopPrank();
 
         _handleDeposits();
@@ -432,7 +434,7 @@ contract MiddlewareTest is Test {
         uint256 amountToSlash = 30 ether;
         uint256 slashingFraction = amountToSlash.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
 
-        vm.prank(owner);
+        vm.prank(gateway);
         ecosystemEntities.middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
 
         vm.prank(resolver1);
@@ -472,7 +474,7 @@ contract MiddlewareTest is Test {
         uint256 slashAmountSlashable = (SLASH_AMOUNT * remainingOperator2Stake) / totalOperator2Stake;
         uint256 amountToSlash = 30 ether;
         uint256 slashingFraction = amountToSlash.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
-        vm.prank(owner);
+        vm.prank(gateway);
         ecosystemEntities.middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
 
         vm.warp(block.timestamp + VETO_DURATION);
@@ -515,7 +517,7 @@ contract MiddlewareTest is Test {
         // We want to slash 30 ether, so we need to calculate what percentage
         uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator3Stake);
 
-        vm.prank(owner);
+        vm.prank(gateway);
         ecosystemEntities.middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
 
         vm.prank(resolver1);
@@ -560,7 +562,7 @@ contract MiddlewareTest is Test {
         uint256 slashingFraction =
             slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator3Stake + remainingOperator3Stake);
 
-        vm.prank(owner);
+        vm.prank(gateway);
         ecosystemEntities.middleware.slash(currentEpoch, OPERATOR3_KEY, slashingFraction);
 
         vm.warp(block.timestamp + VETO_DURATION);
@@ -605,7 +607,7 @@ contract MiddlewareTest is Test {
         vm.prank(owner);
         ecosystemEntities.middleware.pauseVault(vaultAddresses.vaultSlashable);
 
-        vm.prank(owner);
+        vm.prank(gateway);
         ecosystemEntities.middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = ecosystemEntities.middleware.getCurrentEpoch();
@@ -642,7 +644,7 @@ contract MiddlewareTest is Test {
         vm.prank(owner);
         ecosystemEntities.middleware.pauseOperator(operator2);
 
-        vm.prank(owner);
+        vm.prank(gateway);
         //! Why this slash should anyway go through if operator was paused? Shouldn't it revert?
         ecosystemEntities.middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
