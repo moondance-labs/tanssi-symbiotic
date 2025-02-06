@@ -1402,7 +1402,7 @@ contract MiddlewareTest is Test {
     function testSendCurrentOperatorKeysButGatewayNotSet() public {
         vm.prank(owner);
         middleware.setGateway(address(0));
-        
+
         vm.expectRevert(IMiddleware.Middleware__GatewayNotSet.selector);
         middleware.sendCurrentOperatorsKeys();
     }

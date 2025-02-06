@@ -209,7 +209,7 @@ contract MiddlewareTest is Test {
         wBTC.transfer(operator3, OPERATOR_INITIAL_BALANCE);
 
         _deployVaults(tanssi);
-        
+
         middleware = new Middleware(
             tanssi,
             address(operatorRegistry),
@@ -219,7 +219,7 @@ contract MiddlewareTest is Test {
             NETWORK_EPOCH_DURATION,
             SLASHING_WINDOW
         );
-        gateway =_createGateway();
+        gateway = _createGateway();
         networkMiddlewareService.setMiddleware(address(middleware));
         middleware.setGateway(address(gateway));
 
@@ -483,7 +483,6 @@ contract MiddlewareTest is Test {
         //We calculate the amount slashable for only the operator2 since it's the only one that should be slashed. As a side effect operator3 will be slashed too since it's taking part in a NetworkRestake delegator based vault
         uint256 slashAmountSlashable = (SLASH_AMOUNT * remainingOperator2Stake) / totalOperator2Stake;
 
-        
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
         uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
@@ -568,7 +567,7 @@ contract MiddlewareTest is Test {
 
         //We calculate the amount slashable for only the operator2 since it's the only one that should be slashed. As a side effect operator3 will be slashed too since it's taking part in a NetworkRestake delegator based vault
         uint256 slashAmountSlashable = (SLASH_AMOUNT * remainingOperator2Stake) / totalOperator2Stake;
-        
+
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
         uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
@@ -613,7 +612,6 @@ contract MiddlewareTest is Test {
         //We calculate the amount slashable for only the operator3 since it's the only one that should be slashed. As a side effect operator2 will be slashed too since it's taking part in a NetworkRestake delegator based vault
         uint256 slashAmountSlashable3 = (SLASH_AMOUNT * remainingOperator3Stake) / totalOperator3Stake;
 
-        
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
         uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator3Stake);
@@ -657,13 +655,12 @@ contract MiddlewareTest is Test {
         uint256 slashAmountSlashable3 =
             (SLASH_AMOUNT * remainingOperator3Stake) / (totalOperator3Stake + remainingOperator3Stake);
 
-            
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
-        
+
         uint256 slashingFraction =
-        slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator3Stake + remainingOperator3Stake);
-        
+            slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator3Stake + remainingOperator3Stake);
+
         vm.prank(gateway);
         middleware.slash(currentEpoch, OPERATOR3_KEY, slashingFraction);
 
@@ -744,7 +741,6 @@ contract MiddlewareTest is Test {
         vm.prank(owner);
         middleware.pauseOperator(operator2);
 
-        
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
         uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);

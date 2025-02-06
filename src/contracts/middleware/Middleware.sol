@@ -278,7 +278,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     ) external onlyOwner {
         s_vaults.enable(vault);
     }
-    
+
     /**
      * @inheritdoc IMiddleware
      */
@@ -363,10 +363,10 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
         );
     }
 
-     /**
+    /**
      * @inheritdoc IMiddleware
      */
-     function sendCurrentOperatorsKeys() external returns (bytes32[] memory keys) {
+    function sendCurrentOperatorsKeys() external returns (bytes32[] memory keys) {
         if (address(s_gateway) == address(0)) {
             revert Middleware__GatewayNotSet();
         }
@@ -394,7 +394,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
 
         s_gateway.sendOperatorsData(keys, epoch);
     }
-    
+
     /**
      * @inheritdoc IMiddleware
      */
@@ -433,7 +433,11 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     /**
      * @inheritdoc IMiddleware
      */
-    function slash(uint48 epoch, bytes32 operatorKey, uint256 percentage) external onlyGateway updateStakeCache(epoch) {
+    function slash(
+        uint48 epoch,
+        bytes32 operatorKey,
+        uint256 percentage
+    ) external onlyGateway updateStakeCache(epoch) {
         uint48 epochStartTs = getEpochStartTs(epoch);
         address operator = getOperatorByKey(operatorKey);
 
@@ -543,7 +547,6 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
             mstore(activeOperators, valIdx)
         }
     }
-
 
     /**
      * @inheritdoc IMiddleware
