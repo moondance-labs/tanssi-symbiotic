@@ -49,8 +49,10 @@ import {IMiddleware} from "../../interfaces/middleware/IMiddleware.sol";
 import {SimpleKeyRegistry32} from "../libraries/SimpleKeyRegistry32.sol";
 
 import {MapWithTimeData} from "../libraries/MapWithTimeData.sol";
+import {QuickSort} from "../libraries/QuickSort.sol";
 
 contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
+    using QuickSort for ValidatorData[];
     using EnumerableMap for EnumerableMap.AddressToUintMap;
     using MapWithTimeData for EnumerableMap.AddressToUintMap;
     using Subnetwork for address;
@@ -375,33 +377,15 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     /**
      * @inheritdoc IMiddleware
      */
-    function sendCurrentOperatorsKeys() external returns (bytes32[] memory keys) {
+    function sendCurrentOperatorsKeys() external returns (bytes32[] memory sortedKeys) {
         if (address(s_gateway) == address(0)) {
             revert Middleware__GatewayNotSet();
         }
 
         uint48 epoch = getCurrentEpoch();
-        keys = new bytes32[](s_operators.length());
+        sortedKeys = sortOperatorsByVaults(epoch);
 
-        uint48 epochStartTs = getEpochStartTs(epoch);
-        uint256 valIdx = 0;
-
-        for (uint256 i; i < s_operators.length(); ++i) {
-            (address operator, uint48 enabledTime, uint48 disabledTime) = s_operators.atWithTimes(i);
-
-            // just skip operator if it was added after the target epoch or paused
-            if (!_wasActiveAt(enabledTime, disabledTime, epochStartTs)) {
-                continue;
-            }
-
-            keys[valIdx++] = getCurrentOperatorKey(operator);
-        }
-
-        assembly {
-            mstore(keys, valIdx)
-        }
-
-        s_gateway.sendOperatorsData(keys, epoch);
+        s_gateway.sendOperatorsData(sortedKeys, epoch);
     }
 
     /**
@@ -554,6 +538,26 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
 
         assembly {
             mstore(activeOperators, valIdx)
+        }
+    }
+
+    /**
+     * @dev Sorts operators by their total stake in descending order, after 500 it will be almost impossible to be used on-chain since 500 ≈ 36M gas
+     * @param epoch The epoch number
+     * @return sortedKeys Array of sorted operators keys based on their stake
+     */
+    function sortOperatorsByVaults(
+        uint48 epoch
+    ) public view returns (bytes32[] memory sortedKeys) {
+        ValidatorData[] memory validatorSet = getValidatorSet(epoch);
+        if (validatorSet.length == 0) {
+            return sortedKeys;
+        }
+        validatorSet = validatorSet.quickSort(0, int256(validatorSet.length - 1));
+
+        sortedKeys = new bytes32[](validatorSet.length);
+        for (uint256 i = 0; i < validatorSet.length; i++) {
+            sortedKeys[i] = validatorSet[i].key;
         }
     }
 
