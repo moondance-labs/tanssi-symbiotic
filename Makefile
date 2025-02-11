@@ -44,7 +44,7 @@ coverage :; forge coverage --nmp test/fork/*
 
 dcoverage :; forge coverage --nmp test/fork/* --report debug > coverage.txt
 
-snapshot :; forge snapshot
+snapshot :; forge snapshot --nmp test/fork/*
 
 format :; forge fmt
 
@@ -61,7 +61,7 @@ deploy:
 	@echo "✅ Collateral deployment completed"
 	
 	@echo "📡 Deploying Symbiotic..."
-	@forge script script/DeploySymbiotic.s.sol ${NETWORK_ARGS} --sig "run(address)" 0x5FbDB2315678afecb367f032d93F642f64180aa3
+	@forge script script/DeploySymbiotic.s.sol ${NETWORK_ARGS} --slow --skip-simulation --sig "run(address)" 0x5FbDB2315678afecb367f032d93F642f64180aa3
 	@echo "✅ Symbiotic deployment completed"
 	
 demo:
@@ -71,7 +71,7 @@ demo:
 
 deploy-tanssi-eco:
 	@echo "📡 Deploying Tanssi Ecosystem..."
-	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem ${NETWORK_ARGS}
+	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem ${NETWORK_ARGS} --slow --skip-simulation
 	@echo "✅ Tanssi Ecosystem deployment completed"
 
 deploy-full-tanssi-eco-demo:
@@ -79,7 +79,13 @@ deploy-full-tanssi-eco-demo:
 	@forge script script/test/DeployTanssiEcosystemDemo.s.sol --slow --skip-simulation ${NETWORK_ARGS}
 	@echo "✅ Full Tanssi Ecosystem Locally for Demo deployment completed"
 
-deploy-rewards-contracts:
+# EXAMPLE: These are all mock data to deploy locally
+# Make example:
+# make deploy-rewards VAULT_ADDRESS=0xc5d41F3f9C4930992EE01DDb226bfD7212C00CBA VAULT_FACTORY_ADDRESS=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512 ADMIN_FEE=100 DEFAULT_ADMIN_ROLE=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 ADMIN_FEE_CLAIM_ROLE=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 ADMIN_FEE_SET_ROLE=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 NETWORK=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 NETWORK_MIDDLEWARE_SERVICE=0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6 START_TIME=1234567890 EPOCH_DURATION=86400 OPERATOR_SHARE=5000
+
+deploy-rewards:
 	@echo "📡 Deploying Rewards Contracts..."
-	@forge script script/DeployRewardsContracts.s.sol ${NETWORK_ARGS} --sig "run((address,address,uint256,address,address,address,address,address,address,uint48,uint48,uint48))" "(0xc5d41F3f9C4930992EE01DDb226bfD7212C00CBA,0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512,100,0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266, 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266,0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266,0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266,0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266,0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6,1234567890,86400,5000)"
+	@forge script script/DeployRewards.s.sol ${NETWORK_ARGS} \
+		--sig "run((address,address,uint256,address,address,address,address,address,uint48,uint48,uint48))" \
+		"($(VAULT_ADDRESS),$(VAULT_FACTORY_ADDRESS),$(ADMIN_FEE),$(DEFAULT_ADMIN_ROLE),$(ADMIN_FEE_CLAIM_ROLE),$(ADMIN_FEE_SET_ROLE),$(NETWORK),$(NETWORK_MIDDLEWARE_SERVICE),$(START_TIME),$(EPOCH_DURATION),$(OPERATOR_SHARE))"
 	@echo "✅ Rewards Contracts deployment completed"

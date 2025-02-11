@@ -327,7 +327,7 @@ contract DeployTanssiEcosystem is Script {
         networkMiddlewareService.setMiddleware(address(ecosystemEntities.middleware));
 
         ODefaultOperatorRewards operatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), 20);
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), 2000);
 
         ecosystemEntities.middleware.setOperatorRewardsContract(address(operatorRewards));
 

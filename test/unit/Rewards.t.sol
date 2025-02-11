@@ -67,7 +67,7 @@ contract RewardsTest is Test {
     uint256 public constant TOKENS_PER_POINT = 1;
     uint256 public constant EXPECTED_CLAIMABLE = uint256(AMOUNT_TO_CLAIM) * TOKENS_PER_POINT;
     uint256 public constant ADMIN_FEE = 800; // 8%
-    uint48 public constant OPERATOR_SHARE = 20;
+    uint48 public constant OPERATOR_SHARE = 2000;
 
     // Root hash of the rewards merkle tree. It represents the rewards for the epoch 0 for alice and bob with 20 points each
     bytes32 public constant REWARDS_ROOT = 0x4b0ddd8b9b8ec6aec84bcd2003c973254c41d976f6f29a163054eec4e7947810;
@@ -579,7 +579,7 @@ contract RewardsTest is Test {
     }
 
     function testSetOperatorShareInvalidOperatorShare() public {
-        uint48 newOperatorShare = 100;
+        uint48 newOperatorShare = 10_000;
         vm.startPrank(address(middleware));
         vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidOperatorShare.selector);
         operatorRewards.setOperatorShare(newOperatorShare);
@@ -643,7 +643,6 @@ contract RewardsTest is Test {
     //**************************************************************************************************
 
     function testStakerRewardsConstructorNotVault() public {
-        uint48 epochStartTs = middleware.getEpochStartTs(0);
         IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
             vault: address(vault),
             adminFee: 0,
@@ -665,7 +664,6 @@ contract RewardsTest is Test {
     }
 
     function testStakerRewardsConstructorWithNoAdminFeeAndNoAdminFeeClaimRoleHolder() public {
-        uint48 epochStartTs = middleware.getEpochStartTs(0);
         IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
             vault: address(vault),
             adminFee: 0,
@@ -681,7 +679,6 @@ contract RewardsTest is Test {
     }
 
     function testStakerRewardsConstructorWithNoAdminFeeAndBothAdminRole() public {
-        uint48 epochStartTs = middleware.getEpochStartTs(0);
         IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
             vault: address(vault),
             adminFee: 0,
@@ -698,7 +695,6 @@ contract RewardsTest is Test {
     }
 
     function testStakerRewardsConstructorWithInvalidAdminFee() public {
-        uint48 epochStartTs = middleware.getEpochStartTs(0);
         IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
             vault: address(vault),
             adminFee: stakerRewards.ADMIN_FEE_BASE() + 1,
@@ -714,7 +710,6 @@ contract RewardsTest is Test {
     }
 
     function testStakerRewardsConstructorWithNoAdminFeeSetRoleHolder() public {
-        uint48 epochStartTs = middleware.getEpochStartTs(0);
         IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
             vault: address(vault),
             adminFee: 0,
@@ -746,7 +741,6 @@ contract RewardsTest is Test {
     }
 
     function testStakerRewardsConstructorWithNoOperatorRewardsRoleHolder() public {
-        uint48 epochStartTs = middleware.getEpochStartTs(0);
         IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
             vault: address(vault),
             adminFee: ADMIN_FEE,
@@ -762,7 +756,6 @@ contract RewardsTest is Test {
     }
 
     function testStakerRewardsConstructorWithAdminFeeClaimRoleHolder() public {
-        uint48 epochStartTs = middleware.getEpochStartTs(0);
         IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
             vault: address(vault),
             adminFee: ADMIN_FEE,

@@ -342,6 +342,15 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     }
 
     /**
+     * inheritdoc IMiddleware
+     */
+    function setOperatorShareOnOperatorRewards(
+        uint48 operatorShare
+    ) external onlyOwner onlyIfOperatorRewardSet {
+        IODefaultOperatorRewards(s_operatorRewards).setOperatorShare(operatorShare);
+    }
+
+    /**
      * @inheritdoc IMiddleware
      */
     function distributeRewards(

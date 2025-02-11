@@ -34,7 +34,6 @@ contract DeployRewards is Script {
         address defaultAdminRole;
         address adminFeeClaimRole;
         address adminFeeSetRole;
-        address operatorRewardsRole;
         address network;
         address networkMiddlewareService;
         uint48 startTime;
@@ -102,7 +101,7 @@ contract DeployRewards is Script {
             params.defaultAdminRole,
             params.adminFeeClaimRole,
             params.adminFeeSetRole,
-            params.operatorRewardsRole,
+            address(operatorRewards),
             params.network
         );
         emit Done();

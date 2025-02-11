@@ -42,6 +42,7 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
+    uint48 public constant MAX_PERCENTAGE = 10_000;
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
@@ -172,7 +173,7 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         s_claimed[input.eraIndex][recipient] = amount;
 
         // s_operatorShare% of the rewards to the operator
-        uint256 operatorAmount = amount.mulDiv(s_operatorShare, 100);
+        uint256 operatorAmount = amount.mulDiv(s_operatorShare, MAX_PERCENTAGE);
 
         // (1-s_operatorShare)% of the rewards to the stakers
         uint256 stakerAmount = amount - operatorAmount;
@@ -235,7 +236,7 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         uint48 operatorShare
     ) external onlyMiddleware {
         //TODO A maximum value for the operatorShare should be chosen. 100% shouldn't be a valid option.
-        if (operatorShare >= 100) {
+        if (operatorShare >= MAX_PERCENTAGE) {
             revert ODefaultOperatorRewards__InvalidOperatorShare();
         }
         if (operatorShare == s_operatorShare) {
