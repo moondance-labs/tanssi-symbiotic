@@ -219,7 +219,7 @@ contract MiddlewareTest is Test {
             NETWORK_EPOCH_DURATION,
             SLASHING_WINDOW
         );
-        gateway = _createGateway();
+        _createGateway();
         networkMiddlewareService.setMiddleware(address(middleware));
         middleware.setGateway(address(gateway));
 
@@ -901,7 +901,7 @@ contract MiddlewareTest is Test {
             multiplier: params.multiplier,
             rescueOperator: 0x4B8a782D4F03ffcB7CE1e95C5cfe5BFCb2C8e967
         });
-        GatewayProxy gateway = new GatewayProxy(address(gatewayLogic), abi.encode(config));
+        gateway = address(new GatewayProxy(address(gatewayLogic), abi.encode(config)));
         MockGateway(address(gateway)).setCommitmentsAreVerified(true);
 
         SetOperatingModeParams memory operatingModeParams = SetOperatingModeParams({mode: OperatingMode.Normal});
@@ -911,17 +911,17 @@ contract MiddlewareTest is Test {
     }
 
     function _createParaIDAndAgent(
-        IOGateway gateway
+        IOGateway _gateway
     ) public returns (ParaID) {
         ParaID paraID = ParaID.wrap(1);
         bytes32 agentID = keccak256("1");
 
-        MockGateway(address(gateway)).createAgentPublic(abi.encode(CreateAgentParams({agentID: agentID})));
+        MockGateway(address(_gateway)).createAgentPublic(abi.encode(CreateAgentParams({agentID: agentID})));
 
         CreateChannelParams memory params =
             CreateChannelParams({channelID: paraID.into(), agentID: agentID, mode: OperatingMode.Normal});
 
-        MockGateway(address(gateway)).createChannelPublic(abi.encode(params));
+        MockGateway(address(_gateway)).createChannelPublic(abi.encode(params));
         return paraID;
     }
 

@@ -487,7 +487,7 @@ contract MiddlewareTest is Test {
     function testSubmitRewards() public {
         vm.warp(64_000);
 
-        uint48 operatorShare = 20;
+        uint48 operatorShare = 2000;
         deal(assetHubAgent, 50 ether);
 
         uint256 amount = 1.2 ether;
@@ -519,7 +519,7 @@ contract MiddlewareTest is Test {
     }
 
     function testSubmitRewardsWithBogusToken() public {
-        uint48 operatorShare = 20;
+        uint48 operatorShare = 2000;
         deal(assetHubAgent, 50 ether);
 
         uint256 amount = 1.2 ether;

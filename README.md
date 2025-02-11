@@ -36,11 +36,27 @@ To spin up locally the blockchain network run:
 $ make anvil
 ```
 
-then to deploy symbiotic contracts:
+#### Deploy symbiotic contracts:
 
 ```shell
 $ make deploy
 ```
+
+#### Deploy Tanssi Ecosystem:
+
+```shell
+$ make deploy-tanssi-eco ...
+```
+
+#### Deploy Tanssi Rewards Contracts:
+
+Check `Makefile` for the variable to pass to the deploy command.
+
+```shell
+$ make deploy-rewards ...
+```
+
+### Demo
 
 If you want to emulate the whole process of registering operators and vaults as in mainnet run the demo script:
 
@@ -52,6 +68,12 @@ $ make demo
 
 ```shell
 $ make test
+```
+
+### Coverage
+
+```shell
+$ make coverage
 ```
 
 ### Format
@@ -92,3 +114,9 @@ Run `forge install DEPENDENCY_TO_INSTALL --no-commit`.
 
 `cd` into the dependency folder in `lib`, then run `git checkout XXXXX` where XXXXX is the wanted
 commit/tag. Then return in the root folder and add the git submodule diff to your commit.
+
+## Contracts' Ownership
+
+Some contracts have modifiers that restrict the access to some functions. The diagram to explain the ownership of the contracts can be seen in the following image:
+
+![Ownership](./ownership.png)

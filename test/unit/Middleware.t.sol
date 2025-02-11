@@ -1193,7 +1193,7 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function testDistributeRewards() public {
-        uint48 OPERATOR_SHARE = 20;
+        uint48 OPERATOR_SHARE = 2000;
 
         Token token = new Token("Test");
         token.transfer(address(middleware), 1000);
@@ -1229,7 +1229,7 @@ contract MiddlewareTest is Test {
     }
 
     function testDistributeRewardsWithInsufficientBalance() public {
-        uint48 OPERATOR_SHARE = 20;
+        uint48 OPERATOR_SHARE = 2000;
 
         uint256 epoch = 0;
         uint256 eraIndex = 0;
@@ -1258,8 +1258,7 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function testSetRewardsContracts() public {
-        uint48 OPERATOR_SHARE = 20;
-        Token token = new Token("Test");
+        uint48 OPERATOR_SHARE = 2000;
 
         ODefaultOperatorRewards operatorRewards =
             new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
@@ -1571,8 +1570,7 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function testSetStakerRewardContract() public {
-        uint48 OPERATOR_SHARE = 20;
-        Token token = new Token("Test");
+        uint48 OPERATOR_SHARE = 2000;
         address stakerRewardAddress = makeAddr("StakerRewardAddress");
 
         ODefaultOperatorRewards operatorRewards =
@@ -1594,8 +1592,7 @@ contract MiddlewareTest is Test {
     }
 
     function testSetStakerRewardContractInvalid() public {
-        uint48 OPERATOR_SHARE = 20;
-        Token token = new Token("Test");
+        uint48 OPERATOR_SHARE = 2000;
 
         ODefaultOperatorRewards operatorRewards =
             new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
@@ -1611,5 +1608,19 @@ contract MiddlewareTest is Test {
         vm.prank(owner);
         vm.expectRevert(IMiddleware.Middleware__OperatorRewardsNotSet.selector);
         middleware.setStakerRewardContract(address(0), address(vault));
+    }
+
+    function testSetOperatorShareOnOperatorRewards() public {
+        uint48 operatorShare = 2000;
+        uint48 newOperatorShare = 3000;
+        ODefaultOperatorRewards _operatorRewards =
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), operatorShare);
+
+        vm.startPrank(owner);
+        middleware.setOperatorRewardsContract(address(_operatorRewards));
+
+        vm.expectEmit(true, true, false, false);
+        emit IODefaultOperatorRewards.SetOperatorShare(newOperatorShare);
+        middleware.setOperatorShareOnOperatorRewards(newOperatorShare);
     }
 }

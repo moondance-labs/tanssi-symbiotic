@@ -291,6 +291,14 @@ interface IMiddleware {
     ) external;
 
     /**
+     * @notice Sets the operator share on operator rewards contract
+     * @param operatorShare The operator share
+     */
+    function setOperatorShareOnOperatorRewards(
+        uint48 operatorShare
+    ) external;
+
+    /**
      * @notice Distribute rewards for a specific era contained in an epoch by providing a Merkle root, total points, total amount of tokens and the token address of the rewards.
      * @param epoch network epoch of the middleware
      * @param eraIndex era index of Starlight's rewards distribution
