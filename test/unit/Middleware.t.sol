@@ -1638,11 +1638,10 @@ contract MiddlewareTest is Test {
         validators[3] = IMiddleware.ValidatorData(3, bytes32(uint256(3)));
         validators[4] = IMiddleware.ValidatorData(4, bytes32(uint256(4)));
 
-        IMiddleware.ValidatorData[] memory sortedValidators = validators.quickSort( 0, int256(validators.length - 1));
+        IMiddleware.ValidatorData[] memory sortedValidators = validators.quickSort(0, int256(validators.length - 1));
 
         for (uint256 i = 0; i < validators.length - 1; i++) {
             assertGe(sortedValidators[i].stake, sortedValidators[i + 1].stake);
         }
-            
     }
 }
