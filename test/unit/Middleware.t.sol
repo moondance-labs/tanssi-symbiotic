@@ -48,6 +48,7 @@ import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRe
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {SimpleKeyRegistry32} from "src/contracts/libraries/SimpleKeyRegistry32.sol";
+import {QuickSort} from "src/contracts/libraries/QuickSort.sol";
 
 import {DelegatorMock} from "../mocks/symbiotic/DelegatorMock.sol";
 import {OptInServiceMock} from "../mocks/symbiotic/OptInServiceMock.sol";
@@ -57,6 +58,7 @@ import {Token} from "../mocks/Token.sol";
 
 contract MiddlewareTest is Test {
     using Subnetwork for address;
+    using QuickSort for IMiddleware.ValidatorData[];
 
     uint48 public constant NETWORK_EPOCH_DURATION = 6 days;
     uint48 public constant SLASHING_WINDOW = 7 days;
@@ -1622,5 +1624,24 @@ contract MiddlewareTest is Test {
         vm.expectEmit(true, true, false, false);
         emit IODefaultOperatorRewards.SetOperatorShare(newOperatorShare);
         middleware.setOperatorShareOnOperatorRewards(newOperatorShare);
+    }
+
+    // ************************************************************************************************
+    // *                                        QUICK SORT
+    // ************************************************************************************************
+
+    function testQuickSort() public {
+        IMiddleware.ValidatorData[] memory validators = new IMiddleware.ValidatorData[](5);
+        validators[0] = IMiddleware.ValidatorData(0, bytes32(0));
+        validators[1] = IMiddleware.ValidatorData(1, bytes32(uint256(1)));
+        validators[2] = IMiddleware.ValidatorData(2, bytes32(uint256(2)));
+        validators[3] = IMiddleware.ValidatorData(3, bytes32(uint256(3)));
+        validators[4] = IMiddleware.ValidatorData(4, bytes32(uint256(4)));
+
+        IMiddleware.ValidatorData[] memory sortedValidators = validators.quickSort(0, int256(validators.length - 1));
+
+        for (uint256 i = 0; i < validators.length - 1; i++) {
+            assertGe(sortedValidators[i].stake, sortedValidators[i + 1].stake);
+        }
     }
 }
