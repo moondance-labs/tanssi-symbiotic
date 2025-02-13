@@ -285,25 +285,27 @@ contract DeployTanssiEcosystem is Script {
 
         ecosystemEntities.middleware.setOperatorRewardsContract(address(operatorRewards));
 
-        console2.log("VaultConfigurator: ", address(ecosystemEntities.vaultConfigurator));
-        console2.log("OperatorRegistry: ", address(operatorRegistry));
-        console2.log("NetworkRegistry: ", address(networkRegistry));
-        console2.log("NetworkMiddlewareService: ", address(networkMiddlewareService));
-        console2.log("OperatorNetworkOptInService: ", address(operatorNetworkOptInService));
-        console2.log("OperatorVaultOptInService: ", address(operatorVaultOptInService));
-        console2.log("DefaultCollateralFactory: ", address(defaultCollateralFactory));
-        console2.log("DefaultCollateral: ", ecosystemEntities.defaultCollateralAddress);
-        console2.log("Middleware: ", address(ecosystemEntities.middleware));
-        console2.log("OperatorRewards: ", address(operatorRewards));
-        console2.log("Vault: ", vaultAddresses.vault);
-        console2.log("Delegator: ", vaultAddresses.delegator);
-        console2.log("Slasher: ", vaultAddresses.slasher);
-        console2.log("Vault Slashable: ", vaultAddresses.vaultSlashable);
-        console2.log("Delegator Slashable: ", vaultAddresses.delegatorSlashable);
-        console2.log("Slasher Slashable: ", vaultAddresses.slasherSlashable);
-        console2.log("Vault Vetoed: ", vaultAddresses.vaultVetoed);
-        console2.log("Delegator Vetoed: ", vaultAddresses.delegatorVetoed);
-        console2.log("Slasher Vetoed: ", vaultAddresses.slasherVetoed);
+        if (!isTest) {
+            console2.log("VaultConfigurator: ", address(ecosystemEntities.vaultConfigurator));
+            console2.log("OperatorRegistry: ", address(operatorRegistry));
+            console2.log("NetworkRegistry: ", address(networkRegistry));
+            console2.log("NetworkMiddlewareService: ", address(networkMiddlewareService));
+            console2.log("OperatorNetworkOptInService: ", address(operatorNetworkOptInService));
+            console2.log("OperatorVaultOptInService: ", address(operatorVaultOptInService));
+            console2.log("DefaultCollateralFactory: ", address(defaultCollateralFactory));
+            console2.log("DefaultCollateral: ", ecosystemEntities.defaultCollateralAddress);
+            console2.log("Middleware: ", address(ecosystemEntities.middleware));
+            console2.log("OperatorRewards: ", address(operatorRewards));
+            console2.log("Vault: ", vaultAddresses.vault);
+            console2.log("Delegator: ", vaultAddresses.delegator);
+            console2.log("Slasher: ", vaultAddresses.slasher);
+            console2.log("Vault Slashable: ", vaultAddresses.vaultSlashable);
+            console2.log("Delegator Slashable: ", vaultAddresses.delegatorSlashable);
+            console2.log("Slasher Slashable: ", vaultAddresses.slasherSlashable);
+            console2.log("Vault Vetoed: ", vaultAddresses.vaultVetoed);
+            console2.log("Delegator Vetoed: ", vaultAddresses.delegatorVetoed);
+            console2.log("Slasher Vetoed: ", vaultAddresses.slasherVetoed);
+        }
     }
 
     function deployMiddleware(

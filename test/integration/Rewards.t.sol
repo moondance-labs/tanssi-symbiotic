@@ -212,7 +212,7 @@ contract MiddlewareTest is Test {
 
         owner = tanssi = deploySymbiotic.owner();
 
-        DeploySymbiotic.SymbioticAddresses memory symbioticAddresses = deploySymbiotic.deploySymbiotic(owner);
+        DeploySymbiotic.SymbioticAddresses memory symbioticAddresses = deploySymbiotic.deploy(owner);
         vaultFactory = VaultFactory(symbioticAddresses.vaultFactory);
         delegatorFactory = DelegatorFactory(symbioticAddresses.delegatorFactory);
         slasherFactory = SlasherFactory(symbioticAddresses.slasherFactory);

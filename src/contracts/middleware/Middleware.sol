@@ -377,6 +377,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     /**
      * @inheritdoc IMiddleware
      */
+    //  TODO: this function should be split to allow to be called by chainlink in case
     function sendCurrentOperatorsKeys() external returns (bytes32[] memory sortedKeys) {
         if (address(s_gateway) == address(0)) {
             revert Middleware__GatewayNotSet();

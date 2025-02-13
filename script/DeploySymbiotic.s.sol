@@ -87,6 +87,7 @@ contract DeploySymbiotic is Script {
     uint256 operatorPrivateKey =
         vm.envOr("OPERATOR_PRIVATE_KEY", uint256(0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a));
     address public operator = vm.addr(operatorPrivateKey);
+    bool public isTest = false;
 
     VaultConfigurator vaultConfigurator;
     Token public collateral;
@@ -184,12 +185,8 @@ contract DeploySymbiotic is Script {
 
     function deploySymbiotic(
         address _owner
-    ) public returns (SymbioticAddresses memory) {
-        if (_owner != address(0)) {
-            vm.startPrank(_owner);
-        }
-
-        DeployedFactories memory factories = deployFactories(owner);
+    ) private returns (SymbioticAddresses memory) {
+        DeployedFactories memory factories = deployFactories(_owner != address(0) ? _owner : owner);
         DeployedRegistries memory registries = deployRegistries();
         DeployedServices memory services = deployServices(factories, registries);
 
@@ -275,25 +272,24 @@ contract DeploySymbiotic is Script {
             address(factories.vaultFactory), address(factories.delegatorFactory), address(factories.slasherFactory)
         );
 
-        factories.vaultFactory.transferOwnership(owner);
-        factories.delegatorFactory.transferOwnership(owner);
-        factories.slasherFactory.transferOwnership(owner);
+        factories.vaultFactory.transferOwnership(_owner != address(0) ? _owner : owner);
+        factories.delegatorFactory.transferOwnership(_owner != address(0) ? _owner : owner);
+        factories.slasherFactory.transferOwnership(_owner != address(0) ? _owner : owner);
 
-        console2.log("VaultFactory: ", address(factories.vaultFactory));
-        console2.log("DelegatorFactory: ", address(factories.delegatorFactory));
-        console2.log("SlasherFactory: ", address(factories.slasherFactory));
-        console2.log("NetworkRegistry: ", address(registries.networkRegistry));
-        console2.log("OperatorRegistry: ", address(registries.operatorRegistry));
-        console2.log("OperatorMetadataService: ", address(services.operatorMetadataService));
-        console2.log("NetworkMetadataService: ", address(services.networkMetadataService));
-        console2.log("NetworkMiddlewareService: ", address(services.networkMiddlewareService));
-        console2.log("OperatorVaultOptInService: ", address(services.operatorVaultOptInService));
-        console2.log("OperatorNetworkOptInService: ", address(services.operatorNetworkOptInService));
-        console2.log("VaultConfigurator: ", address(vaultConfigurator));
-
-        if (owner != address(0)) {
-            vm.stopPrank();
+        if (!isTest) {
+            console2.log("VaultFactory: ", address(factories.vaultFactory));
+            console2.log("DelegatorFactory: ", address(factories.delegatorFactory));
+            console2.log("SlasherFactory: ", address(factories.slasherFactory));
+            console2.log("NetworkRegistry: ", address(registries.networkRegistry));
+            console2.log("OperatorRegistry: ", address(registries.operatorRegistry));
+            console2.log("OperatorMetadataService: ", address(services.operatorMetadataService));
+            console2.log("NetworkMetadataService: ", address(services.networkMetadataService));
+            console2.log("NetworkMiddlewareService: ", address(services.networkMiddlewareService));
+            console2.log("OperatorVaultOptInService: ", address(services.operatorVaultOptInService));
+            console2.log("OperatorNetworkOptInService: ", address(services.operatorNetworkOptInService));
+            console2.log("VaultConfigurator: ", address(vaultConfigurator));
         }
+
         return SymbioticAddresses({
             vaultFactory: address(factories.vaultFactory),
             delegatorFactory: address(factories.delegatorFactory),
@@ -316,8 +312,18 @@ contract DeploySymbiotic is Script {
         });
     }
 
+    function deploy(
+        address _owner
+    ) public returns (SymbioticAddresses memory addresses) {
+        vm.startPrank(_owner);
+        isTest = true;
+        addresses = deploySymbiotic(_owner);
+        vm.stopPrank();
+    }
+
     function deploySymbioticBroadcast() public returns (SymbioticAddresses memory addresses) {
         vm.startBroadcast(ownerPrivateKey);
+        isTest = false;
         addresses = deploySymbiotic(address(0));
         vm.stopBroadcast();
     }
