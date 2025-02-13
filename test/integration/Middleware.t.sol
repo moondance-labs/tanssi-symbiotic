@@ -999,17 +999,7 @@ contract MiddlewareTest is Test {
         uint48 epoch
     ) public returns (Middleware.ValidatorData[] memory) {
         Middleware.ValidatorData[] memory validators = middleware.getValidatorSet(epoch);
-        console2.log("BEFORE");
-        console2.log("Validators0: ", validators[0].stake);
-        console2.log("Validators1: ", validators[1].stake);
-        console2.log("Validators1: ", validators[4].stake);
-        console2.log("Validators1: ", validators[5].stake);
         quickSort(validators, 0, int256(validators.length - 1));
-        console2.log("AFTER");
-        console2.log("Validators0: ", validators[0].stake);
-        console2.log("Validators1: ", validators[1].stake);
-        console2.log("Validators1: ", validators[4].stake);
-        console2.log("Validators1: ", validators[5].stake);
         return validators;
     }
 
@@ -1039,11 +1029,6 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validators = _validatorSet(currentEpoch);
-        console2.log("Validators length: ", validators.length);
-        console2.log("Validators0: ", validators[0].stake);
-        console2.log("Validators1: ", validators[1].stake);
-        console2.log("Validators1: ", validators[4].stake);
-        console2.log("Validators1: ", validators[5].stake);
 
         uint256 gasBefore = gasleft();
         bytes32[] memory sortedValidators = middleware.sortOperatorsByVaults(currentEpoch);
@@ -1077,13 +1062,14 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(owner);
         uint48 currentEpoch = middleware.getCurrentEpoch();
-        Middleware.ValidatorData[] memory validators = _validatorSet(currentEpoch);
+
         uint256 gasBefore = gasleft();
         bytes32[] memory sortedValidators = middleware.sortOperatorsByVaults(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasSorted = gasBefore - gasAfter;
         console2.log("Total gas used: ", gasSorted);
 
+        Middleware.ValidatorData[] memory validators = _validatorSet(currentEpoch);
         _assertDataIsValidAndSorted(validators, sortedValidators, count);
         vm.stopPrank();
     }
@@ -1110,7 +1096,6 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(owner);
         uint48 currentEpoch = middleware.getCurrentEpoch();
-        Middleware.ValidatorData[] memory validators = _validatorSet(currentEpoch);
 
         uint256 gasBefore = gasleft();
         bytes32[] memory sortedValidators = middleware.sortOperatorsByVaults(currentEpoch);
@@ -1118,6 +1103,7 @@ contract MiddlewareTest is Test {
         uint256 gasSorted = gasBefore - gasAfter;
         console2.log("Total gas used: ", gasSorted);
 
+        Middleware.ValidatorData[] memory validators = _validatorSet(currentEpoch);
         _assertDataIsValidAndSorted(validators, sortedValidators, count);
 
         vm.stopPrank();
@@ -1139,25 +1125,6 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
     }
 
-    function testGasFor500OperatorsIn3VaultsSorted() public {
-        uint16 count = 500;
-        _addOperatorsToNetwork(count);
-
-        vm.startPrank(owner);
-        uint48 currentEpoch = middleware.getCurrentEpoch();
-        Middleware.ValidatorData[] memory validators = _validatorSet(currentEpoch);
-
-        uint256 gasBefore = gasleft();
-        bytes32[] memory sortedValidators = middleware.sortOperatorsByVaults(currentEpoch);
-        uint256 gasAfter = gasleft();
-        uint256 gasSorted = gasBefore - gasAfter;
-        console2.log("Total gas used: ", gasSorted);
-
-        _assertDataIsValidAndSorted(validators, sortedValidators, count);
-
-        vm.stopPrank();
-    }
-
     function testGasFor500OperatorsIn3VaultsNonSorted() public {
         uint16 count = 500;
         _addOperatorsToNetwork(count);
@@ -1169,7 +1136,27 @@ contract MiddlewareTest is Test {
         Middleware.ValidatorData[] memory validatorsNotSorted = middleware.getValidatorSet(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasNotSorted = gasBefore - gasAfter;
-        console2.log("Total gas used for non sorted: ", gasBefore - gasAfter);
+        console2.log("Total gas used for non sorted: ", gasNotSorted);
+
+        vm.stopPrank();
+    }
+
+    function testGasFor500OperatorsIn3VaultsSorted() public {
+        uint16 count = 500;
+        _addOperatorsToNetwork(count);
+
+        vm.startPrank(owner);
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+
+        uint256 gasBefore = gasleft();
+        bytes32[] memory sortedValidators = middleware.sortOperatorsByVaults(currentEpoch);
+        uint256 gasAfter = gasleft();
+        uint256 gasSorted = gasBefore - gasAfter;
+        console2.log("Total gas used: ", gasSorted);
+
+        Middleware.ValidatorData[] memory validators = _validatorSet(currentEpoch);
+
+        _assertDataIsValidAndSorted(validators, sortedValidators, count);
 
         vm.stopPrank();
     }

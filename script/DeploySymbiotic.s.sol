@@ -279,21 +279,24 @@ contract DeploySymbiotic is Script {
         factories.delegatorFactory.transferOwnership(owner);
         factories.slasherFactory.transferOwnership(owner);
 
-        console2.log("VaultFactory: ", address(factories.vaultFactory));
-        console2.log("DelegatorFactory: ", address(factories.delegatorFactory));
-        console2.log("SlasherFactory: ", address(factories.slasherFactory));
-        console2.log("NetworkRegistry: ", address(registries.networkRegistry));
-        console2.log("OperatorRegistry: ", address(registries.operatorRegistry));
-        console2.log("OperatorMetadataService: ", address(services.operatorMetadataService));
-        console2.log("NetworkMetadataService: ", address(services.networkMetadataService));
-        console2.log("NetworkMiddlewareService: ", address(services.networkMiddlewareService));
-        console2.log("OperatorVaultOptInService: ", address(services.operatorVaultOptInService));
-        console2.log("OperatorNetworkOptInService: ", address(services.operatorNetworkOptInService));
-        console2.log("VaultConfigurator: ", address(vaultConfigurator));
+
 
         if (owner != address(0)) {
             vm.stopPrank();
+        }else{
+            console2.log("VaultFactory: ", address(factories.vaultFactory));
+            console2.log("DelegatorFactory: ", address(factories.delegatorFactory));
+            console2.log("SlasherFactory: ", address(factories.slasherFactory));
+            console2.log("NetworkRegistry: ", address(registries.networkRegistry));
+            console2.log("OperatorRegistry: ", address(registries.operatorRegistry));
+            console2.log("OperatorMetadataService: ", address(services.operatorMetadataService));
+            console2.log("NetworkMetadataService: ", address(services.networkMetadataService));
+            console2.log("NetworkMiddlewareService: ", address(services.networkMiddlewareService));
+            console2.log("OperatorVaultOptInService: ", address(services.operatorVaultOptInService));
+            console2.log("OperatorNetworkOptInService: ", address(services.operatorNetworkOptInService));
+            console2.log("VaultConfigurator: ", address(vaultConfigurator));
         }
+        
         return SymbioticAddresses({
             vaultFactory: address(factories.vaultFactory),
             delegatorFactory: address(factories.delegatorFactory),
