@@ -2,7 +2,7 @@
 
 .PHONY: all test clean clean-all deploy install snapshot format anvil
 
-DEFAULT_ANVIL_KEY := 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+DEFAULT_ANVIL_KEY := 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
 
 
 all: clean remove install update build
@@ -51,7 +51,8 @@ format :; forge fmt
 anvil :; anvil -m 'test test test test test test test test test test test junk' --steps-tracing --block-time 1
 
 RPC_URL ?= http://localhost:8545
-NETWORK_ARGS := --rpc-url ${RPC_URL} --private-key $(DEFAULT_ANVIL_KEY) --broadcast
+PRIVATE_KEY ?= ${DEFAULT_ANVIL_KEY}
+NETWORK_ARGS := --rpc-url ${RPC_URL} --private-key ${PRIVATE_KEY} --broadcast
 
 
 deploy:
@@ -72,7 +73,7 @@ demo:
 
 deploy-tanssi-eco:
 	@echo "📡 Deploying Tanssi Ecosystem..."
-	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem ${NETWORK_ARGS} --slow --skip-simulation
+	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem ${NETWORK_ARGS} --slow --skip-simulation --verify --etherscan-api-key ${ETHERSCAN_API_KEY}
 	@echo "✅ Tanssi Ecosystem deployment completed"
 
 deploy-full-tanssi-eco-demo:
@@ -82,7 +83,7 @@ deploy-full-tanssi-eco-demo:
 
 # EXAMPLE: These are all mock data to deploy locally
 # Make example:
-# make deploy-rewards VAULT_ADDRESS=0xc5d41F3f9C4930992EE01DDb226bfD7212C00CBA VAULT_FACTORY_ADDRESS=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512 ADMIN_FEE=100 DEFAULT_ADMIN_ROLE=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 ADMIN_FEE_CLAIM_ROLE=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 ADMIN_FEE_SET_ROLE=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 NETWORK=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 NETWORK_MIDDLEWARE_SERVICE=0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6 START_TIME=1234567890 EPOCH_DURATION=86400 OPERATOR_SHARE=5000
+# make deploy-rewards VAULT_ADDRESS=0xc5d41F3f9C4930992EE01DDb226bfD7212C00CBA VAULT_FACTORY_ADDRESS=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512 ADMIN_FEE=100 DEFAULT_ADMIN_ROLE=0xa0Ee7A142d267C1f36714E4a8F75612F20a79720 ADMIN_FEE_CLAIM_ROLE=0xa0Ee7A142d267C1f36714E4a8F75612F20a79720 ADMIN_FEE_SET_ROLE=0xa0Ee7A142d267C1f36714E4a8F75612F20a79720 NETWORK=0xa0Ee7A142d267C1f36714E4a8F75612F20a79720 NETWORK_MIDDLEWARE_SERVICE=0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6 START_TIME=1234567890 EPOCH_DURATION=86400 OPERATOR_SHARE=5000
 
 deploy-rewards:
 	@echo "📡 Deploying Rewards Contracts..."
