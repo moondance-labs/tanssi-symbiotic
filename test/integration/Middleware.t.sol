@@ -185,7 +185,7 @@ contract MiddlewareTest is Test {
 
         owner = tanssi = deploySymbiotic.owner();
 
-        DeploySymbiotic.SymbioticAddresses memory symbioticAddresses = deploySymbiotic.deploySymbiotic(owner);
+        DeploySymbiotic.SymbioticAddresses memory symbioticAddresses = deploySymbiotic.deploy(owner);
         vaultFactory = VaultFactory(symbioticAddresses.vaultFactory);
         delegatorFactory = DelegatorFactory(symbioticAddresses.delegatorFactory);
         slasherFactory = SlasherFactory(symbioticAddresses.slasherFactory);
@@ -1033,6 +1033,7 @@ contract MiddlewareTest is Test {
         uint256 gasBefore = gasleft();
         bytes32[] memory sortedValidators = middleware.sortOperatorsByVaults(currentEpoch);
         uint256 gasAfter = gasleft();
+
         uint256 gasSorted = gasBefore - gasAfter;
         console2.log("Total gas used: ", gasSorted);
 

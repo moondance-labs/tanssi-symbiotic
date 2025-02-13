@@ -50,7 +50,8 @@ format :; forge fmt
 
 anvil :; anvil -m 'test test test test test test test test test test test junk' --steps-tracing --block-time 1
 
-NETWORK_ARGS := --rpc-url http://localhost:8545 --private-key $(DEFAULT_ANVIL_KEY) --broadcast
+RPC_URL ?= http://localhost:8545
+NETWORK_ARGS := --rpc-url ${RPC_URL} --private-key $(DEFAULT_ANVIL_KEY) --broadcast
 
 
 deploy:

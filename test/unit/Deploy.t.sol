@@ -135,6 +135,28 @@ contract DeployTest is Test {
         }
     }
 
+    function testDeploySymbiotic() public {
+        DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploy(tanssi);
+        assertNotEq(addresses.vaultFactory, ZERO_ADDRESS);
+        assertNotEq(addresses.delegatorFactory, ZERO_ADDRESS);
+        assertNotEq(addresses.slasherFactory, ZERO_ADDRESS);
+        assertNotEq(addresses.networkRegistry, ZERO_ADDRESS);
+        assertNotEq(addresses.operatorRegistry, ZERO_ADDRESS);
+        assertNotEq(addresses.operatorMetadataService, ZERO_ADDRESS);
+        assertNotEq(addresses.networkMetadataService, ZERO_ADDRESS);
+        assertNotEq(addresses.networkMiddlewareService, ZERO_ADDRESS);
+        assertNotEq(addresses.operatorVaultOptInService, ZERO_ADDRESS);
+        assertNotEq(addresses.operatorNetworkOptInService, ZERO_ADDRESS);
+        assertNotEq(addresses.vaultImpl, ZERO_ADDRESS);
+        assertNotEq(addresses.vaultTokenizedImpl, ZERO_ADDRESS);
+        assertNotEq(addresses.networkRestakeDelegatorImpl, ZERO_ADDRESS);
+        assertNotEq(addresses.fullRestakeDelegatorImpl, ZERO_ADDRESS);
+        assertNotEq(addresses.operatorSpecificDelegatorImpl, ZERO_ADDRESS);
+        assertNotEq(addresses.slasherImpl, ZERO_ADDRESS);
+        assertNotEq(addresses.vetoSlasherImpl, ZERO_ADDRESS);
+        assertNotEq(addresses.vaultConfigurator, ZERO_ADDRESS);
+    }
+
     function testDeploySymbioticRun() public {
         vm.recordLogs();
         address _collateral = deployCollateral.deployCollateral("Test");
