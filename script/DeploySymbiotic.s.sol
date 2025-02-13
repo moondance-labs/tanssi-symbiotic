@@ -279,11 +279,9 @@ contract DeploySymbiotic is Script {
         factories.delegatorFactory.transferOwnership(owner);
         factories.slasherFactory.transferOwnership(owner);
 
-
-
         if (owner != address(0)) {
             vm.stopPrank();
-        }else{
+        } else {
             console2.log("VaultFactory: ", address(factories.vaultFactory));
             console2.log("DelegatorFactory: ", address(factories.delegatorFactory));
             console2.log("SlasherFactory: ", address(factories.slasherFactory));
@@ -296,7 +294,7 @@ contract DeploySymbiotic is Script {
             console2.log("OperatorNetworkOptInService: ", address(services.operatorNetworkOptInService));
             console2.log("VaultConfigurator: ", address(vaultConfigurator));
         }
-        
+
         return SymbioticAddresses({
             vaultFactory: address(factories.vaultFactory),
             delegatorFactory: address(factories.delegatorFactory),
