@@ -52,7 +52,7 @@ contract Demo is Script {
     uint48 public constant SLASHING_WINDOW = 7 days;
 
     uint256 ownerPrivateKey =
-        vm.envOr("OWNER_PRIVATE_KEY", uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80));
+        vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
     address public tanssi = vm.addr(ownerPrivateKey);
 
     uint256 operatorPrivateKey =

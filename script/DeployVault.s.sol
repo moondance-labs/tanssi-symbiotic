@@ -102,7 +102,7 @@ contract DeployVault is Script {
             revert DeployVault__VaultConfiguratorOrCollateralNotDeployed();
         }
         uint256 ownerPrivateKey =
-            vm.envOr("OWNER_PRIVATE_KEY", uint256(0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80));
+            vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
         address owner = vm.addr(ownerPrivateKey);
         VaultDeployParams memory deployParams = VaultDeployParams({
             vaultConfigurator: address(params.vaultConfigurator),
