@@ -502,7 +502,7 @@ contract MiddlewareTest is Test {
 
         uint48 epoch = 1;
         vm.expectEmit(false, true, true, true);
-        emit IODefaultOperatorRewards.DistributeRewards(epoch, 0, tokenAddress, 1, amount, bytes32(uint256(1)));
+        emit IODefaultOperatorRewards.DistributeRewards(0, epoch, tokenAddress, 1, amount, bytes32(uint256(1)));
 
         // Expect the gateway to emit `InboundMessageDispatched`
         vm.expectEmit(true, true, true, true);
