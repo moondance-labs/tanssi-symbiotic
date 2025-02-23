@@ -54,7 +54,7 @@ interface IODefaultStakerRewards {
      * @param claimer account that claimed the reward
      * @param epoch epoch of the reward
      * @param recipient account that received the reward
-     * @param firstRewardIndex first index of the claimed rewards
+     * @param lastUnclaimedReward index of the last unclaimed reward
      * @param numRewards number of rewards claimed
      * @param amount amount of tokens claimed
      */
@@ -64,7 +64,7 @@ interface IODefaultStakerRewards {
         address indexed claimer,
         uint48 indexed epoch,
         address recipient,
-        uint256 firstRewardIndex,
+        uint256 lastUnclaimedReward,
         uint256 numRewards,
         uint256 amount
     );

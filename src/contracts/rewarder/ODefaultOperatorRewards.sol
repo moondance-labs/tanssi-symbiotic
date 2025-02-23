@@ -130,7 +130,7 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         s_eraRoot[eraIndex] = eraRoot;
         s_eraIndexesPerEpoch[epoch].push(eraIndex);
 
-        emit DistributeRewards(eraIndex, epoch, tokenAddress, eraRoot.tokensPerPoint, amount, root);
+        emit DistributeRewards(epoch, eraIndex, tokenAddress, eraRoot.tokensPerPoint, amount, root);
     }
 
     /**
