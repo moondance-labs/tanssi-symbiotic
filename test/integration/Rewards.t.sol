@@ -432,7 +432,7 @@ contract MiddlewareTest is Test {
     function _makeReportRewardsCommand(
         uint256 amount
     ) public returns (Command, bytes memory, address) {
-        uint256 timestamp = ONE_DAY * 3;
+        uint256 epoch = 1;
         uint256 eraIndex = 1;
         uint256 totalPointsToken = amount;
         uint256 tokensInflatedToken = amount;
@@ -450,7 +450,7 @@ contract MiddlewareTest is Test {
 
         return (
             Command.ReportRewards,
-            abi.encode(timestamp, eraIndex, totalPointsToken, tokensInflatedToken, rewardsRoot, foreignTokenId),
+            abi.encode(epoch, eraIndex, totalPointsToken, tokensInflatedToken, rewardsRoot, foreignTokenId),
             tokenAddress
         );
     }
@@ -493,6 +493,9 @@ contract MiddlewareTest is Test {
         uint256 amount = 1.2 ether;
         (Command command, bytes memory params, address tokenAddress) = _makeReportRewardsCommand(amount);
 
+        (uint256 epoch, uint256 eraIndex,,,,) =
+            abi.decode(params, (uint256, uint256, uint256, uint256, bytes32, bytes32));
+
         ODefaultOperatorRewards operatorRewards =
             new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), operatorShare);
 
@@ -500,9 +503,10 @@ contract MiddlewareTest is Test {
         middleware.setOperatorRewardsContract(address(operatorRewards));
         vm.stopPrank();
 
-        uint48 epoch = 1;
         vm.expectEmit(false, true, true, true);
-        emit IODefaultOperatorRewards.DistributeRewards(0, epoch, tokenAddress, 1, amount, bytes32(uint256(1)));
+        emit IODefaultOperatorRewards.DistributeRewards(
+            uint48(epoch), uint48(eraIndex), tokenAddress, 1, amount, bytes32(uint256(1))
+        );
 
         // Expect the gateway to emit `InboundMessageDispatched`
         vm.expectEmit(true, true, true, true);
