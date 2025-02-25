@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-// Copyr---ight (C) Moondance Labs Ltd.
+// Copyright (C) Moondance Labs Ltd.
 // This file is part of Tanssi.
 // Tanssi is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
