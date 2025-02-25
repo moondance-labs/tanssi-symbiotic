@@ -22,14 +22,6 @@ interface IMiddleware {
      */
     event OperatorRewardContractSet(address indexed operatorRewardsAddress);
 
-    /**
-     * @notice Emitted when an invalid timeframe for slashing is detected
-     * @param epoch the epoch number
-     * @param operator the address of the operator
-     * @param amount the amount to slash
-     */
-    event InvalidSlashTimeframe(uint48 indexed epoch, address indexed operator, uint256 indexed amount);
-
     // Errors
     error Middleware__NotOperator();
     error Middleware__NotVault();

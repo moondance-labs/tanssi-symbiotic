@@ -68,12 +68,6 @@ interface IODefaultOperatorRewards {
     event SetStakerRewardContract(address indexed stakerRewards, address indexed vault);
 
     /**
-     * @notice Emitted when the token's address is set.
-     * @param token address of the reward token
-     */
-    event SetTokenAddress(address indexed token);
-
-    /**
      * @notice Emitted when the operator share of the rewards is set.
      * @param operatorShare operator share of the rewards
      */
