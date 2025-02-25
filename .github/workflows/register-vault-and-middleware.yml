@@ -30,7 +30,7 @@ on:
         required: false
 env:
   FOUNDRY_PROFILE: ci
-  
+
 jobs:
   deploy:
     strategy:
@@ -79,7 +79,7 @@ jobs:
         run: |
           if [[ ${{ github.event.inputs.command }} = "register-vault" ]]; then
             echo "Registering Tanssi vault..."
-            forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url $RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "registerVault(address,address)" $MIDDLEWARE_ADDRESS $VAULT_ADDRESS
+            forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem --rpc-url $RPC_URL --private-key $OWNER_PRIVATE_KEY --broadcast --sig "registerSharedVault(address,address)" $MIDDLEWARE_ADDRESS $VAULT_ADDRESS
             echo "Tanssi vault registration completed" 
           elif [[ ${{ github.event.inputs.command }} = "register-middleware-to-symbiotic" ]]; then 
             echo "Registering Tanssi Middleware contract to Symbiotic..."

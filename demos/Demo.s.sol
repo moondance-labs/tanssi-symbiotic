@@ -243,11 +243,11 @@ contract Demo is Script {
         Vault vaultVetoed = Vault(vaultAddresses.vaultVetoed);
 
         vm.startBroadcast(ownerPrivateKey);
-        middleware.registerOperator(operator, OPERATOR_KEY);
-        middleware.registerOperator(operator2, OPERATOR_KEY2);
-        middleware.registerVault(address(vault));
-        middleware.registerVault(address(vaultSlashable));
-        middleware.registerVault(address(vaultVetoed));
+        middleware.registerOperator(operator, OPERATOR_KEY, address(0));
+        middleware.registerOperator(operator2, OPERATOR_KEY2, address(0));
+        middleware.registerSharedVault(address(vault));
+        middleware.registerSharedVault(address(vaultSlashable));
+        middleware.registerSharedVault(address(vaultVetoed));
         vm.stopBroadcast();
 
         vm.startBroadcast(operatorPrivateKey);

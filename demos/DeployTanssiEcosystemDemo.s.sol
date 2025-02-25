@@ -227,12 +227,12 @@ contract DeployTanssiEcosystem is Script {
     }
 
     function _registerEntitiesToMiddleware() public {
-        ecosystemEntities.middleware.registerVault(vaultAddresses.vault);
-        ecosystemEntities.middleware.registerVault(vaultAddresses.vaultVetoed);
-        ecosystemEntities.middleware.registerVault(vaultAddresses.vaultSlashable);
-        ecosystemEntities.middleware.registerOperator(operator, operatorKey1);
-        ecosystemEntities.middleware.registerOperator(operator2, operatorKey2);
-        ecosystemEntities.middleware.registerOperator(operator3, operatorKey3);
+        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault);
+        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed);
+        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultSlashable);
+        ecosystemEntities.middleware.registerOperator(operator, operatorKey1, address(0));
+        ecosystemEntities.middleware.registerOperator(operator2, operatorKey2, address(0));
+        ecosystemEntities.middleware.registerOperator(operator3, operatorKey3, address(0));
     }
 
     function _depositToVault(IVault _vault, address _operator, uint256 _amount, Token collateral) public {

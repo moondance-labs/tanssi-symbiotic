@@ -262,9 +262,9 @@ contract MiddlewareTest is Test {
         vaults.push(vaultSlashable);
         vaults.push(vaultVetoed);
 
-        _registerOperator(operator, tanssi, address(vault));
-        _registerOperator(operator3, tanssi, address(vaultSlashable));
-        _registerOperator(operator2, tanssi, address(vaultVetoed));
+        _registerOperator(operator, tanssi, address(vault, address(0)));
+        _registerOperator(operator3, tanssi, address(vaultSlashable, address(0)));
+        _registerOperator(operator2, tanssi, address(vaultVetoed, address(0)));
 
         _registerEntitiesToMiddleware(owner);
         _setOperatorsNetworkShares(tanssi);
@@ -333,12 +333,12 @@ contract MiddlewareTest is Test {
         address _owner
     ) public {
         vm.startPrank(_owner);
-        middleware.registerVault(vaultAddresses.vault);
-        middleware.registerVault(vaultAddresses.vaultSlashable);
-        middleware.registerVault(vaultAddresses.vaultVetoed);
-        middleware.registerOperator(operator, OPERATOR_KEY);
-        middleware.registerOperator(operator2, OPERATOR2_KEY);
-        middleware.registerOperator(operator3, OPERATOR3_KEY);
+        middleware.registerSharedVault(vaultAddresses.vault);
+        middleware.registerSharedVault(vaultAddresses.vaultSlashable);
+        middleware.registerSharedVault(vaultAddresses.vaultVetoed);
+        middleware.registerOperator(operator, OPERATOR_KEY, address(0));
+        middleware.registerOperator(operator2, OPERATOR2_KEY, address(0));
+        middleware.registerOperator(operator3, OPERATOR3_KEY, address(0));
         vm.stopPrank();
     }
 
@@ -476,7 +476,7 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function testInitialState() public view {
-        assertEq(middleware.i_network(), tanssi);
+        assertEq(middleware._NETWORK(), tanssi);
         assertEq(middleware.i_operatorRegistry(), address(operatorRegistry));
         assertEq(middleware.i_vaultRegistry(), address(vaultFactory));
         assertEq(middleware.i_epochDuration(), NETWORK_EPOCH_DURATION);

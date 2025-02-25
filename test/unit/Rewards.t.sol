@@ -159,8 +159,8 @@ contract RewardsTest is Test {
         operatorNetworkOptIn.optIn(tanssi);
 
         vm.startPrank(tanssi);
-        middleware.registerOperator(alice, ALICE_KEY);
-        middleware.registerOperator(bob, BOB_KEY);
+        middleware.registerOperator(alice, ALICE_KEY, address(0));
+        middleware.registerOperator(bob, BOB_KEY, address(0));
 
         vm.startPrank(address(middleware));
         feeToken = new MockFeeToken("Test", 100); //Extreme but it's to test when amount is 0 after a safeTransfer

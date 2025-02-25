@@ -21,6 +21,7 @@ remove :; rm -rf .gitmodules && rm -rf .git/modules/* && rm -rf lib && touch .gi
 # 			forge install symbioticfi/core --no-commit && \
 # 			forge install symbioticfi/collateral --no-commit && \
 # 			forge install symbioticfi/rewards --no-commit && \
+# 			forge install symbioticfi/middleware-sdk --no-commit && \
 # 			forge install Cyfrin/foundry-devops --no-commit && \
 # 			forge install PaulRBerg/prb-math@release-v4 --no-commit&&\
 # 			forge install moondance-labs/tanssi-bridge-relayer --no-commit --no-git && \
@@ -83,7 +84,7 @@ deploy-full-tanssi-eco-demo:
 
 # EXAMPLE: These are all mock data to deploy locally
 # Make example:
-# make deploy-rewards VAULT_ADDRESS=0xc5d41F3f9C4930992EE01DDb226bfD7212C00CBA VAULT_FACTORY_ADDRESS=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512 ADMIN_FEE=100 DEFAULT_ADMIN_ROLE=0xa0Ee7A142d267C1f36714E4a8F75612F20a79720 ADMIN_FEE_CLAIM_ROLE=0xa0Ee7A142d267C1f36714E4a8F75612F20a79720 ADMIN_FEE_SET_ROLE=0xa0Ee7A142d267C1f36714E4a8F75612F20a79720 NETWORK=0xa0Ee7A142d267C1f36714E4a8F75612F20a79720 NETWORK_MIDDLEWARE_SERVICE=0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6 START_TIME=1234567890 EPOCH_DURATION=86400 OPERATOR_SHARE=5000
+# make deploy-rewards VAULT_ADDRESS=0xc5d41F3f9C4930992EE01DDb226bfD7212C00CBA VAULT_FACTORY_ADDRESS=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512 ADMIN_FEE=100 DEFAULT_ADMIN_ROLE=0x8f7b28C2A36E805F4024c1AE1e96a4B75E50A512 ADMIN_FEE_CLAIM_ROLE=0x8f7b28C2A36E805F4024c1AE1e96a4B75E50A512 ADMIN_FEE_SET_ROLE=0x8f7b28C2A36E805F4024c1AE1e96a4B75E50A512 NETWORK=0x8f7b28C2A36E805F4024c1AE1e96a4B75E50A512 NETWORK_MIDDLEWARE_SERVICE=0x62a1ddfD86b4c1636759d9286D3A0EC722D086e3 START_TIME=1234567890 EPOCH_DURATION=86400 OPERATOR_SHARE=5000
 
 deploy-rewards:
 	@echo "📡 Deploying Rewards Contracts..."

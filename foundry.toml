@@ -17,6 +17,7 @@ remappings = [
     '@symbiotic/=lib/core/src/',
     '@symbiotic-rewards=lib/rewards/src/',
     '@symbiotic-collateral=lib/collateral/src/',
+    '@symbiotic-middleware/=lib/middleware-sdk/src/',
     '@tanssi-bridge-relayer/=lib/tanssi-bridge-relayer/',
     # These are for snowbridge. Needs to emulate their remappings.
     'openzeppelin-contracts/=lib/openzeppelin-contracts/',

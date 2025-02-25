@@ -213,10 +213,10 @@ contract DeployTanssiEcosystem is Script {
 
     function _registerEntitiesToMiddleware() private {
         if (block.chainid == 31_337 || block.chainid == 11_155_111 || isTest) {
-            ecosystemEntities.middleware.registerVault(vaultAddresses.vault);
-            ecosystemEntities.middleware.registerVault(vaultAddresses.vaultVetoed);
+            ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault);
+            ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed);
         }
-        ecosystemEntities.middleware.registerVault(vaultAddresses.vaultSlashable);
+        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultSlashable);
     }
 
     function _transferTokensToOperators() private {
@@ -331,10 +331,10 @@ contract DeployTanssiEcosystem is Script {
         return address(ecosystemEntities.middleware);
     }
 
-    function registerVault(address middlewareAddress, address vaultAddress) external {
+    function registerSharedVault(address middlewareAddress, address vaultAddress) external {
         Middleware middleware = Middleware(middlewareAddress);
         vm.startBroadcast(ownerPrivateKey);
-        middleware.registerVault(vaultAddress);
+        middleware.registerSharedVault(vaultAddress);
         vm.stopBroadcast();
     }
 

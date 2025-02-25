@@ -29,6 +29,8 @@ import {IOperatorRegistry} from "@symbiotic/interfaces/IOperatorRegistry.sol";
 import {INetworkRegistry} from "@symbiotic/interfaces/INetworkRegistry.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {IDefaultCollateral} from "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateral.sol";
+import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlewareReader.sol";
+import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN
@@ -235,12 +237,12 @@ contract MiddlewareTest is Test {
         address _owner
     ) public {
         vm.startPrank(_owner);
-        // middleware.registerVault(vaultAddresses.vault);
-        // middleware.registerVault(vaultAddresses.vaultSlashable);
-        // middleware.registerVault(vaultAddresses.vaultVetoed);
-        ecosystemEntities.middleware.registerOperator(operator, OPERATOR_KEY);
-        ecosystemEntities.middleware.registerOperator(operator2, OPERATOR2_KEY);
-        ecosystemEntities.middleware.registerOperator(operator3, OPERATOR3_KEY);
+        // middleware.registerSharedVault(vaultAddresses.vault);
+        // middleware.registerSharedVault(vaultAddresses.vaultSlashable);
+        // middleware.registerSharedVault(vaultAddresses.vaultVetoed);
+        ecosystemEntities.middleware.registerOperator(operator, OPERATOR_KEY, address(0));
+        ecosystemEntities.middleware.registerOperator(operator2, OPERATOR2_KEY, address(0));
+        ecosystemEntities.middleware.registerOperator(operator3, OPERATOR3_KEY, address(0));
         vm.stopPrank();
     }
 
@@ -341,12 +343,14 @@ contract MiddlewareTest is Test {
     function testInitialState() public view {
         (, address operatorRegistryAddress,, address vaultFactoryAddress,,,,,) = helperConfig.activeNetworkConfig();
 
-        assertEq(ecosystemEntities.middleware.i_network(), tanssi);
-        assertEq(ecosystemEntities.middleware.i_operatorRegistry(), operatorRegistryAddress);
-        assertEq(ecosystemEntities.middleware.i_vaultRegistry(), vaultFactoryAddress);
-        assertEq(ecosystemEntities.middleware.i_epochDuration(), NETWORK_EPOCH_DURATION);
-        assertEq(ecosystemEntities.middleware.i_slashingWindow(), SLASHING_WINDOW);
-        assertEq(ecosystemEntities.middleware.s_subnetworksCount(), 1);
+        assertEq(BaseMiddlewareReader(address(ecosystemEntities.middleware)).NETWORK(), tanssi);
+        assertEq(
+            BaseMiddlewareReader(address(ecosystemEntities.middleware)).OPERATOR_REGISTRY(), operatorRegistryAddress
+        );
+        assertEq(BaseMiddlewareReader(address(ecosystemEntities.middleware)).VAULT_REGISTRY(), vaultFactoryAddress);
+        assertEq(EpochCapture(address(ecosystemEntities.middleware)).getEpochDuration(), NETWORK_EPOCH_DURATION);
+        assertEq(BaseMiddlewareReader(address(ecosystemEntities.middleware)).SLASHING_WINDOW(), SLASHING_WINDOW);
+        assertEq(BaseMiddlewareReader(address(ecosystemEntities.middleware)).subnetworksLength(), 1);
     }
 
     function testIfOperatorsAreRegisteredInVaults() public view {
@@ -605,7 +609,7 @@ contract MiddlewareTest is Test {
         uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
 
         vm.prank(owner);
-        ecosystemEntities.middleware.pauseVault(vaultAddresses.vaultSlashable);
+        ecosystemEntities.middleware.pauseSharedVault(vaultAddresses.vaultSlashable);
 
         vm.prank(gateway);
         ecosystemEntities.middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
@@ -686,7 +690,7 @@ contract MiddlewareTest is Test {
         INetworkRestakeDelegator(vaultAddresses.delegator).setNetworkLimit(
             network2.subnetwork(0), OPERATOR_NETWORK_LIMIT
         );
-        _registerOperator(operator4, network2, address(ecosystemEntities.vault));
+        _registerOperator(operator4, network2, address(ecosystemEntities.vault, address(0)));
 
         vm.startPrank(network2);
         Middleware middleware2 = new Middleware(
@@ -699,8 +703,8 @@ contract MiddlewareTest is Test {
             SLASHING_WINDOW
         );
         INetworkMiddlewareService(networkMiddlewareServiceAddress).setMiddleware(address(middleware2));
-        middleware2.registerVault(address(ecosystemEntities.vault));
-        middleware2.registerOperator(operator4, OPERATOR4_KEY);
+        middleware2.registerSharedVault(address(ecosystemEntities.vault));
+        middleware2.registerOperator(operator4, OPERATOR4_KEY, address(0));
         vm.stopPrank();
 
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);

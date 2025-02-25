@@ -220,13 +220,13 @@ contract DeployTest is Test {
         (IMiddleware middleware,,) = deployTanssiEcosystem.ecosystemEntities();
 
         vm.startPrank(tanssi);
-        middleware.pauseVault(_vault);
+        middleware.pauseSharedVault(_vault);
         vm.warp(NETWORK_EPOCH_DURATION + 1);
-        middleware.unregisterVault(_vault);
+        middleware.unregisterSharedVault(_vault);
         vm.stopPrank();
 
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
-        deployTanssiEcosystem.registerVault(address(middleware), _vault);
+        deployTanssiEcosystem.registerSharedVault(address(middleware), _vault);
     }
 
     function testDeployRegisterMiddlewareToSymbiotic() public {

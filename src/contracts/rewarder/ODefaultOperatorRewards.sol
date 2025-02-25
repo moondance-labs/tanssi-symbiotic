@@ -19,6 +19,7 @@ pragma solidity 0.8.25;
 //**************************************************************************************************
 
 import {INetworkMiddlewareService} from "@symbiotic/interfaces/service/INetworkMiddlewareService.sol";
+import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN
@@ -198,7 +199,7 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         address tokenAddress,
         bytes calldata data
     ) private {
-        uint48 epochStartTs = IMiddleware(middlewareAddress).getEpochStartTs(epoch);
+        uint48 epochStartTs = EpochCapture(middlewareAddress).getEpochStart(epoch);
 
         //TODO: For now this is expected to be a single vault. Change it to be able to handle multiple vaults.
         (, address[] memory operatorVaults) = IMiddleware(middlewareAddress).getOperatorVaults(recipient, epochStartTs);
@@ -211,7 +212,7 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         }
     }
 
-    //TODO Probably this function should become a function triggered by middleware that create a new staker contract (calling the create on factory contract) and then set the staker contract address here. Probably this can be called during registration of the vault? `registerVault`
+    //TODO Probably this function should become a function triggered by middleware that create a new staker contract (calling the create on factory contract) and then set the staker contract address here. Probably this can be called during registration of the vault? `registerSharedVault`
     /**
      * @inheritdoc IODefaultOperatorRewards
      */

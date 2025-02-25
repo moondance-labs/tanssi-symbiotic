@@ -305,12 +305,12 @@ contract MiddlewareTest is Test {
         address _owner
     ) public {
         vm.startPrank(_owner);
-        middleware.registerVault(vaultAddresses.vault);
-        middleware.registerVault(vaultAddresses.vaultSlashable);
-        middleware.registerVault(vaultAddresses.vaultVetoed);
-        middleware.registerOperator(operator, OPERATOR_KEY);
-        middleware.registerOperator(operator2, OPERATOR2_KEY);
-        middleware.registerOperator(operator3, OPERATOR3_KEY);
+        middleware.registerSharedVault(vaultAddresses.vault);
+        middleware.registerSharedVault(vaultAddresses.vaultSlashable);
+        middleware.registerSharedVault(vaultAddresses.vaultVetoed);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        middleware.registerOperator(operator2, abi.encode(OPERATOR2_KEY), address(0));
+        middleware.registerOperator(operator3, abi.encode(OPERATOR3_KEY), address(0));
         vm.stopPrank();
     }
 
@@ -402,7 +402,7 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function testInitialState() public view {
-        assertEq(middleware.i_network(), tanssi);
+        assertEq(middleware.NETWORK(), tanssi);
         assertEq(middleware.i_operatorRegistry(), address(operatorRegistry));
         assertEq(middleware.i_vaultRegistry(), address(vaultFactory));
         assertEq(middleware.i_epochDuration(), NETWORK_EPOCH_DURATION);
@@ -708,7 +708,7 @@ contract MiddlewareTest is Test {
         uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
 
         vm.prank(owner);
-        middleware.pauseVault(vaultAddresses.vaultSlashable);
+        middleware.pauseSharedVault(vaultAddresses.vaultSlashable);
 
         vm.prank(gateway);
         middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
@@ -831,7 +831,7 @@ contract MiddlewareTest is Test {
         INetworkRestakeDelegator(vaultAddresses.delegator).setNetworkLimit(network2.subnetwork(0), 300 ether);
 
         // Operator4 registration and network configuration
-        _registerOperator(operator4, network2, address(vault));
+        _registerOperator(operator4, network2, address(vault, address(0)));
         vm.startPrank(network2);
         Middleware middleware2 = new Middleware(
             network2,
@@ -843,8 +843,8 @@ contract MiddlewareTest is Test {
             SLASHING_WINDOW
         );
         networkMiddlewareService.setMiddleware(address(middleware2));
-        middleware2.registerVault(address(vault));
-        middleware2.registerOperator(operator4, OPERATOR4_KEY);
+        middleware2.registerSharedVault(address(vault));
+        middleware2.registerOperator(operator4, OPERATOR4_KEY, address(0));
 
         vm.stopPrank();
         vm.warp(NETWORK_EPOCH_DURATION + 1);
@@ -959,7 +959,7 @@ contract MiddlewareTest is Test {
             } else {
                 stETH.transfer(_operator, 1 ether);
             }
-            _registerOperator(_operator, tanssi, address(_vault));
+            _registerOperator(_operator, tanssi, address(_vault, address(0)));
             vm.startPrank(_operator);
             uint256 depositAmount = 0.001 ether * (i + 1);
             _depositToVault(Vault(_vault), _operator, 0.001 ether * (i + 1), token);
@@ -969,7 +969,7 @@ contract MiddlewareTest is Test {
                     tanssi.subnetwork(0), _operator, depositAmount
                 );
             }
-            middleware.registerOperator(_operator, bytes32(uint256(i + 4)));
+            middleware.registerOperator(_operator, bytes32(uint256(i + 4, address(0))));
         }
     }
 

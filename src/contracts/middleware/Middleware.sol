@@ -18,7 +18,8 @@ pragma solidity 0.8.25;
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {EnumerableMap} from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -36,7 +37,12 @@ import {IEntity} from "@symbiotic/interfaces/common/IEntity.sol";
 import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
-
+import {SharedVaults} from "@symbiotic-middleware/extensions/SharedVaults.sol";
+import {Operators} from "@symbiotic-middleware/extensions/operators/Operators.sol";
+import {KeyManager256} from "@symbiotic-middleware/extensions/managers/keys/KeyManager256.sol";
+import {OzAccessControl} from "@symbiotic-middleware/extensions/managers/access/OzAccessControl.sol";
+import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
+import {PauseableEnumerableSet} from "@symbiotic-middleware/libraries/PauseableEnumerableSet.sol";
 //**************************************************************************************************
 //                                      SNOWBRIDGE
 //**************************************************************************************************
@@ -51,51 +57,23 @@ import {SimpleKeyRegistry32} from "../libraries/SimpleKeyRegistry32.sol";
 import {MapWithTimeData} from "../libraries/MapWithTimeData.sol";
 import {QuickSort} from "../libraries/QuickSort.sol";
 
-contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
+contract Middleware is
+    UUPSUpgradeable,
+    SharedVaults,
+    Operators,
+    KeyManager256,
+    OzAccessControl,
+    EpochCapture,
+    IMiddleware
+{
     using QuickSort for ValidatorData[];
     using EnumerableMap for EnumerableMap.AddressToUintMap;
     using MapWithTimeData for EnumerableMap.AddressToUintMap;
+    using PauseableEnumerableSet for PauseableEnumerableSet.AddressSet;
     using Subnetwork for address;
     using Math for uint256;
 
-    /**
-     * @inheritdoc IMiddleware
-     */
-    uint48 public immutable i_epochDuration;
-    /**
-     * @inheritdoc IMiddleware
-     */
-    uint48 public immutable i_slashingWindow;
-    /**
-     * @inheritdoc IMiddleware
-     */
-    uint48 public immutable i_startTime;
-    /**
-     * @inheritdoc IMiddleware
-     */
-    address public immutable i_network;
-    /**
-     * @inheritdoc IMiddleware
-     */
-    address public immutable i_operatorRegistry;
-    /**
-     * @inheritdoc IMiddleware
-     */
-    address public immutable i_vaultRegistry;
-    /**
-     * @inheritdoc IMiddleware
-     */
-    address public immutable i_operatorNetworkOptin;
-    /**
-     * @inheritdoc IMiddleware
-     */
-    address public immutable i_owner;
-
-    /**
-     * @inheritdoc IMiddleware
-     */
-    uint256 public s_subnetworksCount;
-
+    //TODO Move the following to Middleware Storage
     /**
      * @inheritdoc IMiddleware
      */
@@ -115,10 +93,8 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
      * @inheritdoc IMiddleware
      */
     mapping(uint48 epoch => mapping(address operator => uint256 amount)) public s_operatorStakeCache;
-
-    EnumerableMap.AddressToUintMap private s_operators;
-    EnumerableMap.AddressToUintMap private s_vaults;
     IOGateway private s_gateway;
+    //TODO End of TODO
 
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
 
@@ -131,6 +107,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
         _;
     }
 
+    // Add Gateway Role and use checkAccess modifier
     modifier onlyGateway() {
         if (msg.sender != address(s_gateway)) {
             revert Middleware__CallerNotGateway();
@@ -145,176 +122,44 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
         _;
     }
 
-    constructor(
-        address _network,
-        address _operatorRegistry,
-        address _vaultRegistry,
-        address _operatorNetOptin,
-        address _owner,
-        uint48 _epochDuration,
-        uint48 _slashingWindow
-    ) SimpleKeyRegistry32() Ownable(_owner) {
-        if (_slashingWindow < _epochDuration) {
-            revert Middleware__SlashingWindowTooShort();
-        }
-        i_startTime = Time.timestamp();
-        i_epochDuration = _epochDuration;
-        i_network = _network;
-        i_owner = _owner;
-        i_operatorRegistry = _operatorRegistry;
-        i_vaultRegistry = _vaultRegistry;
-        i_operatorNetworkOptin = _operatorNetOptin;
-        i_slashingWindow = _slashingWindow;
-
-        s_subnetworksCount = 1;
+    constructor() {
+        _disableInitializers();
     }
 
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function registerOperator(address operator, bytes32 key) external onlyOwner {
-        if (s_operators.contains(operator)) {
-            revert Middleware__OperatorAlreadyRegistred();
+    function initialize(
+        address network,
+        address operatorRegistry,
+        address vaultRegistry,
+        address operatorNetOptin,
+        address owner,
+        uint48 epochDuration,
+        uint48 slashingWindow,
+        address reader
+    ) public initializer {
+        if (owner == address(0) || reader == address(0)) {
+            revert Middleware__InvalidAddress();
         }
 
-        if (!IRegistry(i_operatorRegistry).isEntity(operator)) {
-            revert Middleware__NotOperator();
-        }
+        __BaseMiddleware_init(network, slashingWindow, vaultRegistry, operatorRegistry, operatorNetOptin, reader);
+        __OzAccessControl_init(owner);
+        __EpochCapture_init(epochDuration);
+        __UUPSUpgradeable_init();
 
-        if (!IOptInService(i_operatorNetworkOptin).isOptedIn(operator, i_network)) {
-            revert Middleware__OperatorNotOptedIn();
-        }
-
-        updateKey(operator, key);
-
-        s_operators.add(operator);
-        s_operators.enable(operator);
+        _grantRole(DEFAULT_ADMIN_ROLE, owner);
     }
 
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function updateOperatorKey(address operator, bytes32 key) external onlyOwner {
-        if (!s_operators.contains(operator)) {
-            revert Middleware__OperatorNotRegistred();
-        }
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override checkAccess {}
 
-        updateKey(operator, key);
-    }
-
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function pauseOperator(
-        address operator
-    ) external onlyOwner {
-        s_operators.disable(operator);
-    }
-
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function unpauseOperator(
-        address operator
-    ) external onlyOwner {
-        s_operators.enable(operator);
-    }
-
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function unregisterOperator(
-        address operator
-    ) external onlyOwner {
-        (, uint48 disabledTime) = s_operators.getTimes(operator);
-        if (disabledTime == 0 || disabledTime + i_slashingWindow > Time.timestamp()) {
-            revert Middleware__OperatorGracePeriodNotPassed();
-        }
-
-        s_operators.remove(operator);
-    }
-
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function registerVault(
-        address vault
-    ) external onlyOwner {
-        if (s_vaults.contains(vault)) {
-            revert Middleware__VaultAlreadyRegistered();
-        }
-
-        if (!IRegistry(i_vaultRegistry).isEntity(vault)) {
-            revert Middleware__NotVault();
-        }
-
-        uint48 vaultEpoch = IVault(vault).epochDuration();
-
-        address slasher = IVault(vault).slasher();
-        if (slasher != address(0) && IEntity(slasher).TYPE() == uint256(SlasherType.VETO)) {
-            vaultEpoch -= IVetoSlasher(slasher).vetoDuration();
-        }
-
-        if (vaultEpoch < i_slashingWindow) {
-            revert Middleware__VaultEpochTooShort();
-        }
-
-        s_vaults.add(vault);
-        s_vaults.enable(vault);
-    }
-
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function pauseVault(
-        address vault
-    ) external onlyOwner {
-        s_vaults.disable(vault);
-    }
-
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function unpauseVault(
-        address vault
-    ) external onlyOwner {
-        s_vaults.enable(vault);
-    }
-
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function unregisterVault(
-        address vault
-    ) external onlyOwner {
-        (, uint48 disabledTime) = s_vaults.getTimes(vault);
-
-        if (disabledTime == 0 || disabledTime + i_slashingWindow > Time.timestamp()) {
-            revert Middleware__VaultGracePeriodNotPassed();
-        }
-
-        s_vaults.remove(vault);
-    }
-
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function setSubnetworksCount(
-        uint256 _subnetworksCount
-    ) external onlyOwner {
-        if (s_subnetworksCount >= _subnetworksCount) {
-            revert Middleware__InvalidSubnetworksCnt();
-        }
-
-        s_subnetworksCount = _subnetworksCount;
-    }
+    function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {}
 
     /**
      * @inheritdoc IMiddleware
      */
     function setGateway(
         address _gateway
-    ) external onlyOwner {
+    ) external checkAccess {
         s_gateway = IOGateway(_gateway);
     }
 
@@ -323,7 +168,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
      */
     function setOperatorRewardsContract(
         address operatorRewardsAddress
-    ) external onlyOwner {
+    ) external checkAccess {
         if (operatorRewardsAddress == address(0)) {
             revert Middleware__InvalidAddress();
         }
@@ -339,7 +184,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     function setStakerRewardContract(
         address stakerRewardsAddress,
         address vault
-    ) external onlyOwner onlyIfOperatorRewardSet {
+    ) external checkAccess onlyIfOperatorRewardSet {
         IODefaultOperatorRewards(s_operatorRewards).setStakerRewardContract(stakerRewardsAddress, vault);
     }
 
@@ -348,7 +193,7 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
      */
     function setOperatorShareOnOperatorRewards(
         uint48 operatorShare
-    ) external onlyOwner onlyIfOperatorRewardSet {
+    ) external checkAccess onlyIfOperatorRewardSet {
         IODefaultOperatorRewards(s_operatorRewards).setOperatorShare(operatorShare);
     }
 
@@ -395,24 +240,20 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     function calcAndCacheStakes(
         uint48 epoch
     ) public returns (uint256 totalStake) {
-        uint48 epochStartTs = getEpochStartTs(epoch);
-
+        uint48 epochStartTs = getEpochStart(epoch);
+        OperatorManagerStorage storage $ = _getOperatorManagerStorage();
         // for epoch older than SLASHING_WINDOW total stake can be invalidated (use cache)
-        if (epochStartTs < Time.timestamp() - i_slashingWindow) {
+        if (epochStartTs < Time.timestamp() - _SLASHING_WINDOW()) {
             revert Middleware__TooOldEpoch();
         }
 
         if (epochStartTs > Time.timestamp()) {
             revert Middleware__InvalidEpoch();
         }
+        address[] memory _operators = _activeOperatorsAt(epochStartTs);
 
-        for (uint256 i; i < s_operators.length(); ++i) {
-            (address operator, uint48 enabledTime, uint48 disabledTime) = s_operators.atWithTimes(i);
-
-            // just skip operator if it was added after the target epoch or paused
-            if (!_wasActiveAt(enabledTime, disabledTime, epochStartTs)) {
-                continue;
-            }
+        for (uint256 i; i < _operators.length; ++i) {
+            address operator = _operators[i];
 
             uint256 operatorStake = getOperatorStake(operator, epoch);
             s_operatorStakeCache[epoch][operator] = operatorStake;
@@ -432,8 +273,8 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
         bytes32 operatorKey,
         uint256 percentage
     ) external onlyGateway updateStakeCache(epoch) {
-        uint48 epochStartTs = getEpochStartTs(epoch);
-        address operator = getOperatorByKey(operatorKey);
+        uint48 epochStartTs = getEpochStart(epoch);
+        address operator = operatorByKey(abi.encode(operatorKey));
 
         // If address is 0, then we should return
         if (operator == address(0)) {
@@ -449,16 +290,10 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
         params.operator = operator;
         params.slashPercentage = percentage;
 
-        params.totalOperatorStake = getOperatorStake(operator, epoch);
+        address[] memory vaults = _activeVaultsAt(epochStartTs, operator);
         // simple pro-rata slasher
-        for (uint256 i; i < s_vaults.length(); ++i) {
-            (address vault, uint48 enabledTime, uint48 disabledTime) = s_vaults.atWithTimes(i);
-            // just skip the vault if it was enabled after the target epoch or not enabled
-            if (!_wasActiveAt(enabledTime, disabledTime, params.epochStartTs)) {
-                continue;
-            }
-
-            _processVaultSlashing(vault, params);
+        for (uint256 i; i < vaults.length; ++i) {
+            _processVaultSlashing(vaults[i], params);
         }
     }
 
@@ -468,8 +303,8 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
      * @param params Struct containing slashing parameters
      */
     function _processVaultSlashing(address vault, SlashParams memory params) private {
-        for (uint96 j = 0; j < s_subnetworksCount; ++j) {
-            bytes32 subnetwork = i_network.subnetwork(j);
+        for (uint96 j = 0; j < _subnetworksLength(); ++j) {
+            bytes32 subnetwork = _NETWORK().subnetwork(j);
             //! This can be manipulated. I get slashed for 100 ETH, but if I participate to multiple vaults without any slashing, I can get slashed for far lower amount of ETH
             uint256 vaultStake = IBaseDelegator(IVault(vault).delegator()).stakeAt(
                 subnetwork, params.operator, params.epochStartTs, new bytes(0)
@@ -522,24 +357,8 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     function getOperatorsByEpoch(
         uint48 epoch
     ) external view returns (address[] memory activeOperators) {
-        uint48 epochStartTs = getEpochStartTs(epoch);
-
-        activeOperators = new address[](s_operators.length());
-        uint256 valIdx = 0;
-        for (uint256 i; i < s_operators.length(); ++i) {
-            (address operator, uint48 enabledTime, uint48 disabledTime) = s_operators.atWithTimes(i);
-
-            // just skip operator if it was added after the target epoch or paused
-            if (!_wasActiveAt(enabledTime, disabledTime, epochStartTs)) {
-                continue;
-            }
-
-            activeOperators[valIdx++] = operator;
-        }
-
-        assembly {
-            mstore(activeOperators, valIdx)
-        }
+        uint48 epochStartTs = getEpochStart(epoch);
+        activeOperators = _activeOperatorsAt(epochStartTs);
     }
 
     /**
@@ -568,27 +387,28 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     function getOperatorVaultPairs(
         uint48 epoch
     ) external view returns (OperatorVaultPair[] memory operatorVaultPairs) {
-        uint48 epochStartTs = getEpochStartTs(epoch);
+        uint48 epochStartTs = getEpochStart(epoch);
+        OperatorManagerStorage storage $ = _getOperatorManagerStorage();
 
-        operatorVaultPairs = new OperatorVaultPair[](s_operators.length());
+        operatorVaultPairs = new OperatorVaultPair[](_operatorsLength());
 
-        uint256 valIdx = 0;
-        for (uint256 i; i < s_operators.length(); ++i) {
-            (address operator, uint48 enabledTime, uint48 disabledTime) = s_operators.atWithTimes(i);
+        // uint256 valIdx = 0;
+        // for (uint256 i; i < _operatorsLength(); ++i) {
+        //     (address operator, uint48 enabledTime, uint48 disabledTime) = $._operators.atWithTimes(i);
 
-            // just skip operator if it was added after the target epoch or paused
-            if (!_wasActiveAt(enabledTime, disabledTime, epochStartTs)) {
-                continue;
-            }
+        //     // just skip operator if it was added after the target epoch or paused
+        //     if (!_wasActiveAt(enabledTime, disabledTime, epochStartTs)) {
+        //         continue;
+        //     }
 
-            (uint256 vaultIdx, address[] memory _vaults) = getOperatorVaults(operator, epochStartTs);
-            assembly {
-                mstore(_vaults, vaultIdx)
-            }
-            if (vaultIdx > 0) {
-                operatorVaultPairs[valIdx++] = OperatorVaultPair(operator, _vaults);
-            }
-        }
+        //     (uint256 vaultIdx, address[] memory _vaults) = getOperatorVaults(operator, epochStartTs);
+        //     assembly {
+        //         mstore(_vaults, vaultIdx)
+        //     }
+        //     if (vaultIdx > 0) {
+        //         operatorVaultPairs[valIdx++] = OperatorVaultPair(operator, _vaults);
+        //     }
+        // }
     }
 
     /**
@@ -598,24 +418,20 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
         address operator,
         uint48 epochStartTs
     ) public view returns (uint256 vaultIdx, address[] memory _vaults) {
-        _vaults = new address[](s_vaults.length());
+        address[] memory operatorVaults = _activeOperatorVaultsAt(epochStartTs, operator);
+        _vaults = new address[](operatorVaults.length);
         vaultIdx = 0;
-        for (uint256 j; j < s_vaults.length(); ++j) {
-            (address vault, uint48 vaultEnabledTime, uint48 vaultDisabledTime) = s_vaults.atWithTimes(j);
-
-            // just skip the vault if it was enabled after the target epoch or not enabled
-            if (!_wasActiveAt(vaultEnabledTime, vaultDisabledTime, epochStartTs)) {
-                continue;
-            }
+        for (uint256 j; j < operatorVaults.length; ++j) {
             uint256 operatorStake = 0;
-            for (uint96 k = 0; k < s_subnetworksCount; ++k) {
-                operatorStake += IBaseDelegator(IVault(vault).delegator()).stakeAt(
-                    i_network.subnetwork(k), operator, epochStartTs, new bytes(0)
+            address _vault = operatorVaults[j];
+            for (uint96 k = 0; k < _subnetworksLength(); ++k) {
+                operatorStake += IBaseDelegator(IVault(_vault).delegator()).stakeAt(
+                    _NETWORK().subnetwork(k), operator, epochStartTs, new bytes(0)
                 );
             }
 
             if (operatorStake > 0) {
-                _vaults[vaultIdx++] = vault;
+                _vaults[vaultIdx++] = _vault;
             }
         }
     }
@@ -626,33 +442,20 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     function isVaultRegistered(
         address vault
     ) external view returns (bool) {
-        return s_vaults.contains(vault);
+        VaultManagerStorage storage $ = _getVaultManagerStorage();
+        return $._sharedVaults.contains(vault);
     }
 
     /**
      * @inheritdoc IMiddleware
      */
-    function getOperatorStake(address operator, uint48 epoch) public view returns (uint256 stake) {
+    function getOperatorStake(address operator, uint48 epoch) public view returns (uint256 power) {
         if (s_totalStakeCached[epoch]) {
             return s_operatorStakeCache[epoch][operator];
         }
 
-        uint48 epochStartTs = getEpochStartTs(epoch);
-        for (uint256 i; i < s_vaults.length(); ++i) {
-            (address vault, uint48 enabledTime, uint48 disabledTime) = s_vaults.atWithTimes(i);
-
-            // just skip the vault if it was enabled after the target epoch or not enabled
-            if (!_wasActiveAt(enabledTime, disabledTime, epochStartTs)) {
-                continue;
-            }
-
-            for (uint96 j = 0; j < s_subnetworksCount; ++j) {
-                stake += IBaseDelegator(IVault(vault).delegator()).stakeAt(
-                    i_network.subnetwork(j), operator, epochStartTs, new bytes(0)
-                );
-            }
-        }
-        return stake;
+        uint48 epochStartTs = getEpochStart(epoch);
+        power = _getOperatorPowerAt(epochStartTs, operator);
     }
 
     /**
@@ -667,49 +470,53 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
         return _calcTotalStake(epoch);
     }
 
+    // /**
+    //  * @notice Gets an operator's active key at the current capture timestamp
+    //  * @param operator The operator address to lookup
+    //  * @return The operator's active key encoded as bytes, or encoded zero bytes if none
+    //  */
+    // function getOperatorKeyAt(address operator, uint48 timestamp) public view override returns (bytes memory) {
+    //     KeyManager256Storage storage $ = _getKeyManager256Storage();
+    //     bytes32 key = $._key[operator];
+    //     if (key != bytes32(0) && $._keyData[key].status.wasActiveAt(timestamp)) {
+    //         return abi.encode(key);
+    //     }
+    //     key = $._prevKey[operator];
+    //     if (key != bytes32(0) && $._keyData[key].status.wasActiveAt(timestamp)) {
+    //         return abi.encode(key);
+    //     }
+    //     return abi.encode(bytes32(0));
+    // }
+
     /**
      * @inheritdoc IMiddleware
      */
     function getValidatorSet(
         uint48 epoch
-    ) public view returns (ValidatorData[] memory validatorsData) {
-        uint48 epochStartTs = getEpochStartTs(epoch);
+    ) public view returns (ValidatorData[] memory validatorSet) {
+        uint48 epochStartTs = getEpochStart(epoch);
+        address[] memory operators = _activeOperatorsAt(epochStartTs);
 
-        validatorsData = new ValidatorData[](s_operators.length());
-        uint256 valIdx = 0;
+        validatorSet = new ValidatorData[](operators.length);
+        uint256 len = 0;
 
-        for (uint256 i; i < s_operators.length(); ++i) {
-            (address operator, uint48 enabledTime, uint48 disabledTime) = s_operators.atWithTimes(i);
+        for (uint256 i; i < operators.length; ++i) {
+            address operator = operators[i];
 
-            // just skip operator if it was added after the target epoch or paused
-            if (!_wasActiveAt(enabledTime, disabledTime, epochStartTs)) {
+            bytes32 key = abi.decode(operatorKey(operator), (bytes32));
+            if (key == bytes32(0) || !keyWasActiveAt(epochStartTs, abi.encode(key))) {
                 continue;
             }
 
-            bytes32 key = getOperatorKeyAt(operator, epochStartTs);
-            if (key == bytes32(0)) {
-                continue;
-            }
+            uint256 power = _getOperatorPowerAt(epochStartTs, operator);
 
-            uint256 stake = getOperatorStake(operator, epoch);
-
-            validatorsData[valIdx++] = ValidatorData(stake, key);
+            validatorSet[len++] = ValidatorData(power, key);
         }
 
         // shrink array to skip unused slots
-        /// @solidity memory-safe-assembly
-        assembly {
-            mstore(validatorsData, valIdx)
+        assembly ("memory-safe") {
+            mstore(validatorSet, len)
         }
-    }
-
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function getEpochStartTs(
-        uint48 epoch
-    ) public view returns (uint48 timestamp) {
-        return i_startTime + epoch * i_epochDuration;
     }
 
     /**
@@ -718,14 +525,8 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     function getEpochAtTs(
         uint48 timestamp
     ) public view returns (uint48 epoch) {
-        return (timestamp - i_startTime) / i_epochDuration;
-    }
-
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function getCurrentEpoch() public view returns (uint48 epoch) {
-        return getEpochAtTs(Time.timestamp());
+        EpochCaptureStorage storage $ = _getEpochCaptureStorage();
+        return (timestamp - $.startTimestamp) / $.epochDuration;
     }
 
     /**
@@ -736,38 +537,19 @@ contract Middleware is SimpleKeyRegistry32, Ownable, IMiddleware {
     function _calcTotalStake(
         uint48 epoch
     ) private view returns (uint256 totalStake) {
-        uint48 epochStartTs = getEpochStartTs(epoch);
-
-        // for epoch older than i_slashingWindow total stake can be invalidated (use cache)
-        if (epochStartTs < Time.timestamp() - i_slashingWindow) {
+        uint48 epochStartTs = getEpochStart(epoch);
+        // for epoch older than _SLASHING_WINDOW total stake can be invalidated (use cache)
+        if (epochStartTs < Time.timestamp() - _SLASHING_WINDOW()) {
             revert Middleware__TooOldEpoch();
         }
 
         if (epochStartTs > Time.timestamp()) {
             revert Middleware__InvalidEpoch();
         }
-
-        for (uint256 i; i < s_operators.length(); ++i) {
-            (address operator, uint48 enabledTime, uint48 disabledTime) = s_operators.atWithTimes(i);
-
-            // just skip operator if it was added after the target epoch or paused
-            if (!_wasActiveAt(enabledTime, disabledTime, epochStartTs)) {
-                continue;
-            }
-
-            uint256 operatorStake = getOperatorStake(operator, epoch);
+        address[] memory operators = _activeOperatorsAt(epochStartTs);
+        for (uint256 i; i < operators.length; ++i) {
+            uint256 operatorStake = getOperatorStake(operators[i], epoch);
             totalStake += operatorStake;
         }
-    }
-
-    /**
-     * @dev Checks if an entity was active at a specific timestamp
-     * @param enabledTime Time when entity was enabled
-     * @param disabledTime Time when entity was disabled (0 if never disabled)
-     * @param timestamp Timestamp to check activity for
-     * @return bool True if entity was active at timestamp
-     */
-    function _wasActiveAt(uint48 enabledTime, uint48 disabledTime, uint48 timestamp) private pure returns (bool) {
-        return enabledTime != 0 && enabledTime <= timestamp && (disabledTime == 0 || disabledTime >= timestamp);
     }
 }
