@@ -37,6 +37,7 @@ import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-ti
 //**************************************************************************************************
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 
@@ -353,7 +354,8 @@ contract MiddlewareTest is Test {
         assertEq(BaseMiddlewareReader(address(ecosystemEntities.middleware)).subnetworksLength(), 1);
     }
 
-    function testIfOperatorsAreRegisteredInVaults() public view {
+    function testIfOperatorsAreRegisteredInVaults() public {
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
         uint48 currentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
         Middleware.OperatorVaultPair[] memory operatorVaultPairs =
             ecosystemEntities.middleware.getOperatorVaultPairs(currentEpoch);
@@ -384,6 +386,7 @@ contract MiddlewareTest is Test {
     }
 
     function testOperatorsStakeIsTheSamePerEpoch() public {
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
         uint48 previousEpoch = ecosystemEntities.middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validatorsPreviousEpoch =
             ecosystemEntities.middleware.getValidatorSet(previousEpoch);
@@ -661,8 +664,16 @@ contract MiddlewareTest is Test {
     }
 
     function testOperatorsOnlyInTanssiNetwork() public {
-        (,, address networkRegistryAddress,,,, address networkMiddlewareServiceAddress,,) =
-            helperConfig.activeNetworkConfig();
+        (
+            ,
+            address operatorRegistryAddress,
+            address networkRegistryAddress,
+            address vaultFactoryAddress,
+            address operatorNetworkOptInServiceAddress,
+            ,
+            address networkMiddlewareServiceAddress,
+            ,
+        ) = helperConfig.activeNetworkConfig();
 
         address operator4 = makeAddr("operator4");
         address network2 = makeAddr("network2");
@@ -685,15 +696,21 @@ contract MiddlewareTest is Test {
         _registerOperator(operator4, network2, address(ecosystemEntities.vault));
 
         vm.startPrank(network2);
-        Middleware middleware2 = new Middleware(
-            // network2,
-            // operatorRegistryAddress,
-            // vaultFactoryAddress,
-            // operatorNetworkOptInServiceAddress,
-            // network2,
-            // NETWORK_EPOCH_DURATION,
-            // SLASHING_WINDOW
+
+        Middleware _middlewareImpl = new Middleware();
+        Middleware middleware2 = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
+        address readHelper = address(new BaseMiddlewareReader());
+        Middleware(address(middleware2)).initialize(
+            network2,
+            operatorRegistryAddress,
+            vaultFactoryAddress,
+            operatorNetworkOptInServiceAddress,
+            network2,
+            NETWORK_EPOCH_DURATION,
+            SLASHING_WINDOW,
+            readHelper // reader
         );
+
         INetworkMiddlewareService(networkMiddlewareServiceAddress).setMiddleware(address(middleware2));
         middleware2.registerSharedVault(address(ecosystemEntities.vault));
         middleware2.registerOperator(operator4, abi.encode(OPERATOR4_KEY), address(0));
