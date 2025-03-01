@@ -34,8 +34,9 @@ import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 import {IDefaultCollateralFactory} from
     "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateralFactory.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
+import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlewareReader.sol";
+import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 
-import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {Token} from "test/mocks/Token.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 
@@ -217,7 +218,7 @@ contract DeployTest is Test {
     function testDeployRegisterVault() public {
         (address _vault,,,,,,,,) = deployTanssiEcosystem.vaultAddresses();
 
-        (IMiddleware middleware,,) = deployTanssiEcosystem.ecosystemEntities();
+        (Middleware middleware,,) = deployTanssiEcosystem.ecosystemEntities();
 
         vm.startPrank(tanssi);
         middleware.pauseSharedVault(_vault);
@@ -572,9 +573,9 @@ contract DeployTest is Test {
         assertTrue(address(middleware) != address(0));
         assertTrue(address(vaultConfigurator) != address(0));
 
-        assertEq(middleware.i_owner(), tanssi);
-        assertEq(middleware.i_epochDuration(), deployTanssiEcosystem.NETWORK_EPOCH_DURATION());
-        assertEq(middleware.i_slashingWindow(), deployTanssiEcosystem.SLASHING_WINDOW());
+        assertEq(BaseMiddlewareReader(address(middleware)).NETWORK(), tanssi);
+        assertEq(EpochCapture(address(middleware)).getEpochDuration(), deployTanssiEcosystem.NETWORK_EPOCH_DURATION());
+        assertEq(BaseMiddlewareReader(address(middleware)).SLASHING_WINDOW(), deployTanssiEcosystem.SLASHING_WINDOW());
         vm.stopPrank();
     }
 
@@ -647,7 +648,7 @@ contract DeployTest is Test {
         vm.recordLogs();
         (Middleware middleware, IVaultConfigurator vaultConfigurator,) = deployTanssiEcosystem.ecosystemEntities();
 
-        IRegistry operatorRegistry = IRegistry(middleware.i_operatorRegistry());
+        IRegistry operatorRegistry = IRegistry(BaseMiddlewareReader(address(middleware)).OPERATOR_REGISTRY());
         vm.mockCall(
             address(operatorRegistry), abi.encodeWithSelector(operatorRegistry.isEntity.selector), abi.encode(true)
         );

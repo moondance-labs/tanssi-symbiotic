@@ -33,12 +33,19 @@ import {VaultConfigurator} from "@symbiotic/contracts/VaultConfigurator.sol";
 import {Vault} from "@symbiotic/contracts/vault/Vault.sol";
 import {VetoSlasher} from "@symbiotic/contracts/slasher/VetoSlasher.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
+import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlewareReader.sol";
+import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
+import {IOzAccessControl} from "@symbiotic-middleware/interfaces/extensions/managers/access/IOzAccessControl.sol";
+import {PauseableEnumerableSet} from "@symbiotic-middleware/libraries/PauseableEnumerableSet.sol";
+import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
+import {OperatorManager} from "@symbiotic-middleware/managers/OperatorManager.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Errors} from "@openzeppelin/contracts/utils/Errors.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 //**************************************************************************************************
 //                                      SNOWBRIDGE
@@ -65,7 +72,7 @@ import {DeployVault} from "script/DeployVault.s.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 
-contract MiddlewareTest is Test {
+contract RewardsTest is Test {
     using Subnetwork for address;
     using Subnetwork for bytes32;
     using Math for uint256;
@@ -238,16 +245,7 @@ contract MiddlewareTest is Test {
 
         _deployVaults(tanssi);
 
-        middleware = new Middleware(
-            tanssi,
-            address(operatorRegistry),
-            address(vaultFactory),
-            address(operatorNetworkOptInService),
-            owner,
-            NETWORK_EPOCH_DURATION,
-            SLASHING_WINDOW
-        );
-        networkMiddlewareService.setMiddleware(address(middleware));
+        middleware = _deployMiddlewareWithProxy(tanssi, owner);
 
         vetoSlasher = VetoSlasher(vaultAddresses.slasherVetoed);
 
@@ -262,9 +260,9 @@ contract MiddlewareTest is Test {
         vaults.push(vaultSlashable);
         vaults.push(vaultVetoed);
 
-        _registerOperator(operator, tanssi, address(vault, address(0)));
-        _registerOperator(operator3, tanssi, address(vaultSlashable, address(0)));
-        _registerOperator(operator2, tanssi, address(vaultVetoed, address(0)));
+        _registerOperator(operator, tanssi, address(vault));
+        _registerOperator(operator3, tanssi, address(vaultSlashable));
+        _registerOperator(operator2, tanssi, address(vaultVetoed));
 
         _registerEntitiesToMiddleware(owner);
         _setOperatorsNetworkShares(tanssi);
@@ -297,6 +295,24 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
     // *                                        HELPERS
     // ************************************************************************************************
+
+    function _deployMiddlewareWithProxy(address _network, address _owner) public returns (Middleware _middleware) {
+        Middleware _middlewareImpl = new Middleware();
+        _middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
+        address readHelper = address(new BaseMiddlewareReader());
+        Middleware(address(_middleware)).initialize(
+            _network, // network
+            address(operatorRegistry), // operatorRegistry
+            address(vaultFactory), // vaultRegistry
+            address(operatorNetworkOptInService), // operatorNetOptin
+            _owner, // owner
+            NETWORK_EPOCH_DURATION, // epoch duration
+            SLASHING_WINDOW, // slashing window
+            readHelper // reader
+        );
+
+        networkMiddlewareService.setMiddleware(address(_middleware));
+    }
 
     function _deployVaults(
         address _owner
@@ -336,9 +352,9 @@ contract MiddlewareTest is Test {
         middleware.registerSharedVault(vaultAddresses.vault);
         middleware.registerSharedVault(vaultAddresses.vaultSlashable);
         middleware.registerSharedVault(vaultAddresses.vaultVetoed);
-        middleware.registerOperator(operator, OPERATOR_KEY, address(0));
-        middleware.registerOperator(operator2, OPERATOR2_KEY, address(0));
-        middleware.registerOperator(operator3, OPERATOR3_KEY, address(0));
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        middleware.registerOperator(operator2, abi.encode(OPERATOR2_KEY), address(0));
+        middleware.registerOperator(operator3, abi.encode(OPERATOR3_KEY), address(0));
         vm.stopPrank();
     }
 
@@ -476,12 +492,12 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function testInitialState() public view {
-        assertEq(middleware._NETWORK(), tanssi);
-        assertEq(middleware.i_operatorRegistry(), address(operatorRegistry));
-        assertEq(middleware.i_vaultRegistry(), address(vaultFactory));
-        assertEq(middleware.i_epochDuration(), NETWORK_EPOCH_DURATION);
-        assertEq(middleware.i_slashingWindow(), SLASHING_WINDOW);
-        assertEq(middleware.s_subnetworksCount(), 1);
+        assertEq(BaseMiddlewareReader(address(middleware)).NETWORK(), tanssi);
+        assertEq(BaseMiddlewareReader(address(middleware)).OPERATOR_REGISTRY(), address(operatorRegistry));
+        assertEq(BaseMiddlewareReader(address(middleware)).VAULT_REGISTRY(), address(vaultFactory));
+        assertEq(EpochCapture(address(middleware)).getEpochDuration(), NETWORK_EPOCH_DURATION);
+        assertEq(BaseMiddlewareReader(address(middleware)).SLASHING_WINDOW(), SLASHING_WINDOW);
+        assertEq(BaseMiddlewareReader(address(middleware)).subnetworksLength(), 1);
     }
 
     function testSubmitRewards() public {

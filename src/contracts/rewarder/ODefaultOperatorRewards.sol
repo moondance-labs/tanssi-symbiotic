@@ -34,10 +34,9 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 //**************************************************************************************************
 import {ScaleCodec} from "@tanssi-bridge-relayer/snowbridge/contracts/src/utils/ScaleCodec.sol";
 
-import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
+import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
-import {SimpleKeyRegistry32} from "../libraries/SimpleKeyRegistry32.sol";
 
 contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
     using SafeERC20 for IERC20;
@@ -160,7 +159,7 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
 
         address middlewareAddress = INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network);
         // Starlight sends back only the operator key, thus we need to get back the operator address
-        address recipient = SimpleKeyRegistry32(middlewareAddress).getOperatorByKey(input.operatorKey);
+        address recipient = Middleware(middlewareAddress).operatorByKey(abi.encode(input.operatorKey));
 
         // Calculate the total amount of tokens that can be claimed which is:
         // total amount of tokens = total points claimable * tokens per point
@@ -202,7 +201,7 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         uint48 epochStartTs = EpochCapture(middlewareAddress).getEpochStart(epoch);
 
         //TODO: For now this is expected to be a single vault. Change it to be able to handle multiple vaults.
-        (, address[] memory operatorVaults) = IMiddleware(middlewareAddress).getOperatorVaults(recipient, epochStartTs);
+        (, address[] memory operatorVaults) = Middleware(middlewareAddress).getOperatorVaults(recipient, epochStartTs);
 
         // TODO: Currently it's only for a specific vault. We don't care now about making it able to send rewards for multiple vaults. It's hardcoded to the first vault of the operator.
         if (operatorVaults.length > 0) {

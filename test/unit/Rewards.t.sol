@@ -27,12 +27,14 @@ import {Slasher} from "@symbiotic/contracts/slasher/Slasher.sol";
 
 import {IRegistry} from "@symbiotic/interfaces/common/IRegistry.sol";
 import {IVaultStorage} from "@symbiotic/interfaces/vault/IVaultStorage.sol";
+import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlewareReader.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 //**************************************************************************************************
 //                                      SNOWBRIDGE
@@ -43,7 +45,6 @@ import {ScaleCodec} from "@tanssi-bridge-relayer/snowbridge/contracts/src/utils/
 //                                      TANSSI
 //**************************************************************************************************
 
-import {SimpleKeyRegistry32} from "src/contracts/libraries/SimpleKeyRegistry32.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
@@ -118,14 +119,18 @@ contract RewardsTest is Test {
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorVaultOptInService");
 
         networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
-        middleware = new Middleware(
+        Middleware _middlewareImpl = new Middleware();
+        middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
+        address readHelper = address(new BaseMiddlewareReader());
+        Middleware(address(middleware)).initialize(
             tanssi,
             address(operatorRegistry),
             address(networkRegistry),
             address(operatorNetworkOptIn),
             tanssi,
             NETWORK_EPOCH_DURATION,
-            SLASHING_WINDOW
+            SLASHING_WINDOW,
+            readHelper
         );
 
         delegator = new DelegatorMock(
@@ -142,7 +147,7 @@ contract RewardsTest is Test {
         vault.setDelegator(address(delegator));
         vm.store(address(delegator), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
 
-        uint48 epochStartTs = middleware.getEpochStartTs(0);
+        uint48 epochStartTs = middleware.getEpochStart(0);
 
         vm.startPrank(tanssi);
         token = new Token("Test");
@@ -159,8 +164,8 @@ contract RewardsTest is Test {
         operatorNetworkOptIn.optIn(tanssi);
 
         vm.startPrank(tanssi);
-        middleware.registerOperator(alice, ALICE_KEY, address(0));
-        middleware.registerOperator(bob, BOB_KEY, address(0));
+        middleware.registerOperator(alice, abi.encode(ALICE_KEY), address(0));
+        middleware.registerOperator(bob, abi.encode(BOB_KEY), address(0));
 
         vm.startPrank(address(middleware));
         feeToken = new MockFeeToken("Test", 100); //Extreme but it's to test when amount is 0 after a safeTransfer
@@ -211,7 +216,7 @@ contract RewardsTest is Test {
         assertEq(stakerRewards.i_vaultFactory(), address(vaultFactory));
         assertEq(stakerRewards.i_networkMiddlewareService(), address(networkMiddlewareService));
         assertEq(stakerRewards.i_epochDuration(), NETWORK_EPOCH_DURATION);
-        assertEq(stakerRewards.i_startTime(), middleware.getEpochStartTs(0));
+        assertEq(stakerRewards.i_startTime(), middleware.getEpochStart(0));
         assertEq(stakerRewards.s_adminFee(), ADMIN_FEE);
     }
 
@@ -229,7 +234,7 @@ contract RewardsTest is Test {
     }
 
     function _mockVaultActiveSharesStakeAt(uint48 epoch, bool mockShares, bool mockStake) private {
-        uint48 epochTs = middleware.getEpochStartTs(epoch);
+        uint48 epochTs = middleware.getEpochStart(epoch);
         (, bytes memory activeSharesHint, bytes memory activeStakeHint) =
             abi.decode(REWARDS_ADDITIONAL_DATA, (uint256, bytes, bytes));
 
@@ -252,7 +257,7 @@ contract RewardsTest is Test {
     function _mockGetOperatorVaults(
         uint48 epoch
     ) private {
-        uint48 epochStartTs = middleware.getEpochStartTs(epoch);
+        uint48 epochStartTs = middleware.getEpochStart(epoch);
 
         address[] memory vaults = new address[](1);
         vaults[0] = address(vault);
@@ -392,7 +397,7 @@ contract RewardsTest is Test {
         _mockGetOperatorVaults(epoch);
         _distributeRewards(epoch, eraIndex, AMOUNT_TO_DISTRIBUTE, address(token));
 
-        address recipient = SimpleKeyRegistry32(middleware).getOperatorByKey(ALICE_KEY);
+        address recipient = Middleware(middleware).operatorByKey(abi.encode(ALICE_KEY));
         bytes32[] memory proof = _generateValidProof();
 
         IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
@@ -725,7 +730,6 @@ contract RewardsTest is Test {
     }
 
     function testStakerRewardsConstructorWithNoAdminFeeClaimRoleHolder() public {
-        uint48 epochStartTs = middleware.getEpochStartTs(0);
         IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
             vault: address(vault),
             adminFee: ADMIN_FEE,
@@ -772,12 +776,12 @@ contract RewardsTest is Test {
     }
 
     //**************************************************************************************************
-    //                                          getEpochStartTs
+    //                                          getEpochStart
     //**************************************************************************************************
 
     function testGetEpochStartTs() public view {
         uint48 epoch = 0;
-        uint48 epochStartTs = middleware.getEpochStartTs(epoch);
+        uint48 epochStartTs = middleware.getEpochStart(epoch);
         assertEq(stakerRewards.getEpochStartTs(epoch), epochStartTs);
     }
 
@@ -798,7 +802,7 @@ contract RewardsTest is Test {
 
     function testClaimable() public {
         uint48 epoch = 0;
-        uint48 epochTs = middleware.getEpochStartTs(epoch);
+        uint48 epochTs = middleware.getEpochStart(epoch);
         _setSRewardsMapping(epoch, false, address(0));
 
         _setActiveSharesCache(epoch, address(stakerRewards));
@@ -816,7 +820,7 @@ contract RewardsTest is Test {
 
     function testClaimableButWithFakeTokenAddress() public {
         uint48 epoch = 0;
-        uint48 epochTs = middleware.getEpochStartTs(epoch);
+        uint48 epochTs = middleware.getEpochStart(epoch);
 
         _setSRewardsMapping(epoch, false, address(0));
 
@@ -835,7 +839,7 @@ contract RewardsTest is Test {
 
     function testClaimableButWithFakeTokenAddressButMultipleRewards() public {
         uint48 epoch = 0;
-        uint48 epochTs = middleware.getEpochStartTs(epoch);
+        uint48 epochTs = middleware.getEpochStart(epoch);
         Token newToken = new Token("NewToken");
 
         _setSRewardsMapping(epoch, true, address(newToken));
@@ -860,7 +864,6 @@ contract RewardsTest is Test {
     function testStakerDistributeRewardsInsufficientReward() public {
         uint48 epoch = 0;
         uint48 eraIndex = 0;
-        uint48 epochStartTs = middleware.getEpochStartTs(epoch);
         vm.warp(NETWORK_EPOCH_DURATION);
         IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
             vault: address(vault),
@@ -885,7 +888,6 @@ contract RewardsTest is Test {
     function testStakerDistributeRewardsWrongRole() public {
         uint48 epoch = 0;
         uint48 eraIndex = 0;
-        uint48 epochStartTs = middleware.getEpochStartTs(epoch);
         vm.warp(NETWORK_EPOCH_DURATION);
 
         IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
@@ -920,7 +922,7 @@ contract RewardsTest is Test {
 
     function testClaimStakerRewards() public {
         uint48 epoch = 0;
-        uint48 epochTs = middleware.getEpochStartTs(epoch);
+        uint48 epochTs = middleware.getEpochStart(epoch);
 
         _setSRewardsMapping(epoch, false, address(0));
 
@@ -945,7 +947,7 @@ contract RewardsTest is Test {
 
     function testClaimStakerRewardsWithZeroHints() public {
         uint48 epoch = 0;
-        uint48 epochTs = middleware.getEpochStartTs(epoch);
+        uint48 epochTs = middleware.getEpochStart(epoch);
 
         _setSRewardsMapping(epoch, false, address(0));
         vm.prank(address(middleware));
@@ -1013,7 +1015,7 @@ contract RewardsTest is Test {
 
     function testClaimStakerRewardsWithFakeHints() public {
         uint48 epoch = 0;
-        uint48 epochTs = middleware.getEpochStartTs(epoch);
+        uint48 epochTs = middleware.getEpochStart(epoch);
 
         _setSRewardsMapping(epoch, false, address(0));
         vm.prank(address(middleware));
@@ -1044,7 +1046,7 @@ contract RewardsTest is Test {
 
     function testClaimStakerRewardsButWithFakeTokenAddressNoRewardsToClaim() public {
         uint48 epoch = 0;
-        uint48 epochTs = middleware.getEpochStartTs(epoch);
+        uint48 epochTs = middleware.getEpochStart(epoch);
 
         _setSRewardsMapping(epoch, false, address(0));
         vm.prank(address(middleware));
@@ -1065,7 +1067,7 @@ contract RewardsTest is Test {
 
     function testClaimStakerRewardsButMultipleRewards() public {
         uint48 epoch = 0;
-        uint48 epochTs = middleware.getEpochStartTs(epoch);
+        uint48 epochTs = middleware.getEpochStart(epoch);
         Token newToken = new Token("NewToken");
         newToken.transfer(address(middleware), AMOUNT_TO_DISTRIBUTE);
 

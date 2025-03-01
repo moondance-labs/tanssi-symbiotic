@@ -240,9 +240,9 @@ contract MiddlewareTest is Test {
         // middleware.registerSharedVault(vaultAddresses.vault);
         // middleware.registerSharedVault(vaultAddresses.vaultSlashable);
         // middleware.registerSharedVault(vaultAddresses.vaultVetoed);
-        ecosystemEntities.middleware.registerOperator(operator, OPERATOR_KEY, address(0));
-        ecosystemEntities.middleware.registerOperator(operator2, OPERATOR2_KEY, address(0));
-        ecosystemEntities.middleware.registerOperator(operator3, OPERATOR3_KEY, address(0));
+        ecosystemEntities.middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        ecosystemEntities.middleware.registerOperator(operator2, abi.encode(OPERATOR2_KEY), address(0));
+        ecosystemEntities.middleware.registerOperator(operator3, abi.encode(OPERATOR3_KEY), address(0));
         vm.stopPrank();
     }
 
@@ -661,16 +661,8 @@ contract MiddlewareTest is Test {
     }
 
     function testOperatorsOnlyInTanssiNetwork() public {
-        (
-            ,
-            address operatorRegistryAddress,
-            address networkRegistryAddress,
-            address vaultFactoryAddress,
-            address operatorNetworkOptInServiceAddress,
-            ,
-            address networkMiddlewareServiceAddress,
-            ,
-        ) = helperConfig.activeNetworkConfig();
+        (,, address networkRegistryAddress,,,, address networkMiddlewareServiceAddress,,) =
+            helperConfig.activeNetworkConfig();
 
         address operator4 = makeAddr("operator4");
         address network2 = makeAddr("network2");
@@ -690,21 +682,21 @@ contract MiddlewareTest is Test {
         INetworkRestakeDelegator(vaultAddresses.delegator).setNetworkLimit(
             network2.subnetwork(0), OPERATOR_NETWORK_LIMIT
         );
-        _registerOperator(operator4, network2, address(ecosystemEntities.vault, address(0)));
+        _registerOperator(operator4, network2, address(ecosystemEntities.vault));
 
         vm.startPrank(network2);
         Middleware middleware2 = new Middleware(
-            network2,
-            operatorRegistryAddress,
-            vaultFactoryAddress,
-            operatorNetworkOptInServiceAddress,
-            network2,
-            NETWORK_EPOCH_DURATION,
-            SLASHING_WINDOW
+            // network2,
+            // operatorRegistryAddress,
+            // vaultFactoryAddress,
+            // operatorNetworkOptInServiceAddress,
+            // network2,
+            // NETWORK_EPOCH_DURATION,
+            // SLASHING_WINDOW
         );
         INetworkMiddlewareService(networkMiddlewareServiceAddress).setMiddleware(address(middleware2));
         middleware2.registerSharedVault(address(ecosystemEntities.vault));
-        middleware2.registerOperator(operator4, OPERATOR4_KEY, address(0));
+        middleware2.registerOperator(operator4, abi.encode(OPERATOR4_KEY), address(0));
         vm.stopPrank();
 
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);

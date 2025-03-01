@@ -20,7 +20,6 @@ pragma solidity 0.8.25;
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {EnumerableMap} from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -52,9 +51,6 @@ import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRew
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {IMiddleware} from "../../interfaces/middleware/IMiddleware.sol";
 
-import {SimpleKeyRegistry32} from "../libraries/SimpleKeyRegistry32.sol";
-
-import {MapWithTimeData} from "../libraries/MapWithTimeData.sol";
 import {QuickSort} from "../libraries/QuickSort.sol";
 
 contract Middleware is
@@ -67,31 +63,30 @@ contract Middleware is
     IMiddleware
 {
     using QuickSort for ValidatorData[];
-    using EnumerableMap for EnumerableMap.AddressToUintMap;
-    using MapWithTimeData for EnumerableMap.AddressToUintMap;
     using PauseableEnumerableSet for PauseableEnumerableSet.AddressSet;
+    using PauseableEnumerableSet for PauseableEnumerableSet.Status;
     using Subnetwork for address;
     using Math for uint256;
 
     //TODO Move the following to Middleware Storage
-    /**
-     * @inheritdoc IMiddleware
-     */
+    // /**
+    //  * @inheritdoc IMiddleware
+    //  */
     address public s_operatorRewards;
 
-    /**
-     * @inheritdoc IMiddleware
-     */
+    // /**
+    //  * @inheritdoc IMiddleware
+    //  */
     mapping(uint48 epoch => uint256 amount) public s_totalStakeCache;
 
-    /**
-     * @inheritdoc IMiddleware
-     */
+    // /**
+    //  * @inheritdoc IMiddleware
+    //  */
     mapping(uint48 epoch => bool) public s_totalStakeCached;
 
-    /**
-     * @inheritdoc IMiddleware
-     */
+    // /**
+    //  * @inheritdoc IMiddleware
+    //  */
     mapping(uint48 epoch => mapping(address operator => uint256 amount)) public s_operatorStakeCache;
     IOGateway private s_gateway;
     //TODO End of TODO
@@ -139,6 +134,9 @@ contract Middleware is
         if (owner == address(0) || reader == address(0)) {
             revert Middleware__InvalidAddress();
         }
+        if (slashingWindow < epochDuration) {
+            revert Middleware__SlashingWindowTooShort();
+        }
 
         __BaseMiddleware_init(network, slashingWindow, vaultRegistry, operatorRegistry, operatorNetOptin, reader);
         __OzAccessControl_init(owner);
@@ -152,20 +150,22 @@ contract Middleware is
         address newImplementation
     ) internal override checkAccess {}
 
-    function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {}
+    function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
+        return stake;
+    }
 
-    /**
-     * @inheritdoc IMiddleware
-     */
+    // /**
+    //  * @inheritdoc IMiddleware
+    //  */
     function setGateway(
         address _gateway
     ) external checkAccess {
         s_gateway = IOGateway(_gateway);
     }
 
-    /**
-     * @inheritdoc IMiddleware
-     */
+    // /**
+    //  * @inheritdoc IMiddleware
+    //  */
     function setOperatorRewardsContract(
         address operatorRewardsAddress
     ) external checkAccess {
@@ -177,9 +177,9 @@ contract Middleware is
         emit OperatorRewardContractSet(operatorRewardsAddress);
     }
 
-    /**
-     * inheritdoc IMiddleware
-     */
+    // /**
+    //  * @inheritdoc IMiddleware
+    //  */
     //TODO this will be removed and done automatically when registering a vault first time by creating staker contract from factory and then setting the mapping in operators for vault <=> staker contract
     function setStakerRewardContract(
         address stakerRewardsAddress,
@@ -188,18 +188,18 @@ contract Middleware is
         IODefaultOperatorRewards(s_operatorRewards).setStakerRewardContract(stakerRewardsAddress, vault);
     }
 
-    /**
-     * inheritdoc IMiddleware
-     */
+    // /**
+    //  * @inheritdoc IMiddleware
+    //  */
     function setOperatorShareOnOperatorRewards(
         uint48 operatorShare
     ) external checkAccess onlyIfOperatorRewardSet {
         IODefaultOperatorRewards(s_operatorRewards).setOperatorShare(operatorShare);
     }
 
-    /**
-     * @inheritdoc IMiddleware
-     */
+    // /**
+    //  * @inheritdoc IMiddleware
+    //  */
     function distributeRewards(
         uint256 epoch,
         uint256 eraIndex,
@@ -219,9 +219,9 @@ contract Middleware is
         );
     }
 
-    /**
-     * @inheritdoc IMiddleware
-     */
+    // /**
+    //  * @inheritdoc IMiddleware
+    //  */
     //  TODO: this function should be split to allow to be called by chainlink in case
     function sendCurrentOperatorsKeys() external returns (bytes32[] memory sortedKeys) {
         if (address(s_gateway) == address(0)) {
@@ -234,14 +234,13 @@ contract Middleware is
         s_gateway.sendOperatorsData(sortedKeys, epoch);
     }
 
-    /**
-     * @inheritdoc IMiddleware
-     */
+    // /**
+    //  * @inheritdoc IMiddleware
+    //  */
     function calcAndCacheStakes(
         uint48 epoch
     ) public returns (uint256 totalStake) {
         uint48 epochStartTs = getEpochStart(epoch);
-        OperatorManagerStorage storage $ = _getOperatorManagerStorage();
         // for epoch older than SLASHING_WINDOW total stake can be invalidated (use cache)
         if (epochStartTs < Time.timestamp() - _SLASHING_WINDOW()) {
             revert Middleware__TooOldEpoch();
@@ -257,7 +256,6 @@ contract Middleware is
 
             uint256 operatorStake = getOperatorStake(operator, epoch);
             s_operatorStakeCache[epoch][operator] = operatorStake;
-
             totalStake += operatorStake;
         }
 
@@ -265,9 +263,9 @@ contract Middleware is
         s_totalStakeCache[epoch] = totalStake;
     }
 
-    /**
-     * @inheritdoc IMiddleware
-     */
+    // /**
+    //  * @inheritdoc IMiddleware
+    //  */
     function slash(
         uint48 epoch,
         bytes32 operatorKey,
@@ -351,9 +349,9 @@ contract Middleware is
     //                                      VIEW FUNCTIONS
     // **************************************************************************************************
 
-    /**
-     * @inheritdoc IMiddleware
-     */
+    // /**
+    //  * @inheritdoc IMiddleware
+    //  */
     function getOperatorsByEpoch(
         uint48 epoch
     ) external view returns (address[] memory activeOperators) {
@@ -381,44 +379,38 @@ contract Middleware is
         }
     }
 
-    /**
-     * @inheritdoc IMiddleware
-     */
+    // /**
+    //  * @inheritdoc IMiddleware
+    //  */
     function getOperatorVaultPairs(
         uint48 epoch
     ) external view returns (OperatorVaultPair[] memory operatorVaultPairs) {
         uint48 epochStartTs = getEpochStart(epoch);
-        OperatorManagerStorage storage $ = _getOperatorManagerStorage();
+        address[] memory operators = _activeOperatorsAt(epochStartTs);
 
-        operatorVaultPairs = new OperatorVaultPair[](_operatorsLength());
+        operatorVaultPairs = new OperatorVaultPair[](operators.length);
 
-        // uint256 valIdx = 0;
-        // for (uint256 i; i < _operatorsLength(); ++i) {
-        //     (address operator, uint48 enabledTime, uint48 disabledTime) = $._operators.atWithTimes(i);
-
-        //     // just skip operator if it was added after the target epoch or paused
-        //     if (!_wasActiveAt(enabledTime, disabledTime, epochStartTs)) {
-        //         continue;
-        //     }
-
-        //     (uint256 vaultIdx, address[] memory _vaults) = getOperatorVaults(operator, epochStartTs);
-        //     assembly {
-        //         mstore(_vaults, vaultIdx)
-        //     }
-        //     if (vaultIdx > 0) {
-        //         operatorVaultPairs[valIdx++] = OperatorVaultPair(operator, _vaults);
-        //     }
-        // }
+        uint256 valIdx = 0;
+        for (uint256 i; i < operators.length; ++i) {
+            address operator = operators[i];
+            (uint256 vaultIdx, address[] memory _vaults) = getOperatorVaults(operator, epochStartTs);
+            assembly {
+                mstore(_vaults, vaultIdx)
+            }
+            if (vaultIdx > 0) {
+                operatorVaultPairs[valIdx++] = OperatorVaultPair(operator, _vaults);
+            }
+        }
     }
 
-    /**
-     * @inheritdoc IMiddleware
-     */
+    // /**
+    //  * @inheritdoc IMiddleware
+    //  */
     function getOperatorVaults(
         address operator,
         uint48 epochStartTs
     ) public view returns (uint256 vaultIdx, address[] memory _vaults) {
-        address[] memory operatorVaults = _activeOperatorVaultsAt(epochStartTs, operator);
+        address[] memory operatorVaults = _activeVaultsAt(epochStartTs, operator);
         _vaults = new address[](operatorVaults.length);
         vaultIdx = 0;
         for (uint256 j; j < operatorVaults.length; ++j) {
@@ -436,9 +428,9 @@ contract Middleware is
         }
     }
 
-    /**
-     * @inheritdoc IMiddleware
-     */
+    // /**
+    //  * @inheritdoc IMiddleware
+    //  */
     function isVaultRegistered(
         address vault
     ) external view returns (bool) {
@@ -446,9 +438,9 @@ contract Middleware is
         return $._sharedVaults.contains(vault);
     }
 
-    /**
-     * @inheritdoc IMiddleware
-     */
+    // /**
+    //  * @inheritdoc IMiddleware
+    //  */
     function getOperatorStake(address operator, uint48 epoch) public view returns (uint256 power) {
         if (s_totalStakeCached[epoch]) {
             return s_operatorStakeCache[epoch][operator];
@@ -458,9 +450,9 @@ contract Middleware is
         power = _getOperatorPowerAt(epochStartTs, operator);
     }
 
-    /**
-     * @inheritdoc IMiddleware
-     */
+    // /**
+    //  * @inheritdoc IMiddleware
+    //  */
     function getTotalStake(
         uint48 epoch
     ) public view returns (uint256) {
@@ -470,27 +462,27 @@ contract Middleware is
         return _calcTotalStake(epoch);
     }
 
-    // /**
-    //  * @notice Gets an operator's active key at the current capture timestamp
-    //  * @param operator The operator address to lookup
-    //  * @return The operator's active key encoded as bytes, or encoded zero bytes if none
-    //  */
-    // function getOperatorKeyAt(address operator, uint48 timestamp) public view override returns (bytes memory) {
-    //     KeyManager256Storage storage $ = _getKeyManager256Storage();
-    //     bytes32 key = $._key[operator];
-    //     if (key != bytes32(0) && $._keyData[key].status.wasActiveAt(timestamp)) {
-    //         return abi.encode(key);
-    //     }
-    //     key = $._prevKey[operator];
-    //     if (key != bytes32(0) && $._keyData[key].status.wasActiveAt(timestamp)) {
-    //         return abi.encode(key);
-    //     }
-    //     return abi.encode(bytes32(0));
-    // }
-
     /**
-     * @inheritdoc IMiddleware
+     * @notice Gets an operator's active key at the current capture timestamp
+     * @param operator The operator address to lookup
+     * @return The operator's active key encoded as bytes, or encoded zero bytes if none
      */
+    function getOperatorKeyAt(address operator, uint48 timestamp) public view returns (bytes memory) {
+        KeyManager256Storage storage $ = _getKeyManager256Storage();
+        bytes32 key = $._key[operator];
+        if (key != bytes32(0) && $._keyData[key].status.wasActiveAt(timestamp)) {
+            return abi.encode(key);
+        }
+        key = $._prevKey[operator];
+        if (key != bytes32(0) && $._keyData[key].status.wasActiveAt(timestamp)) {
+            return abi.encode(key);
+        }
+        return abi.encode(bytes32(0));
+    }
+
+    // /**
+    //  * @inheritdoc IMiddleware
+    //  */
     function getValidatorSet(
         uint48 epoch
     ) public view returns (ValidatorData[] memory validatorSet) {
@@ -519,9 +511,9 @@ contract Middleware is
         }
     }
 
-    /**
-     * @inheritdoc IMiddleware
-     */
+    // /**
+    //  * @inheritdoc IMiddleware
+    //  */
     function getEpochAtTs(
         uint48 timestamp
     ) public view returns (uint48 epoch) {

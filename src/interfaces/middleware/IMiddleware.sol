@@ -45,15 +45,15 @@ interface IMiddleware {
     error Middleware__OperatorNotFound(bytes32 operatorKey, uint48 epoch);
     error Middleware__SlashPercentageTooBig(uint48 epoch, address operator, uint256 percentage);
 
-    /**
-     * @notice Slasher type enum
-     * @param INSTANT Instant slasher type
-     * @param VETO Veto slasher type
-     */
-    enum SlasherType {
-        INSTANT,
-        VETO
-    }
+    // /**
+    //  * @notice Slasher type enum
+    //  * @param INSTANT Instant slasher type
+    //  * @param VETO Veto slasher type
+    //  */
+    // enum SlasherType {
+    //     INSTANT,
+    //     VETO
+    // }
 
     /**
      * @notice Validator data structure containing stake and key
@@ -403,7 +403,7 @@ interface IMiddleware {
     //  * @param epoch The epoch number
     //  * @return timestamp The start time of the epoch
     //  */
-    // function getEpochStartTs(
+    // function getEpochStart(
     //     uint48 epoch
     // ) external view returns (uint48 timestamp);
 
