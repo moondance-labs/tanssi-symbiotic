@@ -102,6 +102,7 @@ contract Middleware is
         _;
     }
 
+    // TODO should use AccessControl instead of this modifier
     // Add Gateway Role and use checkAccess modifier
     modifier onlyGateway() {
         if (msg.sender != address(s_gateway)) {
@@ -266,6 +267,7 @@ contract Middleware is
     // /**
     //  * @inheritdoc IMiddleware
     //  */
+    //TODO use prebuilt function from SDK
     function slash(
         uint48 epoch,
         bytes32 operatorKey,
