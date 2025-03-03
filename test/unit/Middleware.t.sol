@@ -141,7 +141,7 @@ contract MiddlewareTest is Test {
             SLASHING_WINDOW, // slashing window
             readHelper // reader
         );
-        Middleware(address(middleware)).setGateway(address(gateway));
+        middleware.setGateway(address(gateway));
 
         vm.startPrank(tanssi);
         registry.register();
