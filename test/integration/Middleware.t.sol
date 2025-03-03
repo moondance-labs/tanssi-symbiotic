@@ -271,7 +271,7 @@ contract MiddlewareTest is Test {
         Middleware _middlewareImpl = new Middleware();
         _middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
         address readHelper = address(new BaseMiddlewareReader());
-        Middleware(address(_middleware)).initialize(
+        _middleware.initialize(
             _network, // network
             address(operatorRegistry), // operatorRegistry
             address(vaultFactory), // vaultRegistry
@@ -979,7 +979,8 @@ contract MiddlewareTest is Test {
                     tanssi.subnetwork(0), _operator, depositAmount
                 );
             }
-            middleware.registerOperator(_operator, abi.encode(bytes32(uint256(i + 4))), address(0));
+            bytes32 operatorKey = bytes32(uint256(i + 4));
+            middleware.registerOperator(_operator, abi.encode(operatorKey), address(0));
         }
     }
 

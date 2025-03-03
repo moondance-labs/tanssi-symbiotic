@@ -326,7 +326,7 @@ contract DeployTanssiEcosystem is Script {
         Middleware _middlewareImpl = new Middleware();
         _middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
         address readHelper = address(new BaseMiddlewareReader());
-        Middleware(address(_middleware)).initialize(
+        _middleware.initialize(
             _network, // network
             _operatorRegistry, // operatorRegistry
             _vaultRegistry, // vaultRegistry

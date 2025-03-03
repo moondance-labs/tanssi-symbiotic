@@ -411,9 +411,9 @@ contract Middleware is
     function getOperatorVaults(
         address operator,
         uint48 epochStartTs
-    ) public view returns (uint256 vaultIdx, address[] memory _vaults) {
+    ) public view returns (uint256 vaultIdx, address[] memory vaults) {
         address[] memory operatorVaults = _activeVaultsAt(epochStartTs, operator);
-        _vaults = new address[](operatorVaults.length);
+        vaults = new address[](operatorVaults.length);
         vaultIdx = 0;
         for (uint256 j; j < operatorVaults.length; ++j) {
             uint256 operatorStake = 0;
@@ -425,7 +425,7 @@ contract Middleware is
             }
 
             if (operatorStake > 0) {
-                _vaults[vaultIdx++] = _vault;
+                vaults[vaultIdx++] = _vault;
             }
         }
     }
