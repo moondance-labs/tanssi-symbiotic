@@ -18,7 +18,6 @@ pragma solidity 0.8.25;
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
-import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -26,13 +25,9 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 //**************************************************************************************************
 //                                      SYMBIOTIC
 //**************************************************************************************************
-import {IRegistry} from "@symbiotic/interfaces/common/IRegistry.sol";
 import {IEntity} from "@symbiotic/interfaces/common/IEntity.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
-import {IBaseSlasher} from "@symbiotic/interfaces/slasher/IBaseSlasher.sol";
-import {IOptInService} from "@symbiotic/interfaces/service/IOptInService.sol";
-import {IEntity} from "@symbiotic/interfaces/common/IEntity.sol";
 import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
@@ -46,8 +41,6 @@ import {PauseableEnumerableSet} from "@symbiotic-middleware/libraries/PauseableE
 //                                      SNOWBRIDGE
 //**************************************************************************************************
 import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfaces/IOGateway.sol";
-
-import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {IMiddleware} from "../../interfaces/middleware/IMiddleware.sol";
 
