@@ -30,6 +30,12 @@ import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestak
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {IDefaultCollateralFactory} from
     "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateralFactory.sol";
+import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlewareReader.sol";
+
+//**************************************************************************************************
+//                                      OPENZEPPELIN
+//**************************************************************************************************
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
@@ -213,10 +219,10 @@ contract DeployTanssiEcosystem is Script {
 
     function _registerEntitiesToMiddleware() private {
         if (block.chainid == 31_337 || block.chainid == 11_155_111 || isTest) {
-            ecosystemEntities.middleware.registerVault(vaultAddresses.vault);
-            ecosystemEntities.middleware.registerVault(vaultAddresses.vaultVetoed);
+            ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault);
+            ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed);
         }
-        ecosystemEntities.middleware.registerVault(vaultAddresses.vaultSlashable);
+        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultSlashable);
     }
 
     function _transferTokensToOperators() private {
@@ -268,7 +274,7 @@ contract DeployTanssiEcosystem is Script {
         }
         deployVaults();
         _setDelegatorConfigs();
-        ecosystemEntities.middleware = new Middleware(
+        ecosystemEntities.middleware = _deployMiddlewareWithProxy(
             tanssi,
             operatorRegistryAddress,
             vaultRegistryAddress,
@@ -308,6 +314,30 @@ contract DeployTanssiEcosystem is Script {
         }
     }
 
+    function _deployMiddlewareWithProxy(
+        address _network,
+        address _operatorRegistry,
+        address _vaultRegistry,
+        address _operatorNetworkOptInService,
+        address _owner,
+        uint48 _epochDuration,
+        uint48 _slashingWindow
+    ) private returns (Middleware _middleware) {
+        Middleware _middlewareImpl = new Middleware();
+        _middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
+        address readHelper = address(new BaseMiddlewareReader());
+        _middleware.initialize(
+            _network, // network
+            _operatorRegistry, // operatorRegistry
+            _vaultRegistry, // vaultRegistry
+            _operatorNetworkOptInService, // operatorNetworkOptInService
+            _owner, // owner
+            _epochDuration, // epochDuration
+            _slashingWindow, // slashingWindow
+            readHelper // readHelper
+        );
+    }
+
     function deployMiddleware(
         address networkAddress,
         address operatorRegistryAddress,
@@ -318,7 +348,7 @@ contract DeployTanssiEcosystem is Script {
         uint48 slashingWindow
     ) external returns (address) {
         vm.startBroadcast(ownerPrivateKey);
-        ecosystemEntities.middleware = new Middleware(
+        ecosystemEntities.middleware = _deployMiddlewareWithProxy(
             networkAddress,
             operatorRegistryAddress,
             vaultRegistryAddress,
@@ -331,10 +361,10 @@ contract DeployTanssiEcosystem is Script {
         return address(ecosystemEntities.middleware);
     }
 
-    function registerVault(address middlewareAddress, address vaultAddress) external {
+    function registerSharedVault(address middlewareAddress, address vaultAddress) external {
         Middleware middleware = Middleware(middlewareAddress);
         vm.startBroadcast(ownerPrivateKey);
-        middleware.registerVault(vaultAddress);
+        middleware.registerSharedVault(vaultAddress);
         vm.stopBroadcast();
     }
 

@@ -29,3 +29,6 @@
 [submodule "lib/tanssi-bridge-relayer"]
 	path = lib/tanssi-bridge-relayer
 	url = https://github.com/moondance-labs/tanssi-bridge-relayer
+[submodule "lib/middleware-sdk"]
+	path = lib/middleware-sdk
+	url = https://github.com/symbioticfi/middleware-sdk

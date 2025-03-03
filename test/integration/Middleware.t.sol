@@ -44,6 +44,12 @@ import {OperatorSpecificDelegator} from "@symbiotic/contracts/delegator/Operator
 import {Slasher} from "@symbiotic/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "@symbiotic/contracts/slasher/VetoSlasher.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
+import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlewareReader.sol";
+import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
+import {IOzAccessControl} from "@symbiotic-middleware/interfaces/extensions/managers/access/IOzAccessControl.sol";
+import {PauseableEnumerableSet} from "@symbiotic-middleware/libraries/PauseableEnumerableSet.sol";
+import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
+import {OperatorManager} from "@symbiotic-middleware/managers/OperatorManager.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN
@@ -51,6 +57,7 @@ import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 //**************************************************************************************************
 //                                      SNOWBRIDGE
@@ -211,17 +218,8 @@ contract MiddlewareTest is Test {
 
         _deployVaults(tanssi);
 
-        middleware = new Middleware(
-            tanssi,
-            address(operatorRegistry),
-            address(vaultFactory),
-            address(operatorNetworkOptInService),
-            owner,
-            NETWORK_EPOCH_DURATION,
-            SLASHING_WINDOW
-        );
+        middleware = _deployMiddlewareWithProxy(tanssi, owner);
         _createGateway();
-        networkMiddlewareService.setMiddleware(address(middleware));
         middleware.setGateway(address(gateway));
 
         vetoSlasher = VetoSlasher(vaultAddresses.slasherVetoed);
@@ -269,6 +267,24 @@ contract MiddlewareTest is Test {
     // *                                        HELPERS
     // ************************************************************************************************
 
+    function _deployMiddlewareWithProxy(address _network, address _owner) public returns (Middleware _middleware) {
+        Middleware _middlewareImpl = new Middleware();
+        _middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
+        address readHelper = address(new BaseMiddlewareReader());
+        _middleware.initialize(
+            _network, // network
+            address(operatorRegistry), // operatorRegistry
+            address(vaultFactory), // vaultRegistry
+            address(operatorNetworkOptInService), // operatorNetOptin
+            _owner, // owner
+            NETWORK_EPOCH_DURATION, // epoch duration
+            SLASHING_WINDOW, // slashing window
+            readHelper // reader
+        );
+
+        networkMiddlewareService.setMiddleware(address(_middleware));
+    }
+
     function _deployVaults(
         address _owner
     ) public {
@@ -305,12 +321,12 @@ contract MiddlewareTest is Test {
         address _owner
     ) public {
         vm.startPrank(_owner);
-        middleware.registerVault(vaultAddresses.vault);
-        middleware.registerVault(vaultAddresses.vaultSlashable);
-        middleware.registerVault(vaultAddresses.vaultVetoed);
-        middleware.registerOperator(operator, OPERATOR_KEY);
-        middleware.registerOperator(operator2, OPERATOR2_KEY);
-        middleware.registerOperator(operator3, OPERATOR3_KEY);
+        middleware.registerSharedVault(vaultAddresses.vault);
+        middleware.registerSharedVault(vaultAddresses.vaultSlashable);
+        middleware.registerSharedVault(vaultAddresses.vaultVetoed);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        middleware.registerOperator(operator2, abi.encode(OPERATOR2_KEY), address(0));
+        middleware.registerOperator(operator3, abi.encode(OPERATOR3_KEY), address(0));
         vm.stopPrank();
     }
 
@@ -402,15 +418,16 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function testInitialState() public view {
-        assertEq(middleware.i_network(), tanssi);
-        assertEq(middleware.i_operatorRegistry(), address(operatorRegistry));
-        assertEq(middleware.i_vaultRegistry(), address(vaultFactory));
-        assertEq(middleware.i_epochDuration(), NETWORK_EPOCH_DURATION);
-        assertEq(middleware.i_slashingWindow(), SLASHING_WINDOW);
-        assertEq(middleware.s_subnetworksCount(), 1);
+        assertEq(BaseMiddlewareReader(address(middleware)).NETWORK(), tanssi);
+        assertEq(BaseMiddlewareReader(address(middleware)).OPERATOR_REGISTRY(), address(operatorRegistry));
+        assertEq(BaseMiddlewareReader(address(middleware)).VAULT_REGISTRY(), address(vaultFactory));
+        assertEq(EpochCapture(address(middleware)).getEpochDuration(), NETWORK_EPOCH_DURATION);
+        assertEq(BaseMiddlewareReader(address(middleware)).SLASHING_WINDOW(), SLASHING_WINDOW);
+        assertEq(BaseMiddlewareReader(address(middleware)).subnetworksLength(), 1);
     }
 
-    function testIfOperatorsAreRegisteredInVaults() public view {
+    function testIfOperatorsAreRegisteredInVaults() public {
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.OperatorVaultPair[] memory operatorVaultPairs = middleware.getOperatorVaultPairs(currentEpoch);
         assertEq(operatorVaultPairs.length, 3);
@@ -423,7 +440,7 @@ contract MiddlewareTest is Test {
     }
 
     function testOperatorsAreRegisteredAfterOneEpoch() public {
-        vm.warp(NETWORK_EPOCH_DURATION + 1);
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validators = middleware.getValidatorSet(currentEpoch);
         assertEq(validators.length, 3);
@@ -439,10 +456,11 @@ contract MiddlewareTest is Test {
     }
 
     function testOperatorsStakeIsTheSamePerEpoch() public {
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         uint48 previousEpoch = middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validatorsPreviousEpoch = middleware.getValidatorSet(previousEpoch);
 
-        vm.warp(NETWORK_EPOCH_DURATION + 1);
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 2);
         Middleware.ValidatorData[] memory validators = middleware.getValidatorSet(previousEpoch);
         assertEq(validators.length, validatorsPreviousEpoch.length);
         assertEq(validators[0].stake, validatorsPreviousEpoch[0].stake);
@@ -511,7 +529,7 @@ contract MiddlewareTest is Test {
     function testSlashingOnOperator2ButWrongSlashingWindow() public {
         vm.warp(NETWORK_EPOCH_DURATION * 2 + SLASHING_WINDOW / 2);
         uint48 currentEpoch = middleware.getCurrentEpoch();
-        uint256 epochStartTs = middleware.getEpochStartTs(currentEpoch);
+        uint256 epochStartTs = middleware.getEpochStart(currentEpoch);
 
         // We go directly to epochStart as it 100% ensure that the epoch is started and thus the slashing is invalid
         vm.warp(epochStartTs);
@@ -533,7 +551,7 @@ contract MiddlewareTest is Test {
     function testSlashTooBig() public {
         vm.warp(NETWORK_EPOCH_DURATION * 2 + SLASHING_WINDOW / 2);
         uint48 currentEpoch = middleware.getCurrentEpoch();
-        uint256 epochStartTs = middleware.getEpochStartTs(currentEpoch);
+        uint256 epochStartTs = middleware.getEpochStart(currentEpoch);
 
         // We go directly to epochStart as it 100% ensure that the epoch is started and thus the slashing is invalid
         vm.warp(epochStartTs);
@@ -708,7 +726,7 @@ contract MiddlewareTest is Test {
         uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
 
         vm.prank(owner);
-        middleware.pauseVault(vaultAddresses.vaultSlashable);
+        middleware.pauseSharedVault(vaultAddresses.vaultSlashable);
 
         vm.prank(gateway);
         middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
@@ -793,7 +811,7 @@ contract MiddlewareTest is Test {
         // This is because operator keys work with timestamps and old keys are maintained, not removed
         // Therefore we will always be able to slash
         bytes32 differentOperatorKey = bytes32(uint256(10));
-        middleware.updateOperatorKey(operator2, differentOperatorKey);
+        middleware.updateOperatorKey(operator2, abi.encode(differentOperatorKey));
 
         vm.startPrank(gateway);
         middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
@@ -833,21 +851,13 @@ contract MiddlewareTest is Test {
         // Operator4 registration and network configuration
         _registerOperator(operator4, network2, address(vault));
         vm.startPrank(network2);
-        Middleware middleware2 = new Middleware(
-            network2,
-            address(operatorRegistry),
-            address(vaultFactory),
-            address(operatorNetworkOptInService),
-            network2,
-            NETWORK_EPOCH_DURATION,
-            SLASHING_WINDOW
-        );
-        networkMiddlewareService.setMiddleware(address(middleware2));
-        middleware2.registerVault(address(vault));
-        middleware2.registerOperator(operator4, OPERATOR4_KEY);
+        Middleware middleware2 = _deployMiddlewareWithProxy(network2, network2);
+
+        middleware2.registerSharedVault(address(vault));
+        middleware2.registerOperator(operator4, abi.encode(OPERATOR4_KEY), address(0));
 
         vm.stopPrank();
-        vm.warp(NETWORK_EPOCH_DURATION + 1);
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         uint48 middleware2CurrentEpoch = middleware2.getCurrentEpoch();
         Middleware.OperatorVaultPair[] memory operator2VaultPairs =
             middleware2.getOperatorVaultPairs(middleware2CurrentEpoch);
@@ -969,7 +979,8 @@ contract MiddlewareTest is Test {
                     tanssi.subnetwork(0), _operator, depositAmount
                 );
             }
-            middleware.registerOperator(_operator, bytes32(uint256(i + 4)));
+            bytes32 operatorKey = bytes32(uint256(i + 4));
+            middleware.registerOperator(_operator, abi.encode(operatorKey), address(0));
         }
     }
 
@@ -997,7 +1008,7 @@ contract MiddlewareTest is Test {
 
     function _validatorSet(
         uint48 epoch
-    ) public returns (Middleware.ValidatorData[] memory) {
+    ) public view returns (Middleware.ValidatorData[] memory) {
         Middleware.ValidatorData[] memory validators = middleware.getValidatorSet(epoch);
         quickSort(validators, 0, int256(validators.length - 1));
         return validators;
@@ -1007,7 +1018,7 @@ contract MiddlewareTest is Test {
         Middleware.ValidatorData[] memory validators,
         bytes32[] memory sortedValidators,
         uint16 count
-    ) public {
+    ) public pure {
         assertEq(validators.length, count + 3);
         assertEq(validators.length, sortedValidators.length);
         for (uint256 i = 0; i < validators.length - 1; i++) {
@@ -1026,6 +1037,7 @@ contract MiddlewareTest is Test {
         uint16 count = 100;
         _addOperatorsToNetwork(count);
 
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         vm.startPrank(owner);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validators = _validatorSet(currentEpoch);
@@ -1045,6 +1057,7 @@ contract MiddlewareTest is Test {
         uint16 count = 100;
         _addOperatorsToNetwork(count);
 
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         vm.startPrank(owner);
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
@@ -1061,6 +1074,7 @@ contract MiddlewareTest is Test {
         uint16 count = 250;
         _addOperatorsToNetwork(count);
 
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         vm.startPrank(owner);
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
@@ -1079,6 +1093,7 @@ contract MiddlewareTest is Test {
         uint16 count = 250;
         _addOperatorsToNetwork(count);
 
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         vm.startPrank(owner);
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
@@ -1095,6 +1110,7 @@ contract MiddlewareTest is Test {
         uint16 count = 350;
         _addOperatorsToNetwork(count);
 
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         vm.startPrank(owner);
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
@@ -1114,6 +1130,7 @@ contract MiddlewareTest is Test {
         uint16 count = 350;
         _addOperatorsToNetwork(count);
 
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         vm.startPrank(owner);
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
@@ -1130,6 +1147,7 @@ contract MiddlewareTest is Test {
         uint16 count = 500;
         _addOperatorsToNetwork(count);
 
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         vm.startPrank(owner);
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
@@ -1146,6 +1164,7 @@ contract MiddlewareTest is Test {
         uint16 count = 500;
         _addOperatorsToNetwork(count);
 
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         vm.startPrank(owner);
         uint48 currentEpoch = middleware.getCurrentEpoch();
 

@@ -29,12 +29,15 @@ import {IOperatorRegistry} from "@symbiotic/interfaces/IOperatorRegistry.sol";
 import {INetworkRegistry} from "@symbiotic/interfaces/INetworkRegistry.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {IDefaultCollateral} from "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateral.sol";
+import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlewareReader.sol";
+import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 
@@ -235,12 +238,12 @@ contract MiddlewareTest is Test {
         address _owner
     ) public {
         vm.startPrank(_owner);
-        // middleware.registerVault(vaultAddresses.vault);
-        // middleware.registerVault(vaultAddresses.vaultSlashable);
-        // middleware.registerVault(vaultAddresses.vaultVetoed);
-        ecosystemEntities.middleware.registerOperator(operator, OPERATOR_KEY);
-        ecosystemEntities.middleware.registerOperator(operator2, OPERATOR2_KEY);
-        ecosystemEntities.middleware.registerOperator(operator3, OPERATOR3_KEY);
+        // middleware.registerSharedVault(vaultAddresses.vault);
+        // middleware.registerSharedVault(vaultAddresses.vaultSlashable);
+        // middleware.registerSharedVault(vaultAddresses.vaultVetoed);
+        ecosystemEntities.middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        ecosystemEntities.middleware.registerOperator(operator2, abi.encode(OPERATOR2_KEY), address(0));
+        ecosystemEntities.middleware.registerOperator(operator3, abi.encode(OPERATOR3_KEY), address(0));
         vm.stopPrank();
     }
 
@@ -341,15 +344,18 @@ contract MiddlewareTest is Test {
     function testInitialState() public view {
         (, address operatorRegistryAddress,, address vaultFactoryAddress,,,,,) = helperConfig.activeNetworkConfig();
 
-        assertEq(ecosystemEntities.middleware.i_network(), tanssi);
-        assertEq(ecosystemEntities.middleware.i_operatorRegistry(), operatorRegistryAddress);
-        assertEq(ecosystemEntities.middleware.i_vaultRegistry(), vaultFactoryAddress);
-        assertEq(ecosystemEntities.middleware.i_epochDuration(), NETWORK_EPOCH_DURATION);
-        assertEq(ecosystemEntities.middleware.i_slashingWindow(), SLASHING_WINDOW);
-        assertEq(ecosystemEntities.middleware.s_subnetworksCount(), 1);
+        assertEq(BaseMiddlewareReader(address(ecosystemEntities.middleware)).NETWORK(), tanssi);
+        assertEq(
+            BaseMiddlewareReader(address(ecosystemEntities.middleware)).OPERATOR_REGISTRY(), operatorRegistryAddress
+        );
+        assertEq(BaseMiddlewareReader(address(ecosystemEntities.middleware)).VAULT_REGISTRY(), vaultFactoryAddress);
+        assertEq(EpochCapture(address(ecosystemEntities.middleware)).getEpochDuration(), NETWORK_EPOCH_DURATION);
+        assertEq(BaseMiddlewareReader(address(ecosystemEntities.middleware)).SLASHING_WINDOW(), SLASHING_WINDOW);
+        assertEq(BaseMiddlewareReader(address(ecosystemEntities.middleware)).subnetworksLength(), 1);
     }
 
-    function testIfOperatorsAreRegisteredInVaults() public view {
+    function testIfOperatorsAreRegisteredInVaults() public {
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
         uint48 currentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
         Middleware.OperatorVaultPair[] memory operatorVaultPairs =
             ecosystemEntities.middleware.getOperatorVaultPairs(currentEpoch);
@@ -380,6 +386,7 @@ contract MiddlewareTest is Test {
     }
 
     function testOperatorsStakeIsTheSamePerEpoch() public {
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
         uint48 previousEpoch = ecosystemEntities.middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validatorsPreviousEpoch =
             ecosystemEntities.middleware.getValidatorSet(previousEpoch);
@@ -605,7 +612,7 @@ contract MiddlewareTest is Test {
         uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
 
         vm.prank(owner);
-        ecosystemEntities.middleware.pauseVault(vaultAddresses.vaultSlashable);
+        ecosystemEntities.middleware.pauseSharedVault(vaultAddresses.vaultSlashable);
 
         vm.prank(gateway);
         ecosystemEntities.middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
@@ -689,18 +696,24 @@ contract MiddlewareTest is Test {
         _registerOperator(operator4, network2, address(ecosystemEntities.vault));
 
         vm.startPrank(network2);
-        Middleware middleware2 = new Middleware(
+
+        Middleware _middlewareImpl = new Middleware();
+        Middleware middleware2 = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
+        address readHelper = address(new BaseMiddlewareReader());
+        Middleware(address(middleware2)).initialize(
             network2,
             operatorRegistryAddress,
             vaultFactoryAddress,
             operatorNetworkOptInServiceAddress,
             network2,
             NETWORK_EPOCH_DURATION,
-            SLASHING_WINDOW
+            SLASHING_WINDOW,
+            readHelper // reader
         );
+
         INetworkMiddlewareService(networkMiddlewareServiceAddress).setMiddleware(address(middleware2));
-        middleware2.registerVault(address(ecosystemEntities.vault));
-        middleware2.registerOperator(operator4, OPERATOR4_KEY);
+        middleware2.registerSharedVault(address(ecosystemEntities.vault));
+        middleware2.registerOperator(operator4, abi.encode(OPERATOR4_KEY), address(0));
         vm.stopPrank();
 
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);

@@ -35,7 +35,9 @@ contract VaultMock is VaultStorage, MigratableEntity, IVault {
 
     function test() public {}
 
-    function isInitialized() external view returns (bool) {}
+    function isInitialized() external pure returns (bool) {
+        return true;
+    }
 
     function totalStake() external view returns (uint256) {}
 

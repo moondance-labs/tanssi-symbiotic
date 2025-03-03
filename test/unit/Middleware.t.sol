@@ -14,6 +14,7 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity ^0.8.13;
 
+import {console2} from "forge-std/console2.sol";
 import {Test} from "forge-std/Test.sol";
 
 //**************************************************************************************************
@@ -30,11 +31,19 @@ import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {NetworkMiddlewareService} from "@symbiotic/contracts/service/NetworkMiddlewareService.sol";
 import {IRegistry} from "@symbiotic/interfaces/common/IRegistry.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
+import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlewareReader.sol";
+import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
+import {IOzAccessControl} from "@symbiotic-middleware/interfaces/extensions/managers/access/IOzAccessControl.sol";
+import {PauseableEnumerableSet} from "@symbiotic-middleware/libraries/PauseableEnumerableSet.sol";
+import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
+import {OperatorManager} from "@symbiotic-middleware/managers/OperatorManager.sol";
+import {KeyManager256} from "@symbiotic-middleware/extensions/managers/keys/KeyManager256.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 //**************************************************************************************************
 //                                      SNOWBRIDGE
@@ -47,7 +56,6 @@ import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerReward
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
-import {SimpleKeyRegistry32} from "src/contracts/libraries/SimpleKeyRegistry32.sol";
 import {QuickSort} from "src/contracts/libraries/QuickSort.sol";
 
 import {DelegatorMock} from "../mocks/symbiotic/DelegatorMock.sol";
@@ -119,14 +127,19 @@ contract MiddlewareTest is Test {
         vault.setDelegator(address(delegator));
 
         vm.store(address(delegator), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware = new Middleware(
-            address(tanssi),
-            address(registry),
-            address(registry),
-            address(operatorNetworkOptInServiceMock),
-            owner,
-            NETWORK_EPOCH_DURATION,
-            SLASHING_WINDOW
+
+        Middleware middlewareImpl = new Middleware();
+        middleware = Middleware(address(new ERC1967Proxy(address(middlewareImpl), "")));
+        address readHelper = address(new BaseMiddlewareReader());
+        middleware.initialize(
+            tanssi, // network
+            address(registry), // operatorRegistry
+            address(registry), // vaultRegistry
+            address(operatorNetworkOptInServiceMock), // operatorNetOptin
+            owner, // owner
+            NETWORK_EPOCH_DURATION, // epoch duration
+            SLASHING_WINDOW, // slashing window
+            readHelper // reader
         );
         middleware.setGateway(address(gateway));
 
@@ -148,21 +161,25 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
     }
 
-    function testConstructorFailsWithInvalidSlashingWindow() public {
+    function testInitializeFailsWithInvalidSlashingWindow() public {
         uint48 EPOCH_DURATION_ = 100;
         uint48 SHORT_SLASHING_WINDOW_ = 99;
 
         vm.startPrank(owner);
-        vm.expectRevert(IMiddleware.Middleware__SlashingWindowTooShort.selector);
 
-        new Middleware(
-            address(0),
-            address(0),
-            address(0),
-            address(0),
-            owner,
-            EPOCH_DURATION_,
-            SHORT_SLASHING_WINDOW_ // slashing window less than epoch duration
+        address readHelper = address(new BaseMiddlewareReader());
+        Middleware _middleware = new Middleware();
+        Middleware middlewareProxy = Middleware(address(new ERC1967Proxy(address(_middleware), "")));
+        vm.expectRevert(IMiddleware.Middleware__SlashingWindowTooShort.selector);
+        Middleware(address(middlewareProxy)).initialize(
+            tanssi, // network
+            address(registry), // operatorRegistry
+            address(registry), // vaultRegistry
+            address(operatorNetworkOptInServiceMock), // operatorNetOptin
+            owner, // owner
+            EPOCH_DURATION_, // epoch duration
+            SHORT_SLASHING_WINDOW_, // slashing window less than epoch duration
+            readHelper // reader
         );
 
         vm.stopPrank();
@@ -170,15 +187,18 @@ contract MiddlewareTest is Test {
 
     function testGetEpochStartTs() public view {
         // Test first epoch
-        assertEq(middleware.getEpochStartTs(0), START_TIME);
+        assertEq(EpochCapture(address(middleware)).getEpochStart(0), START_TIME);
 
         // Test subsequent epochs
-        assertEq(middleware.getEpochStartTs(1), START_TIME + NETWORK_EPOCH_DURATION);
-        assertEq(middleware.getEpochStartTs(2), START_TIME + 2 * NETWORK_EPOCH_DURATION);
+        assertEq(EpochCapture(address(middleware)).getEpochStart(1), START_TIME + NETWORK_EPOCH_DURATION);
+        assertEq(EpochCapture(address(middleware)).getEpochStart(2), START_TIME + 2 * NETWORK_EPOCH_DURATION);
 
         // Test large epoch number
         uint48 largeEpoch = 1000;
-        assertEq(middleware.getEpochStartTs(largeEpoch), START_TIME + largeEpoch * NETWORK_EPOCH_DURATION);
+        assertEq(
+            EpochCapture(address(middleware)).getEpochStart(largeEpoch),
+            START_TIME + largeEpoch * NETWORK_EPOCH_DURATION
+        );
     }
 
     function testGetEpochAtTs() public view {
@@ -230,12 +250,12 @@ contract MiddlewareTest is Test {
     }
 
     function testInitialState() public view {
-        assertEq(middleware.i_network(), address(tanssi));
-        assertEq(middleware.i_operatorRegistry(), address(registry));
-        assertEq(middleware.i_vaultRegistry(), address(registry));
-        assertEq(middleware.i_epochDuration(), NETWORK_EPOCH_DURATION);
-        assertEq(middleware.i_slashingWindow(), SLASHING_WINDOW);
-        assertEq(middleware.s_subnetworksCount(), 1);
+        assertEq(BaseMiddlewareReader(address(middleware)).NETWORK(), tanssi);
+        assertEq(BaseMiddlewareReader(address(middleware)).OPERATOR_REGISTRY(), address(registry));
+        assertEq(BaseMiddlewareReader(address(middleware)).VAULT_REGISTRY(), address(registry));
+        assertEq(EpochCapture(address(middleware)).getEpochDuration(), NETWORK_EPOCH_DURATION);
+        assertEq(BaseMiddlewareReader(address(middleware)).SLASHING_WINDOW(), SLASHING_WINDOW);
+        assertEq(BaseMiddlewareReader(address(middleware)).subnetworksLength(), 1);
     }
 
     // ************************************************************************************************
@@ -245,8 +265,9 @@ contract MiddlewareTest is Test {
         _registerOperatorToNetwork(operator, address(vault), false, false);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
 
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         // Get validator set for current epoch
         uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validators = middleware.getValidatorSet(currentEpoch);
@@ -257,18 +278,22 @@ contract MiddlewareTest is Test {
     }
 
     function testRegisterOperatorUnauthorized() public {
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
+            )
+        );
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
     }
 
     function testRegisterOperatorAlreadyRegistered() public {
         _registerOperatorToNetwork(operator, address(vault), false, false);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
 
-        vm.expectRevert(IMiddleware.Middleware__OperatorAlreadyRegistred.selector);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        vm.expectRevert(PauseableEnumerableSet.AlreadyRegistered.selector);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vm.stopPrank();
     }
 
@@ -276,8 +301,8 @@ contract MiddlewareTest is Test {
         _registerOperatorToNetwork(operator, address(vault), true, false);
 
         vm.startPrank(owner);
-        vm.expectRevert(IMiddleware.Middleware__NotOperator.selector);
-        middleware.registerOperator(owner, OPERATOR_KEY);
+        vm.expectRevert(OperatorManager.NotOperator.selector);
+        middleware.registerOperator(owner, abi.encode(OPERATOR_KEY), address(0));
         vm.stopPrank();
     }
 
@@ -285,8 +310,8 @@ contract MiddlewareTest is Test {
         _registerOperatorToNetwork(operator, address(vault), false, true);
 
         vm.startPrank(owner);
-        vm.expectRevert(IMiddleware.Middleware__OperatorNotOptedIn.selector);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        vm.expectRevert(OperatorManager.OperatorNotOptedIn.selector);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vm.stopPrank();
     }
 
@@ -297,9 +322,9 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(owner);
 
-        middleware.registerOperator(operator, OPERATOR_KEY);
-        vm.expectRevert(SimpleKeyRegistry32.DuplicateKey.selector);
-        middleware.registerOperator(operator2, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        vm.expectRevert(KeyManager256.DuplicateKey.selector);
+        middleware.registerOperator(operator2, abi.encode(OPERATOR_KEY), address(0));
 
         vm.stopPrank();
     }
@@ -312,11 +337,12 @@ contract MiddlewareTest is Test {
         _registerOperatorToNetwork(operator, address(vault), false, false);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
 
         bytes32 newKey = bytes32(uint256(2));
-        middleware.updateOperatorKey(operator, newKey);
+        middleware.updateOperatorKey(operator, abi.encode(newKey));
 
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         // Get validator set for current epoch
         uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validators = middleware.getValidatorSet(currentEpoch);
@@ -327,15 +353,12 @@ contract MiddlewareTest is Test {
     }
 
     function testUpdateOperatorKeyUnauthorized() public {
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
-        middleware.updateOperatorKey(operator, OPERATOR_KEY);
-    }
-
-    function testUpdateOperatorKeyNotRegistered() public {
-        vm.startPrank(owner);
-        vm.expectRevert(IMiddleware.Middleware__OperatorNotRegistred.selector);
-        middleware.updateOperatorKey(operator, OPERATOR_KEY);
-        vm.stopPrank();
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
+            )
+        );
+        middleware.updateOperatorKey(operator, abi.encode(OPERATOR_KEY));
     }
 
     // ************************************************************************************************
@@ -345,14 +368,18 @@ contract MiddlewareTest is Test {
         _registerOperatorToNetwork(operator, address(vault), false, false);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
 
         middleware.pauseOperator(operator);
         vm.stopPrank();
     }
 
     function testPauseOperatorUnauthorized() public {
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
+            )
+        );
         middleware.pauseOperator(operator);
     }
 
@@ -363,15 +390,21 @@ contract MiddlewareTest is Test {
         _registerOperatorToNetwork(operator, address(vault), false, false);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
 
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         middleware.pauseOperator(operator);
+        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         middleware.unpauseOperator(operator);
         vm.stopPrank();
     }
 
     function testUnpauseOperatorUnauthorized() public {
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
+            )
+        );
         middleware.unpauseOperator(operator);
     }
 
@@ -382,7 +415,7 @@ contract MiddlewareTest is Test {
         _registerOperatorToNetwork(operator, address(vault), false, false);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
 
         middleware.pauseOperator(operator);
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
@@ -397,7 +430,11 @@ contract MiddlewareTest is Test {
     }
 
     function testUnregisterOperatorUnauthorized() public {
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
+            )
+        );
         middleware.unregisterOperator(operator);
     }
 
@@ -405,11 +442,11 @@ contract MiddlewareTest is Test {
         _registerOperatorToNetwork(operator, address(vault), false, false);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
 
         middleware.pauseOperator(operator);
         vm.warp(START_TIME + SLASHING_WINDOW - 1);
-        vm.expectRevert(IMiddleware.Middleware__OperatorGracePeriodNotPassed.selector);
+        vm.expectRevert(PauseableEnumerableSet.ImmutablePeriodNotPassed.selector);
         middleware.unregisterOperator(operator);
         vm.stopPrank();
     }
@@ -424,15 +461,19 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
 
         assertEq(middleware.isVaultRegistered(address(vault)), true);
         vm.stopPrank();
     }
 
     function testRegisterVaultUnauthorized() public {
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
-        middleware.registerVault(address(vault));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
+            )
+        );
+        middleware.registerSharedVault(address(vault));
     }
 
     function testRegisterVaultAlreadyRegistered() public {
@@ -442,17 +483,17 @@ contract MiddlewareTest is Test {
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
 
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
 
-        vm.expectRevert(IMiddleware.Middleware__VaultAlreadyRegistered.selector);
-        middleware.registerVault(address(vault));
+        vm.expectRevert(VaultManager.VaultAlreadyRegistered.selector);
+        middleware.registerSharedVault(address(vault));
         vm.stopPrank();
     }
 
     function testRegisterVaultNotVault() public {
         vm.startPrank(owner);
-        vm.expectRevert(IMiddleware.Middleware__NotVault.selector);
-        middleware.registerVault(owner);
+        vm.expectRevert(VaultManager.NotVault.selector);
+        middleware.registerSharedVault(owner);
         vm.stopPrank();
     }
 
@@ -462,8 +503,8 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         vault.setSlasher(address(vetoSlasher));
         vm.store(address(vetoSlasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        vm.expectRevert(IMiddleware.Middleware__VaultEpochTooShort.selector);
-        middleware.registerVault(address(vault));
+        vm.expectRevert(VaultManager.VaultEpochTooShort.selector);
+        middleware.registerSharedVault(address(vault));
         vm.stopPrank();
     }
 
@@ -473,7 +514,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         vault.setSlasher(address(vetoSlasher));
         vm.store(address(vetoSlasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
 
         assertEq(middleware.isVaultRegistered(address(vault)), true);
         vm.stopPrank();
@@ -489,15 +530,19 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
 
-        middleware.pauseVault(address(vault));
+        middleware.pauseSharedVault(address(vault));
         vm.stopPrank();
     }
 
     function testPauseVaultUnauthorized() public {
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
-        middleware.pauseVault(address(vault));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
+            )
+        );
+        middleware.pauseSharedVault(address(vault));
     }
 
     // ************************************************************************************************
@@ -510,16 +555,22 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
 
-        middleware.pauseVault(address(vault));
-        middleware.unpauseVault(address(vault));
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
+        middleware.pauseSharedVault(address(vault));
+        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        middleware.unpauseSharedVault(address(vault));
         vm.stopPrank();
     }
 
     function testUnpauseVaultUnauthorized() public {
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
-        middleware.unpauseVault(address(vault));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
+            )
+        );
+        middleware.unpauseSharedVault(address(vault));
     }
 
     // ************************************************************************************************
@@ -532,19 +583,23 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
 
-        middleware.pauseVault(address(vault));
+        middleware.pauseSharedVault(address(vault));
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
-        middleware.unregisterVault(address(vault));
+        middleware.unregisterSharedVault(address(vault));
 
         assertEq(middleware.isVaultRegistered(address(vault)), false);
         vm.stopPrank();
     }
 
     function testUnregisterVaultUnauthorized() public {
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
-        middleware.unregisterVault(address(vault));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
+            )
+        );
+        middleware.unregisterSharedVault(address(vault));
     }
 
     function testUnregisterVaultGracePeriodNotPassed() public {
@@ -553,46 +608,13 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
 
-        middleware.pauseVault(address(vault));
+        middleware.pauseSharedVault(address(vault));
         vm.warp(START_TIME + SLASHING_WINDOW - 1);
-        vm.expectRevert(IMiddleware.Middleware__VaultGracePeriodNotPassed.selector);
-        middleware.unregisterVault(address(vault));
+        vm.expectRevert(PauseableEnumerableSet.ImmutablePeriodNotPassed.selector);
+        middleware.unregisterSharedVault(address(vault));
         vm.stopPrank();
-    }
-
-    // ************************************************************************************************
-    // *                                      SET SUBNETWORKS COUNT
-    // ************************************************************************************************
-
-    function testSetSubnetworksCnt() public {
-        vm.startPrank(owner);
-        middleware.setSubnetworksCount(2);
-        assertEq(middleware.s_subnetworksCount(), 2);
-        vm.stopPrank();
-    }
-
-    function testSetSubnetworksCntInvalidIfGreaterThanZero() public {
-        vm.startPrank(owner);
-        middleware.setSubnetworksCount(10);
-        assertEq(middleware.s_subnetworksCount(), 10);
-
-        vm.expectRevert(IMiddleware.Middleware__InvalidSubnetworksCnt.selector);
-        middleware.setSubnetworksCount(8);
-        vm.stopPrank();
-    }
-
-    function testSetSubnetworksCntInvalid() public {
-        vm.startPrank(owner);
-        vm.expectRevert(IMiddleware.Middleware__InvalidSubnetworksCnt.selector);
-        middleware.setSubnetworksCount(0);
-        vm.stopPrank();
-    }
-
-    function testSetSubnetworksCntUnauthorized() public {
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
-        middleware.setSubnetworksCount(2);
     }
 
     // ************************************************************************************************
@@ -604,14 +626,15 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
 
         vm.startPrank(operator);
         vault.deposit(operator, OPERATOR_STAKE);
 
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         uint256 stake = middleware.getOperatorStake(operator, currentEpoch);
 
@@ -624,20 +647,21 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
         vm.startPrank(operator);
         vault.deposit(operator, OPERATOR_STAKE);
 
         vm.startPrank(owner);
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         uint256 stake = middleware.getOperatorStake(operator, currentEpoch);
 
         assertEq(stake, OPERATOR_STAKE);
 
-        vm.warp(START_TIME + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(NETWORK_EPOCH_DURATION * 2 + 2);
         stake = middleware.getOperatorStake(operator, currentEpoch);
         assertEq(stake, OPERATOR_STAKE);
         vm.stopPrank();
@@ -648,7 +672,7 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         uint48 currentEpoch = middleware.getCurrentEpoch();
         uint256 stake = middleware.getOperatorStake(operator, currentEpoch);
 
@@ -665,10 +689,10 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
 
         vm.startPrank(operator);
         vault.deposit(operator, OPERATOR_STAKE);
@@ -691,11 +715,11 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operatorUnregistered, OPERATOR_KEY);
+        middleware.registerOperator(operatorUnregistered, abi.encode(OPERATOR_KEY), address(0));
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
-        middleware.pauseVault(address(vault));
+        middleware.registerSharedVault(address(vault));
+        middleware.pauseSharedVault(address(vault));
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         uint256 stake = middleware.getOperatorStake(operatorUnregistered, currentEpoch);
@@ -712,10 +736,10 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
 
         vm.startPrank(operator);
         vault.deposit(operator, OPERATOR_STAKE);
@@ -734,10 +758,10 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
 
         vm.startPrank(operator);
         vault.deposit(operator, OPERATOR_STAKE);
@@ -759,10 +783,10 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         vm.warp(SLASHING_WINDOW * 2 + 1);
@@ -776,10 +800,10 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         vm.warp(START_TIME + SLASHING_WINDOW - 1);
@@ -793,10 +817,10 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
         middleware.pauseOperator(operator);
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
@@ -813,14 +837,15 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
 
         vm.startPrank(operator);
         vault.deposit(operator, OPERATOR_STAKE);
 
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         vm.startPrank(owner);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validators = middleware.getValidatorSet(currentEpoch);
@@ -836,10 +861,10 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
         middleware.pauseOperator(operator);
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
@@ -854,10 +879,10 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, bytes32(0));
+        middleware.registerOperator(operator, abi.encode(bytes32(0)), address(0));
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validators = middleware.getValidatorSet(currentEpoch);
@@ -875,10 +900,10 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
 
         vm.startPrank(operator);
         vault.deposit(operator, OPERATOR_STAKE);
@@ -922,10 +947,10 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         uint256 totalStakeCached = middleware.calcAndCacheStakes(currentEpoch);
@@ -950,10 +975,10 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
 
         //Creating another vault to have stake on another vault
         VaultMock vault2 = new VaultMock(delegatorFactory, slasherFactory, vaultFactory);
@@ -975,7 +1000,7 @@ contract MiddlewareTest is Test {
         vault2.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault2)))));
 
-        middleware.registerVault(address(vault2));
+        middleware.registerSharedVault(address(vault2));
 
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
@@ -984,7 +1009,7 @@ contract MiddlewareTest is Test {
         vault.deposit(operator, OPERATOR_STAKE);
 
         vm.startPrank(owner);
-        middleware.pauseVault(address(vault));
+        middleware.pauseSharedVault(address(vault));
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
@@ -1006,10 +1031,10 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vault.setSlasher(address(vetoSlasher));
         vm.store(address(vetoSlasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
 
         vm.startPrank(operator);
         vault.deposit(operator, OPERATOR_STAKE);
@@ -1035,10 +1060,11 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vault.setSlasher(address(slasherWithBadType));
         vm.store(address(slasherWithBadType), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
+        vm.expectRevert(VaultManager.UnknownSlasherType.selector);
+        middleware.registerSharedVault(address(vault));
 
         vm.startPrank(operator);
         vault.deposit(operator, OPERATOR_STAKE);
@@ -1050,7 +1076,7 @@ contract MiddlewareTest is Test {
         uint256 slashPercentage = PARTS_PER_BILLION / 2;
 
         vm.startPrank(gateway);
-        vm.expectRevert(IMiddleware.Middleware__UnknownSlasherType.selector);
+        // TODO we should also test this for UnknownSlasherType
         middleware.slash(currentEpoch, OPERATOR_KEY, slashPercentage);
 
         uint256 totalStakeCached = middleware.calcAndCacheStakes(currentEpoch);
@@ -1066,10 +1092,10 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vault.setSlasher(address(vetoSlasher));
         vm.store(address(vetoSlasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
 
         vm.startPrank(operator);
         vault.deposit(operator, OPERATOR_STAKE);
@@ -1091,15 +1117,15 @@ contract MiddlewareTest is Test {
     // *                                      CALC AND CACHE STAKES
     // ************************************************************************************************
 
-    function testCalcAndCacheStakes() public {
+    function testCalcAndCacheStakesx() public {
         _registerOperatorToNetwork(operator, address(vault), false, false);
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
 
         vm.startPrank(operator);
         vault.deposit(operator, OPERATOR_STAKE);
@@ -1118,10 +1144,10 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
 
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
@@ -1136,11 +1162,11 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
 
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         vm.warp(START_TIME + SLASHING_WINDOW - 1);
@@ -1154,11 +1180,11 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
 
-        middleware.registerVault(address(vault));
+        middleware.registerSharedVault(address(vault));
         middleware.pauseOperator(operator);
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
@@ -1172,22 +1198,22 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function testSimpleKeyRegistryHistoricalKeyLookup() public {
-        uint48 timestamp1 = uint48(block.timestamp);
         _registerOperatorToNetwork(operator, address(vault), false, false);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
-        vm.warp(block.timestamp + 1 days);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        uint48 timestamp1 = uint48(block.timestamp);
 
-        assertEq(middleware.getOperatorKeyAt(operator, timestamp1), OPERATOR_KEY);
-        assertEq(middleware.getCurrentOperatorKey(operator), OPERATOR_KEY);
+        assertEq(middleware.getOperatorKeyAt(operator, timestamp1), abi.encode(OPERATOR_KEY));
+        assertEq(middleware.operatorKey(operator), abi.encode(OPERATOR_KEY));
         vm.stopPrank();
     }
 
     function testSimpleKeyRegistryEmptyStates() public view {
-        assertEq(middleware.getCurrentOperatorKey(operator), bytes32(0));
-        assertEq(middleware.getOperatorByKey(OPERATOR_KEY), address(0));
-        assertEq(middleware.getOperatorKeyAt(operator, uint48(block.timestamp) + 10 days), bytes32(0));
+        assertEq(middleware.operatorKey(operator), abi.encode(bytes32(0)));
+        assertEq(middleware.operatorByKey(abi.encode(OPERATOR_KEY)), address(0));
+        assertEq(middleware.getOperatorKeyAt(operator, uint48(block.timestamp) + 10 days), abi.encode(bytes32(0)));
     }
 
     // ************************************************************************************************
@@ -1275,7 +1301,11 @@ contract MiddlewareTest is Test {
     }
 
     function testSetRewardsContractsUnauthorized() public {
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
+            )
+        );
         middleware.setOperatorRewardsContract(address(0));
     }
 
@@ -1293,8 +1323,9 @@ contract MiddlewareTest is Test {
         _registerOperatorToNetwork(operator, address(vault), false, false);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
 
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         // Get validator set for current epoch
         uint48 currentEpoch = middleware.getCurrentEpoch();
         address[] memory operators = middleware.getOperatorsByEpoch(currentEpoch);
@@ -1311,9 +1342,10 @@ contract MiddlewareTest is Test {
         _registerOperatorToNetwork(operator2, address(vault), false, false);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
-        middleware.registerOperator(operator2, OPERATOR2_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        middleware.registerOperator(operator2, abi.encode(OPERATOR2_KEY), address(0));
 
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         // Get validator set for current epoch
         uint48 currentEpoch = middleware.getCurrentEpoch();
         address[] memory operators = middleware.getOperatorsByEpoch(currentEpoch);
@@ -1328,9 +1360,9 @@ contract MiddlewareTest is Test {
         _registerOperatorToNetwork(operator, address(vault), false, false);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         middleware.pauseOperator(operator);
-        vm.warp(NETWORK_EPOCH_DURATION + 1);
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
 
         // Get validator set for current epoch
         uint48 currentEpoch = middleware.getCurrentEpoch();
@@ -1349,8 +1381,9 @@ contract MiddlewareTest is Test {
 
         vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
 
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
         assertEq(keys.length, 1);
     }
@@ -1368,8 +1401,8 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
-        middleware.registerVault(address(vault));
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        middleware.registerSharedVault(address(vault));
 
         middleware.pauseOperator(operator);
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
@@ -1387,8 +1420,8 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
-        middleware.registerVault(address(vault));
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        middleware.registerSharedVault(address(vault));
 
         middleware.pauseOperator(operator);
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
@@ -1417,13 +1450,14 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
-        middleware.registerVault(address(vault));
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        middleware.registerSharedVault(address(vault));
 
         vm.mockCall(
             address(vault), abi.encodeWithSelector(IVault.activeBalanceOf.selector, operator), abi.encode(1 ether)
         );
 
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         IMiddleware.OperatorVaultPair[] memory operatorVaultPairs = middleware.getOperatorVaultPairs(currentEpoch);
 
@@ -1439,8 +1473,8 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
-        middleware.registerVault(address(vault));
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        middleware.registerSharedVault(address(vault));
 
         middleware.pauseOperator(operator);
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
@@ -1458,8 +1492,8 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
-        middleware.registerVault(address(vault));
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        middleware.registerSharedVault(address(vault));
         middleware.pauseOperator(operator);
         vm.warp(NETWORK_EPOCH_DURATION + 1);
 
@@ -1481,16 +1515,17 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
-        middleware.registerVault(address(vault));
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        middleware.registerSharedVault(address(vault));
 
         vm.mockCall(
             address(vault), abi.encodeWithSelector(IVault.activeBalanceOf.selector, operator), abi.encode(1 ether)
         );
 
-        vm.warp(NETWORK_EPOCH_DURATION + 1);
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         uint48 currentEpoch = middleware.getCurrentEpoch();
-        (uint256 vaultIdx, address[] memory vaults) = middleware.getOperatorVaults(operator, currentEpoch);
+        uint48 epochTs = middleware.getEpochStart(currentEpoch);
+        (uint256 vaultIdx, address[] memory vaults) = middleware.getOperatorVaults(operator, epochTs);
 
         assertEq(vaultIdx, 1);
         assertEq(vaults.length, 1);
@@ -1503,17 +1538,18 @@ contract MiddlewareTest is Test {
         _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
-        middleware.registerVault(address(vault));
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        middleware.registerSharedVault(address(vault));
         middleware.pauseOperator(operator);
 
         vm.mockCall(
             address(vault), abi.encodeWithSelector(IVault.activeBalanceOf.selector, operator), abi.encode(1 ether)
         );
 
-        vm.warp(NETWORK_EPOCH_DURATION + 1);
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         uint48 currentEpoch = middleware.getCurrentEpoch();
-        (uint256 vaultIdx, address[] memory vaults) = middleware.getOperatorVaults(operator, currentEpoch);
+        uint48 epochTs = middleware.getEpochStart(currentEpoch);
+        (uint256 vaultIdx, address[] memory vaults) = middleware.getOperatorVaults(operator, epochTs);
 
         assertEq(vaultIdx, 1);
         assertEq(vaults.length, 1);
@@ -1530,17 +1566,17 @@ contract MiddlewareTest is Test {
         );
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
-        middleware.registerVault(address(vault));
-        middleware.pauseVault(address(vault));
-        vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        middleware.registerSharedVault(address(vault));
+        middleware.pauseSharedVault(address(vault));
 
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         uint48 currentEpoch = middleware.getCurrentEpoch();
-        (uint256 vaultIdx, address[] memory vaults) = middleware.getOperatorVaults(operator, currentEpoch);
+        uint48 epochTs = middleware.getEpochStart(currentEpoch);
+        (uint256 vaultIdx, address[] memory vaults) = middleware.getOperatorVaults(operator, epochTs);
 
         assertEq(vaultIdx, 0);
-        assertEq(vaults.length, 1);
-        assertEq(vaults[0], address(0));
+        assertEq(vaults.length, 0);
         vm.stopPrank();
     }
 
@@ -1553,11 +1589,11 @@ contract MiddlewareTest is Test {
         );
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, OPERATOR_KEY);
-        middleware.registerVault(address(vault));
-        middleware.pauseVault(address(vault));
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        middleware.registerSharedVault(address(vault));
+        middleware.pauseSharedVault(address(vault));
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
-        middleware.unregisterVault(address(vault));
+        middleware.unregisterSharedVault(address(vault));
 
         uint48 currentEpoch = middleware.getCurrentEpoch();
         (uint256 vaultIdx, address[] memory vaults) = middleware.getOperatorVaults(operator, currentEpoch);
@@ -1589,7 +1625,11 @@ contract MiddlewareTest is Test {
     }
 
     function testSetStakerRewardContractUnauthorized() public {
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
+            )
+        );
         middleware.setStakerRewardContract(address(0), address(vault));
     }
 
@@ -1630,7 +1670,7 @@ contract MiddlewareTest is Test {
     // *                                        QUICK SORT
     // ************************************************************************************************
 
-    function testQuickSort() public {
+    function testQuickSort() public pure {
         IMiddleware.ValidatorData[] memory validators = new IMiddleware.ValidatorData[](5);
         validators[0] = IMiddleware.ValidatorData(0, bytes32(0));
         validators[1] = IMiddleware.ValidatorData(1, bytes32(uint256(1)));
