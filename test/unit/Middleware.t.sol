@@ -131,7 +131,7 @@ contract MiddlewareTest is Test {
         Middleware middlewareImpl = new Middleware();
         middleware = Middleware(address(new ERC1967Proxy(address(middlewareImpl), "")));
         address readHelper = address(new BaseMiddlewareReader());
-        Middleware(address(middleware)).initialize(
+        middleware.initialize(
             tanssi, // network
             address(registry), // operatorRegistry
             address(registry), // vaultRegistry
