@@ -22,6 +22,12 @@ interface IMiddleware {
      */
     event OperatorRewardContractSet(address indexed operatorRewardsAddress);
 
+    /**
+     * @notice Emitted when staker rewards factory is set
+     * @param stakerRewardsFactory Address of the staker rewards factory
+     */
+    event StakerRewardsFactorySet(address indexed stakerRewardsFactory);
+
     // Errors
     error Middleware__NotOperator();
     error Middleware__NotVault();
@@ -32,6 +38,7 @@ interface IMiddleware {
     error Middleware__OperatorNotRegistred();
     error Middleware__OperatorGracePeriodNotPassed();
     error Middleware__OperatorAlreadyRegistred();
+    error Middleware__VaultCannotHaveADefault();
     error Middleware__VaultAlreadyRegistered();
     error Middleware__VaultEpochTooShort();
     error Middleware__VaultGracePeriodNotPassed();

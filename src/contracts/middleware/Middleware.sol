@@ -41,7 +41,9 @@ import {PauseableEnumerableSet} from "@symbiotic-middleware/libraries/PauseableE
 //                                      SNOWBRIDGE
 //**************************************************************************************************
 import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfaces/IOGateway.sol";
+import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
+import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
 import {IMiddleware} from "../../interfaces/middleware/IMiddleware.sol";
 
 import {QuickSort} from "../libraries/QuickSort.sol";
@@ -66,6 +68,10 @@ contract Middleware is
     //  * @inheritdoc IMiddleware
     //  */
     address public s_operatorRewards;
+
+    address public s_stakerRewardsFactory;
+
+    IODefaultStakerRewards.InitParams public s_stakerRewardsInitParams;
 
     // /**
     //  * @inheritdoc IMiddleware
@@ -171,10 +177,35 @@ contract Middleware is
         emit OperatorRewardContractSet(operatorRewardsAddress);
     }
 
+    /*
+     * @notice Set the staker rewards factory
+     * @param stakerRewardsFactory The address of the staker rewards factory
+     */
+    function setStakerRewardsFactory(
+        address stakerRewardsFactory
+    ) external checkAccess {
+        if (stakerRewardsFactory == address(0)) {
+            revert Middleware__InvalidAddress();
+        }
+        s_stakerRewardsFactory = stakerRewardsFactory;
+
+        emit StakerRewardsFactorySet(stakerRewardsFactory);
+    }
+
+    function setStakerRewardsInitParams(
+        IODefaultStakerRewards.InitParams memory params
+    ) external checkAccess {
+        if (params.vault != address(0)) {
+            revert Middleware__VaultCannotHaveADefault();
+        }
+        s_stakerRewardsInitParams = params;
+    }
+
     // /**
     //  * @inheritdoc IMiddleware
     //  */
     //TODO this will be removed and done automatically when registering a vault first time by creating staker contract from factory and then setting the mapping in operators for vault <=> staker contract
+    // TODO: If we apply the suggested to do there will be now way to later change the staker rewards contract for a vault. Is that a problem?
     function setStakerRewardContract(
         address stakerRewardsAddress,
         address vault
@@ -537,6 +568,25 @@ contract Middleware is
         for (uint256 i; i < operators.length; ++i) {
             uint256 operatorStake = getOperatorStake(operators[i], epoch);
             totalStake += operatorStake;
+        }
+    }
+
+    /**
+     * @inheritdoc SharedVaults
+     */
+    function _beforeRegisterSharedVault(
+        address sharedVault
+    ) internal virtual override {
+        // TODO: Shall we revert if no operator rewards are set? Looks like they should be before registering a shared vault.
+        // TODO: Shall we revert if no staker rewards factory is set? Makes sense to do if we remove the setStakerRewardsFactory function.
+        if (
+            s_operatorRewards != address(0) && s_stakerRewardsFactory != address(0)
+                && IODefaultOperatorRewards(s_operatorRewards).s_vaultToStakerRewardsContract(sharedVault) == address(0)
+        ) {
+            IODefaultStakerRewards.InitParams memory params = s_stakerRewardsInitParams;
+            params.vault = sharedVault;
+            address stakerRewards = IODefaultStakerRewardsFactory(s_stakerRewardsFactory).create(params);
+            IODefaultOperatorRewards(s_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
         }
     }
 }
