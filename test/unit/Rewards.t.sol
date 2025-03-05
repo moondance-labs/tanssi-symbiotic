@@ -123,6 +123,8 @@ contract RewardsTest is Test {
         middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
         address readHelper = address(new BaseMiddlewareReader());
 
+        operatorRewards = new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
+
         IMiddleware.InitParams memory middlewareParams = IMiddleware.InitParams({
             network: tanssi,
             operatorRegistry: address(operatorRegistry),
@@ -133,7 +135,7 @@ contract RewardsTest is Test {
             slashingWindow: SLASHING_WINDOW,
             reader: readHelper,
             operatorRewards: address(operatorRewards),
-            stakerRewardsFactory: address(stakerRewardsFactory)
+            stakerRewardsFactory: makeAddr("stakerRewardsFactory") // TODO Steven: Either deploy or mock
         });
         Middleware(address(middleware)).initialize(middlewareParams);
 
@@ -175,8 +177,6 @@ contract RewardsTest is Test {
         feeToken = new MockFeeToken("Test", 100); //Extreme but it's to test when amount is 0 after a safeTransfer
         feeToken.mint(address(middleware), 1 ether);
         vm.stopPrank();
-
-        operatorRewards = new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
 
         IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
             vault: address(vault),

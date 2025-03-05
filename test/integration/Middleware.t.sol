@@ -876,8 +876,8 @@ contract MiddlewareTest is Test {
         // Operator4 registration and network configuration
         _registerOperator(operator4, network2, address(vault));
         vm.startPrank(network2);
-        // TODO Steven: Deploy operatorRewards and stakerRewardsFactory
-        Middleware middleware2 = _deployMiddlewareWithProxy(network2, network2, address(0), address(0));
+        Middleware middleware2 =
+            _deployMiddlewareWithProxy(network2, network2, address(operatorRewards), address(stakerRewardsFactory));
 
         middleware2.registerSharedVault(address(vault));
         middleware2.registerOperator(operator4, abi.encode(OPERATOR4_KEY), address(0));

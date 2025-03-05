@@ -250,7 +250,8 @@ contract RewardsTest is Test {
 
         operatorRewards = new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), operatorShare);
         // TODO Steven: Either deploy or mock stakerRewardsFactory
-        middleware = _deployMiddlewareWithProxy(tanssi, owner, address(operatorRewards), address(0));
+        middleware =
+            _deployMiddlewareWithProxy(tanssi, owner, address(operatorRewards), makeAddr("stakerRewardsFactory"));
 
         vetoSlasher = VetoSlasher(vaultAddresses.slasherVetoed);
 

@@ -31,6 +31,7 @@ import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {IDefaultCollateralFactory} from
     "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateralFactory.sol";
 import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlewareReader.sol";
+import {VaultFactory} from "@symbiotic/contracts/VaultFactory.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN
@@ -43,6 +44,7 @@ import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {Token} from "test/mocks/Token.sol";
 import {DeployCollateral} from "./DeployCollateral.s.sol";
 import {DeployVault} from "./DeployVault.s.sol";
+import {DeployRewards} from "./DeployRewards.s.sol";
 import {DeploySymbiotic} from "./DeploySymbiotic.s.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
 
@@ -79,6 +81,8 @@ contract DeployTanssiEcosystem is Script {
     TokensAddresses public tokensAddresses;
     EcosystemEntity public ecosystemEntities;
     ContractScripts public contractScripts;
+
+    DeployRewards public deployRewards;
 
     struct ContractScripts {
         DeployCollateral deployCollateral;
@@ -273,6 +277,11 @@ contract DeployTanssiEcosystem is Script {
         deployVaults();
         _setDelegatorConfigs();
 
+        deployRewards = new DeployRewards();
+        (address stakerRewardsFactoryAddress,) = deployRewards.deployStakerRewardsFactoryContract(
+            vaultRegistryAddress, networkMiddlewareServiceAddress, 1 days, NETWORK_EPOCH_DURATION
+        );
+
         ODefaultOperatorRewards operatorRewards =
             new ODefaultOperatorRewards(tanssi, networkMiddlewareServiceAddress, 2000);
 
@@ -286,7 +295,7 @@ contract DeployTanssiEcosystem is Script {
             slashingWindow: SLASHING_WINDOW,
             reader: address(0),
             operatorRewards: address(operatorRewards),
-            stakerRewardsFactory: address(0) // TODO Steven: deploy staker rewards factory
+            stakerRewardsFactory: stakerRewardsFactoryAddress
         });
         ecosystemEntities.middleware = _deployMiddlewareWithProxy(middlewareParams);
         _registerEntitiesToMiddleware();

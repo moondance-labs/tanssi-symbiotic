@@ -44,6 +44,7 @@ import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 
 import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
+import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
 
 contract MiddlewareTest is Test {
@@ -81,8 +82,9 @@ contract MiddlewareTest is Test {
     address public resolver2 = makeAddr("resolver2");
     address public gateway = makeAddr("gateway");
 
-    DeployRewards deployRewards;
-    HelperConfig helperConfig;
+    DeployRewards public deployRewards;
+    ODefaultOperatorRewards public operatorRewards;
+    HelperConfig public helperConfig;
 
     struct VaultAddresses {
         address vault;
@@ -709,7 +711,8 @@ contract MiddlewareTest is Test {
             vaultFactoryAddress, networkMiddlewareServiceAddress, 1 days, NETWORK_EPOCH_DURATION
         );
 
-        address operatorRewards = makeAddr("operatorRewards"); // TODO Steven: Either deploy or mock
+        operatorRewards = new ODefaultOperatorRewards(tanssi, networkMiddlewareServiceAddress, OPERATOR_SHARE);
+
         IMiddleware.InitParams memory params = IMiddleware.InitParams({
             network: network2,
             operatorRegistry: operatorRegistryAddress,
@@ -719,7 +722,7 @@ contract MiddlewareTest is Test {
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
             reader: readHelper,
-            operatorRewards: operatorRewards,
+            operatorRewards: address(operatorRewards),
             stakerRewardsFactory: stakerRewardsFactoryAddress
         });
         Middleware(address(middleware2)).initialize(params);

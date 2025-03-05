@@ -110,14 +110,6 @@ contract Middleware is
         _;
     }
 
-    // TODO Steven: remove this modifier
-    modifier onlyIfOperatorRewardSet() {
-        if (i_operatorRewards == address(0)) {
-            revert Middleware__OperatorRewardsNotSet();
-        }
-        _;
-    }
-
     constructor() {
         _disableInitializers();
     }
@@ -125,9 +117,10 @@ contract Middleware is
     function initialize(
         IMiddleware.InitParams memory params
     ) public initializer {
-        // TODO Steven: enable address 0 check for operatorRewards and stakerRewardsFactory
-        if (params.owner == address(0) || params.reader == address(0)) {
-            //  || params.operatorRewards == address(0) || params.stakerRewardsFactory == address(0)
+        if (
+            params.owner == address(0) || params.reader == address(0) || params.operatorRewards == address(0)
+                || params.stakerRewardsFactory == address(0)
+        ) {
             revert Middleware__InvalidAddress();
         }
         if (params.slashingWindow < params.epochDuration) {
@@ -183,7 +176,7 @@ contract Middleware is
     //  */
     function setOperatorShareOnOperatorRewards(
         uint48 operatorShare
-    ) external checkAccess onlyIfOperatorRewardSet {
+    ) external checkAccess {
         IODefaultOperatorRewards(i_operatorRewards).setOperatorShare(operatorShare);
     }
 
@@ -197,7 +190,7 @@ contract Middleware is
         uint256 tokensInflatedToken,
         bytes32 rewardsRoot,
         address tokenAddress
-    ) external onlyGateway onlyIfOperatorRewardSet {
+    ) external onlyGateway {
         if (IERC20(tokenAddress).balanceOf(address(this)) < tokensInflatedToken) {
             revert Middleware__InsufficientBalance();
         }
@@ -541,12 +534,10 @@ contract Middleware is
      */
     function _beforeRegisterSharedVault(
         address sharedVault
-    ) internal virtual override /*onlyIfOperatorRewardSet*/ {
-        // TODO Steven: operator must exist, use modifier
-        // TODO Steven: Init params will come encoded, so check can be removed
+    ) internal virtual override {
+        // TODO Steven: Init params will come encoded, so check for s_stakerRewardsInitParams.network will change
         if (
-            i_operatorRewards != address(0)
-                && IODefaultOperatorRewards(i_operatorRewards).s_vaultToStakerRewardsContract(sharedVault) == address(0)
+            IODefaultOperatorRewards(i_operatorRewards).s_vaultToStakerRewardsContract(sharedVault) == address(0)
                 && s_stakerRewardsInitParams.network != address(0)
         ) {
             IODefaultStakerRewards.InitParams memory params = s_stakerRewardsInitParams;
