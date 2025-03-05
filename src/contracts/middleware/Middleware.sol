@@ -67,9 +67,9 @@ contract Middleware is
     // /**
     //  * @inheritdoc IMiddleware
     //  */
-    address public s_operatorRewards;
+    address public i_operatorRewards;
 
-    address public s_stakerRewardsFactory;
+    address public i_stakerRewardsFactory;
 
     IODefaultStakerRewards.InitParams public s_stakerRewardsInitParams;
 
@@ -110,8 +110,9 @@ contract Middleware is
         _;
     }
 
+    // TODO Steven: remove this modifier
     modifier onlyIfOperatorRewardSet() {
-        if (s_operatorRewards == address(0)) {
+        if (i_operatorRewards == address(0)) {
             revert Middleware__OperatorRewardsNotSet();
         }
         _;
@@ -122,28 +123,33 @@ contract Middleware is
     }
 
     function initialize(
-        address network,
-        address operatorRegistry,
-        address vaultRegistry,
-        address operatorNetOptin,
-        address owner,
-        uint48 epochDuration,
-        uint48 slashingWindow,
-        address reader
+        IMiddleware.InitParams memory params
     ) public initializer {
-        if (owner == address(0) || reader == address(0)) {
+        // TODO Steven: enable address 0 check for operatorRewards and stakerRewardsFactory
+        if (params.owner == address(0) || params.reader == address(0)) {
+            //  || params.operatorRewards == address(0) || params.stakerRewardsFactory == address(0)
             revert Middleware__InvalidAddress();
         }
-        if (slashingWindow < epochDuration) {
+        if (params.slashingWindow < params.epochDuration) {
             revert Middleware__SlashingWindowTooShort();
         }
 
-        __BaseMiddleware_init(network, slashingWindow, vaultRegistry, operatorRegistry, operatorNetOptin, reader);
-        __OzAccessControl_init(owner);
-        __EpochCapture_init(epochDuration);
+        __BaseMiddleware_init(
+            params.network,
+            params.slashingWindow,
+            params.vaultRegistry,
+            params.operatorRegistry,
+            params.operatorNetOptin,
+            params.reader
+        );
+        __OzAccessControl_init(params.owner);
+        __EpochCapture_init(params.epochDuration);
         __UUPSUpgradeable_init();
 
-        _grantRole(DEFAULT_ADMIN_ROLE, owner);
+        i_operatorRewards = params.operatorRewards;
+        i_stakerRewardsFactory = params.stakerRewardsFactory;
+
+        _grantRole(DEFAULT_ADMIN_ROLE, params.owner);
     }
 
     function _authorizeUpgrade(
@@ -163,35 +169,6 @@ contract Middleware is
         s_gateway = IOGateway(_gateway);
     }
 
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
-    function setOperatorRewardsContract(
-        address operatorRewardsAddress
-    ) external checkAccess {
-        if (operatorRewardsAddress == address(0)) {
-            revert Middleware__InvalidAddress();
-        }
-        s_operatorRewards = operatorRewardsAddress;
-
-        emit OperatorRewardContractSet(operatorRewardsAddress);
-    }
-
-    /*
-     * @notice Set the staker rewards factory
-     * @param stakerRewardsFactory The address of the staker rewards factory
-     */
-    function setStakerRewardsFactory(
-        address stakerRewardsFactory
-    ) external checkAccess {
-        if (stakerRewardsFactory == address(0)) {
-            revert Middleware__InvalidAddress();
-        }
-        s_stakerRewardsFactory = stakerRewardsFactory;
-
-        emit StakerRewardsFactorySet(stakerRewardsFactory);
-    }
-
     function setStakerRewardsInitParams(
         IODefaultStakerRewards.InitParams memory params
     ) external checkAccess {
@@ -204,22 +181,10 @@ contract Middleware is
     // /**
     //  * @inheritdoc IMiddleware
     //  */
-    //TODO this will be removed and done automatically when registering a vault first time by creating staker contract from factory and then setting the mapping in operators for vault <=> staker contract
-    // TODO: If we apply the suggested to do there will be now way to later change the staker rewards contract for a vault. Is that a problem?
-    function setStakerRewardContract(
-        address stakerRewardsAddress,
-        address vault
-    ) external checkAccess onlyIfOperatorRewardSet {
-        IODefaultOperatorRewards(s_operatorRewards).setStakerRewardContract(stakerRewardsAddress, vault);
-    }
-
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
     function setOperatorShareOnOperatorRewards(
         uint48 operatorShare
     ) external checkAccess onlyIfOperatorRewardSet {
-        IODefaultOperatorRewards(s_operatorRewards).setOperatorShare(operatorShare);
+        IODefaultOperatorRewards(i_operatorRewards).setOperatorShare(operatorShare);
     }
 
     // /**
@@ -237,9 +202,9 @@ contract Middleware is
             revert Middleware__InsufficientBalance();
         }
 
-        IERC20(tokenAddress).approve(s_operatorRewards, tokensInflatedToken);
+        IERC20(tokenAddress).approve(i_operatorRewards, tokensInflatedToken);
 
-        IODefaultOperatorRewards(s_operatorRewards).distributeRewards(
+        IODefaultOperatorRewards(i_operatorRewards).distributeRewards(
             uint48(epoch), uint48(eraIndex), tokensInflatedToken, totalPointsToken, rewardsRoot, tokenAddress
         );
     }
@@ -576,17 +541,18 @@ contract Middleware is
      */
     function _beforeRegisterSharedVault(
         address sharedVault
-    ) internal virtual override {
-        // TODO: Shall we revert if no operator rewards are set? Looks like they should be before registering a shared vault.
-        // TODO: Shall we revert if no staker rewards factory is set? Makes sense to do if we remove the setStakerRewardsFactory function.
+    ) internal virtual override /*onlyIfOperatorRewardSet*/ {
+        // TODO Steven: operator must exist, use modifier
+        // TODO Steven: Init params will come encoded, so check can be removed
         if (
-            s_operatorRewards != address(0) && s_stakerRewardsFactory != address(0)
-                && IODefaultOperatorRewards(s_operatorRewards).s_vaultToStakerRewardsContract(sharedVault) == address(0)
+            i_operatorRewards != address(0)
+                && IODefaultOperatorRewards(i_operatorRewards).s_vaultToStakerRewardsContract(sharedVault) == address(0)
+                && s_stakerRewardsInitParams.network != address(0)
         ) {
             IODefaultStakerRewards.InitParams memory params = s_stakerRewardsInitParams;
             params.vault = sharedVault;
-            address stakerRewards = IODefaultStakerRewardsFactory(s_stakerRewardsFactory).create(params);
-            IODefaultOperatorRewards(s_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
+            address stakerRewards = IODefaultStakerRewardsFactory(i_stakerRewardsFactory).create(params);
+            IODefaultOperatorRewards(i_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
         }
     }
 }

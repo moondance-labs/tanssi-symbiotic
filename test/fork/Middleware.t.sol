@@ -40,8 +40,10 @@ import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
+import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 
 import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
+import {DeployRewards} from "script/DeployRewards.s.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
 
 contract MiddlewareTest is Test {
@@ -79,6 +81,7 @@ contract MiddlewareTest is Test {
     address public resolver2 = makeAddr("resolver2");
     address public gateway = makeAddr("gateway");
 
+    DeployRewards deployRewards;
     HelperConfig helperConfig;
 
     struct VaultAddresses {
@@ -125,6 +128,7 @@ contract MiddlewareTest is Test {
     function _deployBaseInfrastructure() private {
         vm.allowCheatcodes(address(0x6B5CF024365D5d5d0786673780CA7E3F07f85B63));
         DeployTanssiEcosystem deployTanssi = new DeployTanssiEcosystem();
+        deployRewards = new DeployRewards();
         helperConfig = new HelperConfig();
         deployTanssi.deployTanssiEcosystem(helperConfig);
 
@@ -700,16 +704,25 @@ contract MiddlewareTest is Test {
         Middleware _middlewareImpl = new Middleware();
         Middleware middleware2 = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
         address readHelper = address(new BaseMiddlewareReader());
-        Middleware(address(middleware2)).initialize(
-            network2,
-            operatorRegistryAddress,
-            vaultFactoryAddress,
-            operatorNetworkOptInServiceAddress,
-            network2,
-            NETWORK_EPOCH_DURATION,
-            SLASHING_WINDOW,
-            readHelper // reader
+
+        (address stakerRewardsFactoryAddress,) = deployRewards.deployStakerRewardsFactoryContract(
+            vaultFactoryAddress, networkMiddlewareServiceAddress, 1 days, NETWORK_EPOCH_DURATION
         );
+
+        address operatorRewards = makeAddr("operatorRewards"); // TODO Steven: Either deploy or mock
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: network2,
+            operatorRegistry: operatorRegistryAddress,
+            vaultRegistry: vaultFactoryAddress,
+            operatorNetOptin: operatorNetworkOptInServiceAddress,
+            owner: network2,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: SLASHING_WINDOW,
+            reader: readHelper,
+            operatorRewards: operatorRewards,
+            stakerRewardsFactory: stakerRewardsFactoryAddress
+        });
+        Middleware(address(middleware2)).initialize(params);
 
         INetworkMiddlewareService(networkMiddlewareServiceAddress).setMiddleware(address(middleware2));
         middleware2.registerSharedVault(address(ecosystemEntities.vault));

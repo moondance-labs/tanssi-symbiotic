@@ -122,16 +122,20 @@ contract RewardsTest is Test {
         Middleware _middlewareImpl = new Middleware();
         middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
         address readHelper = address(new BaseMiddlewareReader());
-        Middleware(address(middleware)).initialize(
-            tanssi,
-            address(operatorRegistry),
-            address(networkRegistry),
-            address(operatorNetworkOptIn),
-            tanssi,
-            NETWORK_EPOCH_DURATION,
-            SLASHING_WINDOW,
-            readHelper
-        );
+
+        IMiddleware.InitParams memory middlewareParams = IMiddleware.InitParams({
+            network: tanssi,
+            operatorRegistry: address(operatorRegistry),
+            vaultRegistry: address(networkRegistry),
+            operatorNetOptin: address(operatorNetworkOptIn),
+            owner: tanssi,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: SLASHING_WINDOW,
+            reader: readHelper,
+            operatorRewards: address(operatorRewards),
+            stakerRewardsFactory: address(stakerRewardsFactory)
+        });
+        Middleware(address(middleware)).initialize(middlewareParams);
 
         delegator = new DelegatorMock(
             address(networkRegistry),

@@ -166,8 +166,6 @@ contract MiddlewareTest is Test {
     address otherNetwork;
     address gateway;
 
-    ODefaultStakerRewardsFactory stakerRewardsFactory;
-
     VaultAddresses public vaultAddresses;
     Vault vault;
     Vault vaultSlashable;
@@ -179,6 +177,8 @@ contract MiddlewareTest is Test {
     // Scripts
     DeployVault deployVault;
     DeployRewards deployRewards;
+    ODefaultOperatorRewards operatorRewards;
+    ODefaultStakerRewardsFactory stakerRewardsFactory;
 
     function setUp() public {
         DeployCollateral deployCollateral = new DeployCollateral();
@@ -227,14 +227,16 @@ contract MiddlewareTest is Test {
 
         _deployVaults(tanssi);
 
-        middleware = _deployMiddlewareWithProxy(tanssi, owner);
-        _createGateway();
-        middleware.setGateway(address(gateway));
-
         (address stakerRewardsFactoryAddress,) = deployRewards.deployStakerRewardsFactoryContract(
             address(vaultFactory), address(networkMiddlewareService), 1 days, NETWORK_EPOCH_DURATION
         );
         stakerRewardsFactory = ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress);
+
+        operatorRewards = new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), 5000);
+
+        middleware = _deployMiddlewareWithProxy(tanssi, owner, address(operatorRewards), stakerRewardsFactoryAddress);
+        _createGateway();
+        middleware.setGateway(address(gateway));
 
         vetoSlasher = VetoSlasher(vaultAddresses.slasherVetoed);
 
@@ -281,20 +283,28 @@ contract MiddlewareTest is Test {
     // *                                        HELPERS
     // ************************************************************************************************
 
-    function _deployMiddlewareWithProxy(address _network, address _owner) public returns (Middleware _middleware) {
+    function _deployMiddlewareWithProxy(
+        address _network,
+        address _owner,
+        address _operatorRewardsAddress,
+        address _stakerRewardsFactoryAddress
+    ) public returns (Middleware _middleware) {
         Middleware _middlewareImpl = new Middleware();
         _middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
         address readHelper = address(new BaseMiddlewareReader());
-        _middleware.initialize(
-            _network, // network
-            address(operatorRegistry), // operatorRegistry
-            address(vaultFactory), // vaultRegistry
-            address(operatorNetworkOptInService), // operatorNetOptin
-            _owner, // owner
-            NETWORK_EPOCH_DURATION, // epoch duration
-            SLASHING_WINDOW, // slashing window
-            readHelper // reader
-        );
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: _network,
+            operatorRegistry: address(operatorRegistry),
+            vaultRegistry: address(vaultFactory),
+            operatorNetOptin: address(operatorNetworkOptInService),
+            owner: _owner,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: SLASHING_WINDOW,
+            reader: readHelper,
+            operatorRewards: _operatorRewardsAddress,
+            stakerRewardsFactory: _stakerRewardsFactoryAddress
+        });
+        _middleware.initialize(params);
 
         networkMiddlewareService.setMiddleware(address(_middleware));
     }
@@ -866,7 +876,8 @@ contract MiddlewareTest is Test {
         // Operator4 registration and network configuration
         _registerOperator(operator4, network2, address(vault));
         vm.startPrank(network2);
-        Middleware middleware2 = _deployMiddlewareWithProxy(network2, network2);
+        // TODO Steven: Deploy operatorRewards and stakerRewardsFactory
+        Middleware middleware2 = _deployMiddlewareWithProxy(network2, network2, address(0), address(0));
 
         middleware2.registerSharedVault(address(vault));
         middleware2.registerOperator(operator4, abi.encode(OPERATOR4_KEY), address(0));
@@ -1196,27 +1207,11 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
     }
 
-    function testWhenStakerRewardsFactoryIsNotSetThenStakerRewardsAreNotDeployed() public {
-        vm.startPrank(owner);
-        // middleware.setStakerRewardsFactory(address(0)); // No need since it is currently set to 0. Also, not possible to set to 0.
-
-        ODefaultOperatorRewards operatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), 5000);
-        middleware.setOperatorRewardsContract(address(operatorRewards));
-        VaultAddresses memory testVaultAddresses = _createTestVault(owner);
-        middleware.registerSharedVault(testVaultAddresses.vault);
-        vm.stopPrank();
-
-        // Check that the staker rewards contract is not deployed:
-        assertEq(operatorRewards.s_vaultToStakerRewardsContract(testVaultAddresses.vault), address(0));
-    }
-
+    // TODO: Change to check it fails registering shared vault if operator rewards is not set
     function testWhenOperatorRewardsIsNotSetThenStakerRewardsAreNotDeployed() public {
         vm.startPrank(owner);
         // middleware.setOperatorRewardsContract(address(0)); // No need since it is currently set to 0. Also, not possible to set to 0.
         VaultAddresses memory testVaultAddresses = _createTestVault(owner);
-        middleware.setStakerRewardsFactory(address(stakerRewardsFactory));
-
         uint256 totalEntities = stakerRewardsFactory.totalEntities();
 
         middleware.registerSharedVault(testVaultAddresses.vault);
@@ -1229,14 +1224,14 @@ contract MiddlewareTest is Test {
     function testWhenOperatorRewardsAndStakerRewardsFactoryAreSetWithVaultMissingStakerRewardsThenStakerRewardsAreDeployed(
     ) public {
         vm.startPrank(owner);
-        ODefaultOperatorRewards operatorRewards = _configureStakerRewardsFactory();
+        _configureStakerRewardsFactory();
         uint256 totalEntities = stakerRewardsFactory.totalEntities();
 
         VaultAddresses memory testVaultAddresses = _createTestVault(owner);
         middleware.registerSharedVault(testVaultAddresses.vault);
         vm.stopPrank();
-        address stakerRewards = operatorRewards.s_vaultToStakerRewardsContract(testVaultAddresses.vault);
 
+        address stakerRewards = operatorRewards.s_vaultToStakerRewardsContract(testVaultAddresses.vault);
         // Check that the staker rewards contract is correctly and added to entities:
         assertEq(stakerRewardsFactory.totalEntities(), totalEntities + 1);
         assertNotEq(stakerRewards, address(0));
@@ -1253,7 +1248,7 @@ contract MiddlewareTest is Test {
 
     function testWhenVaultAlreadyHasStakerRewardsSetThenStakerRewardsAreNotDeployed() public {
         vm.startPrank(owner);
-        ODefaultOperatorRewards operatorRewards = _configureStakerRewardsFactory();
+        _configureStakerRewardsFactory();
 
         VaultAddresses memory testVaultAddresses = _createTestVault(owner);
         address stakerRewards = stakerRewardsFactory.create(
@@ -1268,9 +1263,11 @@ contract MiddlewareTest is Test {
             })
         );
 
-        middleware.setStakerRewardContract(stakerRewards, testVaultAddresses.vault);
-        uint256 totalEntities = stakerRewardsFactory.totalEntities();
+        vm.startPrank(address(middleware));
+        operatorRewards.setStakerRewardContract(stakerRewards, testVaultAddresses.vault);
+        vm.startPrank(owner);
 
+        uint256 totalEntities = stakerRewardsFactory.totalEntities();
         middleware.registerSharedVault(testVaultAddresses.vault);
         vm.stopPrank();
 
@@ -1299,9 +1296,7 @@ contract MiddlewareTest is Test {
         return testVaultAddresses;
     }
 
-    function _configureStakerRewardsFactory() private returns (ODefaultOperatorRewards operatorRewards) {
-        operatorRewards = new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), 5000);
-        middleware.setOperatorRewardsContract(address(operatorRewards));
+    function _configureStakerRewardsFactory() private {
         middleware.setStakerRewardsInitParams(
             IODefaultStakerRewards.InitParams({
                 vault: address(0),
@@ -1313,7 +1308,5 @@ contract MiddlewareTest is Test {
                 network: tanssi
             })
         );
-
-        middleware.setStakerRewardsFactory(address(stakerRewardsFactory));
     }
 }

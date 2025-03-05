@@ -54,9 +54,11 @@ import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRew
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
+import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {QuickSort} from "src/contracts/libraries/QuickSort.sol";
+import {DeployRewards} from "script/DeployRewards.s.sol";
 
 import {DelegatorMock} from "../mocks/symbiotic/DelegatorMock.sol";
 import {OptInServiceMock} from "../mocks/symbiotic/OptInServiceMock.sol";
@@ -98,6 +100,11 @@ contract MiddlewareTest is Test {
     VetoSlasher vetoSlasher;
     Slasher slasherWithBadType;
 
+    // TODO Steven: Could be better to mock these 3
+    DeployRewards deployRewards;
+    ODefaultOperatorRewards operatorRewards;
+    ODefaultStakerRewardsFactory stakerRewardsFactory;
+
     function setUp() public {
         vm.startPrank(owner);
 
@@ -131,16 +138,28 @@ contract MiddlewareTest is Test {
         Middleware middlewareImpl = new Middleware();
         middleware = Middleware(address(new ERC1967Proxy(address(middlewareImpl), "")));
         address readHelper = address(new BaseMiddlewareReader());
-        middleware.initialize(
-            tanssi, // network
-            address(registry), // operatorRegistry
-            address(registry), // vaultRegistry
-            address(operatorNetworkOptInServiceMock), // operatorNetOptin
-            owner, // owner
-            NETWORK_EPOCH_DURATION, // epoch duration
-            SLASHING_WINDOW, // slashing window
-            readHelper // reader
+
+        deployRewards = new DeployRewards();
+        (address stakerRewardsFactoryAddress,) = deployRewards.deployStakerRewardsFactoryContract(
+            address(vaultFactory), address(networkMiddlewareService), 1 days, NETWORK_EPOCH_DURATION
         );
+        stakerRewardsFactory = ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress);
+
+        operatorRewards = new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), 5000);
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: tanssi,
+            operatorRegistry: address(registry),
+            vaultRegistry: address(registry),
+            operatorNetOptin: address(operatorNetworkOptInServiceMock),
+            owner: owner,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: SLASHING_WINDOW,
+            reader: readHelper,
+            operatorRewards: address(operatorRewards),
+            stakerRewardsFactory: stakerRewardsFactoryAddress
+        });
+
+        middleware.initialize(params);
         middleware.setGateway(address(gateway));
 
         vm.startPrank(tanssi);
@@ -171,16 +190,20 @@ contract MiddlewareTest is Test {
         Middleware _middleware = new Middleware();
         Middleware middlewareProxy = Middleware(address(new ERC1967Proxy(address(_middleware), "")));
         vm.expectRevert(IMiddleware.Middleware__SlashingWindowTooShort.selector);
-        Middleware(address(middlewareProxy)).initialize(
-            tanssi, // network
-            address(registry), // operatorRegistry
-            address(registry), // vaultRegistry
-            address(operatorNetworkOptInServiceMock), // operatorNetOptin
-            owner, // owner
-            EPOCH_DURATION_, // epoch duration
-            SHORT_SLASHING_WINDOW_, // slashing window less than epoch duration
-            readHelper // reader
-        );
+
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: tanssi,
+            operatorRegistry: address(registry),
+            vaultRegistry: address(registry),
+            operatorNetOptin: address(operatorNetworkOptInServiceMock),
+            owner: owner,
+            epochDuration: EPOCH_DURATION_,
+            slashingWindow: SHORT_SLASHING_WINDOW_,
+            reader: readHelper,
+            operatorRewards: address(operatorRewards),
+            stakerRewardsFactory: address(stakerRewardsFactory)
+        });
+        Middleware(address(middlewareProxy)).initialize(params);
 
         vm.stopPrank();
     }
@@ -1221,16 +1244,8 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function testDistributeRewards() public {
-        uint48 OPERATOR_SHARE = 2000;
-
         Token token = new Token("Test");
         token.transfer(address(middleware), 1000);
-
-        ODefaultOperatorRewards operatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
-
-        vm.startPrank(owner);
-        middleware.setOperatorRewardsContract(address(operatorRewards));
 
         uint256 epoch = 0;
         uint256 eraIndex = 0;
@@ -1257,8 +1272,6 @@ contract MiddlewareTest is Test {
     }
 
     function testDistributeRewardsWithInsufficientBalance() public {
-        uint48 OPERATOR_SHARE = 2000;
-
         uint256 epoch = 0;
         uint256 eraIndex = 0;
         uint256 totalPointsToken = 100;
@@ -1268,51 +1281,11 @@ contract MiddlewareTest is Test {
         Token token = new Token("Test");
         token.transfer(address(middleware), 800);
 
-        ODefaultOperatorRewards operatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
-
-        vm.startPrank(owner);
-        middleware.setOperatorRewardsContract(address(operatorRewards));
-
         vm.startPrank(gateway);
         vm.expectRevert(IMiddleware.Middleware__InsufficientBalance.selector);
         middleware.distributeRewards(
             epoch, eraIndex, totalPointsToken, tokensInflatedToken, rewardsRoot, address(token)
         );
-    }
-
-    // ************************************************************************************************
-    // *                                  SET REWARDS CONTRACTS
-    // ************************************************************************************************
-
-    function testSetRewardsContracts() public {
-        uint48 OPERATOR_SHARE = 2000;
-
-        ODefaultOperatorRewards operatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
-
-        vm.startPrank(owner);
-        vm.expectEmit(true, true, false, true);
-        emit IMiddleware.OperatorRewardContractSet(address(operatorRewards));
-        middleware.setOperatorRewardsContract(address(operatorRewards));
-
-        assertEq(middleware.s_operatorRewards(), address(operatorRewards));
-        vm.stopPrank();
-    }
-
-    function testSetRewardsContractsUnauthorized() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
-            )
-        );
-        middleware.setOperatorRewardsContract(address(0));
-    }
-
-    function testSetRewardsContractsInvalid() public {
-        vm.prank(owner);
-        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
-        middleware.setOperatorRewardsContract(address(0));
     }
 
     // ************************************************************************************************
@@ -1607,60 +1580,9 @@ contract MiddlewareTest is Test {
     // *                                  SET STAKER REWARD CONTRACT
     // ************************************************************************************************
 
-    function testSetStakerRewardContract() public {
-        uint48 OPERATOR_SHARE = 2000;
-        address stakerRewardAddress = makeAddr("StakerRewardAddress");
-
-        ODefaultOperatorRewards operatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
-
-        vm.startPrank(owner);
-        middleware.setOperatorRewardsContract(address(operatorRewards));
-
-        vm.expectEmit(true, true, false, true);
-        emit IODefaultOperatorRewards.SetStakerRewardContract(stakerRewardAddress, address(vault));
-        middleware.setStakerRewardContract(stakerRewardAddress, address(vault));
-        assertEq(operatorRewards.s_vaultToStakerRewardsContract(address(vault)), stakerRewardAddress);
-        vm.stopPrank();
-    }
-
-    function testSetStakerRewardContractUnauthorized() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
-            )
-        );
-        middleware.setStakerRewardContract(address(0), address(vault));
-    }
-
-    function testSetStakerRewardContractInvalid() public {
-        uint48 OPERATOR_SHARE = 2000;
-
-        ODefaultOperatorRewards operatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
-
-        vm.startPrank(owner);
-        middleware.setOperatorRewardsContract(address(operatorRewards));
-
-        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidAddress.selector);
-        middleware.setStakerRewardContract(address(0), address(vault));
-    }
-
-    function testSetStakerRewardContractButOperatorRewardsNotSet() public {
-        vm.prank(owner);
-        vm.expectRevert(IMiddleware.Middleware__OperatorRewardsNotSet.selector);
-        middleware.setStakerRewardContract(address(0), address(vault));
-    }
-
     function testSetOperatorShareOnOperatorRewards() public {
-        uint48 operatorShare = 2000;
         uint48 newOperatorShare = 3000;
-        ODefaultOperatorRewards _operatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), operatorShare);
-
         vm.startPrank(owner);
-        middleware.setOperatorRewardsContract(address(_operatorRewards));
-
         vm.expectEmit(true, true, false, false);
         emit IODefaultOperatorRewards.SetOperatorShare(newOperatorShare);
         middleware.setOperatorShareOnOperatorRewards(newOperatorShare);

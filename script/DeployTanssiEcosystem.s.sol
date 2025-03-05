@@ -39,6 +39,7 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
+import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {Token} from "test/mocks/Token.sol";
 import {DeployCollateral} from "./DeployCollateral.s.sol";
 import {DeployVault} from "./DeployVault.s.sol";
@@ -260,10 +261,7 @@ contract DeployTanssiEcosystem is Script {
         ecosystemEntities.vaultConfigurator = IVaultConfigurator(vaultConfiguratorAddress);
 
         INetworkRegistry networkRegistry = INetworkRegistry(networkRegistryAddress);
-        IOperatorRegistry operatorRegistry = IOperatorRegistry(operatorRegistryAddress);
         INetworkMiddlewareService networkMiddlewareService = INetworkMiddlewareService(networkMiddlewareServiceAddress);
-        IOptInService operatorNetworkOptInService = IOptInService(operatorNetworkOptInServiceAddress);
-        IOptInService operatorVaultOptInService = IOptInService(operatorVaultOptInServiceAddress);
 
         if (block.chainid == 31_337 || block.chainid == 11_155_111) {
             // Deploy simple ERC20 collateral tokens
@@ -274,31 +272,34 @@ contract DeployTanssiEcosystem is Script {
         }
         deployVaults();
         _setDelegatorConfigs();
-        ecosystemEntities.middleware = _deployMiddlewareWithProxy(
-            tanssi,
-            operatorRegistryAddress,
-            vaultRegistryAddress,
-            operatorNetworkOptInServiceAddress,
-            tanssi,
-            NETWORK_EPOCH_DURATION,
-            SLASHING_WINDOW
-        );
+
+        ODefaultOperatorRewards operatorRewards =
+            new ODefaultOperatorRewards(tanssi, networkMiddlewareServiceAddress, 2000);
+
+        IMiddleware.InitParams memory middlewareParams = IMiddleware.InitParams({
+            network: tanssi,
+            operatorRegistry: operatorRegistryAddress,
+            vaultRegistry: vaultRegistryAddress,
+            operatorNetOptin: operatorNetworkOptInServiceAddress,
+            owner: tanssi,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: SLASHING_WINDOW,
+            reader: address(0),
+            operatorRewards: address(operatorRewards),
+            stakerRewardsFactory: address(0) // TODO Steven: deploy staker rewards factory
+        });
+        ecosystemEntities.middleware = _deployMiddlewareWithProxy(middlewareParams);
         _registerEntitiesToMiddleware();
         networkMiddlewareService.setMiddleware(address(ecosystemEntities.middleware));
 
-        ODefaultOperatorRewards operatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), 2000);
-
-        ecosystemEntities.middleware.setOperatorRewardsContract(address(operatorRewards));
-
         if (!isTest) {
             console2.log("VaultConfigurator: ", address(ecosystemEntities.vaultConfigurator));
-            console2.log("OperatorRegistry: ", address(operatorRegistry));
-            console2.log("NetworkRegistry: ", address(networkRegistry));
-            console2.log("NetworkMiddlewareService: ", address(networkMiddlewareService));
-            console2.log("OperatorNetworkOptInService: ", address(operatorNetworkOptInService));
-            console2.log("OperatorVaultOptInService: ", address(operatorVaultOptInService));
-            console2.log("DefaultCollateralFactory: ", address(defaultCollateralFactory));
+            console2.log("OperatorRegistry: ", operatorRegistryAddress);
+            console2.log("NetworkRegistry: ", networkRegistryAddress);
+            console2.log("NetworkMiddlewareService: ", networkMiddlewareServiceAddress);
+            console2.log("OperatorNetworkOptInService: ", operatorNetworkOptInServiceAddress);
+            console2.log("OperatorVaultOptInService: ", operatorVaultOptInServiceAddress);
+            console2.log("DefaultCollateralFactory: ", defaultCollateralFactoryAddress);
             console2.log("DefaultCollateral: ", ecosystemEntities.defaultCollateralAddress);
             console2.log("Middleware: ", address(ecosystemEntities.middleware));
             console2.log("OperatorRewards: ", address(operatorRewards));
@@ -315,27 +316,14 @@ contract DeployTanssiEcosystem is Script {
     }
 
     function _deployMiddlewareWithProxy(
-        address _network,
-        address _operatorRegistry,
-        address _vaultRegistry,
-        address _operatorNetworkOptInService,
-        address _owner,
-        uint48 _epochDuration,
-        uint48 _slashingWindow
+        IMiddleware.InitParams memory params
     ) private returns (Middleware _middleware) {
         Middleware _middlewareImpl = new Middleware();
         _middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
+
         address readHelper = address(new BaseMiddlewareReader());
-        _middleware.initialize(
-            _network, // network
-            _operatorRegistry, // operatorRegistry
-            _vaultRegistry, // vaultRegistry
-            _operatorNetworkOptInService, // operatorNetworkOptInService
-            _owner, // owner
-            _epochDuration, // epochDuration
-            _slashingWindow, // slashingWindow
-            readHelper // readHelper
-        );
+        params.reader = readHelper;
+        _middleware.initialize(params);
     }
 
     function deployMiddleware(
@@ -345,18 +333,26 @@ contract DeployTanssiEcosystem is Script {
         address operatorNetworkOptInServiceAddress,
         address ownerAddress,
         uint48 epochDuration,
-        uint48 slashingWindow
+        uint48 slashingWindow,
+        address operatorRewardsAddress,
+        address stakerRewardsFactoryAddress
     ) external returns (address) {
         vm.startBroadcast(ownerPrivateKey);
-        ecosystemEntities.middleware = _deployMiddlewareWithProxy(
-            networkAddress,
-            operatorRegistryAddress,
-            vaultRegistryAddress,
-            operatorNetworkOptInServiceAddress,
-            ownerAddress,
-            epochDuration,
-            slashingWindow
-        );
+
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: networkAddress,
+            operatorRegistry: operatorRegistryAddress,
+            vaultRegistry: vaultRegistryAddress,
+            operatorNetOptin: operatorNetworkOptInServiceAddress,
+            owner: ownerAddress,
+            epochDuration: epochDuration,
+            slashingWindow: slashingWindow,
+            reader: address(0),
+            operatorRewards: operatorRewardsAddress,
+            stakerRewardsFactory: stakerRewardsFactoryAddress
+        });
+        ecosystemEntities.middleware = _deployMiddlewareWithProxy(params);
+
         vm.stopBroadcast();
         return address(ecosystemEntities.middleware);
     }
