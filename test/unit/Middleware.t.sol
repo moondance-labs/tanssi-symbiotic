@@ -1862,7 +1862,6 @@ contract MiddlewareTest is Test {
         vm.warp(NETWORK_EPOCH_DURATION + 2);
         bytes memory key = middleware.getOperatorKeyAt(operator, uint48(block.timestamp));
 
-        // Assert key is zero since it's inactive
         assertEq(abi.decode(key, (bytes32)), OPERATOR_KEY);
     }
 
@@ -1870,22 +1869,22 @@ contract MiddlewareTest is Test {
         _registerOperatorToNetwork(operator, address(vault), false, false);
 
         vm.startPrank(owner);
-        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        middleware.registerOperator(operator, abi.encode(PREV_OPERATOR_KEY), address(0));
 
         uint48 activeKeyTimestamp = uint48(block.timestamp + 10);
         vm.warp(activeKeyTimestamp);
 
-        middleware.updateOperatorKey(operator, abi.encode(PREV_OPERATOR_KEY));
+        middleware.updateOperatorKey(operator, abi.encode(OPERATOR_KEY));
         vm.stopPrank();
 
         bytes memory key = middleware.getOperatorKeyAt(operator, activeKeyTimestamp);
 
-        assertEq(abi.decode(key, (bytes32)), OPERATOR_KEY);
+        assertEq(abi.decode(key, (bytes32)), PREV_OPERATOR_KEY);
 
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 2);
 
         key = middleware.getOperatorKeyAt(operator, uint48(block.timestamp));
-        assertEq(abi.decode(key, (bytes32)), PREV_OPERATOR_KEY);
+        assertEq(abi.decode(key, (bytes32)), OPERATOR_KEY);
     }
 
     function testGetOperatorKeyAtWithNoKey() public {
