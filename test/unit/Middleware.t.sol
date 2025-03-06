@@ -1936,11 +1936,11 @@ contract MiddlewareTest is Test {
 
         uint48 activeTimestamp = uint48(block.timestamp);
 
-        vm.warp(block.timestamp + activeTimestamp + 10);
+        vm.warp(vm.getBlockTimestamp() + activeTimestamp + 10);
         middleware.pauseOperator(operator);
 
         // Warp forward and unregister, going after slashing window due to ImmutablePeriod
-        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         middleware.unregisterOperator(operator);
         vm.stopPrank();
 
@@ -1948,9 +1948,10 @@ contract MiddlewareTest is Test {
         assertEq(abi.decode(key, (bytes32)), OPERATOR_KEY);
 
         // Another epoch is passed and the operator is completely unregistered and the key is deactivated
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 2);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 2);
 
-        key = middleware.getOperatorKeyAt(operator, uint48(block.timestamp));
+        //Had to use vm timestamp otherwise the activeTimestamp var put the previous timestamp in the stack and with via-ir this gets cached
+        key = middleware.getOperatorKeyAt(operator, uint48(vm.getBlockTimestamp()));
 
         assertEq(abi.decode(key, (bytes32)), bytes32(0));
     }
