@@ -82,8 +82,6 @@ contract MiddlewareTest is Test {
     address public resolver2 = makeAddr("resolver2");
     address public gateway = makeAddr("gateway");
 
-    DeployRewards public deployRewards;
-    ODefaultOperatorRewards public operatorRewards;
     HelperConfig public helperConfig;
 
     struct VaultAddresses {
@@ -130,7 +128,6 @@ contract MiddlewareTest is Test {
     function _deployBaseInfrastructure() private {
         vm.allowCheatcodes(address(0x6B5CF024365D5d5d0786673780CA7E3F07f85B63));
         DeployTanssiEcosystem deployTanssi = new DeployTanssiEcosystem();
-        deployRewards = new DeployRewards();
         helperConfig = new HelperConfig();
         deployTanssi.deployTanssiEcosystem(helperConfig);
 
@@ -206,7 +203,7 @@ contract MiddlewareTest is Test {
     }
 
     function _handleDeposits() private {
-        (,,,,, address operatorVaultOptInServiceAddress,,,) = helperConfig.activeNetworkConfig();
+        (,,,,, address operatorVaultOptInServiceAddress,,,,) = helperConfig.activeNetworkConfig();
 
         IOptInService operatorVaultOptInService = IOptInService(operatorVaultOptInServiceAddress);
 
@@ -261,6 +258,7 @@ contract MiddlewareTest is Test {
             ,
             address operatorNetworkOptInServiceAddress,
             address operatorVaultOptInServiceAddress,
+            ,
             ,
             ,
         ) = helperConfig.activeNetworkConfig();
@@ -343,12 +341,13 @@ contract MiddlewareTest is Test {
     ) public pure returns (uint256) {
         return sharesCount.mulDiv(stake, totalShares);
     }
+
     // ************************************************************************************************
     // *                                        BASE TESTS
     // ************************************************************************************************
 
     function testInitialState() public view {
-        (, address operatorRegistryAddress,, address vaultFactoryAddress,,,,,) = helperConfig.activeNetworkConfig();
+        (, address operatorRegistryAddress,, address vaultFactoryAddress,,,,,,) = helperConfig.activeNetworkConfig();
 
         assertEq(BaseMiddlewareReader(address(ecosystemEntities.middleware)).NETWORK(), tanssi);
         assertEq(
@@ -679,6 +678,7 @@ contract MiddlewareTest is Test {
             ,
             address networkMiddlewareServiceAddress,
             ,
+            ,
         ) = helperConfig.activeNetworkConfig();
 
         address operator4 = makeAddr("operator4");
@@ -707,11 +707,8 @@ contract MiddlewareTest is Test {
         Middleware middleware2 = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
         address readHelper = address(new BaseMiddlewareReader());
 
-        (address stakerRewardsFactoryAddress,) = deployRewards.deployStakerRewardsFactoryContract(
-            vaultFactoryAddress, networkMiddlewareServiceAddress, 1 days, NETWORK_EPOCH_DURATION
-        );
-
-        operatorRewards = new ODefaultOperatorRewards(tanssi, networkMiddlewareServiceAddress, OPERATOR_SHARE);
+        address stakerRewardsFactoryAddress = makeAddr("stakerRewardsFactory");
+        address operatorRewardsAddress = makeAddr("operatorRewards");
 
         IMiddleware.InitParams memory params = IMiddleware.InitParams({
             network: network2,
@@ -722,7 +719,7 @@ contract MiddlewareTest is Test {
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
             reader: readHelper,
-            operatorRewards: address(operatorRewards),
+            operatorRewards: operatorRewardsAddress,
             stakerRewardsFactory: stakerRewardsFactoryAddress
         });
         Middleware(address(middleware2)).initialize(params);

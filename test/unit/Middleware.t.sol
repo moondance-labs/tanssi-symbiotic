@@ -100,7 +100,6 @@ contract MiddlewareTest is Test {
     VetoSlasher vetoSlasher;
     Slasher slasherWithBadType;
 
-    // TODO Steven: Could be better to mock these 3
     DeployRewards deployRewards;
     ODefaultOperatorRewards operatorRewards;
     ODefaultStakerRewardsFactory stakerRewardsFactory;
@@ -141,11 +140,14 @@ contract MiddlewareTest is Test {
 
         deployRewards = new DeployRewards();
         (address stakerRewardsFactoryAddress,) = deployRewards.deployStakerRewardsFactoryContract(
-            address(vaultFactory), address(networkMiddlewareService), 1 days, NETWORK_EPOCH_DURATION
+            address(vaultFactory), address(networkMiddlewareService), uint48(block.timestamp), NETWORK_EPOCH_DURATION
         );
         stakerRewardsFactory = ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress);
 
-        operatorRewards = new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), 5000);
+        address operatorRewardsAddress =
+            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), 5000);
+        operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
+
         IMiddleware.InitParams memory params = IMiddleware.InitParams({
             network: tanssi,
             operatorRegistry: address(registry),
@@ -155,7 +157,7 @@ contract MiddlewareTest is Test {
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
             reader: readHelper,
-            operatorRewards: address(operatorRewards),
+            operatorRewards: operatorRewardsAddress,
             stakerRewardsFactory: stakerRewardsFactoryAddress
         });
 
@@ -246,7 +248,7 @@ contract MiddlewareTest is Test {
         assertEq(middleware.getCurrentEpoch(), 0);
 
         // Test after some time has passed
-        vm.warp(START_TIME + NETWORK_EPOCH_DURATION * 2 / 3);
+        vm.warp(START_TIME + (NETWORK_EPOCH_DURATION * 2) / 3);
         assertEq(middleware.getCurrentEpoch(), 0);
 
         // Test at exact epoch boundary
@@ -851,6 +853,7 @@ contract MiddlewareTest is Test {
         assertEq(totalStake, 0);
         vm.stopPrank();
     }
+
     // ************************************************************************************************
     // *                                      GET VALIDATOR SET
     // ************************************************************************************************
@@ -978,7 +981,7 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
         uint256 totalStakeCached = middleware.calcAndCacheStakes(currentEpoch);
 
-        uint256 slashPercentage = 3 * PARTS_PER_BILLION / 2;
+        uint256 slashPercentage = (3 * PARTS_PER_BILLION) / 2;
 
         vm.expectRevert(
             abi.encodeWithSelector(

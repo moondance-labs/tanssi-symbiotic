@@ -66,6 +66,9 @@ contract DeployTest is Test {
     address operator2;
     address operator3;
 
+    address operatorRewardsAddress;
+    address stakerRewardsFactoryAddress;
+
     function setUp() public {
         deployCollateral = new DeployCollateral();
         deploySymbiotic = new DeploySymbiotic();
@@ -79,6 +82,9 @@ contract DeployTest is Test {
         operator = deployTanssiEcosystem.operator();
         operator2 = deployTanssiEcosystem.operator2();
         operator3 = deployTanssiEcosystem.operator3();
+
+        operatorRewardsAddress = makeAddr("operatorRewards");
+        stakerRewardsFactoryAddress = makeAddr("stakerRewardsFactory");
     }
 
     function _setIsTest() public {
@@ -208,8 +214,6 @@ contract DeployTest is Test {
         address operatorRegistry = addresses.operatorRegistry;
         address vaultFactory = addresses.vaultFactory;
         address operatorNetworkOptIn = addresses.operatorNetworkOptInService;
-        address operatorRewards = makeAddr("operatorRewards"); // TODO Steven: Either deploy or include in deploySymbiotic addresses
-        address stakerRewardsFactory = makeAddr("stakerRewardsFactory"); // TODO Steven: Either deploy or include in deploySymbiotic addresses
 
         address middleware = deployTanssiEcosystem.deployMiddleware(
             tanssi,
@@ -219,8 +223,9 @@ contract DeployTest is Test {
             tanssi,
             NETWORK_EPOCH_DURATION,
             8 days,
-            operatorRewards,
-            stakerRewardsFactory
+            operatorRewardsAddress,
+            stakerRewardsFactoryAddress,
+            address(0)
         );
         assertNotEq(middleware, ZERO_ADDRESS);
     }
@@ -246,8 +251,6 @@ contract DeployTest is Test {
         address vaultFactory = addresses.vaultFactory;
         address operatorNetworkOptIn = addresses.operatorNetworkOptInService;
         address networkMiddlewareService = addresses.networkMiddlewareService;
-        address operatorRewards = makeAddr("operatorRewards"); // TODO Steven: Either deploy or include in deploySymbiotic addresses
-        address stakerRewardsFactory = makeAddr("stakerRewardsFactory"); // TODO Steven: Either deploy or include in deploySymbiotic addresses
         uint256 ownerPrivateKey =
             vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
         address _tanssi = vm.addr(ownerPrivateKey);
@@ -260,8 +263,9 @@ contract DeployTest is Test {
             _tanssi,
             NETWORK_EPOCH_DURATION,
             9 days,
-            operatorRewards,
-            stakerRewardsFactory
+            operatorRewardsAddress,
+            stakerRewardsFactoryAddress,
+            address(0)
         );
 
         vm.expectEmit(true, true, false, false);
@@ -750,7 +754,7 @@ contract DeployTest is Test {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
 
         (address stakerFactory, address stakerImpl) = deployRewards.deployStakerRewardsFactoryContract(
-            addresses.vaultFactory, addresses.networkMiddlewareService, 1 days, NETWORK_EPOCH_DURATION
+            addresses.vaultFactory, addresses.networkMiddlewareService, uint48(block.timestamp), NETWORK_EPOCH_DURATION
         );
         assertNotEq(stakerFactory, ZERO_ADDRESS);
         assertNotEq(stakerImpl, ZERO_ADDRESS);

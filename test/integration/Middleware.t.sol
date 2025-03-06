@@ -228,13 +228,15 @@ contract MiddlewareTest is Test {
         _deployVaults(tanssi);
 
         (address stakerRewardsFactoryAddress,) = deployRewards.deployStakerRewardsFactoryContract(
-            address(vaultFactory), address(networkMiddlewareService), 1 days, NETWORK_EPOCH_DURATION
+            address(vaultFactory), address(networkMiddlewareService), uint48(block.timestamp), NETWORK_EPOCH_DURATION
         );
         stakerRewardsFactory = ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress);
 
-        operatorRewards = new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), 5000);
+        address operatorRewardsAddress =
+            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), 5000);
+        operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
-        middleware = _deployMiddlewareWithProxy(tanssi, owner, address(operatorRewards), stakerRewardsFactoryAddress);
+        middleware = _deployMiddlewareWithProxy(tanssi, owner, operatorRewardsAddress, stakerRewardsFactoryAddress);
         _createGateway();
         middleware.setGateway(address(gateway));
 

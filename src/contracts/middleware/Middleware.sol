@@ -117,6 +117,7 @@ contract Middleware is
     function initialize(
         IMiddleware.InitParams memory params
     ) public initializer {
+        // TODO Steven: Add tests for operator rewards and staker rewards factory being 0
         if (
             params.owner == address(0) || params.reader == address(0) || params.operatorRewards == address(0)
                 || params.stakerRewardsFactory == address(0)

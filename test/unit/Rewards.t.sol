@@ -60,6 +60,8 @@ import {VaultMock} from "../mocks/symbiotic/VaultMock.sol";
 import {Token} from "../mocks/Token.sol";
 import {MockFeeToken} from "../mocks/FeeToken.sol";
 
+import {DeployRewards} from "script/DeployRewards.s.sol";
+
 contract RewardsTest is Test {
     uint48 public constant NETWORK_EPOCH_DURATION = 6 days;
     uint48 public constant SLASHING_WINDOW = 7 days;
@@ -123,7 +125,10 @@ contract RewardsTest is Test {
         middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
         address readHelper = address(new BaseMiddlewareReader());
 
-        operatorRewards = new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
+        DeployRewards deployRewards = new DeployRewards();
+        address operatorRewardsAddress =
+            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
+        operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
         IMiddleware.InitParams memory middlewareParams = IMiddleware.InitParams({
             network: tanssi,
@@ -135,7 +140,7 @@ contract RewardsTest is Test {
             slashingWindow: SLASHING_WINDOW,
             reader: readHelper,
             operatorRewards: address(operatorRewards),
-            stakerRewardsFactory: makeAddr("stakerRewardsFactory") // TODO Steven: Either deploy or mock
+            stakerRewardsFactory: makeAddr("stakerRewardsFactory") // TODO Steven: This is created later on the setup
         });
         Middleware(address(middleware)).initialize(middlewareParams);
 
@@ -414,7 +419,7 @@ contract RewardsTest is Test {
 
         vm.expectEmit(true, true, false, true);
         emit IODefaultStakerRewards.DistributeRewards(
-            tanssi, address(token), eraIndex, epoch, EXPECTED_CLAIMABLE * 80 / 100, REWARDS_ADDITIONAL_DATA
+            tanssi, address(token), eraIndex, epoch, (EXPECTED_CLAIMABLE * 80) / 100, REWARDS_ADDITIONAL_DATA
         );
         vm.expectEmit(true, true, false, true);
         emit IODefaultOperatorRewards.ClaimRewards(

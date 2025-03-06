@@ -70,6 +70,7 @@ import {Token} from "test/mocks/Token.sol";
 import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
 import {DeployVault} from "script/DeployVault.s.sol";
+import {DeployRewards} from "script/DeployRewards.s.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 
@@ -248,8 +249,10 @@ contract RewardsTest is Test {
 
         _deployVaults(tanssi);
 
-        operatorRewards = new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), operatorShare);
-        // TODO Steven: Either deploy or mock stakerRewardsFactory
+        DeployRewards deployRewards = new DeployRewards();
+        address operatorRewardsAddress =
+            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), operatorShare);
+        operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
         middleware =
             _deployMiddlewareWithProxy(tanssi, owner, address(operatorRewards), makeAddr("stakerRewardsFactory"));
 
