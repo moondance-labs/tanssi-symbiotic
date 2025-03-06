@@ -134,8 +134,6 @@ contract MiddlewareTest is Test {
 
         vm.store(address(delegator), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
 
-        Middleware middlewareImpl = new Middleware();
-        middleware = Middleware(address(new ERC1967Proxy(address(middlewareImpl), "")));
         address readHelper = address(new BaseMiddlewareReader());
 
         deployRewards = new DeployRewards();
@@ -148,20 +146,18 @@ contract MiddlewareTest is Test {
             deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), 5000);
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
-        IMiddleware.InitParams memory params = IMiddleware.InitParams({
-            network: tanssi,
-            operatorRegistry: address(registry),
-            vaultRegistry: address(registry),
-            operatorNetOptin: address(operatorNetworkOptInServiceMock),
-            owner: owner,
-            epochDuration: NETWORK_EPOCH_DURATION,
-            slashingWindow: SLASHING_WINDOW,
-            reader: readHelper,
-            operatorRewards: operatorRewardsAddress,
-            stakerRewardsFactory: stakerRewardsFactoryAddress
-        });
-
-        middleware.initialize(params);
+        Middleware middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        middleware = Middleware(address(new ERC1967Proxy(address(middlewareImpl), "")));
+        middleware.initialize(
+            tanssi,
+            address(registry),
+            address(registry),
+            address(operatorNetworkOptInServiceMock),
+            owner,
+            NETWORK_EPOCH_DURATION,
+            SLASHING_WINDOW,
+            readHelper
+        );
         middleware.setGateway(address(gateway));
 
         vm.startPrank(tanssi);
@@ -189,25 +185,32 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
 
         address readHelper = address(new BaseMiddlewareReader());
-        Middleware _middleware = new Middleware();
+        Middleware _middleware = new Middleware(address(operatorRewards), address(stakerRewardsFactory));
         Middleware middlewareProxy = Middleware(address(new ERC1967Proxy(address(_middleware), "")));
         vm.expectRevert(IMiddleware.Middleware__SlashingWindowTooShort.selector);
 
-        IMiddleware.InitParams memory params = IMiddleware.InitParams({
-            network: tanssi,
-            operatorRegistry: address(registry),
-            vaultRegistry: address(registry),
-            operatorNetOptin: address(operatorNetworkOptInServiceMock),
-            owner: owner,
-            epochDuration: EPOCH_DURATION_,
-            slashingWindow: SHORT_SLASHING_WINDOW_,
-            reader: readHelper,
-            operatorRewards: address(operatorRewards),
-            stakerRewardsFactory: address(stakerRewardsFactory)
-        });
-        Middleware(address(middlewareProxy)).initialize(params);
+        Middleware(address(middlewareProxy)).initialize(
+            tanssi,
+            address(registry),
+            address(registry),
+            address(operatorNetworkOptInServiceMock),
+            owner,
+            EPOCH_DURATION_,
+            SHORT_SLASHING_WINDOW_,
+            readHelper
+        );
 
         vm.stopPrank();
+    }
+
+    function testDeployWithNoOperatorRewards() public {
+        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
+        new Middleware(address(0), address(stakerRewardsFactory));
+    }
+
+    function testDeployWithNoStakerRewardsFactory() public {
+        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
+        new Middleware(address(operatorRewards), address(0));
     }
 
     function testGetEpochStartTs() public view {

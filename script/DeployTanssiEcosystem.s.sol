@@ -292,20 +292,18 @@ contract DeployTanssiEcosystem is Script {
         address operatorRewardsAddress =
             contractScripts.deployRewards.deployOperatorRewardsContract(tanssi, networkMiddlewareServiceAddress, 2000);
 
-        IMiddleware.InitParams memory middlewareParams = IMiddleware.InitParams({
-            network: tanssi,
-            operatorRegistry: operatorRegistryAddress,
-            vaultRegistry: vaultRegistryAddress,
-            operatorNetOptin: operatorNetworkOptInServiceAddress,
-            owner: tanssi,
-            epochDuration: NETWORK_EPOCH_DURATION,
-            slashingWindow: SLASHING_WINDOW,
-            reader: address(0),
-            operatorRewards: address(operatorRewardsAddress),
-            stakerRewardsFactory: stakerRewardsFactoryAddress
-        });
-
-        ecosystemEntities.middleware = _deployMiddlewareWithProxy(middlewareParams);
+        ecosystemEntities.middleware = _deployMiddlewareWithProxy(
+            tanssi,
+            operatorRegistryAddress,
+            vaultRegistryAddress,
+            operatorNetworkOptInServiceAddress,
+            tanssi,
+            NETWORK_EPOCH_DURATION,
+            SLASHING_WINDOW,
+            address(0),
+            operatorRewardsAddress,
+            stakerRewardsFactoryAddress
+        );
         _registerEntitiesToMiddleware();
         networkMiddlewareService.setMiddleware(address(ecosystemEntities.middleware));
 
@@ -332,15 +330,26 @@ contract DeployTanssiEcosystem is Script {
     }
 
     function _deployMiddlewareWithProxy(
-        IMiddleware.InitParams memory params
+        address network,
+        address operatorRegistry,
+        address vaultRegistry,
+        address operatorNetOptin,
+        address owner,
+        uint48 epochDuration,
+        uint48 slashingWindow,
+        address reader,
+        address operatorRewards,
+        address stakerRewardsFactory
     ) private returns (Middleware _middleware) {
-        Middleware _middlewareImpl = new Middleware();
+        Middleware _middlewareImpl = new Middleware(operatorRewards, stakerRewardsFactory);
         _middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
 
-        if (params.reader == address(0)) {
-            params.reader = address(new BaseMiddlewareReader());
+        if (reader == address(0)) {
+            reader = address(new BaseMiddlewareReader());
         }
-        _middleware.initialize(params);
+        _middleware.initialize(
+            network, operatorRegistry, vaultRegistry, operatorNetOptin, owner, epochDuration, slashingWindow, reader
+        );
     }
 
     function deployMiddleware(
@@ -357,19 +366,18 @@ contract DeployTanssiEcosystem is Script {
     ) external returns (address) {
         vm.startBroadcast(ownerPrivateKey);
 
-        IMiddleware.InitParams memory params = IMiddleware.InitParams({
-            network: networkAddress,
-            operatorRegistry: operatorRegistryAddress,
-            vaultRegistry: vaultRegistryAddress,
-            operatorNetOptin: operatorNetworkOptInServiceAddress,
-            owner: ownerAddress,
-            epochDuration: epochDuration,
-            slashingWindow: slashingWindow,
-            reader: readHelperAddress,
-            operatorRewards: operatorRewardsAddress,
-            stakerRewardsFactory: stakerRewardsFactoryAddress
-        });
-        ecosystemEntities.middleware = _deployMiddlewareWithProxy(params);
+        ecosystemEntities.middleware = _deployMiddlewareWithProxy(
+            networkAddress,
+            operatorRegistryAddress,
+            vaultRegistryAddress,
+            operatorNetworkOptInServiceAddress,
+            ownerAddress,
+            epochDuration,
+            slashingWindow,
+            readHelperAddress,
+            operatorRewardsAddress,
+            stakerRewardsFactoryAddress
+        );
 
         vm.stopBroadcast();
         return address(ecosystemEntities.middleware);

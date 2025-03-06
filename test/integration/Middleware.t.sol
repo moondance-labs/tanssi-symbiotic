@@ -291,22 +291,20 @@ contract MiddlewareTest is Test {
         address _operatorRewardsAddress,
         address _stakerRewardsFactoryAddress
     ) public returns (Middleware _middleware) {
-        Middleware _middlewareImpl = new Middleware();
-        _middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
         address readHelper = address(new BaseMiddlewareReader());
-        IMiddleware.InitParams memory params = IMiddleware.InitParams({
-            network: _network,
-            operatorRegistry: address(operatorRegistry),
-            vaultRegistry: address(vaultFactory),
-            operatorNetOptin: address(operatorNetworkOptInService),
-            owner: _owner,
-            epochDuration: NETWORK_EPOCH_DURATION,
-            slashingWindow: SLASHING_WINDOW,
-            reader: readHelper,
-            operatorRewards: _operatorRewardsAddress,
-            stakerRewardsFactory: _stakerRewardsFactoryAddress
-        });
-        _middleware.initialize(params);
+
+        Middleware _middlewareImpl = new Middleware(_operatorRewardsAddress, _stakerRewardsFactoryAddress);
+        _middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
+        _middleware.initialize(
+            _network,
+            address(operatorRegistry),
+            address(vaultFactory),
+            address(operatorNetworkOptInService),
+            _owner,
+            NETWORK_EPOCH_DURATION,
+            SLASHING_WINDOW,
+            readHelper
+        );
 
         networkMiddlewareService.setMiddleware(address(_middleware));
     }
@@ -1226,11 +1224,20 @@ contract MiddlewareTest is Test {
     function testWhenOperatorRewardsAndStakerRewardsFactoryAreSetWithVaultMissingStakerRewardsThenStakerRewardsAreDeployed(
     ) public {
         vm.startPrank(owner);
-        _configureStakerRewardsFactory();
         uint256 totalEntities = stakerRewardsFactory.totalEntities();
 
         VaultAddresses memory testVaultAddresses = _createTestVault(owner);
-        middleware.registerSharedVault(testVaultAddresses.vault);
+        IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
+            vault: address(0),
+            adminFee: 0,
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: tanssi,
+            adminFeeSetRoleHolder: tanssi,
+            operatorRewardsRoleHolder: tanssi,
+            network: tanssi
+        });
+
+        middleware.registerSharedVault(testVaultAddresses.vault, abi.encode(params));
         vm.stopPrank();
 
         address stakerRewards = operatorRewards.s_vaultToStakerRewardsContract(testVaultAddresses.vault);
@@ -1246,36 +1253,6 @@ contract MiddlewareTest is Test {
         assertTrue(stakerRewardsContract.hasRole(stakerRewardsContract.ADMIN_FEE_CLAIM_ROLE(), tanssi));
         assertTrue(stakerRewardsContract.hasRole(stakerRewardsContract.ADMIN_FEE_SET_ROLE(), tanssi));
         assertTrue(stakerRewardsContract.hasRole(stakerRewardsContract.OPERATOR_REWARDS_ROLE(), tanssi));
-    }
-
-    function testWhenVaultAlreadyHasStakerRewardsSetThenStakerRewardsAreNotDeployed() public {
-        vm.startPrank(owner);
-        _configureStakerRewardsFactory();
-
-        VaultAddresses memory testVaultAddresses = _createTestVault(owner);
-        address stakerRewards = stakerRewardsFactory.create(
-            IODefaultStakerRewards.InitParams({
-                vault: testVaultAddresses.vault,
-                adminFee: 0,
-                defaultAdminRoleHolder: tanssi,
-                adminFeeClaimRoleHolder: tanssi,
-                adminFeeSetRoleHolder: tanssi,
-                operatorRewardsRoleHolder: tanssi,
-                network: tanssi
-            })
-        );
-
-        vm.startPrank(address(middleware));
-        operatorRewards.setStakerRewardContract(stakerRewards, testVaultAddresses.vault);
-        vm.startPrank(owner);
-
-        uint256 totalEntities = stakerRewardsFactory.totalEntities();
-        middleware.registerSharedVault(testVaultAddresses.vault);
-        vm.stopPrank();
-
-        // Check that the staker rewards contract is not changed and that no new staker rewards are deployed:
-        assertEq(operatorRewards.s_vaultToStakerRewardsContract(testVaultAddresses.vault), stakerRewards);
-        assertEq(stakerRewardsFactory.totalEntities(), totalEntities);
     }
 
     function _createTestVault(
@@ -1296,19 +1273,5 @@ contract MiddlewareTest is Test {
             deployVault.createBaseVault(params);
 
         return testVaultAddresses;
-    }
-
-    function _configureStakerRewardsFactory() private {
-        middleware.setStakerRewardsInitParams(
-            IODefaultStakerRewards.InitParams({
-                vault: address(0),
-                adminFee: 0,
-                defaultAdminRoleHolder: tanssi,
-                adminFeeClaimRoleHolder: tanssi,
-                adminFeeSetRoleHolder: tanssi,
-                operatorRewardsRoleHolder: tanssi,
-                network: tanssi
-            })
-        );
     }
 }

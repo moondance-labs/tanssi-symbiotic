@@ -67,11 +67,9 @@ contract Middleware is
     // /**
     //  * @inheritdoc IMiddleware
     //  */
-    address public i_operatorRewards;
+    address public immutable i_operatorRewards;
 
-    address public i_stakerRewardsFactory;
-
-    IODefaultStakerRewards.InitParams public s_stakerRewardsInitParams;
+    address public immutable i_stakerRewardsFactory;
 
     // /**
     //  * @inheritdoc IMiddleware
@@ -110,40 +108,56 @@ contract Middleware is
         _;
     }
 
-    constructor() {
+    /*
+     * @notice Constructor for the middleware
+     * @param operatorRewards The operator rewards address
+     * @param stakerRewardsFactory The staker rewards factory address
+     */
+    constructor(address operatorRewards, address stakerRewardsFactory) {
         _disableInitializers();
-    }
 
-    function initialize(
-        IMiddleware.InitParams memory params
-    ) public initializer {
-        // TODO Steven: Add tests for operator rewards and staker rewards factory being 0
-        if (
-            params.owner == address(0) || params.reader == address(0) || params.operatorRewards == address(0)
-                || params.stakerRewardsFactory == address(0)
-        ) {
+        if (operatorRewards == address(0) || stakerRewardsFactory == address(0)) {
             revert Middleware__InvalidAddress();
         }
-        if (params.slashingWindow < params.epochDuration) {
+
+        i_operatorRewards = operatorRewards;
+        i_stakerRewardsFactory = stakerRewardsFactory;
+    }
+
+    /*
+     * @notice Initialize the middleware
+     * @param network The network address
+     * @param operatorRegistry The operator registry address
+     * @param vaultRegistry The vault registry address
+     * @param operatorNetOptin The operator network optin address
+     * @param owner The owner address
+     * @param epochDuration The epoch duration
+     * @param slashingWindow The slashing window
+     * @param reader The reader address
+     */
+    function initialize(
+        address network,
+        address operatorRegistry,
+        address vaultRegistry,
+        address operatorNetOptin,
+        address owner,
+        uint48 epochDuration,
+        uint48 slashingWindow,
+        address reader
+    ) public initializer {
+        if (owner == address(0) || reader == address(0)) {
+            revert Middleware__InvalidAddress();
+        }
+        if (slashingWindow < epochDuration) {
             revert Middleware__SlashingWindowTooShort();
         }
 
-        __BaseMiddleware_init(
-            params.network,
-            params.slashingWindow,
-            params.vaultRegistry,
-            params.operatorRegistry,
-            params.operatorNetOptin,
-            params.reader
-        );
-        __OzAccessControl_init(params.owner);
-        __EpochCapture_init(params.epochDuration);
+        __BaseMiddleware_init(network, slashingWindow, vaultRegistry, operatorRegistry, operatorNetOptin, reader);
+        __OzAccessControl_init(owner);
+        __EpochCapture_init(epochDuration);
         __UUPSUpgradeable_init();
 
-        i_operatorRewards = params.operatorRewards;
-        i_stakerRewardsFactory = params.stakerRewardsFactory;
-
-        _grantRole(DEFAULT_ADMIN_ROLE, params.owner);
+        _grantRole(DEFAULT_ADMIN_ROLE, owner);
     }
 
     function _authorizeUpgrade(
@@ -161,15 +175,6 @@ contract Middleware is
         address _gateway
     ) external checkAccess {
         s_gateway = IOGateway(_gateway);
-    }
-
-    function setStakerRewardsInitParams(
-        IODefaultStakerRewards.InitParams memory params
-    ) external checkAccess {
-        if (params.vault != address(0)) {
-            revert Middleware__VaultCannotHaveADefault();
-        }
-        s_stakerRewardsInitParams = params;
     }
 
     // /**
@@ -533,18 +538,14 @@ contract Middleware is
     /**
      * @inheritdoc SharedVaults
      */
-    function _beforeRegisterSharedVault(
-        address sharedVault
-    ) internal virtual override {
-        // TODO Steven: Init params will come encoded, so check for s_stakerRewardsInitParams.network will change
-        if (
-            IODefaultOperatorRewards(i_operatorRewards).s_vaultToStakerRewardsContract(sharedVault) == address(0)
-                && s_stakerRewardsInitParams.network != address(0)
-        ) {
-            IODefaultStakerRewards.InitParams memory params = s_stakerRewardsInitParams;
-            params.vault = sharedVault;
-            address stakerRewards = IODefaultStakerRewardsFactory(i_stakerRewardsFactory).create(params);
-            IODefaultOperatorRewards(i_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
+    function _beforeRegisterSharedVault(address sharedVault, bytes memory data) internal virtual override {
+        // TODO Steven: Cannot be empty
+        if (data.length == 0) {
+            return;
         }
+        IODefaultStakerRewards.InitParams memory params = abi.decode(data, (IODefaultStakerRewards.InitParams));
+        params.vault = sharedVault;
+        address stakerRewards = IODefaultStakerRewardsFactory(i_stakerRewardsFactory).create(params);
+        IODefaultOperatorRewards(i_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
     }
 }

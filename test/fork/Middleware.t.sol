@@ -703,26 +703,22 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(network2);
 
-        Middleware _middlewareImpl = new Middleware();
+        address stakerRewardsFactoryAddress = makeAddr("stakerRewardsFactory");
+        address operatorRewardsAddress = makeAddr("operatorRewards");
+        Middleware _middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
         Middleware middleware2 = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
         address readHelper = address(new BaseMiddlewareReader());
 
-        address stakerRewardsFactoryAddress = makeAddr("stakerRewardsFactory");
-        address operatorRewardsAddress = makeAddr("operatorRewards");
-
-        IMiddleware.InitParams memory params = IMiddleware.InitParams({
-            network: network2,
-            operatorRegistry: operatorRegistryAddress,
-            vaultRegistry: vaultFactoryAddress,
-            operatorNetOptin: operatorNetworkOptInServiceAddress,
-            owner: network2,
-            epochDuration: NETWORK_EPOCH_DURATION,
-            slashingWindow: SLASHING_WINDOW,
-            reader: readHelper,
-            operatorRewards: operatorRewardsAddress,
-            stakerRewardsFactory: stakerRewardsFactoryAddress
-        });
-        Middleware(address(middleware2)).initialize(params);
+        Middleware(address(middleware2)).initialize(
+            network2,
+            operatorRegistryAddress,
+            vaultFactoryAddress,
+            operatorNetworkOptInServiceAddress,
+            network2,
+            NETWORK_EPOCH_DURATION,
+            SLASHING_WINDOW,
+            readHelper
+        );
 
         INetworkMiddlewareService(networkMiddlewareServiceAddress).setMiddleware(address(middleware2));
         middleware2.registerSharedVault(address(ecosystemEntities.vault));

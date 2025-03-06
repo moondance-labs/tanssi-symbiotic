@@ -15,32 +15,6 @@
 pragma solidity ^0.8.0;
 
 interface IMiddleware {
-    /*
-     * @notice Parameters for the middleware initialization
-     * @param network The network address
-     * @param operatorRegistry The operator registry address
-     * @param vaultRegistry The vault registry address
-     * @param operatorNetOptin The operator network optin address
-     * @param owner The owner address
-     * @param epochDuration The epoch duration
-     * @param slashingWindow The slashing window
-     * @param reader The reader address
-     * @param operatorRewards The operator rewards address
-     * @param stakerRewardsFactory The staker rewards factory address
-     */
-    struct InitParams {
-        address network;
-        address operatorRegistry;
-        address vaultRegistry;
-        address operatorNetOptin;
-        address owner;
-        uint48 epochDuration;
-        uint48 slashingWindow;
-        address reader;
-        address operatorRewards;
-        address stakerRewardsFactory;
-    }
-
     // Events
     /**
      * @notice Emitted when rewards contracts are set
@@ -64,7 +38,6 @@ interface IMiddleware {
     error Middleware__OperatorNotRegistred();
     error Middleware__OperatorGracePeriodNotPassed();
     error Middleware__OperatorAlreadyRegistred();
-    error Middleware__VaultCannotHaveADefault();
     error Middleware__VaultAlreadyRegistered();
     error Middleware__VaultEpochTooShort();
     error Middleware__VaultGracePeriodNotPassed();

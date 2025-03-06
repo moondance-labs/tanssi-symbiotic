@@ -121,8 +121,6 @@ contract RewardsTest is Test {
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorVaultOptInService");
 
         networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
-        Middleware _middlewareImpl = new Middleware();
-        middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
         address readHelper = address(new BaseMiddlewareReader());
 
         DeployRewards deployRewards = new DeployRewards();
@@ -130,19 +128,20 @@ contract RewardsTest is Test {
             deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
-        IMiddleware.InitParams memory middlewareParams = IMiddleware.InitParams({
-            network: tanssi,
-            operatorRegistry: address(operatorRegistry),
-            vaultRegistry: address(networkRegistry),
-            operatorNetOptin: address(operatorNetworkOptIn),
-            owner: tanssi,
-            epochDuration: NETWORK_EPOCH_DURATION,
-            slashingWindow: SLASHING_WINDOW,
-            reader: readHelper,
-            operatorRewards: address(operatorRewards),
-            stakerRewardsFactory: makeAddr("stakerRewardsFactory") // TODO Steven: This is created later on the setup
-        });
-        Middleware(address(middleware)).initialize(middlewareParams);
+        address stakerRewardsFactoryAddress = makeAddr("stakerRewardsFactory"); // TODO Steven: This is created later on the setup, try to use the other one
+
+        Middleware _middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
+        Middleware(address(middleware)).initialize(
+            tanssi,
+            address(operatorRegistry),
+            address(networkRegistry),
+            address(operatorNetworkOptIn),
+            tanssi,
+            NETWORK_EPOCH_DURATION,
+            SLASHING_WINDOW,
+            readHelper
+        );
 
         delegator = new DelegatorMock(
             address(networkRegistry),
