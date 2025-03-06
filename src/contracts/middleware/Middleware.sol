@@ -539,9 +539,8 @@ contract Middleware is
      * @inheritdoc SharedVaults
      */
     function _beforeRegisterSharedVault(address sharedVault, bytes memory data) internal virtual override {
-        // TODO Steven: Cannot be empty
         if (data.length == 0) {
-            return;
+            revert Middleware__StakerRewardsDataNotSet();
         }
         IODefaultStakerRewards.InitParams memory params = abi.decode(data, (IODefaultStakerRewards.InitParams));
         params.vault = sharedVault;

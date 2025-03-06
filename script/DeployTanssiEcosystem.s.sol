@@ -41,6 +41,7 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
+import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {Token} from "test/mocks/Token.sol";
 import {DeployCollateral} from "./DeployCollateral.s.sol";
 import {DeployVault} from "./DeployVault.s.sol";
@@ -222,11 +223,22 @@ contract DeployTanssiEcosystem is Script {
     }
 
     function _registerEntitiesToMiddleware() private {
+        bytes memory stakerRewardsData = abi.encode(
+            IODefaultStakerRewards.InitParams({
+                vault: address(0),
+                adminFee: 0,
+                defaultAdminRoleHolder: tanssi,
+                adminFeeClaimRoleHolder: address(0),
+                adminFeeSetRoleHolder: address(0),
+                operatorRewardsRoleHolder: tanssi,
+                network: tanssi
+            })
+        );
         if (block.chainid == 31_337 || block.chainid == 11_155_111 || isTest) {
-            ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault);
-            ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed);
+            ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsData);
+            ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsData);
         }
-        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultSlashable);
+        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsData);
     }
 
     function _transferTokensToOperators() private {
@@ -304,8 +316,8 @@ contract DeployTanssiEcosystem is Script {
             operatorRewardsAddress,
             stakerRewardsFactoryAddress
         );
-        _registerEntitiesToMiddleware();
         networkMiddlewareService.setMiddleware(address(ecosystemEntities.middleware));
+        _registerEntitiesToMiddleware();
 
         if (!isTest) {
             console2.log("VaultConfigurator: ", address(ecosystemEntities.vaultConfigurator));
@@ -383,10 +395,10 @@ contract DeployTanssiEcosystem is Script {
         return address(ecosystemEntities.middleware);
     }
 
-    function registerSharedVault(address middlewareAddress, address vaultAddress) external {
+    function registerSharedVault(address middlewareAddress, address vaultAddress, bytes memory data) external {
         Middleware middleware = Middleware(middlewareAddress);
         vm.startBroadcast(ownerPrivateKey);
-        middleware.registerSharedVault(vaultAddress);
+        middleware.registerSharedVault(vaultAddress, data);
         vm.stopBroadcast();
     }
 

@@ -66,6 +66,7 @@ import {Gateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Gateway.s
 import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
+import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {Token} from "test/mocks/Token.sol";
 import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
@@ -73,6 +74,7 @@ import {DeployVault} from "script/DeployVault.s.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
+import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
 
 contract RewardsTest is Test {
     using Subnetwork for address;
@@ -253,8 +255,14 @@ contract RewardsTest is Test {
         address operatorRewardsAddress =
             deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), operatorShare);
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
-        middleware =
-            _deployMiddlewareWithProxy(tanssi, owner, address(operatorRewards), makeAddr("stakerRewardsFactory"));
+        address stakerRewardsFactoryAddress = makeAddr("stakerRewardsFactory");
+        middleware = _deployMiddlewareWithProxy(tanssi, owner, address(operatorRewards), stakerRewardsFactoryAddress);
+
+        vm.mockCall(
+            stakerRewardsFactoryAddress,
+            abi.encodeWithSelector(IODefaultStakerRewardsFactory.create.selector),
+            abi.encode(makeAddr("stakerRewards"))
+        );
 
         vetoSlasher = VetoSlasher(vaultAddresses.slasherVetoed);
 
@@ -362,9 +370,20 @@ contract RewardsTest is Test {
         address _owner
     ) public {
         vm.startPrank(_owner);
-        middleware.registerSharedVault(vaultAddresses.vault);
-        middleware.registerSharedVault(vaultAddresses.vaultSlashable);
-        middleware.registerSharedVault(vaultAddresses.vaultVetoed);
+        bytes memory stakerRewardsData = abi.encode(
+            IODefaultStakerRewards.InitParams({
+                vault: address(0),
+                adminFee: 0,
+                defaultAdminRoleHolder: _owner,
+                adminFeeClaimRoleHolder: address(0),
+                adminFeeSetRoleHolder: address(0),
+                operatorRewardsRoleHolder: _owner,
+                network: tanssi
+            })
+        );
+        middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsData);
+        middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsData);
+        middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsData);
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         middleware.registerOperator(operator2, abi.encode(OPERATOR2_KEY), address(0));
         middleware.registerOperator(operator3, abi.encode(OPERATOR3_KEY), address(0));

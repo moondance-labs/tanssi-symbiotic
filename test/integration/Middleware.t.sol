@@ -345,9 +345,20 @@ contract MiddlewareTest is Test {
         address _owner
     ) public {
         vm.startPrank(_owner);
-        middleware.registerSharedVault(vaultAddresses.vault);
-        middleware.registerSharedVault(vaultAddresses.vaultSlashable);
-        middleware.registerSharedVault(vaultAddresses.vaultVetoed);
+        bytes memory stakerRewardsData = abi.encode(
+            IODefaultStakerRewards.InitParams({
+                vault: address(0),
+                adminFee: 0,
+                defaultAdminRoleHolder: tanssi,
+                adminFeeClaimRoleHolder: address(0),
+                adminFeeSetRoleHolder: address(0),
+                operatorRewardsRoleHolder: tanssi,
+                network: tanssi
+            })
+        );
+        middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsData);
+        middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsData);
+        middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsData);
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         middleware.registerOperator(operator2, abi.encode(OPERATOR2_KEY), address(0));
         middleware.registerOperator(operator3, abi.encode(OPERATOR3_KEY), address(0));
@@ -879,7 +890,18 @@ contract MiddlewareTest is Test {
         Middleware middleware2 =
             _deployMiddlewareWithProxy(network2, network2, address(operatorRewards), address(stakerRewardsFactory));
 
-        middleware2.registerSharedVault(address(vault));
+        bytes memory stakerRewardsData = abi.encode(
+            IODefaultStakerRewards.InitParams({
+                vault: address(0),
+                adminFee: 0,
+                defaultAdminRoleHolder: tanssi,
+                adminFeeClaimRoleHolder: address(0),
+                adminFeeSetRoleHolder: address(0),
+                operatorRewardsRoleHolder: tanssi,
+                network: tanssi
+            })
+        );
+        middleware2.registerSharedVault(address(vault), stakerRewardsData);
         middleware2.registerOperator(operator4, abi.encode(OPERATOR4_KEY), address(0));
 
         vm.stopPrank();
@@ -1207,22 +1229,7 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
     }
 
-    // TODO: Change to check it fails registering shared vault if operator rewards is not set
-    function testWhenOperatorRewardsIsNotSetThenStakerRewardsAreNotDeployed() public {
-        vm.startPrank(owner);
-        // middleware.setOperatorRewardsContract(address(0)); // No need since it is currently set to 0. Also, not possible to set to 0.
-        VaultAddresses memory testVaultAddresses = _createTestVault(owner);
-        uint256 totalEntities = stakerRewardsFactory.totalEntities();
-
-        middleware.registerSharedVault(testVaultAddresses.vault);
-        vm.stopPrank();
-
-        // Since there is no operator rewards set, we cannot check stake rewards for vault, but we can check that no staker rewards are deployed:
-        assertEq(stakerRewardsFactory.totalEntities(), totalEntities);
-    }
-
-    function testWhenOperatorRewardsAndStakerRewardsFactoryAreSetWithVaultMissingStakerRewardsThenStakerRewardsAreDeployed(
-    ) public {
+    function testWhenRegisteringVaultThenStakerRewardsAreDeployed() public {
         vm.startPrank(owner);
         uint256 totalEntities = stakerRewardsFactory.totalEntities();
 

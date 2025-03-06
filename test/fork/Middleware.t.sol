@@ -721,7 +721,7 @@ contract MiddlewareTest is Test {
         );
 
         INetworkMiddlewareService(networkMiddlewareServiceAddress).setMiddleware(address(middleware2));
-        middleware2.registerSharedVault(address(ecosystemEntities.vault));
+        middleware2.registerSharedVault(address(ecosystemEntities.vault), "");
         middleware2.registerOperator(operator4, abi.encode(OPERATOR4_KEY), address(0));
         vm.stopPrank();
 

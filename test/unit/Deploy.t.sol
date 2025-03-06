@@ -36,7 +36,7 @@ import {IDefaultCollateralFactory} from
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlewareReader.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
-
+import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {Token} from "test/mocks/Token.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 
@@ -242,7 +242,19 @@ contract DeployTest is Test {
         vm.stopPrank();
 
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
-        deployTanssiEcosystem.registerSharedVault(address(middleware), _vault);
+
+        bytes memory stakerRewardsData = abi.encode(
+            IODefaultStakerRewards.InitParams({
+                vault: _vault,
+                adminFee: 0,
+                defaultAdminRoleHolder: tanssi,
+                adminFeeClaimRoleHolder: address(0),
+                adminFeeSetRoleHolder: address(0),
+                operatorRewardsRoleHolder: tanssi,
+                network: tanssi
+            })
+        );
+        deployTanssiEcosystem.registerSharedVault(address(middleware), _vault, stakerRewardsData);
     }
 
     function testDeployRegisterMiddlewareToSymbiotic() public {
