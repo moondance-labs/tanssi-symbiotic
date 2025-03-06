@@ -16,22 +16,23 @@ pragma solidity 0.8.25;
 
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-
-contract MiddlewareV3 is UUPSUpgradeable{
+contract MiddlewareV3 is UUPSUpgradeable {
     uint256 public constant VERSION = 3;
 
     address public immutable i_operatorRewards;
 
     error MiddlewareV3__UpgradeNotAuthorized();
 
-    constructor(address operatorRewardsAddress) {
+    constructor(
+        address operatorRewardsAddress
+    ) {
         _disableInitializers();
         i_operatorRewards = operatorRewardsAddress;
     }
 
     function _authorizeUpgrade(
-        address newImplementation
-    ) internal override {
+        address /*newImplementation*/
+    ) internal pure override {
         revert MiddlewareV3__UpgradeNotAuthorized();
     }
 }
