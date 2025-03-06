@@ -83,6 +83,7 @@ import {DeployRewards} from "script/DeployRewards.s.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
+import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 
 contract MiddlewareTest is Test {
@@ -886,20 +887,29 @@ contract MiddlewareTest is Test {
 
         // Operator4 registration and network configuration
         _registerOperator(operator4, network2, address(vault));
+
+        address operatorRewardsAddress2 =
+            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), 5000);
+
         vm.startPrank(network2);
         Middleware middleware2 =
-            _deployMiddlewareWithProxy(network2, network2, address(operatorRewards), address(stakerRewardsFactory));
+            _deployMiddlewareWithProxy(network2, network2, operatorRewardsAddress2, address(stakerRewardsFactory));
 
         bytes memory stakerRewardsData = abi.encode(
             IODefaultStakerRewards.InitParams({
                 vault: address(0),
                 adminFee: 0,
-                defaultAdminRoleHolder: tanssi,
+                defaultAdminRoleHolder: network2,
                 adminFeeClaimRoleHolder: address(0),
                 adminFeeSetRoleHolder: address(0),
-                operatorRewardsRoleHolder: tanssi,
-                network: tanssi
+                operatorRewardsRoleHolder: network2,
+                network: network2
             })
+        );
+        vm.mockCall(
+            address(operatorRewardsAddress2),
+            abi.encodeWithSelector(IODefaultOperatorRewards.setStakerRewardContract.selector),
+            abi.encode(address(0))
         );
         middleware2.registerSharedVault(address(vault), stakerRewardsData);
         middleware2.registerOperator(operator4, abi.encode(OPERATOR4_KEY), address(0));
