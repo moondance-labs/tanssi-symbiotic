@@ -93,7 +93,7 @@ contract RewardsTest is Test {
     bytes32 public constant OPERATOR_KEY = bytes32(uint256(1));
     bytes32 public constant OPERATOR2_KEY = bytes32(uint256(2));
     bytes32 public constant OPERATOR3_KEY = bytes32(uint256(3));
-    uint256 public constant OPERATOR_SHARE = 1;
+    uint48 public constant OPERATOR_SHARE = 2000;
     uint256 public constant TOTAL_NETWORK_SHARES = 3;
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
     uint256 public constant ONE_DAY = 86_400;
@@ -133,7 +133,6 @@ contract RewardsTest is Test {
     OptInService public operatorVaultOptInService;
     OptInService public operatorNetworkOptInService;
     ODefaultOperatorRewards public operatorRewards;
-    uint48 public operatorShare = 2000;
 
     MetadataService public operatorMetadataService;
     MetadataService public networkMetadataService;
@@ -253,16 +252,12 @@ contract RewardsTest is Test {
 
         DeployRewards deployRewards = new DeployRewards();
         address operatorRewardsAddress =
-            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), operatorShare);
+            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
-        address stakerRewardsFactoryAddress = makeAddr("stakerRewardsFactory");
-        middleware = _deployMiddlewareWithProxy(tanssi, owner, address(operatorRewards), stakerRewardsFactoryAddress);
-
-        vm.mockCall(
-            stakerRewardsFactoryAddress,
-            abi.encodeWithSelector(IODefaultStakerRewardsFactory.create.selector),
-            abi.encode(makeAddr("stakerRewards"))
+        (address stakerRewardsFactoryAddress,) = deployRewards.deployStakerRewardsFactoryContract(
+            address(vaultFactory), address(networkMiddlewareService), uint48(block.timestamp), NETWORK_EPOCH_DURATION
         );
+        middleware = _deployMiddlewareWithProxy(tanssi, owner, address(operatorRewards), stakerRewardsFactoryAddress);
 
         vetoSlasher = VetoSlasher(vaultAddresses.slasherVetoed);
 

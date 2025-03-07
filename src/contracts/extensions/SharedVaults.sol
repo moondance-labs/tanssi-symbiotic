@@ -2,7 +2,7 @@
 pragma solidity ^0.8.25;
 
 import {BaseMiddleware} from "@symbiotic-middleware/middleware/BaseMiddleware.sol";
-import {ISharedVaults} from "../../interfaces/extensions/ISharedVaults.sol";
+import {ISharedVaults} from "src/interfaces/extensions/ISharedVaults.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 
 /**

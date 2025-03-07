@@ -164,6 +164,18 @@ contract Middleware is
         address newImplementation
     ) internal override checkAccess {}
 
+    /**
+     * @inheritdoc SharedVaults
+     */
+    function _beforeRegisterSharedVault(
+        address sharedVault,
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams
+    ) internal virtual override {
+        stakerRewardsParams.vault = sharedVault;
+        address stakerRewards = IODefaultStakerRewardsFactory(i_stakerRewardsFactory).create(stakerRewardsParams);
+        IODefaultOperatorRewards(i_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
+    }
+
     function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
         return stake;
     }
@@ -533,17 +545,5 @@ contract Middleware is
             uint256 operatorStake = getOperatorStake(operators[i], epoch);
             totalStake += operatorStake;
         }
-    }
-
-    /**
-     * @inheritdoc SharedVaults
-     */
-    function _beforeRegisterSharedVault(
-        address sharedVault,
-        IODefaultStakerRewards.InitParams memory stakerRewardsParams
-    ) internal virtual override {
-        stakerRewardsParams.vault = sharedVault;
-        address stakerRewards = IODefaultStakerRewardsFactory(i_stakerRewardsFactory).create(stakerRewardsParams);
-        IODefaultOperatorRewards(i_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
     }
 }
