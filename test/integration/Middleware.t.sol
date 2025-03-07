@@ -350,8 +350,8 @@ contract MiddlewareTest is Test {
             vault: address(0),
             adminFee: 0,
             defaultAdminRoleHolder: tanssi,
-            adminFeeClaimRoleHolder: address(0),
-            adminFeeSetRoleHolder: address(0),
+            adminFeeClaimRoleHolder: tanssi,
+            adminFeeSetRoleHolder: tanssi,
             operatorRewardsRoleHolder: tanssi,
             network: tanssi
         });
@@ -896,8 +896,8 @@ contract MiddlewareTest is Test {
             vault: address(0),
             adminFee: 0,
             defaultAdminRoleHolder: network2,
-            adminFeeClaimRoleHolder: address(0),
-            adminFeeSetRoleHolder: address(0),
+            adminFeeClaimRoleHolder: network2,
+            adminFeeSetRoleHolder: network2,
             operatorRewardsRoleHolder: network2,
             network: network2
         });
