@@ -63,6 +63,8 @@ contract Middleware is
     using Subnetwork for address;
     using Math for uint256;
 
+    uint256 public constant VERSION = 1;
+
     //TODO Move the following to Middleware Storage
     // /**
     //  * @inheritdoc IMiddleware
@@ -176,6 +178,7 @@ contract Middleware is
         IODefaultOperatorRewards(i_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
     }
 
+    // TODO: this should probably take into account underlying asset price and return a power which could be either the total value of the stake in usd or a value that makes sense for us
     function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
         return stake;
     }
@@ -347,6 +350,12 @@ contract Middleware is
         }
     }
 
+    function _beforeUnregisterOperator(
+        address operator
+    ) internal override {
+        _updateKey(operator, abi.encode(bytes32(0)));
+    }
+
     // **************************************************************************************************
     //                                      VIEW FUNCTIONS
     // **************************************************************************************************
@@ -469,6 +478,7 @@ contract Middleware is
      * @param operator The operator address to lookup
      * @return The operator's active key encoded as bytes, or encoded zero bytes if none
      */
+    // TODO use this function where it's needed
     function getOperatorKeyAt(address operator, uint48 timestamp) public view returns (bytes memory) {
         KeyManager256Storage storage $ = _getKeyManager256Storage();
         bytes32 key = $._key[operator];
