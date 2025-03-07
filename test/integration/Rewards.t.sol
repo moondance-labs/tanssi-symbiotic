@@ -65,12 +65,16 @@ import {Gateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Gateway.s
 
 import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
+import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
+import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {Token} from "test/mocks/Token.sol";
 import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
 import {DeployVault} from "script/DeployVault.s.sol";
+import {DeployRewards} from "script/DeployRewards.s.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
+import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
 
 contract RewardsTest is Test {
     using Subnetwork for address;
@@ -89,7 +93,7 @@ contract RewardsTest is Test {
     bytes32 public constant OPERATOR_KEY = bytes32(uint256(1));
     bytes32 public constant OPERATOR2_KEY = bytes32(uint256(2));
     bytes32 public constant OPERATOR3_KEY = bytes32(uint256(3));
-    uint256 public constant OPERATOR_SHARE = 1;
+    uint48 public constant OPERATOR_SHARE = 2000;
     uint256 public constant TOTAL_NETWORK_SHARES = 3;
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
     uint256 public constant ONE_DAY = 86_400;
@@ -128,6 +132,7 @@ contract RewardsTest is Test {
     NetworkRegistry public networkRegistry;
     OptInService public operatorVaultOptInService;
     OptInService public operatorNetworkOptInService;
+    ODefaultOperatorRewards public operatorRewards;
 
     MetadataService public operatorMetadataService;
     MetadataService public networkMetadataService;
@@ -245,7 +250,14 @@ contract RewardsTest is Test {
 
         _deployVaults(tanssi);
 
-        middleware = _deployMiddlewareWithProxy(tanssi, owner);
+        DeployRewards deployRewards = new DeployRewards();
+        address operatorRewardsAddress =
+            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
+        operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
+        (address stakerRewardsFactoryAddress,) = deployRewards.deployStakerRewardsFactoryContract(
+            address(vaultFactory), address(networkMiddlewareService), uint48(block.timestamp), NETWORK_EPOCH_DURATION
+        );
+        middleware = _deployMiddlewareWithProxy(tanssi, owner, address(operatorRewards), stakerRewardsFactoryAddress);
 
         vetoSlasher = VetoSlasher(vaultAddresses.slasherVetoed);
 
@@ -296,19 +308,23 @@ contract RewardsTest is Test {
     // *                                        HELPERS
     // ************************************************************************************************
 
-    function _deployMiddlewareWithProxy(address _network, address _owner) public returns (Middleware _middleware) {
-        Middleware _middlewareImpl = new Middleware();
+    function _deployMiddlewareWithProxy(
+        address _network,
+        address _owner,
+        address _operatorRewardsAddress,
+        address _stakerRewardsFactoryAddress
+    ) public returns (Middleware _middleware) {
+        Middleware _middlewareImpl = new Middleware(_operatorRewardsAddress, _stakerRewardsFactoryAddress);
         _middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
-        address readHelper = address(new BaseMiddlewareReader());
         _middleware.initialize(
-            _network, // network
-            address(operatorRegistry), // operatorRegistry
-            address(vaultFactory), // vaultRegistry
-            address(operatorNetworkOptInService), // operatorNetOptin
-            _owner, // owner
-            NETWORK_EPOCH_DURATION, // epoch duration
-            SLASHING_WINDOW, // slashing window
-            readHelper // reader
+            _network,
+            address(operatorRegistry),
+            address(vaultFactory),
+            address(operatorNetworkOptInService),
+            _owner,
+            NETWORK_EPOCH_DURATION,
+            SLASHING_WINDOW,
+            address(new BaseMiddlewareReader())
         );
 
         networkMiddlewareService.setMiddleware(address(_middleware));
@@ -349,9 +365,18 @@ contract RewardsTest is Test {
         address _owner
     ) public {
         vm.startPrank(_owner);
-        middleware.registerSharedVault(vaultAddresses.vault);
-        middleware.registerSharedVault(vaultAddresses.vaultSlashable);
-        middleware.registerSharedVault(vaultAddresses.vaultVetoed);
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            vault: address(0),
+            adminFee: 0,
+            defaultAdminRoleHolder: _owner,
+            adminFeeClaimRoleHolder: address(0),
+            adminFeeSetRoleHolder: address(0),
+            operatorRewardsRoleHolder: _owner,
+            network: tanssi
+        });
+        middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
+        middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsParams);
+        middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsParams);
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         middleware.registerOperator(operator2, abi.encode(OPERATOR2_KEY), address(0));
         middleware.registerOperator(operator3, abi.encode(OPERATOR3_KEY), address(0));
@@ -503,7 +528,6 @@ contract RewardsTest is Test {
     function testSubmitRewards() public {
         vm.warp(64_000);
 
-        uint48 operatorShare = 2000;
         deal(assetHubAgent, 50 ether);
 
         uint256 amount = 1.2 ether;
@@ -511,13 +535,6 @@ contract RewardsTest is Test {
 
         (uint256 epoch, uint256 eraIndex,,,,) =
             abi.decode(params, (uint256, uint256, uint256, uint256, bytes32, bytes32));
-
-        ODefaultOperatorRewards operatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), operatorShare);
-
-        vm.startPrank(owner);
-        middleware.setOperatorRewardsContract(address(operatorRewards));
-        vm.stopPrank();
 
         vm.expectEmit(false, true, true, true);
         emit IODefaultOperatorRewards.DistributeRewards(
@@ -539,18 +556,10 @@ contract RewardsTest is Test {
     }
 
     function testSubmitRewardsWithBogusToken() public {
-        uint48 operatorShare = 2000;
         deal(assetHubAgent, 50 ether);
 
         uint256 amount = 1.2 ether;
         (Command command, bytes memory params, address tokenAddress) = _makeReportRewardsCommand(amount);
-
-        ODefaultOperatorRewards operatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), operatorShare);
-
-        vm.startPrank(owner);
-        middleware.setOperatorRewardsContract(address(operatorRewards));
-        vm.stopPrank();
 
         // Expect the gateway to emit error event.
         vm.expectEmit(true, true, true, false);

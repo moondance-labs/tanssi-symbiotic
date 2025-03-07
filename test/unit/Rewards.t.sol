@@ -60,6 +60,8 @@ import {VaultMock} from "../mocks/symbiotic/VaultMock.sol";
 import {Token} from "../mocks/Token.sol";
 import {MockFeeToken} from "../mocks/FeeToken.sol";
 
+import {DeployRewards} from "script/DeployRewards.s.sol";
+
 contract RewardsTest is Test {
     uint48 public constant NETWORK_EPOCH_DURATION = 6 days;
     uint48 public constant SLASHING_WINDOW = 7 days;
@@ -97,6 +99,7 @@ contract RewardsTest is Test {
     Middleware middleware;
     Token token;
     MockFeeToken feeToken;
+    DeployRewards deployRewards;
 
     function setUp() public {
         //Extract rewards data from json
@@ -119,9 +122,47 @@ contract RewardsTest is Test {
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorVaultOptInService");
 
         networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
-        Middleware _middlewareImpl = new Middleware();
-        middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
         address readHelper = address(new BaseMiddlewareReader());
+
+        deployRewards = new DeployRewards();
+        address operatorRewardsAddress =
+            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
+        operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
+
+        delegator = new DelegatorMock(
+            address(networkRegistry),
+            address(vaultFactory),
+            address(operatorVaultOptIn),
+            address(operatorNetworkOptIn),
+            delegatorFactory,
+            0
+        );
+
+        vault = new VaultMock(delegatorFactory, slasherFactory, address(vaultFactory));
+        vault.setDelegator(address(delegator));
+        vm.store(address(delegator), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
+
+        ODefaultStakerRewards stakerRewardsImpl = new ODefaultStakerRewards(
+            address(vaultFactory), address(networkMiddlewareService), uint48(block.timestamp), NETWORK_EPOCH_DURATION
+        );
+
+        vm.mockCall(
+            address(vaultFactory), abi.encodeWithSelector(IRegistry.isEntity.selector, address(vault)), abi.encode(true)
+        );
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            vault: address(vault),
+            adminFee: ADMIN_FEE,
+            defaultAdminRoleHolder: address(tanssi),
+            adminFeeClaimRoleHolder: address(tanssi),
+            adminFeeSetRoleHolder: address(tanssi),
+            operatorRewardsRoleHolder: address(operatorRewards),
+            network: tanssi
+        });
+        stakerRewardsFactory = new ODefaultStakerRewardsFactory(address(stakerRewardsImpl));
+        stakerRewards = ODefaultStakerRewards(stakerRewardsFactory.create(stakerRewardsParams));
+
+        Middleware _middlewareImpl = new Middleware(operatorRewardsAddress, address(stakerRewards));
+        middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
         Middleware(address(middleware)).initialize(
             tanssi,
             address(operatorRegistry),
@@ -132,22 +173,7 @@ contract RewardsTest is Test {
             SLASHING_WINDOW,
             readHelper
         );
-
-        delegator = new DelegatorMock(
-            address(networkRegistry),
-            address(vaultFactory),
-            address(operatorVaultOptIn),
-            address(operatorNetworkOptIn),
-            delegatorFactory,
-            0
-        );
         slasher = new Slasher(address(vaultFactory), address(networkMiddlewareService), slasherFactory, 0);
-
-        vault = new VaultMock(delegatorFactory, slasherFactory, address(vaultFactory));
-        vault.setDelegator(address(delegator));
-        vm.store(address(delegator), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-
-        uint48 epochStartTs = middleware.getEpochStart(0);
 
         vm.startPrank(tanssi);
         token = new Token("Test");
@@ -171,29 +197,6 @@ contract RewardsTest is Test {
         feeToken = new MockFeeToken("Test", 100); //Extreme but it's to test when amount is 0 after a safeTransfer
         feeToken.mint(address(middleware), 1 ether);
         vm.stopPrank();
-
-        operatorRewards = new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
-
-        IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
-            vault: address(vault),
-            adminFee: ADMIN_FEE,
-            defaultAdminRoleHolder: address(middleware),
-            adminFeeClaimRoleHolder: address(middleware),
-            adminFeeSetRoleHolder: address(middleware),
-            operatorRewardsRoleHolder: address(operatorRewards),
-            network: tanssi
-        });
-
-        vm.mockCall(
-            address(vaultFactory), abi.encodeWithSelector(IRegistry.isEntity.selector, address(vault)), abi.encode(true)
-        );
-
-        ODefaultStakerRewards stakerRewardsImpl = new ODefaultStakerRewards(
-            address(vaultFactory), address(networkMiddlewareService), epochStartTs, NETWORK_EPOCH_DURATION
-        );
-
-        stakerRewardsFactory = new ODefaultStakerRewardsFactory(address(stakerRewardsImpl));
-        stakerRewards = ODefaultStakerRewards(stakerRewardsFactory.create(params));
 
         vm.startPrank(address(middleware));
         operatorRewards.setStakerRewardContract(address(stakerRewards), address(vault));
@@ -364,7 +367,9 @@ contract RewardsTest is Test {
         uint48 epoch = 0;
         uint48 eraIndex = 0;
 
-        operatorRewards = new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
+        operatorRewards = ODefaultOperatorRewards(
+            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), OPERATOR_SHARE)
+        );
         vm.startPrank(address(middleware));
         feeToken.approve(address(operatorRewards), type(uint256).max);
         vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InsufficientTransfer.selector);
@@ -410,7 +415,7 @@ contract RewardsTest is Test {
 
         vm.expectEmit(true, true, false, true);
         emit IODefaultStakerRewards.DistributeRewards(
-            tanssi, address(token), eraIndex, epoch, EXPECTED_CLAIMABLE * 80 / 100, REWARDS_ADDITIONAL_DATA
+            tanssi, address(token), eraIndex, epoch, (EXPECTED_CLAIMABLE * 80) / 100, REWARDS_ADDITIONAL_DATA
         );
         vm.expectEmit(true, true, false, true);
         emit IODefaultOperatorRewards.ClaimRewards(
@@ -1097,7 +1102,7 @@ contract RewardsTest is Test {
 
     function testSetAdminFee() public {
         uint256 newFee = ADMIN_FEE + 100;
-        vm.startPrank(address(middleware));
+        vm.startPrank(address(tanssi));
         vm.expectEmit(true, false, false, true);
         emit IODefaultStakerRewards.SetAdminFee(newFee);
         stakerRewards.setAdminFee(newFee);
@@ -1106,14 +1111,14 @@ contract RewardsTest is Test {
 
     function testSetAdminFeeAlreadySet() public {
         uint256 newFee = ADMIN_FEE;
-        vm.startPrank(address(middleware));
+        vm.startPrank(address(tanssi));
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__AlreadySet.selector);
         stakerRewards.setAdminFee(newFee);
     }
 
     function testSetAdminFeeInvalidAdminFee() public {
         uint256 newFee = stakerRewards.ADMIN_FEE_BASE() + 1;
-        vm.startPrank(address(middleware));
+        vm.startPrank(address(tanssi));
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__InvalidAdminFee.selector);
         stakerRewards.setAdminFee(newFee);
     }
@@ -1142,7 +1147,7 @@ contract RewardsTest is Test {
         vm.prank(address(middleware));
         token.transfer(address(stakerRewards), 10 ether);
 
-        vm.startPrank(address(middleware));
+        vm.startPrank(address(tanssi));
         vm.expectEmit(true, true, false, true);
         emit IODefaultStakerRewards.ClaimAdminFee(tanssi, address(token), 10 ether);
         stakerRewards.claimAdminFee(tanssi, epoch, address(token));
@@ -1151,7 +1156,7 @@ contract RewardsTest is Test {
     function testClaimAdminFeeInsufficientAdminFee() public {
         uint48 epoch = 0;
 
-        vm.startPrank(address(middleware));
+        vm.startPrank(address(tanssi));
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__InsufficientAdminFee.selector);
         stakerRewards.claimAdminFee(tanssi, epoch, address(token));
     }

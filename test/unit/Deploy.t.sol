@@ -36,7 +36,7 @@ import {IDefaultCollateralFactory} from
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlewareReader.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
-
+import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {Token} from "test/mocks/Token.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 
@@ -66,6 +66,9 @@ contract DeployTest is Test {
     address operator2;
     address operator3;
 
+    address operatorRewardsAddress;
+    address stakerRewardsFactoryAddress;
+
     function setUp() public {
         deployCollateral = new DeployCollateral();
         deploySymbiotic = new DeploySymbiotic();
@@ -79,6 +82,9 @@ contract DeployTest is Test {
         operator = deployTanssiEcosystem.operator();
         operator2 = deployTanssiEcosystem.operator2();
         operator3 = deployTanssiEcosystem.operator3();
+
+        operatorRewardsAddress = makeAddr("operatorRewards");
+        stakerRewardsFactoryAddress = makeAddr("stakerRewardsFactory");
     }
 
     function _setIsTest() public {
@@ -210,7 +216,16 @@ contract DeployTest is Test {
         address operatorNetworkOptIn = addresses.operatorNetworkOptInService;
 
         address middleware = deployTanssiEcosystem.deployMiddleware(
-            tanssi, operatorRegistry, vaultFactory, operatorNetworkOptIn, tanssi, NETWORK_EPOCH_DURATION, 8 days
+            tanssi,
+            operatorRegistry,
+            vaultFactory,
+            operatorNetworkOptIn,
+            tanssi,
+            NETWORK_EPOCH_DURATION,
+            8 days,
+            operatorRewardsAddress,
+            stakerRewardsFactoryAddress,
+            address(0)
         );
         assertNotEq(middleware, ZERO_ADDRESS);
     }
@@ -227,7 +242,17 @@ contract DeployTest is Test {
         vm.stopPrank();
 
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
-        deployTanssiEcosystem.registerSharedVault(address(middleware), _vault);
+
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            vault: _vault,
+            adminFee: 0,
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: address(0),
+            adminFeeSetRoleHolder: address(0),
+            operatorRewardsRoleHolder: tanssi,
+            network: tanssi
+        });
+        deployTanssiEcosystem.registerSharedVault(address(middleware), _vault, stakerRewardsParams);
     }
 
     function testDeployRegisterMiddlewareToSymbiotic() public {
@@ -236,13 +261,21 @@ contract DeployTest is Test {
         address vaultFactory = addresses.vaultFactory;
         address operatorNetworkOptIn = addresses.operatorNetworkOptInService;
         address networkMiddlewareService = addresses.networkMiddlewareService;
-
         uint256 ownerPrivateKey =
             vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
         address _tanssi = vm.addr(ownerPrivateKey);
 
         address middleware = deployTanssiEcosystem.deployMiddleware(
-            _tanssi, operatorRegistry, vaultFactory, operatorNetworkOptIn, _tanssi, NETWORK_EPOCH_DURATION, 9 days
+            _tanssi,
+            operatorRegistry,
+            vaultFactory,
+            operatorNetworkOptIn,
+            _tanssi,
+            NETWORK_EPOCH_DURATION,
+            9 days,
+            operatorRewardsAddress,
+            stakerRewardsFactoryAddress,
+            address(0)
         );
 
         vm.expectEmit(true, true, false, false);
@@ -731,7 +764,7 @@ contract DeployTest is Test {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
 
         (address stakerFactory, address stakerImpl) = deployRewards.deployStakerRewardsFactoryContract(
-            addresses.vaultFactory, addresses.networkMiddlewareService, 1 days, NETWORK_EPOCH_DURATION
+            addresses.vaultFactory, addresses.networkMiddlewareService, uint48(block.timestamp), NETWORK_EPOCH_DURATION
         );
         assertNotEq(stakerFactory, ZERO_ADDRESS);
         assertNotEq(stakerImpl, ZERO_ADDRESS);

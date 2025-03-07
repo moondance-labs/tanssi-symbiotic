@@ -31,7 +31,6 @@ import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol
 import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
-import {SharedVaults} from "@symbiotic-middleware/extensions/SharedVaults.sol";
 import {Operators} from "@symbiotic-middleware/extensions/operators/Operators.sol";
 import {KeyManager256} from "@symbiotic-middleware/extensions/managers/keys/KeyManager256.sol";
 import {OzAccessControl} from "@symbiotic-middleware/extensions/managers/access/OzAccessControl.sol";
@@ -41,8 +40,11 @@ import {PauseableEnumerableSet} from "@symbiotic-middleware/libraries/PauseableE
 //                                      SNOWBRIDGE
 //**************************************************************************************************
 import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfaces/IOGateway.sol";
+import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
-import {IMiddleware} from "../../interfaces/middleware/IMiddleware.sol";
+import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
+import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
+import {SharedVaults} from "src/contracts/extensions/SharedVaults.sol";
 
 import {QuickSort} from "../libraries/QuickSort.sol";
 
@@ -67,7 +69,9 @@ contract Middleware is
     // /**
     //  * @inheritdoc IMiddleware
     //  */
-    address public s_operatorRewards;
+    address public immutable i_operatorRewards;
+
+    address public immutable i_stakerRewardsFactory;
 
     // /**
     //  * @inheritdoc IMiddleware
@@ -106,17 +110,33 @@ contract Middleware is
         _;
     }
 
-    modifier onlyIfOperatorRewardSet() {
-        if (s_operatorRewards == address(0)) {
-            revert Middleware__OperatorRewardsNotSet();
-        }
-        _;
-    }
-
-    constructor() {
+    /*
+     * @notice Constructor for the middleware
+     * @param operatorRewards The operator rewards address
+     * @param stakerRewardsFactory The staker rewards factory address
+     */
+    constructor(address operatorRewards, address stakerRewardsFactory) {
         _disableInitializers();
+
+        if (operatorRewards == address(0) || stakerRewardsFactory == address(0)) {
+            revert Middleware__InvalidAddress();
+        }
+
+        i_operatorRewards = operatorRewards;
+        i_stakerRewardsFactory = stakerRewardsFactory;
     }
 
+    /*
+     * @notice Initialize the middleware
+     * @param network The network address
+     * @param operatorRegistry The operator registry address
+     * @param vaultRegistry The vault registry address
+     * @param operatorNetOptin The operator network optin address
+     * @param owner The owner address
+     * @param epochDuration The epoch duration
+     * @param slashingWindow The slashing window
+     * @param reader The reader address
+     */
     function initialize(
         address network,
         address operatorRegistry,
@@ -146,6 +166,18 @@ contract Middleware is
         address newImplementation
     ) internal override checkAccess {}
 
+    /**
+     * @inheritdoc SharedVaults
+     */
+    function _beforeRegisterSharedVault(
+        address sharedVault,
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams
+    ) internal virtual override {
+        stakerRewardsParams.vault = sharedVault;
+        address stakerRewards = IODefaultStakerRewardsFactory(i_stakerRewardsFactory).create(stakerRewardsParams);
+        IODefaultOperatorRewards(i_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
+    }
+
     // TODO: this should probably take into account underlying asset price and return a power which could be either the total value of the stake in usd or a value that makes sense for us
     function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
         return stake;
@@ -163,35 +195,10 @@ contract Middleware is
     // /**
     //  * @inheritdoc IMiddleware
     //  */
-    function setOperatorRewardsContract(
-        address operatorRewardsAddress
-    ) external checkAccess {
-        if (operatorRewardsAddress == address(0)) {
-            revert Middleware__InvalidAddress();
-        }
-        s_operatorRewards = operatorRewardsAddress;
-
-        emit OperatorRewardContractSet(operatorRewardsAddress);
-    }
-
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
-    //TODO this will be removed and done automatically when registering a vault first time by creating staker contract from factory and then setting the mapping in operators for vault <=> staker contract
-    function setStakerRewardContract(
-        address stakerRewardsAddress,
-        address vault
-    ) external checkAccess onlyIfOperatorRewardSet {
-        IODefaultOperatorRewards(s_operatorRewards).setStakerRewardContract(stakerRewardsAddress, vault);
-    }
-
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
     function setOperatorShareOnOperatorRewards(
         uint48 operatorShare
-    ) external checkAccess onlyIfOperatorRewardSet {
-        IODefaultOperatorRewards(s_operatorRewards).setOperatorShare(operatorShare);
+    ) external checkAccess {
+        IODefaultOperatorRewards(i_operatorRewards).setOperatorShare(operatorShare);
     }
 
     // /**
@@ -204,14 +211,14 @@ contract Middleware is
         uint256 tokensInflatedToken,
         bytes32 rewardsRoot,
         address tokenAddress
-    ) external onlyGateway onlyIfOperatorRewardSet {
+    ) external onlyGateway {
         if (IERC20(tokenAddress).balanceOf(address(this)) < tokensInflatedToken) {
             revert Middleware__InsufficientBalance();
         }
 
-        IERC20(tokenAddress).approve(s_operatorRewards, tokensInflatedToken);
+        IERC20(tokenAddress).approve(i_operatorRewards, tokensInflatedToken);
 
-        IODefaultOperatorRewards(s_operatorRewards).distributeRewards(
+        IODefaultOperatorRewards(i_operatorRewards).distributeRewards(
             uint48(epoch), uint48(eraIndex), tokensInflatedToken, totalPointsToken, rewardsRoot, tokenAddress
         );
     }
