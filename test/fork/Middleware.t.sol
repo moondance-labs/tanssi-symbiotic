@@ -721,9 +721,9 @@ contract MiddlewareTest is Test {
             vault: address(0),
             adminFee: 0,
             defaultAdminRoleHolder: network2,
-            adminFeeClaimRoleHolder: address(0),
-            adminFeeSetRoleHolder: network2,
-            operatorRewardsRoleHolder: address(0),
+            adminFeeClaimRoleHolder: network2,
+            adminFeeSetRoleHolder: address(0),
+            operatorRewardsRoleHolder: network2,
             network: network2
         });
         middleware2.registerSharedVault(address(ecosystemEntities.vault), stakerRewardsParams);
