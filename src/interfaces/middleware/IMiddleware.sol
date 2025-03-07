@@ -22,12 +22,6 @@ interface IMiddleware {
      */
     event OperatorRewardContractSet(address indexed operatorRewardsAddress);
 
-    /**
-     * @notice Emitted when staker rewards factory is set
-     * @param stakerRewardsFactory Address of the staker rewards factory
-     */
-    event StakerRewardsFactorySet(address indexed stakerRewardsFactory);
-
     // Errors
     error Middleware__NotOperator();
     error Middleware__NotVault();

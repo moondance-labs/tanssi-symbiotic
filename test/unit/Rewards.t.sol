@@ -99,6 +99,7 @@ contract RewardsTest is Test {
     Middleware middleware;
     Token token;
     MockFeeToken feeToken;
+    DeployRewards deployRewards;
 
     function setUp() public {
         //Extract rewards data from json
@@ -123,7 +124,7 @@ contract RewardsTest is Test {
         networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
         address readHelper = address(new BaseMiddlewareReader());
 
-        DeployRewards deployRewards = new DeployRewards();
+        deployRewards = new DeployRewards();
         address operatorRewardsAddress =
             deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
@@ -366,7 +367,9 @@ contract RewardsTest is Test {
         uint48 epoch = 0;
         uint48 eraIndex = 0;
 
-        operatorRewards = new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
+        operatorRewards = ODefaultOperatorRewards(
+            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), OPERATOR_SHARE)
+        );
         vm.startPrank(address(middleware));
         feeToken.approve(address(operatorRewards), type(uint256).max);
         vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InsufficientTransfer.selector);

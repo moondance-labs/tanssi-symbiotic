@@ -30,6 +30,9 @@ contract ODefaultStakerRewardsFactory is Registry, IODefaultStakerRewardsFactory
         STAKER_REWARDS_IMPLEMENTATION = stakerRewardsImplementation;
     }
 
+    /**
+     * @inheritdoc IODefaultStakerRewardsFactory
+     */
     function create(
         ODefaultStakerRewards.InitParams calldata params
     ) external returns (address) {
