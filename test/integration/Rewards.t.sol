@@ -370,20 +370,18 @@ contract RewardsTest is Test {
         address _owner
     ) public {
         vm.startPrank(_owner);
-        bytes memory stakerRewardsData = abi.encode(
-            IODefaultStakerRewards.InitParams({
-                vault: address(0),
-                adminFee: 0,
-                defaultAdminRoleHolder: _owner,
-                adminFeeClaimRoleHolder: address(0),
-                adminFeeSetRoleHolder: address(0),
-                operatorRewardsRoleHolder: _owner,
-                network: tanssi
-            })
-        );
-        middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsData);
-        middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsData);
-        middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsData);
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            vault: address(0),
+            adminFee: 0,
+            defaultAdminRoleHolder: _owner,
+            adminFeeClaimRoleHolder: address(0),
+            adminFeeSetRoleHolder: address(0),
+            operatorRewardsRoleHolder: _owner,
+            network: tanssi
+        });
+        middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
+        middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsParams);
+        middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsParams);
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         middleware.registerOperator(operator2, abi.encode(OPERATOR2_KEY), address(0));
         middleware.registerOperator(operator3, abi.encode(OPERATOR3_KEY), address(0));

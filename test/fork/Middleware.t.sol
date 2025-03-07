@@ -41,7 +41,7 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
-
+import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
@@ -721,7 +721,16 @@ contract MiddlewareTest is Test {
         );
 
         INetworkMiddlewareService(networkMiddlewareServiceAddress).setMiddleware(address(middleware2));
-        middleware2.registerSharedVault(address(ecosystemEntities.vault), "");
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            vault: address(0),
+            adminFee: 0,
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: address(0),
+            adminFeeSetRoleHolder: tanssi,
+            operatorRewardsRoleHolder: address(0),
+            network: tanssi
+        });
+        middleware2.registerSharedVault(address(ecosystemEntities.vault), stakerRewardsParams);
         middleware2.registerOperator(operator4, abi.encode(OPERATOR4_KEY), address(0));
         vm.stopPrank();
 

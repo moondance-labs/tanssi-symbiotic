@@ -243,7 +243,7 @@ contract DeployTest is Test {
 
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
 
-        bytes memory stakerRewardsData = abi.encode(
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams =
             IODefaultStakerRewards.InitParams({
                 vault: _vault,
                 adminFee: 0,
@@ -252,9 +252,8 @@ contract DeployTest is Test {
                 adminFeeSetRoleHolder: address(0),
                 operatorRewardsRoleHolder: tanssi,
                 network: tanssi
-            })
-        );
-        deployTanssiEcosystem.registerSharedVault(address(middleware), _vault, stakerRewardsData);
+            });
+        deployTanssiEcosystem.registerSharedVault(address(middleware), _vault, stakerRewardsParams);
     }
 
     function testDeployRegisterMiddlewareToSymbiotic() public {

@@ -538,13 +538,12 @@ contract Middleware is
     /**
      * @inheritdoc SharedVaults
      */
-    function _beforeRegisterSharedVault(address sharedVault, bytes memory data) internal virtual override {
-        if (data.length == 0) {
-            revert Middleware__StakerRewardsDataNotSet();
-        }
-        IODefaultStakerRewards.InitParams memory params = abi.decode(data, (IODefaultStakerRewards.InitParams));
-        params.vault = sharedVault;
-        address stakerRewards = IODefaultStakerRewardsFactory(i_stakerRewardsFactory).create(params);
+    function _beforeRegisterSharedVault(
+        address sharedVault,
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams
+    ) internal virtual override {
+        stakerRewardsParams.vault = sharedVault;
+        address stakerRewards = IODefaultStakerRewardsFactory(i_stakerRewardsFactory).create(stakerRewardsParams);
         IODefaultOperatorRewards(i_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
     }
 }

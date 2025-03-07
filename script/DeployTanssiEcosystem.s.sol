@@ -223,22 +223,20 @@ contract DeployTanssiEcosystem is Script {
     }
 
     function _registerEntitiesToMiddleware() private {
-        bytes memory stakerRewardsData = abi.encode(
-            IODefaultStakerRewards.InitParams({
-                vault: address(0),
-                adminFee: 0,
-                defaultAdminRoleHolder: tanssi,
-                adminFeeClaimRoleHolder: address(0),
-                adminFeeSetRoleHolder: address(0),
-                operatorRewardsRoleHolder: tanssi,
-                network: tanssi
-            })
-        );
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            vault: address(0),
+            adminFee: 0,
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: address(0),
+            adminFeeSetRoleHolder: address(0),
+            operatorRewardsRoleHolder: tanssi,
+            network: tanssi
+        });
         if (block.chainid == 31_337 || block.chainid == 11_155_111 || isTest) {
-            ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsData);
-            ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsData);
+            ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
+            ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsParams);
         }
-        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsData);
+        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsParams);
     }
 
     function _transferTokensToOperators() private {
@@ -395,10 +393,14 @@ contract DeployTanssiEcosystem is Script {
         return address(ecosystemEntities.middleware);
     }
 
-    function registerSharedVault(address middlewareAddress, address vaultAddress, bytes memory data) external {
+    function registerSharedVault(
+        address middlewareAddress,
+        address vaultAddress,
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams
+    ) external {
         Middleware middleware = Middleware(middlewareAddress);
         vm.startBroadcast(ownerPrivateKey);
-        middleware.registerSharedVault(vaultAddress, data);
+        middleware.registerSharedVault(vaultAddress, stakerRewardsParams);
         vm.stopBroadcast();
     }
 

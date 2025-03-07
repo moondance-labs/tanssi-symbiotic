@@ -346,20 +346,18 @@ contract MiddlewareTest is Test {
         address _owner
     ) public {
         vm.startPrank(_owner);
-        bytes memory stakerRewardsData = abi.encode(
-            IODefaultStakerRewards.InitParams({
-                vault: address(0),
-                adminFee: 0,
-                defaultAdminRoleHolder: tanssi,
-                adminFeeClaimRoleHolder: address(0),
-                adminFeeSetRoleHolder: address(0),
-                operatorRewardsRoleHolder: tanssi,
-                network: tanssi
-            })
-        );
-        middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsData);
-        middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsData);
-        middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsData);
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            vault: address(0),
+            adminFee: 0,
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: address(0),
+            adminFeeSetRoleHolder: address(0),
+            operatorRewardsRoleHolder: tanssi,
+            network: tanssi
+        });
+        middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
+        middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsParams);
+        middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsParams);
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         middleware.registerOperator(operator2, abi.encode(OPERATOR2_KEY), address(0));
         middleware.registerOperator(operator3, abi.encode(OPERATOR3_KEY), address(0));
@@ -895,26 +893,20 @@ contract MiddlewareTest is Test {
         Middleware middleware2 =
             _deployMiddlewareWithProxy(network2, network2, operatorRewardsAddress2, address(stakerRewardsFactory));
 
-        bytes memory stakerRewardsData = abi.encode(
-            IODefaultStakerRewards.InitParams({
-                vault: address(0),
-                adminFee: 0,
-                defaultAdminRoleHolder: network2,
-                adminFeeClaimRoleHolder: address(0),
-                adminFeeSetRoleHolder: address(0),
-                operatorRewardsRoleHolder: network2,
-                network: network2
-            })
-        );
-        vm.mockCall(
-            address(operatorRewardsAddress2),
-            abi.encodeWithSelector(IODefaultOperatorRewards.setStakerRewardContract.selector),
-            abi.encode(address(0))
-        );
-        middleware2.registerSharedVault(address(vault), stakerRewardsData);
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            vault: address(0),
+            adminFee: 0,
+            defaultAdminRoleHolder: network2,
+            adminFeeClaimRoleHolder: address(0),
+            adminFeeSetRoleHolder: address(0),
+            operatorRewardsRoleHolder: network2,
+            network: network2
+        });
+        middleware2.registerSharedVault(address(vault), stakerRewardsParams);
         middleware2.registerOperator(operator4, abi.encode(OPERATOR4_KEY), address(0));
 
         vm.stopPrank();
+
         vm.warp(NETWORK_EPOCH_DURATION + 2);
         uint48 middleware2CurrentEpoch = middleware2.getCurrentEpoch();
         Middleware.OperatorVaultPair[] memory operator2VaultPairs =
@@ -1244,7 +1236,7 @@ contract MiddlewareTest is Test {
         uint256 totalEntities = stakerRewardsFactory.totalEntities();
 
         VaultAddresses memory testVaultAddresses = _createTestVault(owner);
-        IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
             vault: address(0),
             adminFee: 0,
             defaultAdminRoleHolder: tanssi,
@@ -1254,7 +1246,7 @@ contract MiddlewareTest is Test {
             network: tanssi
         });
 
-        middleware.registerSharedVault(testVaultAddresses.vault, abi.encode(params));
+        middleware.registerSharedVault(testVaultAddresses.vault, stakerRewardsParams);
         vm.stopPrank();
 
         address stakerRewards = operatorRewards.s_vaultToStakerRewardsContract(testVaultAddresses.vault);

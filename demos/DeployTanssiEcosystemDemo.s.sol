@@ -228,20 +228,18 @@ contract DeployTanssiEcosystem is Script {
     }
 
     function _registerEntitiesToMiddleware() public {
-        bytes memory stakerRewardsData = abi.encode(
-            IODefaultStakerRewards.InitParams({
-                vault: address(0),
-                adminFee: 0,
-                defaultAdminRoleHolder: tanssi,
-                adminFeeClaimRoleHolder: address(0),
-                adminFeeSetRoleHolder: tanssi,
-                operatorRewardsRoleHolder: address(0),
-                network: tanssi
-            })
-        );
-        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsData);
-        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsData);
-        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsData);
+        IODefaultStakerRewards.InitParams stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            vault: address(0),
+            adminFee: 0,
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: address(0),
+            adminFeeSetRoleHolder: tanssi,
+            operatorRewardsRoleHolder: address(0),
+            network: tanssi
+        });
+        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
+        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsParams);
+        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsParams);
         ecosystemEntities.middleware.registerOperator(operator, operatorKey1, address(0));
         ecosystemEntities.middleware.registerOperator(operator2, operatorKey2, address(0));
         ecosystemEntities.middleware.registerOperator(operator3, operatorKey3, address(0));

@@ -246,20 +246,18 @@ contract Demo is Script {
         middleware.registerOperator(operator, OPERATOR_KEY, address(0));
         middleware.registerOperator(operator2, OPERATOR_KEY2, address(0));
 
-        bytes memory stakerRewardsData = abi.encode(
-            IODefaultStakerRewards.InitParams({
-                vault: address(0),
-                adminFee: 0,
-                defaultAdminRoleHolder: tanssi,
-                adminFeeClaimRoleHolder: address(0),
-                adminFeeSetRoleHolder: tanssi,
-                operatorRewardsRoleHolder: address(0),
-                network: tanssi
-            })
-        );
-        middleware.registerSharedVault(address(vault), stakerRewardsData);
-        middleware.registerSharedVault(address(vaultSlashable), stakerRewardsData);
-        middleware.registerSharedVault(address(vaultVetoed), stakerRewardsData);
+        IODefaultStakerRewards.InitParams stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            vault: address(0),
+            adminFee: 0,
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: address(0),
+            adminFeeSetRoleHolder: tanssi,
+            operatorRewardsRoleHolder: address(0),
+            network: tanssi
+        });
+        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vaultSlashable), stakerRewardsParams);
+        middleware.registerSharedVault(address(vaultVetoed), stakerRewardsParams);
         vm.stopBroadcast();
 
         vm.startBroadcast(operatorPrivateKey);
