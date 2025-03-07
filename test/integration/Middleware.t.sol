@@ -887,12 +887,11 @@ contract MiddlewareTest is Test {
         _registerOperator(operator4, network2, address(vault));
 
         address operatorRewardsAddress2 =
-            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), 5000);
+            deployRewards.deployOperatorRewardsContract(network2, address(networkMiddlewareService), 5000);
 
         vm.startPrank(network2);
         Middleware middleware2 =
             _deployMiddlewareWithProxy(network2, network2, operatorRewardsAddress2, address(stakerRewardsFactory));
-
         IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
             vault: address(0),
             adminFee: 0,
