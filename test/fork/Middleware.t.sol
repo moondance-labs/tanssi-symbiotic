@@ -40,11 +40,9 @@ import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
-import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
-import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
 
 contract MiddlewareTest is Test {
@@ -82,7 +80,7 @@ contract MiddlewareTest is Test {
     address public resolver2 = makeAddr("resolver2");
     address public gateway = makeAddr("gateway");
 
-    HelperConfig public helperConfig;
+    HelperConfig helperConfig;
 
     struct VaultAddresses {
         address vault;
@@ -703,9 +701,7 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(network2);
 
-        address stakerRewardsFactoryAddress = makeAddr("stakerRewardsFactory");
-        address operatorRewardsAddress = makeAddr("operatorRewards");
-        Middleware _middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        Middleware _middlewareImpl = _getMiddlewareImpl(network2, vaultFactoryAddress, networkMiddlewareServiceAddress);
         Middleware middleware2 = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
         address readHelper = address(new BaseMiddlewareReader());
 
@@ -724,11 +720,11 @@ contract MiddlewareTest is Test {
         IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
             vault: address(0),
             adminFee: 0,
-            defaultAdminRoleHolder: tanssi,
+            defaultAdminRoleHolder: network2,
             adminFeeClaimRoleHolder: address(0),
-            adminFeeSetRoleHolder: tanssi,
+            adminFeeSetRoleHolder: network2,
             operatorRewardsRoleHolder: address(0),
-            network: tanssi
+            network: network2
         });
         middleware2.registerSharedVault(address(ecosystemEntities.vault), stakerRewardsParams);
         middleware2.registerOperator(operator4, abi.encode(OPERATOR4_KEY), address(0));
@@ -751,5 +747,21 @@ contract MiddlewareTest is Test {
         for (uint256 i = 0; i < operatorVaultPairs.length; i++) {
             assert(operatorVaultPairs[i].operator != operator4);
         }
+    }
+
+    function _getMiddlewareImpl(
+        address network,
+        address vaultFactoryAddress,
+        address networkMiddlewareServiceAddress
+    ) private returns (Middleware middlewareImpl) {
+        DeployRewards deployRewards = new DeployRewards();
+        (address stakerRewardsFactoryAddress,) = deployRewards.deployStakerRewardsFactoryContract(
+            vaultFactoryAddress, networkMiddlewareServiceAddress, uint48(block.timestamp), NETWORK_EPOCH_DURATION
+        );
+
+        address operatorRewardsAddress =
+            deployRewards.deployOperatorRewardsContract(network, networkMiddlewareServiceAddress, 5000);
+
+        middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
     }
 }
