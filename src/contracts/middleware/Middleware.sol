@@ -31,7 +31,6 @@ import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol
 import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
-import {SharedVaults} from "@symbiotic-middleware/extensions/SharedVaults.sol";
 import {Operators} from "@symbiotic-middleware/extensions/operators/Operators.sol";
 import {KeyManager256} from "@symbiotic-middleware/extensions/managers/keys/KeyManager256.sol";
 import {OzAccessControl} from "@symbiotic-middleware/extensions/managers/access/OzAccessControl.sol";
@@ -44,7 +43,8 @@ import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfa
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
-import {IMiddleware} from "../../interfaces/middleware/IMiddleware.sol";
+import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
+import {SharedVaults} from "src/contracts/extensions/SharedVaults.sol";
 
 import {QuickSort} from "../libraries/QuickSort.sol";
 
