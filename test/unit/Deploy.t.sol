@@ -243,16 +243,15 @@ contract DeployTest is Test {
 
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
 
-        IODefaultStakerRewards.InitParams memory stakerRewardsParams =
-            IODefaultStakerRewards.InitParams({
-                vault: _vault,
-                adminFee: 0,
-                defaultAdminRoleHolder: tanssi,
-                adminFeeClaimRoleHolder: address(0),
-                adminFeeSetRoleHolder: address(0),
-                operatorRewardsRoleHolder: tanssi,
-                network: tanssi
-            });
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            vault: _vault,
+            adminFee: 0,
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: address(0),
+            adminFeeSetRoleHolder: address(0),
+            operatorRewardsRoleHolder: tanssi,
+            network: tanssi
+        });
         deployTanssiEcosystem.registerSharedVault(address(middleware), _vault, stakerRewardsParams);
     }
 
