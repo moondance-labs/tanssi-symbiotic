@@ -82,6 +82,7 @@ contract DeployTanssiEcosystem is Script {
         DeployCollateral deployCollateral;
         DeployVault deployVault;
         HelperConfig helperConfig;
+        DeployRewards deployRewards;
     }
 
     struct EcosystemEntity {
@@ -227,9 +228,18 @@ contract DeployTanssiEcosystem is Script {
     }
 
     function _registerEntitiesToMiddleware() public {
-        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault);
-        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed);
-        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultSlashable);
+        IODefaultStakerRewards.InitParams stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            vault: address(0),
+            adminFee: 0,
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: address(0),
+            adminFeeSetRoleHolder: tanssi,
+            operatorRewardsRoleHolder: address(0),
+            network: tanssi
+        });
+        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
+        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsParams);
+        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsParams);
         ecosystemEntities.middleware.registerOperator(operator, operatorKey1, address(0));
         ecosystemEntities.middleware.registerOperator(operator2, operatorKey2, address(0));
         ecosystemEntities.middleware.registerOperator(operator3, operatorKey3, address(0));
@@ -250,7 +260,7 @@ contract DeployTanssiEcosystem is Script {
             address operatorVaultOptInServiceAddress,
             address networkMiddlewareServiceAddress,
             address defaultCollateralFactoryAddress,
-            address stETHAddress
+            address stETHAddress,
         ) = contractScripts.helperConfig.activeNetworkConfig();
 
         IDefaultCollateralFactory defaultCollateralFactory;
@@ -326,10 +336,10 @@ contract DeployTanssiEcosystem is Script {
         _registerEntitiesToMiddleware();
         networkMiddlewareService.setMiddleware(address(ecosystemEntities.middleware));
 
-        ODefaultOperatorRewards operatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), 2000);
+        address operatorRewardsAddress =
+            contractScripts.deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), 2000);
 
-        ecosystemEntities.middleware.setOperatorRewardsContract(address(operatorRewards));
+        ecosystemEntities.middleware.setOperatorRewardsContract(operatorRewardsAddress);
 
         vm.stopBroadcast();
 
@@ -363,6 +373,7 @@ contract DeployTanssiEcosystem is Script {
         contractScripts.helperConfig = _helperConfig;
         contractScripts.deployVault = new DeployVault();
         contractScripts.deployCollateral = new DeployCollateral();
+        contractScripts.deployRewards = new DeployRewards();
 
         vm.startPrank(tanssi);
         isTest = true;

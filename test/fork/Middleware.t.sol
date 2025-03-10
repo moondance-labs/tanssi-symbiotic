@@ -40,8 +40,9 @@ import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
-
+import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
+import {DeployRewards} from "script/DeployRewards.s.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
 
 contract MiddlewareTest is Test {
@@ -200,7 +201,7 @@ contract MiddlewareTest is Test {
     }
 
     function _handleDeposits() private {
-        (,,,,, address operatorVaultOptInServiceAddress,,,) = helperConfig.activeNetworkConfig();
+        (,,,,, address operatorVaultOptInServiceAddress,,,,) = helperConfig.activeNetworkConfig();
 
         IOptInService operatorVaultOptInService = IOptInService(operatorVaultOptInServiceAddress);
 
@@ -255,6 +256,7 @@ contract MiddlewareTest is Test {
             ,
             address operatorNetworkOptInServiceAddress,
             address operatorVaultOptInServiceAddress,
+            ,
             ,
             ,
         ) = helperConfig.activeNetworkConfig();
@@ -337,12 +339,13 @@ contract MiddlewareTest is Test {
     ) public pure returns (uint256) {
         return sharesCount.mulDiv(stake, totalShares);
     }
+
     // ************************************************************************************************
     // *                                        BASE TESTS
     // ************************************************************************************************
 
     function testInitialState() public view {
-        (, address operatorRegistryAddress,, address vaultFactoryAddress,,,,,) = helperConfig.activeNetworkConfig();
+        (, address operatorRegistryAddress,, address vaultFactoryAddress,,,,,,) = helperConfig.activeNetworkConfig();
 
         assertEq(BaseMiddlewareReader(address(ecosystemEntities.middleware)).NETWORK(), tanssi);
         assertEq(
@@ -673,6 +676,7 @@ contract MiddlewareTest is Test {
             ,
             address networkMiddlewareServiceAddress,
             ,
+            ,
         ) = helperConfig.activeNetworkConfig();
 
         address operator4 = makeAddr("operator4");
@@ -697,9 +701,10 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(network2);
 
-        Middleware _middlewareImpl = new Middleware();
+        Middleware _middlewareImpl = _getMiddlewareImpl(network2, vaultFactoryAddress, networkMiddlewareServiceAddress);
         Middleware middleware2 = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
         address readHelper = address(new BaseMiddlewareReader());
+
         Middleware(address(middleware2)).initialize(
             network2,
             operatorRegistryAddress,
@@ -708,11 +713,20 @@ contract MiddlewareTest is Test {
             network2,
             NETWORK_EPOCH_DURATION,
             SLASHING_WINDOW,
-            readHelper // reader
+            readHelper
         );
 
         INetworkMiddlewareService(networkMiddlewareServiceAddress).setMiddleware(address(middleware2));
-        middleware2.registerSharedVault(address(ecosystemEntities.vault));
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            vault: address(0),
+            adminFee: 0,
+            defaultAdminRoleHolder: network2,
+            adminFeeClaimRoleHolder: network2,
+            adminFeeSetRoleHolder: address(0),
+            operatorRewardsRoleHolder: network2,
+            network: network2
+        });
+        middleware2.registerSharedVault(address(ecosystemEntities.vault), stakerRewardsParams);
         middleware2.registerOperator(operator4, abi.encode(OPERATOR4_KEY), address(0));
         vm.stopPrank();
 
@@ -733,5 +747,21 @@ contract MiddlewareTest is Test {
         for (uint256 i = 0; i < operatorVaultPairs.length; i++) {
             assert(operatorVaultPairs[i].operator != operator4);
         }
+    }
+
+    function _getMiddlewareImpl(
+        address network,
+        address vaultFactoryAddress,
+        address networkMiddlewareServiceAddress
+    ) private returns (Middleware middlewareImpl) {
+        DeployRewards deployRewards = new DeployRewards();
+        (address stakerRewardsFactoryAddress,) = deployRewards.deployStakerRewardsFactoryContract(
+            vaultFactoryAddress, networkMiddlewareServiceAddress, uint48(block.timestamp), NETWORK_EPOCH_DURATION
+        );
+
+        address operatorRewardsAddress =
+            deployRewards.deployOperatorRewardsContract(network, networkMiddlewareServiceAddress, 5000);
+
+        middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
     }
 }

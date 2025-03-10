@@ -30,6 +30,7 @@ contract HelperConfig is Script {
         address networkMiddlewareService;
         address collateral;
         address stETH;
+        address readHelper;
     }
 
     uint256 public DEFAULT_ANVIL_PRIVATE_KEY = 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6;
@@ -68,6 +69,7 @@ contract HelperConfig is Script {
             abi.decode(vm.parseJson(json, string.concat(jsonPath, ".networkMiddlewareService")), (address));
         address defaultCollateralFactoryAddress =
             abi.decode(vm.parseJson(json, string.concat(jsonPath, ".defaultCollateralFactory")), (address));
+        address readHelperAddress = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".readHelper")), (address));
         address stETHAddress = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".stETH")), (address));
 
         networkConfig = NetworkConfig({
@@ -79,7 +81,8 @@ contract HelperConfig is Script {
             operatorVaultOptInService: operatorVaultOptInAddress,
             networkMiddlewareService: networkMiddlewareAddress,
             collateral: defaultCollateralFactoryAddress,
-            stETH: stETHAddress
+            stETH: stETHAddress,
+            readHelper: readHelperAddress
         });
     }
 
@@ -97,7 +100,8 @@ contract HelperConfig is Script {
             operatorVaultOptInService: symbioticAddresses.operatorVaultOptInService,
             networkMiddlewareService: symbioticAddresses.networkMiddlewareService,
             collateral: address(deploySymbiotic.collateral()),
-            stETH: address(0)
+            stETH: address(0),
+            readHelper: address(0)
         });
     }
 }
