@@ -16,10 +16,10 @@ pragma solidity 0.8.25;
 
 import {KeyManager256} from "@symbiotic-middleware/extensions/managers/keys/KeyManager256.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
-import {SharedVaults} from "src/contracts/extensions/SharedVaults.sol";
+import {OSharedVaults} from "src/contracts/extensions/OSharedVaults.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 
-contract SharedVaultMock is SharedVaults, KeyManager256, EpochCapture {
+contract SharedVaultMock is OSharedVaults, KeyManager256, EpochCapture {
     function _checkAccess() internal override {}
 
     function stakeToPower(address, uint256) public pure override returns (uint256 power) {}

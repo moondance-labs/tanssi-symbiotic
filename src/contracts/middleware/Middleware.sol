@@ -44,13 +44,13 @@ import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRew
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
-import {SharedVaults} from "src/contracts/extensions/SharedVaults.sol";
+import {OSharedVaults} from "src/contracts/extensions/OSharedVaults.sol";
 
 import {QuickSort} from "../libraries/QuickSort.sol";
 
 contract Middleware is
     UUPSUpgradeable,
-    SharedVaults,
+    OSharedVaults,
     Operators,
     KeyManager256,
     OzAccessControl,
@@ -167,7 +167,7 @@ contract Middleware is
     ) internal override checkAccess {}
 
     /**
-     * @inheritdoc SharedVaults
+     * @inheritdoc OSharedVaults
      */
     function _beforeRegisterSharedVault(
         address sharedVault,
