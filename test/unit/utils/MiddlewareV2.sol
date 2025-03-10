@@ -22,13 +22,8 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 contract MiddlewareV2 is UUPSUpgradeable {
     uint256 public constant VERSION = 2;
 
-    address public immutable i_operatorRewards;
-
-    constructor(
-        address operatorRewardsAddress
-    ) {
+    constructor() {
         _disableInitializers();
-        i_operatorRewards = operatorRewardsAddress;
     }
 
     function _authorizeUpgrade(
