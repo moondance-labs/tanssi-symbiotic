@@ -17,6 +17,11 @@ pragma solidity 0.8.25;
 import {Script, console2} from "forge-std/Script.sol";
 
 //**************************************************************************************************
+//                                      OPENZEPPELIN
+//**************************************************************************************************
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+
+//**************************************************************************************************
 //                                      SYMBIOTIC
 //**************************************************************************************************
 import {IVaultConfigurator} from "@symbiotic/interfaces/IVaultConfigurator.sol";
@@ -31,14 +36,15 @@ import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestak
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {IDefaultCollateralFactory} from
     "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateralFactory.sol";
+import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlewareReader.sol";
 
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {Token} from "test/mocks/Token.sol";
-import {DeployCollateral} from "../DeployCollateral.s.sol";
-import {DeployVault} from "../DeployVault.s.sol";
-import {DeploySymbiotic} from "../DeploySymbiotic.s.sol";
-import {HelperConfig} from "../HelperConfig.s.sol";
+import {DeployCollateral} from "script/DeployCollateral.s.sol";
+import {DeployVault} from "script/DeployVault.s.sol";
+import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
+import {HelperConfig} from "script/HelperConfig.s.sol";
 
 contract DeployTanssiEcosystem is Script {
     using Subnetwork for address;
@@ -230,9 +236,9 @@ contract DeployTanssiEcosystem is Script {
         ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault);
         ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed);
         ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultSlashable);
-        ecosystemEntities.middleware.registerOperator(operator, operatorKey1, address(0));
-        ecosystemEntities.middleware.registerOperator(operator2, operatorKey2, address(0));
-        ecosystemEntities.middleware.registerOperator(operator3, operatorKey3, address(0));
+        ecosystemEntities.middleware.registerOperator(operator, abi.encode(operatorKey1), address(0));
+        ecosystemEntities.middleware.registerOperator(operator2, abi.encode(operatorKey2), address(0));
+        ecosystemEntities.middleware.registerOperator(operator3, abi.encode(operatorKey3), address(0));
     }
 
     function _depositToVault(IVault _vault, address _operator, uint256 _amount, Token collateral) public {
@@ -304,7 +310,7 @@ contract DeployTanssiEcosystem is Script {
         vm.stopBroadcast();
 
         vm.startBroadcast(ownerPrivateKey);
-        ecosystemEntities.middleware = new Middleware(
+        ecosystemEntities.middleware = _deployMiddlewareWithProxy(
             tanssi,
             operatorRegistryAddress,
             vaultRegistryAddress,
@@ -331,12 +337,6 @@ contract DeployTanssiEcosystem is Script {
 
         ecosystemEntities.middleware.setOperatorRewardsContract(address(operatorRewards));
 
-        vm.stopBroadcast();
-
-        vm.startBroadcast(ownerPrivateKey);
-        uint48 currentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
-        address[] memory operators = ecosystemEntities.middleware.getOperatorsByEpoch(currentEpoch);
-        assert(operators.length == 3);
         console2.log("VaultConfigurator: ", address(ecosystemEntities.vaultConfigurator));
         console2.log("OperatorRegistry: ", address(operatorRegistry));
         console2.log("NetworkRegistry: ", address(networkRegistry));
@@ -355,6 +355,31 @@ contract DeployTanssiEcosystem is Script {
         console2.log("Vault Vetoed: ", vaultAddresses.vaultVetoed);
         console2.log("Delegator Vetoed: ", vaultAddresses.delegatorVetoed);
         console2.log("Slasher Vetoed: ", vaultAddresses.slasherVetoed);
+    }
+
+    function _deployMiddlewareWithProxy(
+        address _network,
+        address _operatorRegistry,
+        address _vaultRegistry,
+        address _operatorNetworkOptInService,
+        address _owner,
+        uint48 _epochDuration,
+        uint48 _slashingWindow
+    ) private returns (Middleware _middleware) {
+        Middleware _middlewareImpl = new Middleware();
+        _middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
+        console2.log("Middleware Implementation: ", address(_middlewareImpl));
+        address readHelper = address(new BaseMiddlewareReader());
+        _middleware.initialize(
+            _network, // network
+            _operatorRegistry, // operatorRegistry
+            _vaultRegistry, // vaultRegistry
+            _operatorNetworkOptInService, // operatorNetworkOptInService
+            _owner, // owner
+            _epochDuration, // epochDuration
+            _slashingWindow, // slashingWindow
+            readHelper // readHelper
+        );
     }
 
     function deployTanssiEcosystem(
