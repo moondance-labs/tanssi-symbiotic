@@ -15,6 +15,11 @@
 pragma solidity 0.8.25;
 
 //**************************************************************************************************
+//                                      CHAINLINK
+//**************************************************************************************************
+import "@chainlink/automation/interfaces/AutomationCompatibleInterface.sol";
+
+//**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
@@ -53,6 +58,7 @@ contract Middleware is
     KeyManager256,
     OzAccessControl,
     EpochCapture,
+    AutomationCompatibleInterface,
     IMiddleware
 {
     using QuickSort for ValidatorData[];
@@ -84,6 +90,9 @@ contract Middleware is
     //  */
     mapping(uint48 epoch => mapping(address operator => uint256 amount)) public s_operatorStakeCache;
     IOGateway private s_gateway;
+    uint256 public s_lastTimestamp;
+    address public s_forwarderAddress;
+    uint256 public s_interval;
     //TODO End of TODO
 
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
@@ -102,6 +111,13 @@ contract Middleware is
     modifier onlyGateway() {
         if (msg.sender != address(s_gateway)) {
             revert Middleware__CallerNotGateway();
+        }
+        _;
+    }
+
+    modifier onlyIfGatewayExists() {
+        if (address(s_gateway) == address(0)) {
+            revert Middleware__GatewayNotSet();
         }
         _;
     }
@@ -133,6 +149,8 @@ contract Middleware is
         if (slashingWindow < epochDuration) {
             revert Middleware__SlashingWindowTooShort();
         }
+        s_lastTimestamp = Time.timestamp();
+        s_interval = epochDuration;
 
         __BaseMiddleware_init(network, slashingWindow, vaultRegistry, operatorRegistry, operatorNetOptin, reader);
         __OzAccessControl_init(owner);
@@ -158,6 +176,32 @@ contract Middleware is
         address _gateway
     ) external checkAccess {
         s_gateway = IOGateway(_gateway);
+    }
+
+    // /**
+    //  * @inheritdoc IMiddleware
+    //  */
+    function setInterval(
+        uint256 interval
+    ) external checkAccess {
+        if (interval == 0) {
+            revert Middleware__InvalidInterval();
+        }
+
+        s_interval = interval;
+    }
+
+    // /**
+    //  * @inheritdoc IMiddleware
+    //  */
+    function setForwarder(
+        address forwarder
+    ) external checkAccess {
+        if (forwarder == address(0)) {
+            revert Middleware__InvalidAddress();
+        }
+
+        s_forwarderAddress = forwarder;
     }
 
     // /**
@@ -219,16 +263,52 @@ contract Middleware is
     // /**
     //  * @inheritdoc IMiddleware
     //  */
-    //  TODO: this function should be split to allow to be called by chainlink in case
-    function sendCurrentOperatorsKeys() external returns (bytes32[] memory sortedKeys) {
-        if (address(s_gateway) == address(0)) {
-            revert Middleware__GatewayNotSet();
-        }
-
+    function sendCurrentOperatorsKeys() external onlyIfGatewayExists returns (bytes32[] memory sortedKeys) {
         uint48 epoch = getCurrentEpoch();
         sortedKeys = sortOperatorsByVaults(epoch);
 
         s_gateway.sendOperatorsData(sortedKeys, epoch);
+    }
+
+    /**
+     * @inheritdoc AutomationCompatibleInterface
+     * @dev Called by chainlink nodes off-chain to check if the upkeep is needed
+     * @return upkeepNeeded boolean to indicate whether the keeper should call performUpkeep or not.
+     * @return performData bytes of the sorted operators' keys and the epoch that will be used by the keeper when calling performUpkeep, if upkeep is needed.
+     */
+    function checkUpkeep(
+        bytes calldata /* checkData */
+    ) external view override returns (bool upkeepNeeded, bytes memory performData) {
+        uint48 epoch = getCurrentEpoch();
+        bytes32[] memory sortedKeys = sortOperatorsByVaults(epoch);
+
+        // Should it be epochDuration? Because we wanna send it once per network epoch
+        upkeepNeeded = (block.timestamp - s_lastTimestamp) > s_interval;
+
+        performData = abi.encode(sortedKeys, epoch);
+
+        return (upkeepNeeded, performData);
+    }
+
+    /**
+     * @inheritdoc AutomationCompatibleInterface
+     * @dev Called by chainlink nodes off-chain to perform the upkeep. It will send the sorted keys to the gateway
+     */
+    function performUpkeep(
+        bytes calldata performData
+    ) external override onlyIfGatewayExists {
+        if (msg.sender != s_forwarderAddress) {
+            revert Middleware__NotForwarder();
+        }
+
+        if ((block.timestamp - s_lastTimestamp) > s_interval) {
+            s_lastTimestamp = block.timestamp;
+
+            // Decode the sorted keys and the epoch from performData
+            bytes32[] memory sortedKeys = abi.decode(performData, (bytes32[]));
+
+            s_gateway.sendOperatorsData(sortedKeys, getCurrentEpoch());
+        }
     }
 
     // /**

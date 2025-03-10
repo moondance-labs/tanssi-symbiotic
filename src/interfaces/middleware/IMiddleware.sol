@@ -25,6 +25,7 @@ interface IMiddleware {
     // Errors
     error Middleware__NotOperator();
     error Middleware__NotVault();
+    error Middleware__NotForwarder();
     error Middleware__CallerNotGateway();
     error Middleware__GatewayNotSet();
     error Middleware__OperatorRewardsNotSet();
@@ -39,6 +40,7 @@ interface IMiddleware {
     error Middleware__TooOldEpoch();
     error Middleware__InvalidEpoch();
     error Middleware__InvalidAddress();
+    error Middleware__InvalidInterval();
     error Middleware__InsufficientBalance();
     error Middleware__SlashingWindowTooShort();
     error Middleware__UnknownSlasherType();

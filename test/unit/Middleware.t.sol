@@ -1954,4 +1954,169 @@ contract MiddlewareTest is Test {
 
         assertEq(abi.decode(key, (bytes32)), bytes32(0));
     }
+
+    // ************************************************************************************************
+    // *                                        SET FORWARDER
+    // ************************************************************************************************
+
+    function testSetForwarder() public {
+        address forwarder = makeAddr("forwarder");
+        vm.prank(owner);
+        middleware.setForwarder(forwarder);
+        assertEq(middleware.s_forwarderAddress(), forwarder);
+    }
+
+    function testSetForwarderUnauthorizedAccount() public {
+        address forwarder = makeAddr("forwarder");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
+            )
+        );
+        middleware.setForwarder(forwarder);
+    }
+
+    function testSetForwarderRevertIfZero() public {
+        address forwarder = address(0);
+        vm.prank(owner);
+        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
+        middleware.setForwarder(forwarder);
+    }
+
+    // ************************************************************************************************
+    // *                                        SET INTERVAL
+    // ************************************************************************************************
+
+    function testSetInterval() public {
+        uint256 interval = 3 days;
+        vm.prank(owner);
+        middleware.setInterval(interval);
+        assertEq(middleware.s_interval(), interval);
+    }
+
+    function testSetIntervalUnauthorizedAccount() public {
+        uint256 interval = 3 days;
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
+            )
+        );
+        middleware.setInterval(interval);
+    }
+
+    function testSetIntervalRevertIfZero() public {
+        uint256 interval = 0;
+        vm.prank(owner);
+        vm.expectRevert(IMiddleware.Middleware__InvalidInterval.selector);
+        middleware.setInterval(interval);
+    }
+
+    // ************************************************************************************************
+    // *                                        UPKEEP
+    // ************************************************************************************************
+
+    function testUpkeepWhenKeysAre0() public {
+        address forwarder = makeAddr("forwarder");
+        vm.prank(owner);
+        middleware.setForwarder(forwarder);
+
+        // It's not needed, it's just for explaining and showing the flow
+        address offlineKeepers = makeAddr("offlineKeepers");
+        vm.prank(offlineKeepers);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+
+        bytes32[] memory sortedKeys = abi.decode(performData, (bytes32[]));
+        assertEq(sortedKeys.length, 0);
+
+        vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
+        vm.prank(forwarder);
+        middleware.performUpkeep(performData);
+    }
+
+    function testUpkeepWithMoreOperators() public {
+        address forwarder = makeAddr("forwarder");
+        address operator2 = makeAddr("operator2");
+        bytes32 OPERATOR2_KEY = bytes32(uint256(2));
+
+        vm.prank(owner);
+        middleware.setForwarder(forwarder);
+
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+        _registerOperatorToNetwork(operator2, address(vault), false, false);
+
+        vm.startPrank(owner);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        middleware.registerOperator(operator2, abi.encode(OPERATOR2_KEY), address(0));
+        vm.stopPrank();
+
+        // It's not needed, it's just for explaining and showing the flow
+        address offlineKeepers = makeAddr("offlineKeepers");
+        vm.prank(offlineKeepers);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+
+        bytes32[] memory sortedKeys = abi.decode(performData, (bytes32[]));
+        assertEq(sortedKeys.length, 2);
+        vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
+        vm.prank(forwarder);
+        middleware.performUpkeep(performData);
+    }
+
+    function testUpkeepShouldRevertIfNotCalledByForwarder() public {
+        address forwarder = makeAddr("forwarder");
+
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+
+        vm.startPrank(owner);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        vm.stopPrank();
+
+        // It's not needed, it's just for explaining and showing the flow
+        address offlineKeepers = makeAddr("offlineKeepers");
+        vm.prank(offlineKeepers);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+
+        vm.expectRevert(IMiddleware.Middleware__NotForwarder.selector);
+        middleware.performUpkeep(performData);
+    }
+
+    function testUpkeepShouldRevertIfGatewayNotSet() public {
+        address forwarder = makeAddr("forwarder");
+
+        // We set the gateway to 0 address
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+
+        vm.startPrank(owner);
+        middleware.setGateway(address(0));
+        middleware.setForwarder(forwarder);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        vm.stopPrank();
+
+        // It's not needed, it's just for explaining and showing the flow
+        address offlineKeepers = makeAddr("offlineKeepers");
+        vm.prank(offlineKeepers);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+
+        vm.expectRevert(IMiddleware.Middleware__GatewayNotSet.selector);
+        middleware.performUpkeep(performData);
+    }
 }
