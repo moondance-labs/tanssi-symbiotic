@@ -2,19 +2,19 @@
 pragma solidity ^0.8.25;
 
 import {BaseMiddleware} from "@symbiotic-middleware/middleware/BaseMiddleware.sol";
-import {ISharedVaults} from "src/interfaces/extensions/ISharedVaults.sol";
+import {IOSharedVaults} from "src/interfaces/extensions/IOSharedVaults.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 
 /**
- * @title SharedVaults
+ * @title OSharedVaults
  * @notice Contract for managing shared vaults that can be used by multiple operators
  * @dev Extends BaseMiddleware to provide access control for vault management functions
  */
-abstract contract SharedVaults is BaseMiddleware, ISharedVaults {
+abstract contract OSharedVaults is BaseMiddleware, IOSharedVaults {
     uint64 public constant SharedVaults_VERSION = 1;
 
     /**
-     * @inheritdoc ISharedVaults
+     * @inheritdoc IOSharedVaults
      */
     function registerSharedVault(
         address sharedVault,
@@ -25,7 +25,7 @@ abstract contract SharedVaults is BaseMiddleware, ISharedVaults {
     }
 
     /**
-     * @inheritdoc ISharedVaults
+     * @inheritdoc IOSharedVaults
      */
     function pauseSharedVault(
         address sharedVault
@@ -35,7 +35,7 @@ abstract contract SharedVaults is BaseMiddleware, ISharedVaults {
     }
 
     /**
-     * @inheritdoc ISharedVaults
+     * @inheritdoc IOSharedVaults
      */
     function unpauseSharedVault(
         address sharedVault
@@ -45,7 +45,7 @@ abstract contract SharedVaults is BaseMiddleware, ISharedVaults {
     }
 
     /**
-     * @inheritdoc ISharedVaults
+     * @inheritdoc IOSharedVaults
      */
     function unregisterSharedVault(
         address sharedVault
