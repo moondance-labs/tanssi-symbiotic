@@ -19,7 +19,7 @@ abstract contract SharedVaults is BaseMiddleware, ISharedVaults {
     function registerSharedVault(
         address sharedVault,
         IODefaultStakerRewards.InitParams memory stakerRewardsParams
-    ) public virtual checkAccess {
+    ) public checkAccess {
         _beforeRegisterSharedVault(sharedVault, stakerRewardsParams);
         _registerSharedVault(sharedVault);
     }

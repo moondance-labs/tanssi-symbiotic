@@ -576,6 +576,13 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
     }
 
+    function testRegisterVaultWithNoHookOverwritten() public {
+        // This was added just to cover the default implementation of the _beforeRegisterSharedVault hook
+        SharedVaultMock vaultMock = new SharedVaultMock();
+        vaultMock.callBeforeRegisterHook(address(vaultMock), stakerRewardsParams);
+        assertEq(vaultMock.stakeToPower(makeAddr("mock"), 1), 0);
+    }
+
     // ************************************************************************************************
     // *                                      PAUSE VAULT
     // ************************************************************************************************
@@ -1896,16 +1903,5 @@ contract MiddlewareTest is Test {
         key = middleware.getOperatorKeyAt(operator, uint48(vm.getBlockTimestamp()));
 
         assertEq(abi.decode(key, (bytes32)), bytes32(0));
-    }
-
-    // ************************************************************************************************
-    // *                                        Coverage
-    // ************************************************************************************************
-
-    function testRegisterVaultWithNoHookOverwritten() public {
-        // This was added just to cover the default implementation of the _beforeRegisterSharedVault hook
-        SharedVaultMock vaultMock = new SharedVaultMock();
-        vaultMock.registerSharedVault(address(vaultMock), stakerRewardsParams);
-        assertEq(vaultMock.stakeToPower(makeAddr("mock"), 1), 0);
     }
 }
