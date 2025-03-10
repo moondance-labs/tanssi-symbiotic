@@ -79,6 +79,12 @@ import {Token} from "test/mocks/Token.sol";
 import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
 import {DeployVault} from "script/DeployVault.s.sol";
+import {DeployRewards} from "script/DeployRewards.s.sol";
+import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
+import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
+import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
+import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
+import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 
 contract MiddlewareTest is Test {
     using Subnetwork for address;
@@ -171,6 +177,9 @@ contract MiddlewareTest is Test {
 
     // Scripts
     DeployVault deployVault;
+    DeployRewards deployRewards;
+    ODefaultOperatorRewards operatorRewards;
+    ODefaultStakerRewardsFactory stakerRewardsFactory;
 
     function setUp() public {
         DeployCollateral deployCollateral = new DeployCollateral();
@@ -188,6 +197,7 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
 
         deployVault = new DeployVault();
+        deployRewards = new DeployRewards();
         DeploySymbiotic deploySymbiotic = new DeploySymbiotic();
 
         owner = tanssi = deploySymbiotic.owner();
@@ -218,7 +228,16 @@ contract MiddlewareTest is Test {
 
         _deployVaults(tanssi);
 
-        middleware = _deployMiddlewareWithProxy(tanssi, owner);
+        (address stakerRewardsFactoryAddress,) = deployRewards.deployStakerRewardsFactoryContract(
+            address(vaultFactory), address(networkMiddlewareService), uint48(block.timestamp), NETWORK_EPOCH_DURATION
+        );
+        stakerRewardsFactory = ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress);
+
+        address operatorRewardsAddress =
+            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), 5000);
+        operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
+
+        middleware = _deployMiddlewareWithProxy(tanssi, owner, operatorRewardsAddress, stakerRewardsFactoryAddress);
         _createGateway();
         middleware.setGateway(address(gateway));
 
@@ -267,19 +286,25 @@ contract MiddlewareTest is Test {
     // *                                        HELPERS
     // ************************************************************************************************
 
-    function _deployMiddlewareWithProxy(address _network, address _owner) public returns (Middleware _middleware) {
-        Middleware _middlewareImpl = new Middleware();
-        _middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
+    function _deployMiddlewareWithProxy(
+        address _network,
+        address _owner,
+        address _operatorRewardsAddress,
+        address _stakerRewardsFactoryAddress
+    ) public returns (Middleware _middleware) {
         address readHelper = address(new BaseMiddlewareReader());
+
+        Middleware _middlewareImpl = new Middleware(_operatorRewardsAddress, _stakerRewardsFactoryAddress);
+        _middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
         _middleware.initialize(
-            _network, // network
-            address(operatorRegistry), // operatorRegistry
-            address(vaultFactory), // vaultRegistry
-            address(operatorNetworkOptInService), // operatorNetOptin
-            _owner, // owner
-            NETWORK_EPOCH_DURATION, // epoch duration
-            SLASHING_WINDOW, // slashing window
-            readHelper // reader
+            _network,
+            address(operatorRegistry),
+            address(vaultFactory),
+            address(operatorNetworkOptInService),
+            _owner,
+            NETWORK_EPOCH_DURATION,
+            SLASHING_WINDOW,
+            readHelper
         );
 
         networkMiddlewareService.setMiddleware(address(_middleware));
@@ -321,9 +346,18 @@ contract MiddlewareTest is Test {
         address _owner
     ) public {
         vm.startPrank(_owner);
-        middleware.registerSharedVault(vaultAddresses.vault);
-        middleware.registerSharedVault(vaultAddresses.vaultSlashable);
-        middleware.registerSharedVault(vaultAddresses.vaultVetoed);
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            vault: address(0),
+            adminFee: 0,
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: tanssi,
+            adminFeeSetRoleHolder: tanssi,
+            operatorRewardsRoleHolder: tanssi,
+            network: tanssi
+        });
+        middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
+        middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsParams);
+        middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsParams);
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         middleware.registerOperator(operator2, abi.encode(OPERATOR2_KEY), address(0));
         middleware.registerOperator(operator3, abi.encode(OPERATOR3_KEY), address(0));
@@ -413,6 +447,7 @@ contract MiddlewareTest is Test {
     ) public pure returns (uint256) {
         return sharesCount.mulDiv(stake, totalShares);
     }
+
     // ************************************************************************************************
     // *                                        BASE TESTS
     // ************************************************************************************************
@@ -557,7 +592,7 @@ contract MiddlewareTest is Test {
         vm.warp(epochStartTs);
 
         // We want to slash 30 ether, so we need to calculate what percentage
-        uint256 slashingFraction = 3 * PARTS_PER_BILLION / 2;
+        uint256 slashingFraction = (3 * PARTS_PER_BILLION) / 2;
 
         vm.prank(gateway);
         vm.expectRevert(
@@ -850,13 +885,27 @@ contract MiddlewareTest is Test {
 
         // Operator4 registration and network configuration
         _registerOperator(operator4, network2, address(vault));
-        vm.startPrank(network2);
-        Middleware middleware2 = _deployMiddlewareWithProxy(network2, network2);
 
-        middleware2.registerSharedVault(address(vault));
+        address operatorRewardsAddress2 =
+            deployRewards.deployOperatorRewardsContract(network2, address(networkMiddlewareService), 5000);
+
+        vm.startPrank(network2);
+        Middleware middleware2 =
+            _deployMiddlewareWithProxy(network2, network2, operatorRewardsAddress2, address(stakerRewardsFactory));
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            vault: address(0),
+            adminFee: 0,
+            defaultAdminRoleHolder: network2,
+            adminFeeClaimRoleHolder: network2,
+            adminFeeSetRoleHolder: network2,
+            operatorRewardsRoleHolder: network2,
+            network: network2
+        });
+        middleware2.registerSharedVault(address(vault), stakerRewardsParams);
         middleware2.registerOperator(operator4, abi.encode(OPERATOR4_KEY), address(0));
 
         vm.stopPrank();
+
         vm.warp(NETWORK_EPOCH_DURATION + 2);
         uint48 middleware2CurrentEpoch = middleware2.getCurrentEpoch();
         Middleware.OperatorVaultPair[] memory operator2VaultPairs =
@@ -1198,5 +1247,58 @@ contract MiddlewareTest is Test {
         vm.expectEmit(true, false, false, false);
         emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
         middleware.performUpkeep(performData);
+    }
+
+    function testWhenRegisteringVaultThenStakerRewardsAreDeployed() public {
+        vm.startPrank(owner);
+        uint256 totalEntities = stakerRewardsFactory.totalEntities();
+
+        VaultAddresses memory testVaultAddresses = _createTestVault(owner);
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            vault: address(0),
+            adminFee: 0,
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: tanssi,
+            adminFeeSetRoleHolder: tanssi,
+            operatorRewardsRoleHolder: tanssi,
+            network: tanssi
+        });
+
+        middleware.registerSharedVault(testVaultAddresses.vault, stakerRewardsParams);
+        vm.stopPrank();
+
+        address stakerRewards = operatorRewards.s_vaultToStakerRewardsContract(testVaultAddresses.vault);
+        // Check that the staker rewards contract is correctly and added to entities:
+        assertEq(stakerRewardsFactory.totalEntities(), totalEntities + 1);
+        assertNotEq(stakerRewards, address(0));
+
+        // Check that the staker rewards contract is correctly configured:
+        ODefaultStakerRewards stakerRewardsContract = ODefaultStakerRewards(stakerRewards);
+        assertEq(stakerRewardsContract.VAULT(), testVaultAddresses.vault);
+        assertEq(stakerRewardsContract.NETWORK(), tanssi);
+        assertTrue(stakerRewardsContract.hasRole(stakerRewardsContract.DEFAULT_ADMIN_ROLE(), tanssi));
+        assertTrue(stakerRewardsContract.hasRole(stakerRewardsContract.ADMIN_FEE_CLAIM_ROLE(), tanssi));
+        assertTrue(stakerRewardsContract.hasRole(stakerRewardsContract.ADMIN_FEE_SET_ROLE(), tanssi));
+        assertTrue(stakerRewardsContract.hasRole(stakerRewardsContract.OPERATOR_REWARDS_ROLE(), tanssi));
+    }
+
+    function _createTestVault(
+        address _owner
+    ) public returns (VaultAddresses memory testVaultAddresses) {
+        DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
+            epochDuration: VAULT_EPOCH_DURATION,
+            depositWhitelist: false,
+            depositLimit: 0,
+            delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
+            shouldBroadcast: false,
+            vaultConfigurator: address(vaultConfigurator),
+            collateral: address(stETH),
+            owner: _owner
+        });
+
+        (testVaultAddresses.vault, testVaultAddresses.delegator, testVaultAddresses.slasher) =
+            deployVault.createBaseVault(params);
+
+        return testVaultAddresses;
     }
 }
