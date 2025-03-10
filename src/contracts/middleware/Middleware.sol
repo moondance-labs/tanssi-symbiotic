@@ -286,8 +286,6 @@ contract Middleware is
         upkeepNeeded = (block.timestamp - s_lastTimestamp) > s_interval;
 
         performData = abi.encode(sortedKeys, epoch);
-
-        return (upkeepNeeded, performData);
     }
 
     /**
@@ -305,9 +303,9 @@ contract Middleware is
             s_lastTimestamp = block.timestamp;
 
             // Decode the sorted keys and the epoch from performData
-            bytes32[] memory sortedKeys = abi.decode(performData, (bytes32[]));
+            (bytes32[] memory sortedKeys, uint48 epoch) = abi.decode(performData, (bytes32[], uint48));
 
-            s_gateway.sendOperatorsData(sortedKeys, getCurrentEpoch());
+            s_gateway.sendOperatorsData(sortedKeys, epoch);
         }
     }
 
