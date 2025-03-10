@@ -59,6 +59,7 @@ import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStake
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {MiddlewareV2} from "./utils/MiddlewareV2.sol";
 import {MiddlewareV3} from "./utils/MiddlewareV3.sol";
+import {SharedVaultMock} from "./utils/SharedVaultMock.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
 import {QuickSort} from "src/contracts/libraries/QuickSort.sol";
@@ -1895,5 +1896,16 @@ contract MiddlewareTest is Test {
         key = middleware.getOperatorKeyAt(operator, uint48(vm.getBlockTimestamp()));
 
         assertEq(abi.decode(key, (bytes32)), bytes32(0));
+    }
+
+    // ************************************************************************************************
+    // *                                        Coverage
+    // ************************************************************************************************
+
+    function testRegisterVaultWithNoHookOverwritten() public {
+        // This was added just to cover the default implementation of the _beforeRegisterSharedVault hook
+        SharedVaultMock vaultMock = new SharedVaultMock();
+        vaultMock.registerSharedVault(address(vaultMock), stakerRewardsParams);
+        assertEq(vaultMock.stakeToPower(makeAddr("mock"), 1), 0);
     }
 }
