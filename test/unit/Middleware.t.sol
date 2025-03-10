@@ -68,6 +68,7 @@ import {DelegatorMock} from "../mocks/symbiotic/DelegatorMock.sol";
 import {OptInServiceMock} from "../mocks/symbiotic/OptInServiceMock.sol";
 import {RegistryMock} from "../mocks/symbiotic/RegistryMock.sol";
 import {VaultMock} from "../mocks/symbiotic/VaultMock.sol";
+import {SharedVaultMock} from "../mocks/symbiotic/SharedVaultMock.sol";
 import {Token} from "../mocks/Token.sol";
 
 contract MiddlewareTest is Test {
@@ -573,6 +574,13 @@ contract MiddlewareTest is Test {
 
         assertEq(middleware.isVaultRegistered(address(vault)), true);
         vm.stopPrank();
+    }
+
+    function testRegisterVaultWithNoHookOverwritten() public {
+        // This was added just to cover the default implementation of the _beforeRegisterSharedVault hook
+        SharedVaultMock vaultMock = new SharedVaultMock();
+        vaultMock.callBeforeRegisterHook(address(vaultMock), stakerRewardsParams);
+        assertEq(vaultMock.stakeToPower(makeAddr("mock"), 1), 0);
     }
 
     // ************************************************************************************************
