@@ -167,7 +167,7 @@ contract MiddlewareTest is Test {
             deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), 5000);
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
-        Middleware middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
         middleware = Middleware(address(new ERC1967Proxy(address(middlewareImpl), "")));
         middleware.initialize(
             tanssi,
@@ -1177,7 +1177,7 @@ contract MiddlewareTest is Test {
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerSharedVault(address(vault));
+        middleware.registerSharedVault(address(vault), stakerRewardsParams);
 
         vm.startPrank(operator);
         vault.deposit(operator, OPERATOR_STAKE);
@@ -1676,25 +1676,21 @@ contract MiddlewareTest is Test {
     function testMiddlewareIsUpgradeable() public {
         uint48 OPERATOR_SHARE = 2000;
 
-        ODefaultOperatorRewards operatorRewards =
+        ODefaultOperatorRewards newOperatorRewards =
             new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
 
         vm.prank(owner);
-        middleware.setOperatorRewardsContract(address(operatorRewards));
 
         assertEq(middleware.VERSION(), 1);
-        assertEq(middleware.s_operatorRewards(), address(operatorRewards));
+        assertEq(middleware.i_operatorRewards(), address(operatorRewards));
 
-        MiddlewareV2 middlewareImplV2 = new MiddlewareV2();
+        MiddlewareV2 middlewareImplV2 = new MiddlewareV2(address(newOperatorRewards));
         bytes memory emptyBytes = hex"";
         vm.prank(owner);
         middleware.upgradeToAndCall(address(middlewareImplV2), emptyBytes);
 
         assertEq(middleware.VERSION(), 2);
-        assertEq(middleware.s_operatorRewards(), address(operatorRewards));
-
-        middleware.setOperatorRewardsContract(address(0));
-        assertEq(middleware.s_operatorRewards(), address(0));
+        assertEq(middleware.i_operatorRewards(), address(newOperatorRewards));
 
         address gatewayAddress = makeAddr("gatewayAddress");
 
@@ -1712,14 +1708,9 @@ contract MiddlewareTest is Test {
     function testMiddlewareIsUpgradeableButMiddlewareV3IsNotUpgradeable() public {
         uint48 OPERATOR_SHARE = 2000;
 
-        ODefaultOperatorRewards operatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
-
         vm.prank(owner);
-        middleware.setOperatorRewardsContract(address(operatorRewards));
-
         assertEq(middleware.VERSION(), 1);
-        assertEq(middleware.s_operatorRewards(), address(operatorRewards));
+        assertEq(middleware.i_operatorRewards(), address(operatorRewards));
 
         MiddlewareV3 middlewareImplV3 = new MiddlewareV3(address(operatorRewards));
         bytes memory emptyBytes = hex"";
@@ -1728,9 +1719,6 @@ contract MiddlewareTest is Test {
 
         assertEq(middleware.VERSION(), 3);
         assertEq(MiddlewareV3(address(middleware)).i_operatorRewards(), address(operatorRewards));
-
-        vm.expectRevert(); //Doesn't exists
-        middleware.setOperatorRewardsContract(address(0));
 
         vm.expectRevert(MiddlewareV3.MiddlewareV3__UpgradeNotAuthorized.selector); //Contract is not upgradeable anymore
         middleware.upgradeToAndCall(address(middlewareImpl), emptyBytes);
