@@ -341,13 +341,12 @@ contract RewardsTest is Test {
         );
         _distributeRewards(epoch, eraIndex, AMOUNT_TO_DISTRIBUTE, address(token));
 
-        (uint48 epoch_, uint256 amount_, uint256 tokensPerPoints_, bytes32 root_, address tokenAddress_) =
-            operatorRewards.eraRoot(0);
-        assertEq(epoch_, epoch);
-        assertEq(amount_, AMOUNT_TO_DISTRIBUTE);
-        assertEq(tokensPerPoints_, TOKENS_PER_POINT);
-        assertEq(root_, REWARDS_ROOT);
-        assertEq(tokenAddress_, address(token));
+        IODefaultOperatorRewards.EraRoot memory eraRoot_ = operatorRewards.eraRoot(0);
+        assertEq(eraRoot_.epoch, epoch);
+        assertEq(eraRoot_.amount, AMOUNT_TO_DISTRIBUTE);
+        assertEq(eraRoot_.tokensPerPoint, TOKENS_PER_POINT);
+        assertEq(eraRoot_.root, REWARDS_ROOT);
+        assertEq(eraRoot_.tokenAddress, address(token));
 
         uint48 eraIndex_ = operatorRewards.eraIndexesPerEpoch(epoch, 0);
         assertEq(eraIndex_, eraIndex);

@@ -48,7 +48,8 @@ contract ODefaultOperatorRewards is
     using SafeERC20 for IERC20;
     using Math for uint256;
 
-    struct MainStorage {
+    /// @custom:storage-location erc7201:tanssi.rewards.ODefaultOperatorRewards.v1
+    struct OperatorRewardsStorage {
         uint48 operatorShare;
         mapping(uint48 eraIndex => EraRoot eraRoot) eraRoot;
         mapping(uint48 epoch => uint48[] eraIndexes) eraIndexesPerEpoch;
@@ -83,10 +84,12 @@ contract ODefaultOperatorRewards is
         __Ownable_init(owner_);
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
-        _getMainStorage().operatorShare = operatorShare_;
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        $.operatorShare = operatorShare_;
     }
 
-    bytes32 constant MAIN_STORAGE_LOCATION = keccak256("tanssi.rewards.ODefaultOperatorRewards.v1");
+    // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultOperatorRewards.v1")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 constant MAIN_STORAGE_LOCATION = 0x57cf781f364664df22ab0472e35114435fb4a6881ab5a1b47ed6d1a7d4605400;
 
     /**
      * @inheritdoc IODefaultOperatorRewards
@@ -124,7 +127,7 @@ contract ODefaultOperatorRewards is
         });
         // We store the eraRoot struct which contains useful information for the claimRewards function and for UI
         // We store also the eraIndex in an array to be able to get all the eras for each epoch
-        MainStorage storage $ = _getMainStorage();
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         $.eraRoot[eraIndex] = eraRoot_;
         $.eraIndexesPerEpoch[epoch].push(eraIndex);
 
@@ -137,7 +140,7 @@ contract ODefaultOperatorRewards is
     function claimRewards(
         ClaimRewardsInput calldata input
     ) external nonReentrant returns (uint256 amount) {
-        MainStorage storage $ = _getMainStorage();
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         EraRoot memory eraRoot_ = $.eraRoot[input.eraIndex];
         address tokenAddress = eraRoot_.tokenAddress;
         if (eraRoot_.root == bytes32(0)) {
@@ -195,7 +198,7 @@ contract ODefaultOperatorRewards is
         if (stakerRewards == address(0) || vault == address(0)) {
             revert ODefaultOperatorRewards__InvalidAddress();
         }
-        MainStorage storage $ = _getMainStorage();
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
 
         if ($.vaultToStakerRewardsContract[vault] == stakerRewards) {
             revert ODefaultOperatorRewards__AlreadySet();
@@ -213,7 +216,7 @@ contract ODefaultOperatorRewards is
         uint48 operatorShare_
     ) external onlyMiddleware {
         //TODO A maximum value for the operatorShare should be chosen. 100% shouldn't be a valid option.
-        MainStorage storage $ = _getMainStorage();
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         if (operatorShare_ >= MAX_PERCENTAGE) {
             revert ODefaultOperatorRewards__InvalidOperatorShare();
         }
@@ -230,7 +233,8 @@ contract ODefaultOperatorRewards is
      * @inheritdoc IODefaultOperatorRewards
      */
     function operatorShare() external view returns (uint48 operatorShare_) {
-        operatorShare_ = _getMainStorage().operatorShare;
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        operatorShare_ = $.operatorShare;
     }
 
     /**
@@ -238,31 +242,25 @@ contract ODefaultOperatorRewards is
      */
     function eraRoot(
         uint48 eraIndex
-    )
-        external
-        view
-        returns (uint48 epoch, uint256 amount, uint256 tokensPerPoints, bytes32 root, address tokenAddress)
-    {
-        EraRoot memory eraRoot_ = _getMainStorage().eraRoot[eraIndex];
-        epoch = eraRoot_.epoch;
-        amount = eraRoot_.amount;
-        tokensPerPoints = eraRoot_.tokensPerPoint;
-        root = eraRoot_.root;
-        tokenAddress = eraRoot_.tokenAddress;
+    ) external view returns (EraRoot memory eraRoot_) {
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        eraRoot_ = $.eraRoot[eraIndex];
     }
 
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
     function eraIndexesPerEpoch(uint48 epoch, uint256 index) external view returns (uint48 eraIndex) {
-        eraIndex = _getMainStorage().eraIndexesPerEpoch[epoch][index];
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        eraIndex = $.eraIndexesPerEpoch[epoch][index];
     }
 
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
     function claimed(uint48 eraIndex, address account) external view returns (uint256 amount) {
-        amount = _getMainStorage().claimed[eraIndex][account];
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        amount = $.claimed[eraIndex][account];
     }
 
     /**
@@ -271,7 +269,8 @@ contract ODefaultOperatorRewards is
     function vaultToStakerRewardsContract(
         address vault
     ) external view returns (address stakerRewards) {
-        stakerRewards = _getMainStorage().vaultToStakerRewardsContract[vault];
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        stakerRewards = $.vaultToStakerRewardsContract[vault];
     }
 
     function _authorizeUpgrade(
@@ -293,14 +292,15 @@ contract ODefaultOperatorRewards is
         (, address[] memory operatorVaults) = Middleware(middlewareAddress).getOperatorVaults(recipient, epochStartTs);
 
         // TODO: Currently it's only for a specific vault. We don't care now about making it able to send rewards for multiple vaults. It's hardcoded to the first vault of the operator.
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         if (operatorVaults.length > 0) {
-            IODefaultStakerRewards(_getMainStorage().vaultToStakerRewardsContract[operatorVaults[0]]).distributeRewards(
+            IODefaultStakerRewards($.vaultToStakerRewardsContract[operatorVaults[0]]).distributeRewards(
                 epoch, eraIndex, stakerAmount, tokenAddress, data
             );
         }
     }
 
-    function _getMainStorage() private pure returns (MainStorage storage $) {
+    function _getOperatorRewardsStorage() private pure returns (OperatorRewardsStorage storage $) {
         bytes32 position = MAIN_STORAGE_LOCATION;
         assembly {
             $.slot := position
