@@ -17,3 +17,8 @@ docs/
 
 **/node_modules/
 .vscode/
+
+# Coverage report
+report/
+lcov.info
+coverage.txt
