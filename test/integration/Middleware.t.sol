@@ -234,7 +234,7 @@ contract MiddlewareTest is Test {
         stakerRewardsFactory = ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress);
 
         address operatorRewardsAddress =
-            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), 5000);
+            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), 5000, owner);
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
         middleware = _deployMiddlewareWithProxy(tanssi, owner, operatorRewardsAddress, stakerRewardsFactoryAddress);
@@ -887,7 +887,7 @@ contract MiddlewareTest is Test {
         _registerOperator(operator4, network2, address(vault));
 
         address operatorRewardsAddress2 =
-            deployRewards.deployOperatorRewardsContract(network2, address(networkMiddlewareService), 5000);
+            deployRewards.deployOperatorRewardsContract(network2, address(networkMiddlewareService), 5000, owner);
 
         vm.startPrank(network2);
         Middleware middleware2 =
@@ -1248,7 +1248,7 @@ contract MiddlewareTest is Test {
         middleware.registerSharedVault(testVaultAddresses.vault, stakerRewardsParams);
         vm.stopPrank();
 
-        address stakerRewards = operatorRewards.s_vaultToStakerRewardsContract(testVaultAddresses.vault);
+        address stakerRewards = operatorRewards.vaultToStakerRewardsContract(testVaultAddresses.vault);
         // Check that the staker rewards contract is correctly and added to entities:
         assertEq(stakerRewardsFactory.totalEntities(), totalEntities + 1);
         assertNotEq(stakerRewards, address(0));

@@ -251,8 +251,9 @@ contract RewardsTest is Test {
         _deployVaults(tanssi);
 
         DeployRewards deployRewards = new DeployRewards();
-        address operatorRewardsAddress =
-            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
+        address operatorRewardsAddress = deployRewards.deployOperatorRewardsContract(
+            tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
+        );
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
         (address stakerRewardsFactoryAddress,) = deployRewards.deployStakerRewardsFactoryContract(
             address(vaultFactory), address(networkMiddlewareService), uint48(block.timestamp), NETWORK_EPOCH_DURATION
