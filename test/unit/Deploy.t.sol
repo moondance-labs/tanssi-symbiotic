@@ -247,8 +247,8 @@ contract DeployTest is Test {
             vault: _vault,
             adminFee: 0,
             defaultAdminRoleHolder: tanssi,
-            adminFeeClaimRoleHolder: address(0),
-            adminFeeSetRoleHolder: address(0),
+            adminFeeClaimRoleHolder: tanssi,
+            adminFeeSetRoleHolder: tanssi,
             operatorRewardsRoleHolder: tanssi,
             network: tanssi
         });

@@ -722,7 +722,7 @@ contract MiddlewareTest is Test {
             adminFee: 0,
             defaultAdminRoleHolder: network2,
             adminFeeClaimRoleHolder: network2,
-            adminFeeSetRoleHolder: address(0),
+            adminFeeSetRoleHolder: network2,
             operatorRewardsRoleHolder: network2,
             network: network2
         });

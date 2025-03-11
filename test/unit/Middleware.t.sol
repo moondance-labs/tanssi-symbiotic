@@ -115,8 +115,8 @@ contract MiddlewareTest is Test {
         vault: address(0),
         adminFee: 0,
         defaultAdminRoleHolder: owner,
-        adminFeeClaimRoleHolder: address(0),
-        adminFeeSetRoleHolder: address(0),
+        adminFeeClaimRoleHolder: owner,
+        adminFeeSetRoleHolder: owner,
         operatorRewardsRoleHolder: owner,
         network: tanssi
     });

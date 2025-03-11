@@ -369,8 +369,8 @@ contract RewardsTest is Test {
             vault: address(0),
             adminFee: 0,
             defaultAdminRoleHolder: _owner,
-            adminFeeClaimRoleHolder: address(0),
-            adminFeeSetRoleHolder: address(0),
+            adminFeeClaimRoleHolder: _owner,
+            adminFeeSetRoleHolder: _owner,
             operatorRewardsRoleHolder: _owner,
             network: tanssi
         });

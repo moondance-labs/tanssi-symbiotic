@@ -250,9 +250,9 @@ contract Demo is Script {
             vault: address(0),
             adminFee: 0,
             defaultAdminRoleHolder: tanssi,
-            adminFeeClaimRoleHolder: address(0),
+            adminFeeClaimRoleHolder: tanssi,
             adminFeeSetRoleHolder: tanssi,
-            operatorRewardsRoleHolder: address(0),
+            operatorRewardsRoleHolder: tanssi,
             network: tanssi
         });
         middleware.registerSharedVault(address(vault), stakerRewardsParams);
