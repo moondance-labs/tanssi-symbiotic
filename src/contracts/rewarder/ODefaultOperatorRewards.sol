@@ -48,6 +48,9 @@ contract ODefaultOperatorRewards is
     using SafeERC20 for IERC20;
     using Math for uint256;
 
+    // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultOperatorRewards.v1")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 constant MAIN_STORAGE_LOCATION = 0x57cf781f364664df22ab0472e35114435fb4a6881ab5a1b47ed6d1a7d4605400;
+
     /// @custom:storage-location erc7201:tanssi.rewards.ODefaultOperatorRewards.v1
     struct OperatorRewardsStorage {
         uint48 operatorShare;
@@ -87,9 +90,6 @@ contract ODefaultOperatorRewards is
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         $.operatorShare = operatorShare_;
     }
-
-    // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultOperatorRewards.v1")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 constant MAIN_STORAGE_LOCATION = 0x57cf781f364664df22ab0472e35114435fb4a6881ab5a1b47ed6d1a7d4605400;
 
     /**
      * @inheritdoc IODefaultOperatorRewards
@@ -190,6 +190,29 @@ contract ODefaultOperatorRewards is
         emit ClaimRewards(recipient, tokenAddress, input.eraIndex, eraRoot_.epoch, msg.sender, amount);
     }
 
+    function _distributeRewardsToStakers(
+        uint48 epoch,
+        uint48 eraIndex,
+        uint256 stakerAmount,
+        address recipient,
+        address middlewareAddress,
+        address tokenAddress,
+        bytes calldata data
+    ) private {
+        uint48 epochStartTs = EpochCapture(middlewareAddress).getEpochStart(epoch);
+
+        //TODO: For now this is expected to be a single vault. Change it to be able to handle multiple vaults.
+        (, address[] memory operatorVaults) = Middleware(middlewareAddress).getOperatorVaults(recipient, epochStartTs);
+
+        // TODO: Currently it's only for a specific vault. We don't care now about making it able to send rewards for multiple vaults. It's hardcoded to the first vault of the operator.
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        if (operatorVaults.length > 0) {
+            IODefaultStakerRewards($.vaultToStakerRewardsContract[operatorVaults[0]]).distributeRewards(
+                epoch, eraIndex, stakerAmount, tokenAddress, data
+            );
+        }
+    }
+
     //TODO Probably this function should become a function triggered by middleware that create a new staker contract (calling the create on factory contract) and then set the staker contract address here. Probably this can be called during registration of the vault? `registerSharedVault`
     /**
      * @inheritdoc IODefaultOperatorRewards
@@ -276,29 +299,6 @@ contract ODefaultOperatorRewards is
     function _authorizeUpgrade(
         address newImplementation
     ) internal override onlyOwner {}
-
-    function _distributeRewardsToStakers(
-        uint48 epoch,
-        uint48 eraIndex,
-        uint256 stakerAmount,
-        address recipient,
-        address middlewareAddress,
-        address tokenAddress,
-        bytes calldata data
-    ) private {
-        uint48 epochStartTs = EpochCapture(middlewareAddress).getEpochStart(epoch);
-
-        //TODO: For now this is expected to be a single vault. Change it to be able to handle multiple vaults.
-        (, address[] memory operatorVaults) = Middleware(middlewareAddress).getOperatorVaults(recipient, epochStartTs);
-
-        // TODO: Currently it's only for a specific vault. We don't care now about making it able to send rewards for multiple vaults. It's hardcoded to the first vault of the operator.
-        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
-        if (operatorVaults.length > 0) {
-            IODefaultStakerRewards($.vaultToStakerRewardsContract[operatorVaults[0]]).distributeRewards(
-                epoch, eraIndex, stakerAmount, tokenAddress, data
-            );
-        }
-    }
 
     function _getOperatorRewardsStorage() private pure returns (OperatorRewardsStorage storage $) {
         bytes32 position = MAIN_STORAGE_LOCATION;
