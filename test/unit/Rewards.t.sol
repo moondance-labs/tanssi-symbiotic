@@ -35,6 +35,7 @@ import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlew
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 //**************************************************************************************************
 //                                      SNOWBRIDGE
@@ -83,6 +84,7 @@ contract RewardsTest is Test {
     bytes public CLAIM_REWARDS_ADDITIONAL_DATA;
 
     address tanssi = makeAddr("tanssi");
+    address owner = makeAddr("owner");
     address delegatorFactory = makeAddr("delegatorFactory");
     address slasherFactory = makeAddr("slasherFactory");
     address vaultFactory = makeAddr("vaultFactory");
@@ -125,8 +127,9 @@ contract RewardsTest is Test {
         address readHelper = address(new BaseMiddlewareReader());
 
         deployRewards = new DeployRewards();
-        address operatorRewardsAddress =
-            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
+        address operatorRewardsAddress = deployRewards.deployOperatorRewardsContract(
+            tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
+        );
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
         delegator = new DelegatorMock(
@@ -211,8 +214,8 @@ contract RewardsTest is Test {
     function testConstructors() public view {
         assertEq(operatorRewards.i_network(), tanssi);
         assertEq(operatorRewards.i_networkMiddlewareService(), address(networkMiddlewareService));
-        assertEq(operatorRewards.s_vaultToStakerRewardsContract(address(vault)), address(stakerRewards));
-        assertEq(operatorRewards.s_operatorShare(), OPERATOR_SHARE);
+        assertEq(operatorRewards.vaultToStakerRewardsContract(address(vault)), address(stakerRewards));
+        assertEq(operatorRewards.operatorShare(), OPERATOR_SHARE);
 
         assertEq(stakerRewards.NETWORK(), tanssi);
         assertEq(stakerRewards.VAULT(), address(vault));
@@ -337,6 +340,17 @@ contract RewardsTest is Test {
             epoch, eraIndex, address(token), TOKENS_PER_POINT, AMOUNT_TO_DISTRIBUTE, REWARDS_ROOT
         );
         _distributeRewards(epoch, eraIndex, AMOUNT_TO_DISTRIBUTE, address(token));
+
+        (uint48 epoch_, uint256 amount_, uint256 tokensPerPoints_, bytes32 root_, address tokenAddress_) =
+            operatorRewards.eraRoot(0);
+        assertEq(epoch_, epoch);
+        assertEq(amount_, AMOUNT_TO_DISTRIBUTE);
+        assertEq(tokensPerPoints_, TOKENS_PER_POINT);
+        assertEq(root_, REWARDS_ROOT);
+        assertEq(tokenAddress_, address(token));
+
+        uint48 eraIndex_ = operatorRewards.eraIndexesPerEpoch(epoch, 0);
+        assertEq(eraIndex_, eraIndex);
     }
 
     function testDistributeRewardsFailsWhenMiddlewareInsufficientBalance() public {
@@ -368,7 +382,9 @@ contract RewardsTest is Test {
         uint48 eraIndex = 0;
 
         operatorRewards = ODefaultOperatorRewards(
-            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), OPERATOR_SHARE)
+            deployRewards.deployOperatorRewardsContract(
+                tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
+            )
         );
         vm.startPrank(address(middleware));
         feeToken.approve(address(operatorRewards), type(uint256).max);
@@ -422,6 +438,9 @@ contract RewardsTest is Test {
             recipient, address(token), eraIndex, epoch, address(this), EXPECTED_CLAIMABLE
         );
         operatorRewards.claimRewards(claimRewardsData);
+
+        uint256 amountClaimed_ = operatorRewards.claimed(eraIndex, alice);
+        assertEq(amountClaimed_, EXPECTED_CLAIMABLE);
     }
 
     function testClaimRewardsRootNotSet() public {
@@ -579,7 +598,7 @@ contract RewardsTest is Test {
         vm.expectEmit(true, true, false, true);
         emit IODefaultOperatorRewards.SetOperatorShare(newOperatorShare);
         operatorRewards.setOperatorShare(newOperatorShare);
-        assertEq(operatorRewards.s_operatorShare(), newOperatorShare);
+        assertEq(operatorRewards.operatorShare(), newOperatorShare);
     }
 
     function testSetOperatorShareNotNetworkMiddleware() public {
@@ -612,7 +631,7 @@ contract RewardsTest is Test {
         vm.expectEmit(true, true, false, true);
         emit IODefaultOperatorRewards.SetStakerRewardContract(newStakerRewards, newVault);
         operatorRewards.setStakerRewardContract(newStakerRewards, newVault);
-        assertEq(operatorRewards.s_vaultToStakerRewardsContract(newVault), newStakerRewards);
+        assertEq(operatorRewards.vaultToStakerRewardsContract(newVault), newStakerRewards);
     }
 
     function testSetStakerRewardContractNotNetworkMiddleware() public {
@@ -1173,5 +1192,35 @@ contract RewardsTest is Test {
             )
         );
         stakerRewards.claimAdminFee(tanssi, epoch, address(token));
+    }
+
+    //**************************************************************************************************
+    //                                      UPGRADING
+    //**************************************************************************************************
+
+    function testUpgrade() public {
+        vm.startPrank(address(middleware));
+        address mockStakerRewards = makeAddr("mockStakerRewards");
+        address mockVault = makeAddr("mockVault");
+
+        operatorRewards.setStakerRewardContract(mockStakerRewards, mockVault);
+
+        vm.startPrank(address(owner));
+        ODefaultOperatorRewards newOperatorRewards =
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService));
+        operatorRewards.upgradeToAndCall(address(newOperatorRewards), hex"");
+
+        assertEq(operatorRewards.vaultToStakerRewardsContract(mockVault), mockStakerRewards);
+        assertEq(operatorRewards.operatorShare(), OPERATOR_SHARE);
+    }
+
+    function testUpgradeNotAuthorized() public {
+        ODefaultOperatorRewards newOperatorRewards =
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService));
+
+        address randomUser = makeAddr("randomUser");
+        vm.prank(randomUser);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, randomUser));
+        operatorRewards.upgradeToAndCall(address(newOperatorRewards), hex"");
     }
 }

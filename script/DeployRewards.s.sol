@@ -16,6 +16,8 @@ pragma solidity 0.8.25;
 
 import {Script, console2} from "forge-std/Script.sol";
 
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
@@ -46,9 +48,12 @@ contract DeployRewards is Script {
     function deployOperatorRewardsContract(
         address network,
         address networkMiddlewareService,
-        uint48 operatorShare
+        uint48 operatorShare,
+        address owner
     ) public returns (address) {
-        operatorRewards = new ODefaultOperatorRewards(network, networkMiddlewareService, operatorShare);
+        ODefaultOperatorRewards operatorRewardsImpl = new ODefaultOperatorRewards(network, networkMiddlewareService);
+        operatorRewards = ODefaultOperatorRewards(address(new ERC1967Proxy(address(operatorRewardsImpl), "")));
+        operatorRewards.initialize(operatorShare, owner);
         console2.log("Operator rewards contract deployed at address: ", address(operatorRewards));
         return address(operatorRewards);
     }
@@ -93,7 +98,9 @@ contract DeployRewards is Script {
     function run(
         DeployParams calldata params
     ) external {
-        deployOperatorRewardsContract(params.network, params.networkMiddlewareService, params.operatorShare);
+        deployOperatorRewardsContract(
+            params.network, params.networkMiddlewareService, params.operatorShare, params.defaultAdminRole
+        );
         deployStakerRewardsFactoryContract(params.vaultFactory, params.network, params.startTime, params.epochDuration);
         deployStakerRewardsContract(
             params.vault,

@@ -705,7 +705,7 @@ contract MiddlewareTest is Test {
         Middleware middleware2 = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
         address readHelper = address(new BaseMiddlewareReader());
 
-        Middleware(address(middleware2)).initialize(
+        middleware2.initialize(
             network2,
             operatorRegistryAddress,
             vaultFactoryAddress,
@@ -760,7 +760,7 @@ contract MiddlewareTest is Test {
         );
 
         address operatorRewardsAddress =
-            deployRewards.deployOperatorRewardsContract(network, networkMiddlewareServiceAddress, 5000);
+            deployRewards.deployOperatorRewardsContract(network, networkMiddlewareServiceAddress, 5000, owner);
 
         middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
     }

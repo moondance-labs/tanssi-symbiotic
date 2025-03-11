@@ -165,7 +165,7 @@ contract MiddlewareTest is Test {
         );
 
         address operatorRewardsAddress =
-            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), 5000);
+            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), 5000, owner);
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
         middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
@@ -1647,7 +1647,7 @@ contract MiddlewareTest is Test {
     }
 
     // ************************************************************************************************
-    // *                                  SET STAKER REWARD CONTRACT
+    // *                                  SET OPERATORs REWARD SHARE
     // ************************************************************************************************
 
     function testSetOperatorShareOnOperatorRewards() public {
@@ -1684,8 +1684,8 @@ contract MiddlewareTest is Test {
     function testMiddlewareIsUpgradeable() public {
         uint48 OPERATOR_SHARE = 2000;
 
-        ODefaultOperatorRewards newOperatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
+        // ODefaultOperatorRewards newOperatorRewards = ODefaultOperatorRewards(
+        //     deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner));
 
         vm.prank(owner);
 
