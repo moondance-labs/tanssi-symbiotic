@@ -115,8 +115,8 @@ contract MiddlewareTest is Test {
         vault: address(0),
         adminFee: 0,
         defaultAdminRoleHolder: owner,
-        adminFeeClaimRoleHolder: address(0),
-        adminFeeSetRoleHolder: address(0),
+        adminFeeClaimRoleHolder: owner,
+        adminFeeSetRoleHolder: owner,
         operatorRewardsRoleHolder: owner,
         network: tanssi
     });
@@ -153,7 +153,7 @@ contract MiddlewareTest is Test {
 
         address readHelper = address(new BaseMiddlewareReader());
 
-        deployRewards = new DeployRewards();
+        deployRewards = new DeployRewards(true);
         address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
             address(vaultFactory), address(networkMiddlewareService), uint48(block.timestamp), NETWORK_EPOCH_DURATION
         );

@@ -17,6 +17,11 @@ pragma solidity 0.8.25;
 import {Script, console2} from "forge-std/Script.sol";
 
 //**************************************************************************************************
+//                                      OPENZEPPELIN
+//**************************************************************************************************
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+
+//**************************************************************************************************
 //                                      SYMBIOTIC
 //**************************************************************************************************
 import {IVaultConfigurator} from "@symbiotic/interfaces/IVaultConfigurator.sol";
@@ -31,14 +36,17 @@ import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestak
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {IDefaultCollateralFactory} from
     "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateralFactory.sol";
+import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlewareReader.sol";
 
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
+import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {Token} from "test/mocks/Token.sol";
-import {DeployCollateral} from "../DeployCollateral.s.sol";
-import {DeployVault} from "../DeployVault.s.sol";
-import {DeploySymbiotic} from "../DeploySymbiotic.s.sol";
-import {HelperConfig} from "../HelperConfig.s.sol";
+import {DeployCollateral} from "script/DeployCollateral.s.sol";
+import {DeployVault} from "script/DeployVault.s.sol";
+import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
+import {DeployRewards} from "script/DeployRewards.s.sol";
+import {HelperConfig} from "script/HelperConfig.s.sol";
 
 contract DeployTanssiEcosystem is Script {
     using Subnetwork for address;
@@ -228,21 +236,21 @@ contract DeployTanssiEcosystem is Script {
     }
 
     function _registerEntitiesToMiddleware() public {
-        IODefaultStakerRewards.InitParams stakerRewardsParams = IODefaultStakerRewards.InitParams({
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
             vault: address(0),
             adminFee: 0,
             defaultAdminRoleHolder: tanssi,
-            adminFeeClaimRoleHolder: address(0),
+            adminFeeClaimRoleHolder: tanssi,
             adminFeeSetRoleHolder: tanssi,
-            operatorRewardsRoleHolder: address(0),
+            operatorRewardsRoleHolder: tanssi,
             network: tanssi
         });
         ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
         ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsParams);
         ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsParams);
-        ecosystemEntities.middleware.registerOperator(operator, operatorKey1, address(0));
-        ecosystemEntities.middleware.registerOperator(operator2, operatorKey2, address(0));
-        ecosystemEntities.middleware.registerOperator(operator3, operatorKey3, address(0));
+        ecosystemEntities.middleware.registerOperator(operator, abi.encode(operatorKey1), address(0));
+        ecosystemEntities.middleware.registerOperator(operator2, abi.encode(operatorKey2), address(0));
+        ecosystemEntities.middleware.registerOperator(operator3, abi.encode(operatorKey3), address(0));
     }
 
     function _depositToVault(IVault _vault, address _operator, uint256 _amount, Token collateral) public {
@@ -313,15 +321,25 @@ contract DeployTanssiEcosystem is Script {
         _depositToVault(_vault, operator3, 100 ether, tokensAddresses.stETHToken);
         vm.stopBroadcast();
 
+        (address stakerRewardsFactoryAddress,) = contractScripts.deployRewards.deployStakerRewardsFactoryContract(
+            vaultRegistryAddress, networkMiddlewareServiceAddress, uint48(block.timestamp), NETWORK_EPOCH_DURATION
+        );
+
+        address operatorRewardsAddress = contractScripts.deployRewards.deployOperatorRewardsContract(
+            tanssi, address(networkMiddlewareService), 2000, tanssi
+        );
+
         vm.startBroadcast(ownerPrivateKey);
-        ecosystemEntities.middleware = new Middleware(
+        ecosystemEntities.middleware = _deployMiddlewareWithProxy(
             tanssi,
             operatorRegistryAddress,
             vaultRegistryAddress,
             operatorNetworkOptInServiceAddress,
             tanssi,
             NETWORK_EPOCH_DURATION,
-            SLASHING_WINDOW
+            SLASHING_WINDOW,
+            operatorRewardsAddress,
+            stakerRewardsFactoryAddress
         );
         INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares{gas: 10_000_000}(
             tanssi.subnetwork(0), operator, 1
@@ -333,20 +351,9 @@ contract DeployTanssiEcosystem is Script {
             tanssi.subnetwork(0), operator3, 1
         );
         _setDelegatorConfigs();
-        _registerEntitiesToMiddleware();
         networkMiddlewareService.setMiddleware(address(ecosystemEntities.middleware));
+        _registerEntitiesToMiddleware();
 
-        address operatorRewardsAddress =
-            contractScripts.deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), 2000);
-
-        ecosystemEntities.middleware.setOperatorRewardsContract(operatorRewardsAddress);
-
-        vm.stopBroadcast();
-
-        vm.startBroadcast(ownerPrivateKey);
-        uint48 currentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
-        address[] memory operators = ecosystemEntities.middleware.getOperatorsByEpoch(currentEpoch);
-        assert(operators.length == 3);
         console2.log("VaultConfigurator: ", address(ecosystemEntities.vaultConfigurator));
         console2.log("OperatorRegistry: ", address(operatorRegistry));
         console2.log("NetworkRegistry: ", address(networkRegistry));
@@ -367,26 +374,54 @@ contract DeployTanssiEcosystem is Script {
         console2.log("Slasher Vetoed: ", vaultAddresses.slasherVetoed);
     }
 
+    function _deployMiddlewareWithProxy(
+        address _network,
+        address _operatorRegistry,
+        address _vaultRegistry,
+        address _operatorNetworkOptInService,
+        address _owner,
+        uint48 _epochDuration,
+        uint48 _slashingWindow,
+        address _operatorRewards,
+        address _stakerRewardsFactory
+    ) private returns (Middleware _middleware) {
+        Middleware _middlewareImpl = new Middleware(_operatorRewards, _stakerRewardsFactory);
+        _middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
+        console2.log("Middleware Implementation: ", address(_middlewareImpl));
+        address readHelper = address(new BaseMiddlewareReader());
+        _middleware.initialize(
+            _network, // network
+            _operatorRegistry, // operatorRegistry
+            _vaultRegistry, // vaultRegistry
+            _operatorNetworkOptInService, // operatorNetworkOptInService
+            _owner, // owner
+            _epochDuration, // epochDuration
+            _slashingWindow, // slashingWindow
+            readHelper // readHelper
+        );
+    }
+
     function deployTanssiEcosystem(
         HelperConfig _helperConfig
     ) external {
+        isTest = true;
         contractScripts.helperConfig = _helperConfig;
         contractScripts.deployVault = new DeployVault();
         contractScripts.deployCollateral = new DeployCollateral();
-        contractScripts.deployRewards = new DeployRewards();
+        contractScripts.deployRewards = new DeployRewards(isTest);
 
         vm.startPrank(tanssi);
-        isTest = true;
         _deploy();
         vm.stopPrank();
     }
 
     function run() external {
+        isTest = false;
         contractScripts.helperConfig = new HelperConfig();
         contractScripts.deployVault = new DeployVault();
         contractScripts.deployCollateral = new DeployCollateral();
+        contractScripts.deployRewards = new DeployRewards(isTest);
         vm.startBroadcast(ownerPrivateKey);
-        isTest = false;
         _deploy();
         vm.stopBroadcast();
     }

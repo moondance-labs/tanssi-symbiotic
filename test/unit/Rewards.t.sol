@@ -129,7 +129,7 @@ contract RewardsTest is Test {
         networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
         address readHelper = address(new BaseMiddlewareReader());
 
-        deployRewards = new DeployRewards();
+        deployRewards = new DeployRewards(true);
         address operatorRewardsAddress = deployRewards.deployOperatorRewardsContract(
             tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
         );
