@@ -45,6 +45,7 @@ import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperato
 import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {OSharedVaults} from "src/contracts/extensions/OSharedVaults.sol";
+import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
 
 import {QuickSort} from "../libraries/QuickSort.sol";
 
@@ -55,6 +56,7 @@ contract Middleware is
     KeyManager256,
     OzAccessControl,
     EpochCapture,
+    MiddlewareStorage,
     IMiddleware
 {
     using QuickSort for ValidatorData[];
@@ -63,39 +65,10 @@ contract Middleware is
     using Subnetwork for address;
     using Math for uint256;
 
-    uint256 public constant VERSION = 1;
-
-    //TODO Move the following to Middleware Storage
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
-    address public immutable i_operatorRewards;
-
-    address public immutable i_stakerRewardsFactory;
-
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
-    mapping(uint48 epoch => uint256 amount) public s_totalStakeCache;
-
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
-    mapping(uint48 epoch => bool) public s_totalStakeCached;
-
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
-    mapping(uint48 epoch => mapping(address operator => uint256 amount)) public s_operatorStakeCache;
-    IOGateway private s_gateway;
-    //TODO End of TODO
-
-    uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
-
     modifier updateStakeCache(
         uint48 epoch
     ) {
-        if (!s_totalStakeCached[epoch]) {
+        if (!totalStakeCached(epoch)) {
             calcAndCacheStakes(epoch);
         }
         _;
@@ -104,7 +77,7 @@ contract Middleware is
     // TODO should use AccessControl instead of this modifier
     // Add Gateway Role and use checkAccess modifier
     modifier onlyGateway() {
-        if (msg.sender != address(s_gateway)) {
+        if (msg.sender != address(getGateway())) {
             revert Middleware__CallerNotGateway();
         }
         _;
@@ -189,7 +162,8 @@ contract Middleware is
     function setGateway(
         address _gateway
     ) external checkAccess {
-        s_gateway = IOGateway(_gateway);
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        $.gateway = IOGateway(_gateway);
     }
 
     // /**
@@ -228,23 +202,22 @@ contract Middleware is
     //  */
     //  TODO: this function should be split to allow to be called by chainlink in case
     function sendCurrentOperatorsKeys() external returns (bytes32[] memory sortedKeys) {
-        if (address(s_gateway) == address(0)) {
+        if (address(getGateway()) == address(0)) {
             revert Middleware__GatewayNotSet();
         }
 
         uint48 epoch = getCurrentEpoch();
         sortedKeys = sortOperatorsByVaults(epoch);
 
-        s_gateway.sendOperatorsData(sortedKeys, epoch);
+        getGateway().sendOperatorsData(sortedKeys, epoch);
     }
 
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
     function calcAndCacheStakes(
         uint48 epoch
     ) public returns (uint256 totalStake) {
         uint48 epochStartTs = getEpochStart(epoch);
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+
         // for epoch older than SLASHING_WINDOW total stake can be invalidated (use cache)
         if (epochStartTs < Time.timestamp() - _SLASHING_WINDOW()) {
             revert Middleware__TooOldEpoch();
@@ -259,12 +232,12 @@ contract Middleware is
             address operator = _operators[i];
 
             uint256 operatorStake = getOperatorStake(operator, epoch);
-            s_operatorStakeCache[epoch][operator] = operatorStake;
+            $.operatorStakeCache[epoch][operator] = operatorStake;
             totalStake += operatorStake;
         }
 
-        s_totalStakeCached[epoch] = true;
-        s_totalStakeCache[epoch] = totalStake;
+        $.totalStakeCached[epoch] = true;
+        $.totalStakeCache[epoch] = totalStake;
     }
 
     // /**
@@ -453,10 +426,9 @@ contract Middleware is
     //  * @inheritdoc IMiddleware
     //  */
     function getOperatorStake(address operator, uint48 epoch) public view returns (uint256 power) {
-        if (s_totalStakeCached[epoch]) {
-            return s_operatorStakeCache[epoch][operator];
+        if (totalStakeCached(epoch)) {
+            return operatorStakeCache(epoch, operator);
         }
-
         uint48 epochStartTs = getEpochStart(epoch);
         power = _getOperatorPowerAt(epochStartTs, operator);
     }
@@ -467,8 +439,8 @@ contract Middleware is
     function getTotalStake(
         uint48 epoch
     ) public view returns (uint256) {
-        if (s_totalStakeCached[epoch]) {
-            return s_totalStakeCache[epoch];
+        if (totalStakeCached(epoch)) {
+            return totalStakeCache(epoch);
         }
         return _calcTotalStake(epoch);
     }

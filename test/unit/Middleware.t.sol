@@ -14,8 +14,7 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity ^0.8.13;
 
-import {console2} from "forge-std/console2.sol";
-import {Test} from "forge-std/Test.sol";
+import {Test, console2} from "forge-std/Test.sol";
 
 //**************************************************************************************************
 //                                      SYMBIOTIC
@@ -306,6 +305,10 @@ contract MiddlewareTest is Test {
         assertEq(EpochCapture(address(middleware)).getEpochDuration(), NETWORK_EPOCH_DURATION);
         assertEq(BaseMiddlewareReader(address(middleware)).SLASHING_WINDOW(), SLASHING_WINDOW);
         assertEq(BaseMiddlewareReader(address(middleware)).subnetworksLength(), 1);
+        assertEq(address(middleware.getGateway()), address(gateway));
+        assertEq(middleware.totalStakeCache(0), 0);
+        assertEq(middleware.totalStakeCached(0), false);
+        assertEq(middleware.operatorStakeCache(0, operator), 0);
     }
 
     // ************************************************************************************************
