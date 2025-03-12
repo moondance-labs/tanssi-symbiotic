@@ -26,7 +26,6 @@ import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStake
 contract DeployRewards is Script {
     ODefaultStakerRewardsFactory public stakerRewardsFactory;
     ODefaultOperatorRewards public operatorRewards;
-    ODefaultStakerRewards public stakerRewards;
     ODefaultStakerRewards public stakerRewardsImpl;
 
     struct DeployParams {
@@ -63,36 +62,12 @@ contract DeployRewards is Script {
         address networkMiddlewareService,
         uint48 startTime,
         uint48 epochDuration
-    ) public returns (address, address) {
-        stakerRewardsImpl = new ODefaultStakerRewards(vaultFactory, networkMiddlewareService, startTime, epochDuration);
-        stakerRewardsFactory = new ODefaultStakerRewardsFactory(address(stakerRewardsImpl));
-        console2.log("Staker rewards factory deployed at address: ", address(stakerRewardsFactory));
-        console2.log("Staker rewards implementation deployed at address: ", address(stakerRewardsImpl));
-
-        return (address(stakerRewardsFactory), address(stakerRewardsImpl));
-    }
-
-    function deployStakerRewardsContract(
-        address vault,
-        uint256 adminFee,
-        address defaultAdminRole,
-        address adminFeeClaimRole,
-        address adminFeeSetRole,
-        address operatorRewardsRole,
-        address network
     ) public returns (address) {
-        IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
-            vault: vault,
-            adminFee: adminFee,
-            defaultAdminRoleHolder: defaultAdminRole,
-            adminFeeClaimRoleHolder: adminFeeClaimRole,
-            adminFeeSetRoleHolder: adminFeeSetRole,
-            operatorRewardsRoleHolder: operatorRewardsRole,
-            network: network
-        });
-        address newStakerRewards = stakerRewardsFactory.create(params);
-        console2.log("Staker rewards contract deployed at address: ", newStakerRewards);
-        return newStakerRewards;
+        stakerRewardsFactory =
+            new ODefaultStakerRewardsFactory(vaultFactory, networkMiddlewareService, startTime, epochDuration);
+        console2.log("Staker rewards factory deployed at address: ", address(stakerRewardsFactory));
+
+        return address(stakerRewardsFactory);
     }
 
     function run(
@@ -102,15 +77,6 @@ contract DeployRewards is Script {
             params.network, params.networkMiddlewareService, params.operatorShare, params.defaultAdminRole
         );
         deployStakerRewardsFactoryContract(params.vaultFactory, params.network, params.startTime, params.epochDuration);
-        deployStakerRewardsContract(
-            params.vault,
-            params.adminFee,
-            params.defaultAdminRole,
-            params.adminFeeClaimRole,
-            params.adminFeeSetRole,
-            address(operatorRewards),
-            params.network
-        );
         emit Done();
     }
 }

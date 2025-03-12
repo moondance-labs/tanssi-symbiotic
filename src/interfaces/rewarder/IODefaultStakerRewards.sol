@@ -185,7 +185,7 @@ interface IODefaultStakerRewards {
      * @notice Get an admin fee.
      * @return admin fee
      */
-    function s_adminFee() external view returns (uint256);
+    function adminFee() external view returns (uint256);
 
     /**
      * @notice Get a specific reward for a given epoch.
@@ -194,7 +194,7 @@ interface IODefaultStakerRewards {
      * @param index The index of the reward for the epoch.
      * @return amount The amount of tokens for the specified reward.
      */
-    function s_rewards(uint48 epoch, address tokenAddress, uint256 index) external view returns (uint256 amount);
+    function rewards(uint48 epoch, address tokenAddress, uint256 index) external view returns (uint256 amount);
 
     /**
      * @notice Get the first index of the unclaimed rewards using a given epoch for a given account.
@@ -203,7 +203,7 @@ interface IODefaultStakerRewards {
      * @param tokenAddress address of the token for the rewards
      * @return rewardIndex first index of the unclaimed rewards
      */
-    function s_lastUnclaimedReward(
+    function lastUnclaimedReward(
         address account,
         uint48 epoch,
         address tokenAddress
@@ -215,7 +215,7 @@ interface IODefaultStakerRewards {
      * @param tokenAddress address of the token for the admin fee
      * @return amount claimable admin fee
      */
-    function s_claimableAdminFee(uint48 epoch, address tokenAddress) external view returns (uint256 amount);
+    function claimableAdminFee(uint48 epoch, address tokenAddress) external view returns (uint256 amount);
 
     /**
      * @dev Added to allow to calculate timestamp in order to access activeSharesOfAt

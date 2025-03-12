@@ -295,7 +295,7 @@ contract DeployTanssiEcosystem is Script {
         deployVaults();
         _setDelegatorConfigs();
 
-        (address stakerRewardsFactoryAddress,) = contractScripts.deployRewards.deployStakerRewardsFactoryContract(
+        address stakerRewardsFactoryAddress = contractScripts.deployRewards.deployStakerRewardsFactoryContract(
             vaultRegistryAddress, networkMiddlewareServiceAddress, uint48(block.timestamp), NETWORK_EPOCH_DURATION
         );
 

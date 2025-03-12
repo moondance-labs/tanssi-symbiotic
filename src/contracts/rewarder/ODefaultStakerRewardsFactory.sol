@@ -14,20 +14,24 @@
 
 pragma solidity 0.8.25;
 
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+
+import {Registry} from "@symbioticfi/core/src/contracts/common/Registry.sol";
+
 import {ODefaultStakerRewards} from "./ODefaultStakerRewards.sol";
 import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
-import {Registry} from "@symbioticfi/core/src/contracts/common/Registry.sol";
-import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 
 contract ODefaultStakerRewardsFactory is Registry, IODefaultStakerRewardsFactory {
-    using Clones for address;
+    address private immutable VAULT_FACTORY;
+    address private immutable NETWORK_MIDDLEWARE_SERVICE;
+    uint48 private immutable START_TIME;
+    uint48 private immutable EPOCH_DURATION;
 
-    address private immutable STAKER_REWARDS_IMPLEMENTATION;
-
-    constructor(
-        address stakerRewardsImplementation
-    ) {
-        STAKER_REWARDS_IMPLEMENTATION = stakerRewardsImplementation;
+    constructor(address vaultFactory, address networkMiddlewareService, uint48 startTime, uint48 epochDuration) {
+        VAULT_FACTORY = vaultFactory;
+        NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
+        START_TIME = startTime;
+        EPOCH_DURATION = epochDuration;
     }
 
     /**
@@ -36,10 +40,13 @@ contract ODefaultStakerRewardsFactory is Registry, IODefaultStakerRewardsFactory
     function create(
         ODefaultStakerRewards.InitParams calldata params
     ) external returns (address) {
-        address stakerRewards =
-            STAKER_REWARDS_IMPLEMENTATION.cloneDeterministic(keccak256(abi.encode(totalEntities(), params)));
-        ODefaultStakerRewards(stakerRewards).initialize(params);
-        _addEntity(stakerRewards);
-        return stakerRewards;
+        ODefaultStakerRewards stakerRewards =
+            new ODefaultStakerRewards(VAULT_FACTORY, NETWORK_MIDDLEWARE_SERVICE, START_TIME, EPOCH_DURATION);
+
+        address proxy = address(new ERC1967Proxy((address(stakerRewards)), ""));
+        ODefaultStakerRewards(proxy).initialize(params);
+        _addEntity(proxy);
+
+        return proxy;
     }
 }

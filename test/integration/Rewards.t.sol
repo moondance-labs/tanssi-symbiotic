@@ -255,7 +255,7 @@ contract RewardsTest is Test {
             tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
         );
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
-        (address stakerRewardsFactoryAddress,) = deployRewards.deployStakerRewardsFactoryContract(
+        address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
             address(vaultFactory), address(networkMiddlewareService), uint48(block.timestamp), NETWORK_EPOCH_DURATION
         );
         middleware = _deployMiddlewareWithProxy(tanssi, owner, address(operatorRewards), stakerRewardsFactoryAddress);
