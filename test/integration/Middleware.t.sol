@@ -197,7 +197,7 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
 
         deployVault = new DeployVault();
-        deployRewards = new DeployRewards();
+        deployRewards = new DeployRewards(true);
         DeploySymbiotic deploySymbiotic = new DeploySymbiotic();
 
         owner = tanssi = deploySymbiotic.owner();

@@ -74,7 +74,7 @@ contract DeployTest is Test {
         deploySymbiotic = new DeploySymbiotic();
         deployTanssiEcosystem = new DeployTanssiEcosystem();
         deployVault = new DeployVault();
-        deployRewards = new DeployRewards();
+        deployRewards = new DeployRewards(true);
         helperConfig = new HelperConfig();
 
         deployTanssiEcosystem.deployTanssiEcosystem(helperConfig);
@@ -247,8 +247,8 @@ contract DeployTest is Test {
             vault: _vault,
             adminFee: 0,
             defaultAdminRoleHolder: tanssi,
-            adminFeeClaimRoleHolder: address(0),
-            adminFeeSetRoleHolder: address(0),
+            adminFeeClaimRoleHolder: tanssi,
+            adminFeeSetRoleHolder: tanssi,
             operatorRewardsRoleHolder: tanssi,
             network: tanssi
         });
@@ -771,6 +771,21 @@ contract DeployTest is Test {
     }
 
     function testDeployRewardsStaker() public {
+        DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
+        (address vault,,,,,,,,) = deployTanssiEcosystem.vaultAddresses();
+
+        deployRewards.deployStakerRewardsFactoryContract(
+            addresses.vaultFactory, addresses.networkMiddlewareService, 1 days, NETWORK_EPOCH_DURATION
+        );
+        vm.mockCall(addresses.vaultFactory, abi.encodeWithSelector(IRegistry.isEntity.selector), abi.encode(true));
+
+        address stakerRewards =
+            deployRewards.deployStakerRewardsContract(vault, 0, tanssi, tanssi, tanssi, tanssi, tanssi);
+        assertNotEq(stakerRewards, ZERO_ADDRESS);
+    }
+
+    function testDeployRewardsStakerWithBroadcast() public {
+        deployRewards = new DeployRewards(false);
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
         (address vault,,,,,,,,) = deployTanssiEcosystem.vaultAddresses();
 

@@ -227,8 +227,8 @@ contract DeployTanssiEcosystem is Script {
             vault: address(0),
             adminFee: 0,
             defaultAdminRoleHolder: tanssi,
-            adminFeeClaimRoleHolder: address(0),
-            adminFeeSetRoleHolder: address(0),
+            adminFeeClaimRoleHolder: tanssi,
+            adminFeeSetRoleHolder: tanssi,
             operatorRewardsRoleHolder: tanssi,
             network: tanssi
         });
@@ -295,6 +295,9 @@ contract DeployTanssiEcosystem is Script {
         deployVaults();
         _setDelegatorConfigs();
 
+        if (!isTest) {
+            vm.stopBroadcast();
+        }
         (address stakerRewardsFactoryAddress,) = contractScripts.deployRewards.deployStakerRewardsFactoryContract(
             vaultRegistryAddress, networkMiddlewareServiceAddress, uint48(block.timestamp), NETWORK_EPOCH_DURATION
         );
@@ -302,6 +305,10 @@ contract DeployTanssiEcosystem is Script {
         address operatorRewardsAddress = contractScripts.deployRewards.deployOperatorRewardsContract(
             tanssi, networkMiddlewareServiceAddress, 2000, tanssi
         );
+
+        if (!isTest) {
+            vm.startBroadcast(ownerPrivateKey);
+        }
 
         ecosystemEntities.middleware = _deployMiddlewareWithProxy(
             tanssi,
@@ -417,30 +424,28 @@ contract DeployTanssiEcosystem is Script {
     function deployTanssiEcosystem(
         HelperConfig _helperConfig
     ) external {
-        _initScriptsAndEntities(_helperConfig);
+        isTest = true;
+        _initScriptsAndEntities(_helperConfig, isTest);
 
         vm.startPrank(tanssi);
-        isTest = true;
         _deploy();
         vm.stopPrank();
     }
 
     function run() external {
-        _initScriptsAndEntities(new HelperConfig());
+        isTest = false;
+        _initScriptsAndEntities(new HelperConfig(), isTest);
 
         vm.startBroadcast(ownerPrivateKey);
-        isTest = false;
         _deploy();
         vm.stopBroadcast();
     }
 
-    function _initScriptsAndEntities(
-        HelperConfig _helperConfig
-    ) private {
+    function _initScriptsAndEntities(HelperConfig _helperConfig, bool _isTest) private {
         contractScripts.helperConfig = _helperConfig;
         contractScripts.deployVault = new DeployVault();
         contractScripts.deployCollateral = new DeployCollateral();
-        contractScripts.deployRewards = new DeployRewards();
+        contractScripts.deployRewards = new DeployRewards(_isTest);
 
         (address vaultConfiguratorAddress,,,,,,,,,) = _helperConfig.activeNetworkConfig();
         ecosystemEntities.vaultConfigurator = IVaultConfigurator(vaultConfiguratorAddress);

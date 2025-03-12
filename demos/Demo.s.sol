@@ -243,16 +243,16 @@ contract Demo is Script {
         Vault vaultVetoed = Vault(vaultAddresses.vaultVetoed);
 
         vm.startBroadcast(ownerPrivateKey);
-        middleware.registerOperator(operator, OPERATOR_KEY, address(0));
-        middleware.registerOperator(operator2, OPERATOR_KEY2, address(0));
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        middleware.registerOperator(operator2, abi.encode(OPERATOR_KEY2), address(0));
 
         IODefaultStakerRewards.InitParams stakerRewardsParams = IODefaultStakerRewards.InitParams({
             vault: address(0),
             adminFee: 0,
             defaultAdminRoleHolder: tanssi,
-            adminFeeClaimRoleHolder: address(0),
+            adminFeeClaimRoleHolder: tanssi,
             adminFeeSetRoleHolder: tanssi,
-            operatorRewardsRoleHolder: address(0),
+            operatorRewardsRoleHolder: tanssi,
             network: tanssi
         });
         middleware.registerSharedVault(address(vault), stakerRewardsParams);

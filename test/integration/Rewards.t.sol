@@ -250,7 +250,7 @@ contract RewardsTest is Test {
 
         _deployVaults(tanssi);
 
-        DeployRewards deployRewards = new DeployRewards();
+        DeployRewards deployRewards = new DeployRewards(true);
         address operatorRewardsAddress = deployRewards.deployOperatorRewardsContract(
             tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
         );
@@ -370,8 +370,8 @@ contract RewardsTest is Test {
             vault: address(0),
             adminFee: 0,
             defaultAdminRoleHolder: _owner,
-            adminFeeClaimRoleHolder: address(0),
-            adminFeeSetRoleHolder: address(0),
+            adminFeeClaimRoleHolder: _owner,
+            adminFeeSetRoleHolder: _owner,
             operatorRewardsRoleHolder: _owner,
             network: tanssi
         });
