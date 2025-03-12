@@ -754,7 +754,7 @@ contract MiddlewareTest is Test {
         address vaultFactoryAddress,
         address networkMiddlewareServiceAddress
     ) private returns (Middleware middlewareImpl) {
-        DeployRewards deployRewards = new DeployRewards();
+        DeployRewards deployRewards = new DeployRewards(true);
         (address stakerRewardsFactoryAddress,) = deployRewards.deployStakerRewardsFactoryContract(
             vaultFactoryAddress, networkMiddlewareServiceAddress, uint48(block.timestamp), NETWORK_EPOCH_DURATION
         );

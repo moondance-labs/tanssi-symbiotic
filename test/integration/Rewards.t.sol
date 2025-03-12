@@ -250,7 +250,7 @@ contract RewardsTest is Test {
 
         _deployVaults(tanssi);
 
-        DeployRewards deployRewards = new DeployRewards();
+        DeployRewards deployRewards = new DeployRewards(true);
         address operatorRewardsAddress =
             deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);

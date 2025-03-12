@@ -27,6 +27,11 @@ contract DeployRewards is Script {
     ODefaultStakerRewards public stakerRewards;
     ODefaultStakerRewards public stakerRewardsImpl;
 
+    uint256 ownerPrivateKey =
+        vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
+
+    bool isTest = false;
+
     struct DeployParams {
         address vault;
         address vaultFactory;
@@ -43,13 +48,25 @@ contract DeployRewards is Script {
 
     event Done();
 
+    constructor(
+        bool _isTest
+    ) {
+        isTest = _isTest;
+    }
+
     function deployOperatorRewardsContract(
         address network,
         address networkMiddlewareService,
         uint48 operatorShare
     ) public returns (address) {
+        if (!isTest) {
+            vm.startBroadcast(ownerPrivateKey);
+        }
         operatorRewards = new ODefaultOperatorRewards(network, networkMiddlewareService, operatorShare);
         console2.log("Operator rewards contract deployed at address: ", address(operatorRewards));
+        if (!isTest) {
+            vm.stopBroadcast();
+        }
         return address(operatorRewards);
     }
 
@@ -59,10 +76,16 @@ contract DeployRewards is Script {
         uint48 startTime,
         uint48 epochDuration
     ) public returns (address, address) {
+        if (!isTest) {
+            vm.startBroadcast(ownerPrivateKey);
+        }
         stakerRewardsImpl = new ODefaultStakerRewards(vaultFactory, networkMiddlewareService, startTime, epochDuration);
         stakerRewardsFactory = new ODefaultStakerRewardsFactory(address(stakerRewardsImpl));
         console2.log("Staker rewards factory deployed at address: ", address(stakerRewardsFactory));
         console2.log("Staker rewards implementation deployed at address: ", address(stakerRewardsImpl));
+        if (!isTest) {
+            vm.stopBroadcast();
+        }
 
         return (address(stakerRewardsFactory), address(stakerRewardsImpl));
     }
@@ -76,6 +99,9 @@ contract DeployRewards is Script {
         address operatorRewardsRole,
         address network
     ) public returns (address) {
+        if (!isTest) {
+            vm.startBroadcast(ownerPrivateKey);
+        }
         IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
             vault: vault,
             adminFee: adminFee,
@@ -86,6 +112,9 @@ contract DeployRewards is Script {
             network: network
         });
         address newStakerRewards = stakerRewardsFactory.create(params);
+        if (!isTest) {
+            vm.stopBroadcast();
+        }
         console2.log("Staker rewards contract deployed at address: ", newStakerRewards);
         return newStakerRewards;
     }

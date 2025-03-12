@@ -321,13 +321,14 @@ contract DeployTanssiEcosystem is Script {
         _depositToVault(_vault, operator3, 100 ether, tokensAddresses.stETHToken);
         vm.stopBroadcast();
 
-        vm.startBroadcast(ownerPrivateKey);
-        address operatorRewardsAddress =
-            contractScripts.deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), 2000);
-
         (address stakerRewardsFactoryAddress,) = contractScripts.deployRewards.deployStakerRewardsFactoryContract(
             vaultRegistryAddress, networkMiddlewareServiceAddress, uint48(block.timestamp), NETWORK_EPOCH_DURATION
         );
+
+        address operatorRewardsAddress =
+            contractScripts.deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), 2000);
+
+        vm.startBroadcast(ownerPrivateKey);
         ecosystemEntities.middleware = _deployMiddlewareWithProxy(
             tanssi,
             operatorRegistryAddress,
@@ -380,10 +381,10 @@ contract DeployTanssiEcosystem is Script {
         address _owner,
         uint48 _epochDuration,
         uint48 _slashingWindow,
-        address operatorRewards,
-        address stakerRewardsFactory
+        address _operatorRewards,
+        address _stakerRewardsFactory
     ) private returns (Middleware _middleware) {
-        Middleware _middlewareImpl = new Middleware(operatorRewards, stakerRewardsFactory);
+        Middleware _middlewareImpl = new Middleware(_operatorRewards, _stakerRewardsFactory);
         _middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
         console2.log("Middleware Implementation: ", address(_middlewareImpl));
         address readHelper = address(new BaseMiddlewareReader());
@@ -402,24 +403,24 @@ contract DeployTanssiEcosystem is Script {
     function deployTanssiEcosystem(
         HelperConfig _helperConfig
     ) external {
+        isTest = true;
         contractScripts.helperConfig = _helperConfig;
         contractScripts.deployVault = new DeployVault();
         contractScripts.deployCollateral = new DeployCollateral();
-        contractScripts.deployRewards = new DeployRewards();
+        contractScripts.deployRewards = new DeployRewards(isTest);
 
         vm.startPrank(tanssi);
-        isTest = true;
         _deploy();
         vm.stopPrank();
     }
 
     function run() external {
+        isTest = false;
         contractScripts.helperConfig = new HelperConfig();
         contractScripts.deployVault = new DeployVault();
         contractScripts.deployCollateral = new DeployCollateral();
-        contractScripts.deployRewards = new DeployRewards();
+        contractScripts.deployRewards = new DeployRewards(isTest);
         vm.startBroadcast(ownerPrivateKey);
-        isTest = false;
         _deploy();
         vm.stopBroadcast();
     }
