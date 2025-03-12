@@ -756,7 +756,7 @@ contract DeployTest is Test {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
 
         address operatorRewards =
-            deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20);
+            deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20, tanssi);
         assertNotEq(operatorRewards, ZERO_ADDRESS);
     }
 

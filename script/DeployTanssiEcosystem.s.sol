@@ -302,8 +302,9 @@ contract DeployTanssiEcosystem is Script {
             vaultRegistryAddress, networkMiddlewareServiceAddress, uint48(block.timestamp), NETWORK_EPOCH_DURATION
         );
 
-        address operatorRewardsAddress =
-            contractScripts.deployRewards.deployOperatorRewardsContract(tanssi, networkMiddlewareServiceAddress, 2000);
+        address operatorRewardsAddress = contractScripts.deployRewards.deployOperatorRewardsContract(
+            tanssi, networkMiddlewareServiceAddress, 2000, tanssi
+        );
 
         if (!isTest) {
             vm.startBroadcast(ownerPrivateKey);
