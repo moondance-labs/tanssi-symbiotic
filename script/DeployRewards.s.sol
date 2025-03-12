@@ -85,7 +85,8 @@ contract DeployRewards is Script {
         }
         stakerRewardsFactory =
             new ODefaultStakerRewardsFactory(vaultFactory, networkMiddlewareService, startTime, epochDuration);
-        console2.log("Staker rewards factory deployed at address: ", address(stakerRewardsFactory));  
+        console2.log("Staker rewards factory deployed at address: ", address(stakerRewardsFactory));
+
         if (!isTest) {
             vm.stopBroadcast();
         }
