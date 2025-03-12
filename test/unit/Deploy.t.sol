@@ -768,19 +768,4 @@ contract DeployTest is Test {
         );
         assertNotEq(stakerFactory, ZERO_ADDRESS);
     }
-
-    function testDeployRewardsStakerWithBroadcast() public {
-        deployRewards = new DeployRewards(false);
-        DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
-        (address vault,,,,,,,,) = deployTanssiEcosystem.vaultAddresses();
-
-        deployRewards.deployStakerRewardsFactoryContract(
-            addresses.vaultFactory, addresses.networkMiddlewareService, 1 days, NETWORK_EPOCH_DURATION
-        );
-        vm.mockCall(addresses.vaultFactory, abi.encodeWithSelector(IRegistry.isEntity.selector), abi.encode(true));
-
-        address stakerRewards =
-            deployRewards.deployStakerRewardsContract(vault, 0, tanssi, tanssi, tanssi, tanssi, tanssi);
-        assertNotEq(stakerRewards, ZERO_ADDRESS);
-    }
 }

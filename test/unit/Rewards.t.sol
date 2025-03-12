@@ -1234,7 +1234,7 @@ contract RewardsTest is Test {
         operatorRewards.upgradeToAndCall(address(newOperatorRewards), hex"");
     }
 
-    function testUpgradeStakerRewardsX() public {
+    function testUpgradeStakerRewards() public {
         uint48 epoch = 0;
         _setClaimableAdminFee(epoch, address(token));
 
