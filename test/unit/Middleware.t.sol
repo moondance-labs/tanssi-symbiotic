@@ -307,7 +307,7 @@ contract MiddlewareTest is Test {
         assertEq(BaseMiddlewareReader(address(middleware)).subnetworksLength(), 1);
         assertEq(address(middleware.getGateway()), address(gateway));
         assertEq(middleware.totalStakeCache(0), 0);
-        assertEq(middleware.totalStakeCached(0), false);
+        assertEq(middleware.totalStakeIsCached(0), false);
         assertEq(middleware.operatorStakeCache(0, operator), 0);
     }
 

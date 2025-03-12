@@ -68,7 +68,7 @@ contract Middleware is
     modifier updateStakeCache(
         uint48 epoch
     ) {
-        if (!totalStakeCached(epoch)) {
+        if (!totalStakeIsCached(epoch)) {
             calcAndCacheStakes(epoch);
         }
         _;
@@ -236,7 +236,7 @@ contract Middleware is
             totalStake += operatorStake;
         }
 
-        $.totalStakeCached[epoch] = true;
+        $.totalStakeIsCached[epoch] = true;
         $.totalStakeCache[epoch] = totalStake;
     }
 
@@ -426,7 +426,7 @@ contract Middleware is
     //  * @inheritdoc IMiddleware
     //  */
     function getOperatorStake(address operator, uint48 epoch) public view returns (uint256 power) {
-        if (totalStakeCached(epoch)) {
+        if (totalStakeIsCached(epoch)) {
             return operatorStakeCache(epoch, operator);
         }
         uint48 epochStartTs = getEpochStart(epoch);
@@ -439,7 +439,7 @@ contract Middleware is
     function getTotalStake(
         uint48 epoch
     ) public view returns (uint256) {
-        if (totalStakeCached(epoch)) {
+        if (totalStakeIsCached(epoch)) {
             return totalStakeCache(epoch);
         }
         return _calcTotalStake(epoch);

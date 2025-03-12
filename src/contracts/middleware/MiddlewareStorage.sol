@@ -24,7 +24,7 @@ abstract contract MiddlewareStorage {
     struct StorageMiddleware {
         IOGateway gateway;
         mapping(uint48 epoch => uint256 amount) totalStakeCache;
-        mapping(uint48 epoch => bool) totalStakeCached;
+        mapping(uint48 epoch => bool) totalStakeIsCached;
         mapping(uint48 epoch => mapping(address operator => uint256 amount)) operatorStakeCache;
     }
 
@@ -64,11 +64,11 @@ abstract contract MiddlewareStorage {
      * @param epoch epoch of which to get the cache status
      * @return true if the total stake is cached, false otherwise
      */
-    function totalStakeCached(
+    function totalStakeIsCached(
         uint48 epoch
     ) public view returns (bool) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
-        return $.totalStakeCached[epoch];
+        return $.totalStakeIsCached[epoch];
     }
 
     /**
