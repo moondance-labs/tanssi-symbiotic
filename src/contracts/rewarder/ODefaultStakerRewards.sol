@@ -347,7 +347,7 @@ contract ODefaultStakerRewards is
         }
 
         (uint256 rewardsToClaim, uint256 amount, uint256 lastUnclaimedReward_) =
-            _getRewardsToClaimAndAmount(epoch, tokenAddress, maxRewards, activeSharesOfHints);
+            _getRewardsAndClaim(epoch, tokenAddress, maxRewards, activeSharesOfHints);
 
         // if the amount is greater than 0, transfer the tokens to the recipient
         if (amount > 0) {
@@ -359,7 +359,7 @@ contract ODefaultStakerRewards is
         );
     }
 
-    function _getRewardsToClaimAndAmount(
+    function _getRewardsAndClaim(
         uint48 epoch,
         address tokenAddress,
         uint256 maxRewards,
@@ -383,7 +383,7 @@ contract ODefaultStakerRewards is
 
         // Check the total amount for the user based on his shares in the vault and update the lastUnclaimedReward_
         amount =
-            _claimRewardsPerEpoch(rewardsToClaim, rewardsPerEpoch, lastUnclaimedReward_, epoch, activeSharesOfHints);
+            _claimRewardsPerEpoch($, rewardsToClaim, rewardsPerEpoch, lastUnclaimedReward_, epoch, activeSharesOfHints);
 
         // If there are no rewards to claim, revert
         if (rewardsToClaim == 0) {
@@ -396,13 +396,13 @@ contract ODefaultStakerRewards is
     }
 
     function _claimRewardsPerEpoch(
+        StakerRewardsStorage storage $,
         uint256 rewardsToClaim,
         uint256[] memory rewardsPerEpoch,
         uint256 rewardIndex,
         uint48 epoch,
         bytes[] memory activeSharesOfHints
     ) private view returns (uint256 amount) {
-        StakerRewardsStorage storage $ = _getStakerRewardsStorage();
         uint48 epochTs = getEpochStartTs(epoch);
 
         for (uint256 i; i < rewardsToClaim;) {
