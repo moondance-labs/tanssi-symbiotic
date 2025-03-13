@@ -228,7 +228,7 @@ contract MiddlewareTest is Test {
 
         _deployVaults(tanssi);
 
-        (address stakerRewardsFactoryAddress,) = deployRewards.deployStakerRewardsFactoryContract(
+        address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
             address(vaultFactory), address(networkMiddlewareService), uint48(block.timestamp), NETWORK_EPOCH_DURATION
         );
         stakerRewardsFactory = ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress);
@@ -1255,8 +1255,8 @@ contract MiddlewareTest is Test {
 
         // Check that the staker rewards contract is correctly configured:
         ODefaultStakerRewards stakerRewardsContract = ODefaultStakerRewards(stakerRewards);
-        assertEq(stakerRewardsContract.VAULT(), testVaultAddresses.vault);
-        assertEq(stakerRewardsContract.NETWORK(), tanssi);
+        assertEq(stakerRewardsContract.i_vault(), testVaultAddresses.vault);
+        assertEq(stakerRewardsContract.i_network(), tanssi);
         assertTrue(stakerRewardsContract.hasRole(stakerRewardsContract.DEFAULT_ADMIN_ROLE(), tanssi));
         assertTrue(stakerRewardsContract.hasRole(stakerRewardsContract.ADMIN_FEE_CLAIM_ROLE(), tanssi));
         assertTrue(stakerRewardsContract.hasRole(stakerRewardsContract.ADMIN_FEE_SET_ROLE(), tanssi));

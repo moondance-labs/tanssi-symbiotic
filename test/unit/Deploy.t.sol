@@ -763,39 +763,9 @@ contract DeployTest is Test {
     function testDeployRewardsStakerFactory() public {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
 
-        (address stakerFactory, address stakerImpl) = deployRewards.deployStakerRewardsFactoryContract(
+        address stakerFactory = deployRewards.deployStakerRewardsFactoryContract(
             addresses.vaultFactory, addresses.networkMiddlewareService, uint48(block.timestamp), NETWORK_EPOCH_DURATION
         );
         assertNotEq(stakerFactory, ZERO_ADDRESS);
-        assertNotEq(stakerImpl, ZERO_ADDRESS);
-    }
-
-    function testDeployRewardsStaker() public {
-        DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
-        (address vault,,,,,,,,) = deployTanssiEcosystem.vaultAddresses();
-
-        deployRewards.deployStakerRewardsFactoryContract(
-            addresses.vaultFactory, addresses.networkMiddlewareService, 1 days, NETWORK_EPOCH_DURATION
-        );
-        vm.mockCall(addresses.vaultFactory, abi.encodeWithSelector(IRegistry.isEntity.selector), abi.encode(true));
-
-        address stakerRewards =
-            deployRewards.deployStakerRewardsContract(vault, 0, tanssi, tanssi, tanssi, tanssi, tanssi);
-        assertNotEq(stakerRewards, ZERO_ADDRESS);
-    }
-
-    function testDeployRewardsStakerWithBroadcast() public {
-        deployRewards = new DeployRewards(false);
-        DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
-        (address vault,,,,,,,,) = deployTanssiEcosystem.vaultAddresses();
-
-        deployRewards.deployStakerRewardsFactoryContract(
-            addresses.vaultFactory, addresses.networkMiddlewareService, 1 days, NETWORK_EPOCH_DURATION
-        );
-        vm.mockCall(addresses.vaultFactory, abi.encodeWithSelector(IRegistry.isEntity.selector), abi.encode(true));
-
-        address stakerRewards =
-            deployRewards.deployStakerRewardsContract(vault, 0, tanssi, tanssi, tanssi, tanssi, tanssi);
-        assertNotEq(stakerRewards, ZERO_ADDRESS);
     }
 }
