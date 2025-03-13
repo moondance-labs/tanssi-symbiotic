@@ -12,13 +12,13 @@ abstract contract MiddlewareStorage {
      * @notice Get the operator rewards contract address
      * @return operator rewards contract address
      */
-    address public immutable i_operatorRewards;
+    address public immutable OPERATORS_REWARDS;
 
     /**
      * @notice Get the staker rewards factory contract address
      * @return staker rewards factory contract address
      */
-    address public immutable i_stakerRewardsFactory;
+    address public immutable STAKER_REWARDS_FACTORY;
 
     /// @custom:storage-location erc7201:tanssi.middleware.MiddlewareStorage.v1
     struct StorageMiddleware {

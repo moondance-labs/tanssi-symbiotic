@@ -1693,7 +1693,7 @@ contract MiddlewareTest is Test {
         vm.prank(owner);
 
         assertEq(middleware.VERSION(), 1);
-        assertEq(middleware.i_operatorRewards(), address(operatorRewards));
+        assertEq(middleware.OPERATORS_REWARDS(), address(operatorRewards));
 
         MiddlewareV2 middlewareImplV2 = new MiddlewareV2();
         bytes memory emptyBytes = hex"";
@@ -1701,7 +1701,7 @@ contract MiddlewareTest is Test {
         middleware.upgradeToAndCall(address(middlewareImplV2), emptyBytes);
 
         assertEq(middleware.VERSION(), 2);
-        // assertEq(middleware.i_operatorRewards(), address(newOperatorRewards)); // TODO: We need to use a storage for middleware first
+        // assertEq(middleware.OPERATORS_REWARDS(), address(newOperatorRewards)); // TODO: We need to use a storage for middleware first
 
         address gatewayAddress = makeAddr("gatewayAddress");
 

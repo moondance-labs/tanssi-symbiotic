@@ -110,13 +110,13 @@ interface IODefaultOperatorRewards {
      * @notice Get the network middleware service's address.
      * @return address of the network middleware service
      */
-    function i_networkMiddlewareService() external view returns (address);
+    function NETWORK_MIDDLEWARE_SERVICE() external view returns (address);
 
     /**
      * @notice Get the network identifier.
      * @return network identifier
      */
-    function i_network() external view returns (address);
+    function NETWORK() external view returns (address);
 
     /**
      * @notice Get the operator share.

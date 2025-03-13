@@ -95,8 +95,8 @@ contract Middleware is
             revert Middleware__InvalidAddress();
         }
 
-        i_operatorRewards = operatorRewards;
-        i_stakerRewardsFactory = stakerRewardsFactory;
+        OPERATORS_REWARDS = operatorRewards;
+        STAKER_REWARDS_FACTORY = stakerRewardsFactory;
     }
 
     /*
@@ -147,8 +147,8 @@ contract Middleware is
         IODefaultStakerRewards.InitParams memory stakerRewardsParams
     ) internal virtual override {
         stakerRewardsParams.vault = sharedVault;
-        address stakerRewards = IODefaultStakerRewardsFactory(i_stakerRewardsFactory).create(stakerRewardsParams);
-        IODefaultOperatorRewards(i_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
+        address stakerRewards = IODefaultStakerRewardsFactory(STAKER_REWARDS_FACTORY).create(stakerRewardsParams);
+        IODefaultOperatorRewards(OPERATORS_REWARDS).setStakerRewardContract(stakerRewards, sharedVault);
     }
 
     // TODO: this should probably take into account underlying asset price and return a power which could be either the total value of the stake in usd or a value that makes sense for us
@@ -172,7 +172,7 @@ contract Middleware is
     function setOperatorShareOnOperatorRewards(
         uint48 operatorShare
     ) external checkAccess {
-        IODefaultOperatorRewards(i_operatorRewards).setOperatorShare(operatorShare);
+        IODefaultOperatorRewards(OPERATORS_REWARDS).setOperatorShare(operatorShare);
     }
 
     // /**
@@ -190,9 +190,9 @@ contract Middleware is
             revert Middleware__InsufficientBalance();
         }
 
-        IERC20(tokenAddress).approve(i_operatorRewards, tokensInflatedToken);
+        IERC20(tokenAddress).approve(OPERATORS_REWARDS, tokensInflatedToken);
 
-        IODefaultOperatorRewards(i_operatorRewards).distributeRewards(
+        IODefaultOperatorRewards(OPERATORS_REWARDS).distributeRewards(
             uint48(epoch), uint48(eraIndex), tokensInflatedToken, totalPointsToken, rewardsRoot, tokenAddress
         );
     }

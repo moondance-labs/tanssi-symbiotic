@@ -93,7 +93,7 @@ interface IMiddleware {
     //  * @notice Get the network epoch duration
     //  * @return epoch duration
     //  */
-    // function i_epochDuration() external view returns (uint48);
+    // function EPOCH_DURATION() external view returns (uint48);
 
     // /**
     //  * @notice Get the network slashing window
@@ -105,7 +105,7 @@ interface IMiddleware {
     //  * @notice Get the network start time
     //  * @return start time
     //  */
-    // function i_startTime() external view returns (uint48);
+    // function START_TIME() external view returns (uint48);
 
     // /**
     //  * @notice Get the network address

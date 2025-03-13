@@ -213,17 +213,17 @@ contract RewardsTest is Test {
     }
 
     function testConstructors() public view {
-        assertEq(operatorRewards.i_network(), tanssi);
-        assertEq(operatorRewards.i_networkMiddlewareService(), address(networkMiddlewareService));
+        assertEq(operatorRewards.NETWORK(), tanssi);
+        assertEq(operatorRewards.NETWORK_MIDDLEWARE_SERVICE(), address(networkMiddlewareService));
         assertEq(operatorRewards.vaultToStakerRewardsContract(address(vault)), address(stakerRewards));
         assertEq(operatorRewards.operatorShare(), OPERATOR_SHARE);
 
-        assertEq(stakerRewards.i_network(), tanssi);
-        assertEq(stakerRewards.i_vault(), address(vault));
-        assertEq(stakerRewards.i_vaultFactory(), address(vaultFactory));
-        assertEq(stakerRewards.i_networkMiddlewareService(), address(networkMiddlewareService));
-        assertEq(stakerRewards.i_epochDuration(), NETWORK_EPOCH_DURATION);
-        assertEq(stakerRewards.i_startTime(), middleware.getEpochStart(0));
+        assertEq(stakerRewards.NETWORK(), tanssi);
+        assertEq(stakerRewards.VAULT(), address(vault));
+        assertEq(stakerRewards.VAULT_FACTORY(), address(vaultFactory));
+        assertEq(stakerRewards.NETWORK_MIDDLEWARE_SERVICE(), address(networkMiddlewareService));
+        assertEq(stakerRewards.EPOCH_DURATION(), NETWORK_EPOCH_DURATION);
+        assertEq(stakerRewards.START_TIME(), middleware.getEpochStart(0));
         assertEq(stakerRewards.adminFee(), ADMIN_FEE);
     }
 
@@ -1295,8 +1295,8 @@ contract RewardsTest is Test {
 
         stakerRewards.upgradeToAndCall(address(newStakerRewards), hex"");
 
-        assertEq(stakerRewards.i_vaultFactory(), address(vaultFactory));
-        assertEq(stakerRewards.i_networkMiddlewareService(), address(networkMiddlewareService));
+        assertEq(stakerRewards.VAULT_FACTORY(), address(vaultFactory));
+        assertEq(stakerRewards.NETWORK_MIDDLEWARE_SERVICE(), address(networkMiddlewareService));
 
         uint256 claimableFee = stakerRewards.claimableAdminFee(epoch, address(token));
         assertEq(claimableFee, 10 ether);

@@ -64,23 +64,23 @@ contract ODefaultOperatorRewards is
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
-    address public immutable i_networkMiddlewareService;
+    address public immutable NETWORK_MIDDLEWARE_SERVICE;
 
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
-    address public immutable i_network;
+    address public immutable NETWORK;
 
     modifier onlyMiddleware() {
-        if (INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network) != msg.sender) {
+        if (INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(NETWORK) != msg.sender) {
             revert ODefaultOperatorRewards__NotNetworkMiddleware();
         }
         _;
     }
 
     constructor(address network, address networkMiddlewareService) {
-        i_network = network;
-        i_networkMiddlewareService = networkMiddlewareService;
+        NETWORK = network;
+        NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
     }
 
     function initialize(uint48 operatorShare_, address owner_) public initializer {
@@ -158,7 +158,7 @@ contract ODefaultOperatorRewards is
             revert ODefaultOperatorRewards__InvalidProof();
         }
 
-        address middlewareAddress = INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network);
+        address middlewareAddress = INetworkMiddlewareService(NETWORK_MIDDLEWARE_SERVICE).middleware(NETWORK);
         // Starlight sends back only the operator key, thus we need to get back the operator address
         address recipient = Middleware(middlewareAddress).operatorByKey(abi.encode(input.operatorKey));
 

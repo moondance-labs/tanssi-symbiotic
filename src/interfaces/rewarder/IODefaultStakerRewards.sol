@@ -148,39 +148,39 @@ interface IODefaultStakerRewards {
      * @notice Get the vault factory's address.
      * @return address of the vault factory
      */
-    function i_vaultFactory() external view returns (address);
+    function VAULT_FACTORY() external view returns (address);
 
     /**
      * @notice Get the network middleware service's address.
      * @return address of the network middleware service
      */
-    function i_networkMiddlewareService() external view returns (address);
+    function NETWORK_MIDDLEWARE_SERVICE() external view returns (address);
 
     /**
      * @notice Get the start time of network epoch.
      * @return start time of the epoch
      */
-    function i_startTime() external view returns (uint48);
+    function START_TIME() external view returns (uint48);
 
     /**
      * @notice Get the duration of network epoch.
      * @return duration of the epoch
      */
-    function i_epochDuration() external view returns (uint48);
+    function EPOCH_DURATION() external view returns (uint48);
 
     /**
      * @notice Get the network's address.
      * @return address of the network
      * @dev set during initalization, so it's immutable
      */
-    function i_network() external view returns (address);
+    function NETWORK() external view returns (address);
 
     /**
      * @notice Get the vault's address.
      * @return address of the vault
      * @dev set during initalization, so it's immutable
      */
-    function i_vault() external view returns (address);
+    function VAULT() external view returns (address);
 
     /**
      * @notice Get an admin fee.

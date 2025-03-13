@@ -87,32 +87,32 @@ contract ODefaultStakerRewards is
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    address public immutable i_vaultFactory;
+    address public immutable VAULT_FACTORY;
 
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    address public immutable i_networkMiddlewareService;
+    address public immutable NETWORK_MIDDLEWARE_SERVICE;
 
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    address public immutable i_vault;
+    address public immutable VAULT;
 
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    address public immutable i_network;
+    address public immutable NETWORK;
 
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    uint48 public immutable i_startTime;
+    uint48 public immutable START_TIME;
 
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    uint48 public immutable i_epochDuration;
+    uint48 public immutable EPOCH_DURATION;
 
     constructor(
         address vaultFactory,
@@ -144,12 +144,12 @@ contract ODefaultStakerRewards is
             revert ODefaultStakerRewards__NotVault();
         }
 
-        i_vaultFactory = vaultFactory;
-        i_networkMiddlewareService = networkMiddlewareService;
-        i_startTime = startTime;
-        i_epochDuration = epochDuration;
-        i_vault = vault;
-        i_network = network;
+        VAULT_FACTORY = vaultFactory;
+        NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
+        START_TIME = startTime;
+        EPOCH_DURATION = epochDuration;
+        VAULT = vault;
+        NETWORK = network;
     }
 
     function initialize(
@@ -199,7 +199,7 @@ contract ODefaultStakerRewards is
     function getEpochStartTs(
         uint48 epoch
     ) public view returns (uint48 timestamp) {
-        return i_startTime + epoch * i_epochDuration;
+        return START_TIME + epoch * EPOCH_DURATION;
     }
 
     /**
@@ -230,7 +230,7 @@ contract ODefaultStakerRewards is
         for (uint256 i; i < rewardsToClaim;) {
             uint256 rewardAmount = rewardsPerEpoch[rewardIndex];
 
-            amount += IVault(i_vault).activeSharesOfAt(account, epochTs, new bytes(0)).mulDiv(
+            amount += IVault(VAULT).activeSharesOfAt(account, epochTs, new bytes(0)).mulDiv(
                 rewardAmount, $.activeSharesCache[epoch]
             );
 
@@ -278,7 +278,7 @@ contract ODefaultStakerRewards is
 
         _updateAdminFeeAndRewards(amount, adminFee_, epoch, tokenAddress);
 
-        emit DistributeRewards(i_network, tokenAddress, eraIndex, epoch, amount, data);
+        emit DistributeRewards(NETWORK, tokenAddress, eraIndex, epoch, amount, data);
     }
 
     function _transferAndCheckAmount(address tokenAddress, uint256 amount) private returns (uint256 finalAmount) {
@@ -300,8 +300,8 @@ contract ODefaultStakerRewards is
         bytes memory activeStakeHint
     ) private {
         if ($.activeSharesCache[epoch] == 0) {
-            uint256 activeShares_ = IVault(i_vault).activeSharesAt(epochTs, activeSharesHint);
-            uint256 activeStake_ = IVault(i_vault).activeStakeAt(epochTs, activeStakeHint);
+            uint256 activeShares_ = IVault(VAULT).activeSharesAt(epochTs, activeSharesHint);
+            uint256 activeStake_ = IVault(VAULT).activeStakeAt(epochTs, activeStakeHint);
 
             if (activeShares_ == 0 || activeStake_ == 0) {
                 revert ODefaultStakerRewards__InvalidRewardTimestamp();
@@ -352,7 +352,7 @@ contract ODefaultStakerRewards is
         }
 
         emit ClaimRewards(
-            i_network, tokenAddress, msg.sender, epoch, recipient, lastUnclaimedReward_, rewardsToClaim, amount
+            NETWORK, tokenAddress, msg.sender, epoch, recipient, lastUnclaimedReward_, rewardsToClaim, amount
         );
     }
 
@@ -405,7 +405,7 @@ contract ODefaultStakerRewards is
         for (uint256 i; i < rewardsToClaim;) {
             uint256 rewardAmount = rewardsPerEpoch[rewardIndex];
 
-            amount += IVault(i_vault).activeSharesOfAt(msg.sender, epochTs, activeSharesOfHints[i]).mulDiv(
+            amount += IVault(VAULT).activeSharesOfAt(msg.sender, epochTs, activeSharesOfHints[i]).mulDiv(
                 rewardAmount, $.activeSharesCache[epoch]
             );
 

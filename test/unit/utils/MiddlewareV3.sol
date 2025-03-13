@@ -19,7 +19,7 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 contract MiddlewareV3 is UUPSUpgradeable {
     uint256 public constant VERSION = 3;
 
-    address public immutable i_operatorRewards;
+    address public immutable OPERATORS_REWARDS;
 
     error MiddlewareV3__UpgradeNotAuthorized();
 
@@ -27,7 +27,7 @@ contract MiddlewareV3 is UUPSUpgradeable {
         address operatorRewardsAddress
     ) {
         _disableInitializers();
-        i_operatorRewards = operatorRewardsAddress;
+        OPERATORS_REWARDS = operatorRewardsAddress;
     }
 
     function _authorizeUpgrade(
