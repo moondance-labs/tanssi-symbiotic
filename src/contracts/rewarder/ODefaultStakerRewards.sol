@@ -272,7 +272,7 @@ contract ODefaultStakerRewards is
         }
 
         // This is used to cache the active shares for the epoch and optimize the claiming process
-        _cacheActiveShares(epoch, epochTs, activeSharesHint, activeStakeHint);
+        _cacheActiveShares($, epoch, epochTs, activeSharesHint, activeStakeHint);
 
         amount = _transferAndCheckAmount(tokenAddress, amount);
 
@@ -281,27 +281,24 @@ contract ODefaultStakerRewards is
         emit DistributeRewards(i_network, tokenAddress, eraIndex, epoch, amount, data);
     }
 
-    function _transferAndCheckAmount(address tokenAddress, uint256 amount) private returns (uint256) {
+    function _transferAndCheckAmount(address tokenAddress, uint256 amount) private returns (uint256 finalAmount) {
         uint256 balanceBefore = IERC20(tokenAddress).balanceOf(address(this));
         IERC20(tokenAddress).safeTransferFrom(msg.sender, address(this), amount);
-        amount = IERC20(tokenAddress).balanceOf(address(this)) - balanceBefore;
+        finalAmount = IERC20(tokenAddress).balanceOf(address(this)) - balanceBefore;
 
         // Check if the amount being sent is greater than 0
-        if (amount == 0) {
+        if (finalAmount == 0) {
             revert ODefaultStakerRewards__InsufficientReward();
         }
-
-        return amount;
     }
 
     function _cacheActiveShares(
+        StakerRewardsStorage storage $,
         uint48 epoch,
         uint48 epochTs,
         bytes memory activeSharesHint,
         bytes memory activeStakeHint
     ) private {
-        StakerRewardsStorage storage $ = _getStakerRewardsStorage();
-
         if ($.activeSharesCache[epoch] == 0) {
             uint256 activeShares_ = IVault(i_vault).activeSharesAt(epochTs, activeSharesHint);
             uint256 activeStake_ = IVault(i_vault).activeStakeAt(epochTs, activeStakeHint);
@@ -375,6 +372,11 @@ contract ODefaultStakerRewards is
         // Get the min between how many the user wants to claim and how many rewards are available
         rewardsToClaim = Math.min(maxRewards, rewardsPerEpoch.length - lastUnclaimedReward_);
 
+        // If there are no rewards to claim, revert
+        if (rewardsToClaim == 0) {
+            revert ODefaultStakerRewards__NoRewardsToClaim();
+        }
+
         if (activeSharesOfHints.length == 0) {
             activeSharesOfHints = new bytes[](rewardsToClaim);
         } else if (activeSharesOfHints.length != rewardsToClaim) {
@@ -384,11 +386,6 @@ contract ODefaultStakerRewards is
         // Check the total amount for the user based on his shares in the vault and update the lastUnclaimedReward_
         amount =
             _claimRewardsPerEpoch($, rewardsToClaim, rewardsPerEpoch, lastUnclaimedReward_, epoch, activeSharesOfHints);
-
-        // If there are no rewards to claim, revert
-        if (rewardsToClaim == 0) {
-            revert ODefaultStakerRewards__NoRewardsToClaim();
-        }
 
         lastUnclaimedReward_ += rewardsToClaim;
 
