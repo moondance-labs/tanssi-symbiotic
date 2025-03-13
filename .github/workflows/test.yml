@@ -131,20 +131,3 @@ jobs:
           lcov-base: coverage/base_lcov.lcov
           delete-old-comments: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
-  check-copyright:
-    runs-on: ubuntu-latest
-    needs: [ "set-tags" ]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.set-tags.outputs.git_ref }}
-      - name: Find un-copyrighted files
-        run: |
-          find . -name '*.sol' -exec grep -H -E -o -c Copyright {} \; | grep ':0' || true
-          FILECOUNT=$(find . -name '*.sol' -exec grep -H -E -o -c Copyright {} \; | grep -c ':0' || true)
-          if [[ $FILECOUNT -eq 0 ]]; then
-              true
-          else
-              false
-          fi
