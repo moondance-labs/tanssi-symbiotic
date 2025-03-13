@@ -47,12 +47,10 @@ contract ODefaultStakerRewards is
     using Math for uint256;
 
     // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultStakerRewards.v1")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 constant MAIN_STORAGE_LOCATION = 0xe07cde22a6017f26eee680b6867ce6727151fb6097c75742cbe379265c377400;
+    bytes32 public constant MAIN_STORAGE_LOCATION = 0xe07cde22a6017f26eee680b6867ce6727151fb6097c75742cbe379265c377400;
 
     /// @custom:storage-location erc7201:tanssi.rewards.ODefaultStakerRewards.v1
     struct StakerRewardsStorage {
-        address NETWORK;
-        address VAULT;
         uint256 adminFee;
         mapping(uint48 epoch => mapping(address tokenAddress => uint256[] rewards_)) rewards;
         mapping(address account => mapping(uint48 epoch => mapping(address tokenAddress => uint256 rewardIndex)))
@@ -99,6 +97,16 @@ contract ODefaultStakerRewards is
     /**
      * @inheritdoc IODefaultStakerRewards
      */
+    address public immutable i_vault;
+
+    /**
+     * @inheritdoc IODefaultStakerRewards
+     */
+    address public immutable i_network;
+
+    /**
+     * @inheritdoc IODefaultStakerRewards
+     */
     uint48 public immutable i_startTime;
 
     /**
@@ -106,21 +114,47 @@ contract ODefaultStakerRewards is
      */
     uint48 public immutable i_epochDuration;
 
-    constructor(address vaultFactory, address networkMiddlewareService, uint48 startTime, uint48 epochDuration) {
+    constructor(
+        address vaultFactory,
+        address networkMiddlewareService,
+        uint48 startTime,
+        uint48 epochDuration,
+        address vault,
+        address network
+    ) {
         _disableInitializers();
+
+        if (vaultFactory == address(0)) {
+            revert ODefaultStakerRewards__NotVaultFactory();
+        }
+
+        if (networkMiddlewareService == address(0)) {
+            revert ODefaultStakerRewards__NotNetworkMiddleware();
+        }
+
+        if (vault == address(0)) {
+            revert ODefaultStakerRewards__NotVault();
+        }
+
+        if (network == address(0)) {
+            revert ODefaultStakerRewards__NotNetwork();
+        }
+
+        if (!IRegistry(vaultFactory).isEntity(vault)) {
+            revert ODefaultStakerRewards__NotVault();
+        }
+
         i_vaultFactory = vaultFactory;
         i_networkMiddlewareService = networkMiddlewareService;
         i_startTime = startTime;
         i_epochDuration = epochDuration;
+        i_vault = vault;
+        i_network = network;
     }
 
     function initialize(
         InitParams calldata params
     ) external initializer {
-        if (!IRegistry(i_vaultFactory).isEntity(params.vault)) {
-            revert ODefaultStakerRewards__NotVault();
-        }
-
         if (params.defaultAdminRoleHolder == address(0)) {
             if (params.adminFee == 0) {
                 if (params.adminFeeClaimRoleHolder == address(0)) {
@@ -142,10 +176,6 @@ contract ODefaultStakerRewards is
         __AccessControl_init();
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
-
-        StakerRewardsStorage storage $ = _getStakerRewardsStorage();
-        $.VAULT = params.vault;
-        $.NETWORK = params.network;
 
         _setAdminFee(params.adminFee);
 
@@ -200,7 +230,7 @@ contract ODefaultStakerRewards is
         for (uint256 i; i < rewardsToClaim;) {
             uint256 rewardAmount = rewardsPerEpoch[rewardIndex];
 
-            amount += IVault($.VAULT).activeSharesOfAt(account, epochTs, new bytes(0)).mulDiv(
+            amount += IVault(i_vault).activeSharesOfAt(account, epochTs, new bytes(0)).mulDiv(
                 rewardAmount, $.activeSharesCache[epoch]
             );
 
@@ -248,7 +278,7 @@ contract ODefaultStakerRewards is
 
         _updateAdminFeeAndRewards(amount, adminFee_, epoch, tokenAddress);
 
-        emit DistributeRewards($.NETWORK, tokenAddress, eraIndex, epoch, amount, data);
+        emit DistributeRewards(i_network, tokenAddress, eraIndex, epoch, amount, data);
     }
 
     function _transferAndCheckAmount(address tokenAddress, uint256 amount) private returns (uint256) {
@@ -273,8 +303,8 @@ contract ODefaultStakerRewards is
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
 
         if ($.activeSharesCache[epoch] == 0) {
-            uint256 activeShares_ = IVault($.VAULT).activeSharesAt(epochTs, activeSharesHint);
-            uint256 activeStake_ = IVault($.VAULT).activeStakeAt(epochTs, activeStakeHint);
+            uint256 activeShares_ = IVault(i_vault).activeSharesAt(epochTs, activeSharesHint);
+            uint256 activeStake_ = IVault(i_vault).activeStakeAt(epochTs, activeStakeHint);
 
             if (activeShares_ == 0 || activeStake_ == 0) {
                 revert ODefaultStakerRewards__InvalidRewardTimestamp();
@@ -316,17 +346,8 @@ contract ODefaultStakerRewards is
             revert ODefaultStakerRewards__InvalidRecipient();
         }
 
-        StakerRewardsStorage storage $ = _getStakerRewardsStorage();
-
         (uint256 rewardsToClaim, uint256 amount, uint256 lastUnclaimedReward_) =
             _getRewardsToClaimAndAmount(epoch, tokenAddress, maxRewards, activeSharesOfHints);
-
-        // If there are no rewards to claim, revert
-        if (rewardsToClaim == 0) {
-            revert ODefaultStakerRewards__NoRewardsToClaim();
-        }
-
-        $.lastUnclaimedReward[msg.sender][epoch][tokenAddress] = lastUnclaimedReward_ + rewardsToClaim;
 
         // if the amount is greater than 0, transfer the tokens to the recipient
         if (amount > 0) {
@@ -334,7 +355,7 @@ contract ODefaultStakerRewards is
         }
 
         emit ClaimRewards(
-            $.NETWORK, tokenAddress, msg.sender, epoch, recipient, lastUnclaimedReward_, rewardsToClaim, amount
+            i_network, tokenAddress, msg.sender, epoch, recipient, lastUnclaimedReward_, rewardsToClaim, amount
         );
     }
 
@@ -343,7 +364,7 @@ contract ODefaultStakerRewards is
         address tokenAddress,
         uint256 maxRewards,
         bytes[] memory activeSharesOfHints
-    ) private view returns (uint256 rewardsToClaim, uint256 amount, uint256 lastUnclaimedReward_) {
+    ) private returns (uint256 rewardsToClaim, uint256 amount, uint256 lastUnclaimedReward_) {
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
 
         uint256[] memory rewardsPerEpoch = $.rewards[epoch][tokenAddress];
@@ -363,6 +384,15 @@ contract ODefaultStakerRewards is
         // Check the total amount for the user based on his shares in the vault and update the lastUnclaimedReward_
         amount =
             _claimRewardsPerEpoch(rewardsToClaim, rewardsPerEpoch, lastUnclaimedReward_, epoch, activeSharesOfHints);
+
+        // If there are no rewards to claim, revert
+        if (rewardsToClaim == 0) {
+            revert ODefaultStakerRewards__NoRewardsToClaim();
+        }
+
+        lastUnclaimedReward_ += rewardsToClaim;
+
+        $.lastUnclaimedReward[msg.sender][epoch][tokenAddress] = lastUnclaimedReward_;
     }
 
     function _claimRewardsPerEpoch(
@@ -378,7 +408,7 @@ contract ODefaultStakerRewards is
         for (uint256 i; i < rewardsToClaim;) {
             uint256 rewardAmount = rewardsPerEpoch[rewardIndex];
 
-            amount += IVault($.VAULT).activeSharesOfAt(msg.sender, epochTs, activeSharesOfHints[i]).mulDiv(
+            amount += IVault(i_vault).activeSharesOfAt(msg.sender, epochTs, activeSharesOfHints[i]).mulDiv(
                 rewardAmount, $.activeSharesCache[epoch]
             );
 
@@ -425,22 +455,6 @@ contract ODefaultStakerRewards is
         _setAdminFee(adminFee_);
 
         emit SetAdminFee(adminFee_);
-    }
-
-    /**
-     * @inheritdoc IODefaultStakerRewards
-     */
-    function NETWORK() external view returns (address) {
-        StakerRewardsStorage storage $ = _getStakerRewardsStorage();
-        return $.NETWORK;
-    }
-
-    /**
-     * @inheritdoc IODefaultStakerRewards
-     */
-    function VAULT() external view returns (address) {
-        StakerRewardsStorage storage $ = _getStakerRewardsStorage();
-        return $.VAULT;
     }
 
     /**

@@ -40,8 +40,9 @@ contract ODefaultStakerRewardsFactory is Registry, IODefaultStakerRewardsFactory
     function create(
         ODefaultStakerRewards.InitParams calldata params
     ) external returns (address) {
-        ODefaultStakerRewards stakerRewards =
-            new ODefaultStakerRewards(VAULT_FACTORY, NETWORK_MIDDLEWARE_SERVICE, START_TIME, EPOCH_DURATION);
+        ODefaultStakerRewards stakerRewards = new ODefaultStakerRewards(
+            VAULT_FACTORY, NETWORK_MIDDLEWARE_SERVICE, START_TIME, EPOCH_DURATION, params.vault, params.network
+        );
 
         address proxy = address(new ERC1967Proxy((address(stakerRewards)), ""));
         ODefaultStakerRewards(proxy).initialize(params);

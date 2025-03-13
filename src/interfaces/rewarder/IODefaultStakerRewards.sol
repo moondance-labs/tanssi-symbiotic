@@ -28,6 +28,7 @@ interface IODefaultStakerRewards {
     error ODefaultStakerRewards__NotNetwork();
     error ODefaultStakerRewards__NotNetworkMiddleware();
     error ODefaultStakerRewards__NotVault();
+    error ODefaultStakerRewards__NotVaultFactory();
 
     /**
      * @notice Emitted when a reward is distributed.
@@ -172,14 +173,14 @@ interface IODefaultStakerRewards {
      * @return address of the network
      * @dev set during initalization, so it's immutable
      */
-    function NETWORK() external view returns (address);
+    function i_network() external view returns (address);
 
     /**
      * @notice Get the vault's address.
      * @return address of the vault
      * @dev set during initalization, so it's immutable
      */
-    function VAULT() external view returns (address);
+    function i_vault() external view returns (address);
 
     /**
      * @notice Get an admin fee.
