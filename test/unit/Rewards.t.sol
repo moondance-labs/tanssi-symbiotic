@@ -34,7 +34,6 @@ import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlew
 //**************************************************************************************************
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 //**************************************************************************************************
@@ -52,6 +51,7 @@ import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStake
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
+import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 
 import {DelegatorMock} from "../mocks/symbiotic/DelegatorMock.sol";
@@ -166,7 +166,7 @@ contract RewardsTest is Test {
         stakerRewards = ODefaultStakerRewards(stakerRewardsFactory.create(stakerRewardsParams));
 
         Middleware _middlewareImpl = new Middleware(operatorRewardsAddress, address(stakerRewards));
-        middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
+        middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
         Middleware(address(middleware)).initialize(
             tanssi,
             address(operatorRegistry),

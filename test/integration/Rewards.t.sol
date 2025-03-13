@@ -45,7 +45,7 @@ import {OperatorManager} from "@symbiotic-middleware/managers/OperatorManager.so
 //**************************************************************************************************
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Errors} from "@openzeppelin/contracts/utils/Errors.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 
 //**************************************************************************************************
 //                                      SNOWBRIDGE
@@ -316,7 +316,7 @@ contract RewardsTest is Test {
         address _stakerRewardsFactoryAddress
     ) public returns (Middleware _middleware) {
         Middleware _middlewareImpl = new Middleware(_operatorRewardsAddress, _stakerRewardsFactoryAddress);
-        _middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
+        _middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
         _middleware.initialize(
             _network,
             address(operatorRegistry),

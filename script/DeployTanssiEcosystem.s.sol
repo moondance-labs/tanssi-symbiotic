@@ -33,12 +33,8 @@ import {IDefaultCollateralFactory} from
 import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlewareReader.sol";
 import {VaultFactory} from "@symbiotic/contracts/VaultFactory.sol";
 
-//**************************************************************************************************
-//                                      OPENZEPPELIN
-//**************************************************************************************************
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
+import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
@@ -360,7 +356,7 @@ contract DeployTanssiEcosystem is Script {
         address stakerRewardsFactory
     ) private returns (Middleware _middleware) {
         Middleware _middlewareImpl = new Middleware(operatorRewards, stakerRewardsFactory);
-        _middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
+        _middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
 
         if (reader == address(0)) {
             reader = address(new BaseMiddlewareReader());
