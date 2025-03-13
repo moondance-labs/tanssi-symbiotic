@@ -37,8 +37,8 @@ import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-ti
 //**************************************************************************************************
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
+import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
@@ -702,7 +702,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(network2);
 
         Middleware _middlewareImpl = _getMiddlewareImpl(network2, vaultFactoryAddress, networkMiddlewareServiceAddress);
-        Middleware middleware2 = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
+        Middleware middleware2 = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
         address readHelper = address(new BaseMiddlewareReader());
 
         middleware2.initialize(

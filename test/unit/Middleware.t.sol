@@ -43,7 +43,6 @@ import {KeyManager256} from "@symbiotic-middleware/extensions/managers/keys/KeyM
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 //**************************************************************************************************
 //                                      SNOWBRIDGE
@@ -55,6 +54,7 @@ import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperato
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
+import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {MiddlewareV2} from "./utils/MiddlewareV2.sol";
 import {MiddlewareV3} from "./utils/MiddlewareV3.sol";
@@ -168,7 +168,7 @@ contract MiddlewareTest is Test {
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
         middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
-        middleware = Middleware(address(new ERC1967Proxy(address(middlewareImpl), "")));
+        middleware = Middleware(address(new MiddlewareProxy(address(middlewareImpl), "")));
         middleware.initialize(
             tanssi,
             address(registry),
@@ -207,7 +207,7 @@ contract MiddlewareTest is Test {
 
         address readHelper = address(new BaseMiddlewareReader());
         Middleware _middleware = new Middleware(address(operatorRewards), address(stakerRewardsFactory));
-        Middleware middlewareProxy = Middleware(address(new ERC1967Proxy(address(_middleware), "")));
+        Middleware middlewareProxy = Middleware(address(new MiddlewareProxy(address(_middleware), "")));
         vm.expectRevert(IMiddleware.Middleware__SlashingWindowTooShort.selector);
 
         Middleware(address(middlewareProxy)).initialize(
@@ -1756,7 +1756,7 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function testInitializeWithNoOwner() public {
-        Middleware middleware2 = Middleware(address(new ERC1967Proxy(address(middlewareImpl), "")));
+        Middleware middleware2 = Middleware(address(new MiddlewareProxy(address(middlewareImpl), "")));
         address readHelper = address(new BaseMiddlewareReader());
         vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
         middleware2.initialize(
@@ -1772,7 +1772,7 @@ contract MiddlewareTest is Test {
     }
 
     function testInitializeWithNoReader() public {
-        Middleware middleware2 = Middleware(address(new ERC1967Proxy(address(middlewareImpl), "")));
+        Middleware middleware2 = Middleware(address(new MiddlewareProxy(address(middlewareImpl), "")));
         vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
         middleware2.initialize(
             tanssi, // network

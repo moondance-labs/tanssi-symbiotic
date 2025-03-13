@@ -17,11 +17,6 @@ pragma solidity 0.8.25;
 import {Script, console2} from "forge-std/Script.sol";
 
 //**************************************************************************************************
-//                                      OPENZEPPELIN
-//**************************************************************************************************
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-
-//**************************************************************************************************
 //                                      SYMBIOTIC
 //**************************************************************************************************
 import {IVaultConfigurator} from "@symbiotic/interfaces/IVaultConfigurator.sol";
@@ -41,6 +36,7 @@ import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlew
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
+import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Token} from "test/mocks/Token.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
 import {DeployVault} from "script/DeployVault.s.sol";
@@ -321,7 +317,7 @@ contract DeployTanssiEcosystem is Script {
         _depositToVault(_vault, operator3, 100 ether, tokensAddresses.stETHToken);
         vm.stopBroadcast();
 
-        (address stakerRewardsFactoryAddress,) = contractScripts.deployRewards.deployStakerRewardsFactoryContract(
+        address stakerRewardsFactoryAddress = contractScripts.deployRewards.deployStakerRewardsFactoryContract(
             vaultRegistryAddress, networkMiddlewareServiceAddress, uint48(block.timestamp), NETWORK_EPOCH_DURATION
         );
 
@@ -386,7 +382,7 @@ contract DeployTanssiEcosystem is Script {
         address _stakerRewardsFactory
     ) private returns (Middleware _middleware) {
         Middleware _middlewareImpl = new Middleware(_operatorRewards, _stakerRewardsFactory);
-        _middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
+        _middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
         console2.log("Middleware Implementation: ", address(_middlewareImpl));
         address readHelper = address(new BaseMiddlewareReader());
         _middleware.initialize(
