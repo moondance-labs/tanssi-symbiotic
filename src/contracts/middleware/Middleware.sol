@@ -228,7 +228,8 @@ contract Middleware is
         }
         address[] memory _operators = _activeOperatorsAt(epochStartTs);
 
-        for (uint256 i; i < _operators.length; ++i) {
+        uint256 operatorLength = _operators.length;
+        for (uint256 i; i < operatorLength; ++i) {
             address operator = _operators[i];
 
             uint256 operatorStake = getOperatorStake(operator, epoch);
@@ -268,7 +269,8 @@ contract Middleware is
 
         address[] memory vaults = _activeVaultsAt(epochStartTs, operator);
         // simple pro-rata slasher
-        for (uint256 i; i < vaults.length; ++i) {
+        uint256 vaultsLength = vaults.length;
+        for (uint256 i; i < vaultsLength; ++i) {
             _processVaultSlashing(vaults[i], params);
         }
     }
@@ -358,7 +360,8 @@ contract Middleware is
         validatorSet = validatorSet.quickSort(0, int256(validatorSet.length - 1));
 
         sortedKeys = new bytes32[](validatorSet.length);
-        for (uint256 i = 0; i < validatorSet.length; i++) {
+        uint256 validatorSetLength = validatorSet.length;
+        for (uint256 i; i < validatorSetLength; ++i) {
             sortedKeys[i] = validatorSet[i].key;
         }
     }
@@ -375,7 +378,8 @@ contract Middleware is
         operatorVaultPairs = new OperatorVaultPair[](operators.length);
 
         uint256 valIdx = 0;
-        for (uint256 i; i < operators.length; ++i) {
+        uint256 operatorsLength = operators.length;
+        for (uint256 i; i < operatorsLength; ++i) {
             address operator = operators[i];
             (uint256 vaultIdx, address[] memory _vaults) = getOperatorVaults(operator, epochStartTs);
             assembly {
@@ -397,7 +401,8 @@ contract Middleware is
         address[] memory operatorVaults = _activeVaultsAt(epochStartTs, operator);
         vaults = new address[](operatorVaults.length);
         vaultIdx = 0;
-        for (uint256 j; j < operatorVaults.length; ++j) {
+        uint256 operatorVaultsLength = operatorVaults.length;
+        for (uint256 j; j < operatorVaultsLength; ++j) {
             uint256 operatorStake = 0;
             address _vault = operatorVaults[j];
             for (uint96 k = 0; k < _subnetworksLength(); ++k) {
@@ -475,8 +480,8 @@ contract Middleware is
 
         validatorSet = new ValidatorData[](operators.length);
         uint256 len = 0;
-
-        for (uint256 i; i < operators.length; ++i) {
+        uint256 operatorsLength = operators.length;
+        for (uint256 i; i < operatorsLength; ++i) {
             address operator = operators[i];
 
             bytes32 key = abi.decode(operatorKey(operator), (bytes32));
@@ -523,7 +528,8 @@ contract Middleware is
             revert Middleware__InvalidEpoch();
         }
         address[] memory operators = _activeOperatorsAt(epochStartTs);
-        for (uint256 i; i < operators.length; ++i) {
+        uint256 operatorsLength = operators.length;
+        for (uint256 i; i < operatorsLength; ++i) {
             uint256 operatorStake = getOperatorStake(operators[i], epoch);
             totalStake += operatorStake;
         }
