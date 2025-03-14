@@ -73,6 +73,8 @@ contract RewardsTest is Test {
     uint256 public constant EXPECTED_CLAIMABLE = uint256(AMOUNT_TO_CLAIM) * TOKENS_PER_POINT;
     uint256 public constant ADMIN_FEE = 800; // 8%
     uint48 public constant OPERATOR_SHARE = 2000;
+    uint8 public constant ORACLE_DECIMALS = 18;
+    int256 public constant ORACLE_CONVERSION_TOKEN = 3000;
 
     // Root hash of the rewards merkle tree. It represents the rewards for the epoch 0 for alice and bob with 20 points each
     bytes32 public constant REWARDS_ROOT = 0x4b0ddd8b9b8ec6aec84bcd2003c973254c41d976f6f29a163054eec4e7947810;
@@ -145,7 +147,7 @@ contract RewardsTest is Test {
         );
 
         token = new Token("Token");
-        address collateralOracle = deployCollateral.deployMockOracle(18, 3000);
+        address collateralOracle = deployCollateral.deployMockOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_TOKEN);
 
         vault = new VaultMock(delegatorFactory, slasherFactory, address(vaultFactory), address(token));
         vault.setDelegator(address(delegator));

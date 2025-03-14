@@ -23,6 +23,7 @@ abstract contract OSharedVaults is BaseMiddleware, IOSharedVaults {
         // TODO Steven: check if sharedVault is a valid vault
         _beforeRegisterSharedVault(sharedVault, stakerRewardsParams);
         _registerSharedVault(sharedVault);
+        _afterRegisterSharedVault(sharedVault);
     }
 
     /**
@@ -63,6 +64,14 @@ abstract contract OSharedVaults is BaseMiddleware, IOSharedVaults {
     function _beforeRegisterSharedVault(
         address sharedVault,
         IODefaultStakerRewards.InitParams memory stakerRewardsParams
+    ) internal virtual {}
+
+    /**
+     * @notice Hook called after registering a shared vault
+     * @param sharedVault The vault address
+     */
+    function _afterRegisterSharedVault(
+        address sharedVault
     ) internal virtual {}
 
     /**

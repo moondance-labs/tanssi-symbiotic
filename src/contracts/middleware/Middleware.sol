@@ -151,11 +151,15 @@ contract Middleware is
         stakerRewardsParams.vault = sharedVault;
         address stakerRewards = IODefaultStakerRewardsFactory(i_stakerRewardsFactory).create(stakerRewardsParams);
         IODefaultOperatorRewards(i_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
+    }
+
+    function _afterRegisterSharedVault(
+        address sharedVault
+    ) internal virtual override {
         address collateral = IVault(sharedVault).collateral();
         _setVaultToCollateral(sharedVault, collateral);
     }
 
-    // TODO: this should probably take into account underlying asset price and return a power which could be either the total value of the stake in usd or a value that makes sense for us
     function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
         address collateral = vaultToCollateral(vault);
         address oracle = collateralToOracle(collateral);
@@ -165,7 +169,7 @@ contract Middleware is
         }
         (, int256 price,,,) = IAggregatorV3(oracle).latestRoundData();
         uint8 decimals = IAggregatorV3(oracle).decimals();
-        return stake.mulDiv(uint256(price), 10 ** decimals); // TODO Steven, check math
+        return stake.mulDiv(uint256(price), 10 ** decimals);
     }
 
     // /**

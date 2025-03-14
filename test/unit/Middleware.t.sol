@@ -60,6 +60,7 @@ import {MiddlewareV2} from "./utils/MiddlewareV2.sol";
 import {MiddlewareV3} from "./utils/MiddlewareV3.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
+import {IAggregatorV3} from "src/interfaces/IAggregatorV3.sol";
 import {QuickSort} from "src/contracts/libraries/QuickSort.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
@@ -83,6 +84,8 @@ contract MiddlewareTest is Test {
     bytes32 public constant OPERATOR_KEY = bytes32(uint256(1));
     bytes32 public constant PREV_OPERATOR_KEY = bytes32(uint256(4));
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
+    uint8 public constant ORACLE_DECIMALS = 18;
+    int256 public constant ORACLE_CONVERSION_TOKEN = 3000;
 
     uint48 public constant START_TIME = 1;
 
@@ -152,8 +155,8 @@ contract MiddlewareTest is Test {
             new VetoSlasher(vaultFactory, address(networkMiddlewareService), address(registry), slasherFactory, 1);
 
         collateral = Token(deployCollateral.deployCollateral("Token"));
-        address collateralOracle = deployCollateral.deployMockOracle(18, 3000);
-        
+        address collateralOracle = deployCollateral.deployMockOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_TOKEN);
+
         vault = new VaultMock(delegatorFactory, slasherFactory, vaultFactory, address(collateral));
         vault.setDelegator(address(delegator));
 
@@ -713,7 +716,8 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
         uint256 stake = middleware.getOperatorStake(operator, currentEpoch);
 
-        assertEq(stake, OPERATOR_STAKE);
+        uint256 expectedStake = OPERATOR_STAKE * uint256(ORACLE_CONVERSION_TOKEN) / 10 ** ORACLE_DECIMALS;
+        assertEq(stake, expectedStake);
         vm.stopPrank();
     }
 
@@ -733,12 +737,12 @@ contract MiddlewareTest is Test {
         vm.warp(NETWORK_EPOCH_DURATION + 2);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         uint256 stake = middleware.getOperatorStake(operator, currentEpoch);
-
-        assertEq(stake, OPERATOR_STAKE);
+        uint256 expectedStake = OPERATOR_STAKE * uint256(ORACLE_CONVERSION_TOKEN) / 10 ** ORACLE_DECIMALS;
+        assertEq(stake, expectedStake);
 
         vm.warp(NETWORK_EPOCH_DURATION * 2 + 2);
         stake = middleware.getOperatorStake(operator, currentEpoch);
-        assertEq(stake, OPERATOR_STAKE);
+        assertEq(stake, expectedStake);
         vm.stopPrank();
     }
 
@@ -780,7 +784,8 @@ contract MiddlewareTest is Test {
         uint256 stake = middleware.getOperatorStake(operator, currentEpoch);
 
         assertEq(stake, totalStakeCached);
-        assertEq(stake, OPERATOR_STAKE);
+        uint256 expectedStake = OPERATOR_STAKE * uint256(ORACLE_CONVERSION_TOKEN) / 10 ** ORACLE_DECIMALS;
+        assertEq(stake, expectedStake);
         vm.stopPrank();
     }
 
@@ -824,7 +829,8 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
         uint256 totalStake = middleware.getTotalStake(currentEpoch);
 
-        assertEq(totalStake, OPERATOR_STAKE);
+        uint256 expectedStake = OPERATOR_STAKE * uint256(ORACLE_CONVERSION_TOKEN) / 10 ** ORACLE_DECIMALS;
+        assertEq(totalStake, expectedStake);
         vm.stopPrank();
     }
 
@@ -847,9 +853,10 @@ contract MiddlewareTest is Test {
         uint256 totalStakeCached = middleware.calcAndCacheStakes(currentEpoch);
 
         uint256 totalStake = middleware.getTotalStake(currentEpoch);
+        uint256 expectedStake = OPERATOR_STAKE * uint256(ORACLE_CONVERSION_TOKEN) / 10 ** ORACLE_DECIMALS;
 
         assertEq(totalStake, totalStakeCached);
-        assertEq(totalStake, OPERATOR_STAKE);
+        assertEq(totalStake, expectedStake);
         vm.stopPrank();
     }
 
@@ -928,7 +935,8 @@ contract MiddlewareTest is Test {
 
         assertEq(validators.length, 1);
         assertEq(validators[0].key, OPERATOR_KEY);
-        assertEq(validators[0].stake, OPERATOR_STAKE);
+        uint256 expectedStake = OPERATOR_STAKE * uint256(ORACLE_CONVERSION_TOKEN) / 10 ** ORACLE_DECIMALS;
+        assertEq(validators[0].stake, expectedStake);
         vm.stopPrank();
     }
 
@@ -987,7 +995,6 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
-        uint256 totalStakeCached = middleware.calcAndCacheStakes(currentEpoch);
 
         // We want to slash half of it, and this is parts per billion. so this should be
         // 500000000
@@ -1000,7 +1007,10 @@ contract MiddlewareTest is Test {
         vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
         currentEpoch = middleware.getCurrentEpoch();
         uint256 totalStake = middleware.getTotalStake(currentEpoch);
-        assertEq(totalStake, totalStakeCached - slashAmount);
+        uint256 expectedStake =
+            (OPERATOR_STAKE - slashAmount) * uint256(ORACLE_CONVERSION_TOKEN) / 10 ** ORACLE_DECIMALS;
+
+        assertEq(totalStake, expectedStake);
         vm.stopPrank();
     }
 
@@ -1098,7 +1108,9 @@ contract MiddlewareTest is Test {
         vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
         currentEpoch = middleware.getCurrentEpoch();
         uint256 totalStake = middleware.getTotalStake(currentEpoch);
-        assertEq(totalStake, OPERATOR_STAKE / 2); //Because it slashes the operator everywhere, but the operator has stake only in vault2, since the first vault is paused
+
+        uint256 expectedStake = (OPERATOR_STAKE / 2) * uint256(ORACLE_CONVERSION_TOKEN) / 10 ** ORACLE_DECIMALS;
+        assertEq(totalStake, expectedStake); //Because it slashes the operator everywhere, but the operator has stake only in vault2, since the first vault is paused
         vm.stopPrank();
     }
 
@@ -1127,7 +1139,8 @@ contract MiddlewareTest is Test {
         vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
         currentEpoch = middleware.getCurrentEpoch();
         uint256 totalStake = middleware.getTotalStake(currentEpoch);
-        assertEq(totalStake, OPERATOR_STAKE);
+        uint256 expectedStake = OPERATOR_STAKE * uint256(ORACLE_CONVERSION_TOKEN) / 10 ** ORACLE_DECIMALS;
+        assertEq(totalStake, expectedStake);
         vm.stopPrank();
     }
 
@@ -1240,7 +1253,8 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
         uint256 totalStake = middleware.calcAndCacheStakes(currentEpoch);
 
-        assertEq(totalStake, OPERATOR_STAKE);
+        uint256 expectedStake = OPERATOR_STAKE * uint256(ORACLE_CONVERSION_TOKEN) / 10 ** ORACLE_DECIMALS;
+        assertEq(totalStake, expectedStake);
         vm.stopPrank();
     }
 
@@ -1756,8 +1770,26 @@ contract MiddlewareTest is Test {
     function testStakeToPower() public {
         uint256 stake = 1000;
         address _vault = makeAddr("vault");
+        address _collateral = makeAddr("collateral");
+        address _oracle = makeAddr("oracle");
+        int256 multiplier = 5000;
+        uint8 decimals = 2;
+
+        vm.startPrank(owner);
+        middleware.setCollateralToOracle(_collateral, _oracle);
+        vm.stopPrank();
+        _setVaultToCollateral(_vault, _collateral);
+
+        vm.mockCall(
+            _oracle,
+            abi.encodeWithSelector(IAggregatorV3.latestRoundData.selector),
+            abi.encode(uint80(0), multiplier, uint256(0), uint256(0), uint80(0))
+        );
+        vm.mockCall(_oracle, abi.encodeWithSelector(IAggregatorV3.decimals.selector), abi.encode(uint8(decimals)));
+
         uint256 power = middleware.stakeToPower(_vault, stake);
-        assertEq(power, 1000);
+        uint256 expectedPower = (stake * uint256(multiplier)) / (10 ** uint256(decimals));
+        assertEq(power, expectedPower);
     }
 
     // ************************************************************************************************
@@ -1915,5 +1947,14 @@ contract MiddlewareTest is Test {
         key = middleware.getOperatorKeyAt(operator, uint48(vm.getBlockTimestamp()));
 
         assertEq(abi.decode(key, (bytes32)), bytes32(0));
+    }
+
+    function _setVaultToCollateral(address vault_, address collateral_) internal {
+        bytes32 slot = bytes32(uint256(middleware.MIDDLEWARE_STORAGE_LOCATION()) + uint256(6)); // 6 is mapping slot number for the vault to collateral
+        // Get slot for mapping with vault_
+        slot = keccak256(abi.encode(vault_, slot));
+
+        // Store array length
+        vm.store(address(middleware), slot, bytes32(uint256(uint160(collateral_))));
     }
 }
