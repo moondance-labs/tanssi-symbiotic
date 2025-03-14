@@ -62,6 +62,7 @@ import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
 import {QuickSort} from "src/contracts/libraries/QuickSort.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
+import {DeployCollateral} from "script/DeployCollateral.s.sol";
 
 import {DelegatorMock} from "../mocks/symbiotic/DelegatorMock.sol";
 import {OptInServiceMock} from "../mocks/symbiotic/OptInServiceMock.sol";
@@ -105,8 +106,10 @@ contract MiddlewareTest is Test {
     Slasher slasher;
     VetoSlasher vetoSlasher;
     Slasher slasherWithBadType;
+    Token collateral;
 
     DeployRewards deployRewards;
+    DeployCollateral deployCollateral;
     ODefaultOperatorRewards operatorRewards;
     ODefaultStakerRewardsFactory stakerRewardsFactory;
 
@@ -122,6 +125,9 @@ contract MiddlewareTest is Test {
 
     function setUp() public {
         vm.startPrank(owner);
+
+        deployRewards = new DeployRewards(true);
+        deployCollateral = new DeployCollateral();
 
         registry = new RegistryMock();
         operatorNetworkOptInServiceMock =
@@ -145,14 +151,16 @@ contract MiddlewareTest is Test {
         vetoSlasher =
             new VetoSlasher(vaultFactory, address(networkMiddlewareService), address(registry), slasherFactory, 1);
 
-        vault = new VaultMock(delegatorFactory, slasherFactory, vaultFactory);
+        collateral = Token(deployCollateral.deployCollateral("Token"));
+        address collateralOracle = deployCollateral.deployMockOracle(18, 3000);
+        
+        vault = new VaultMock(delegatorFactory, slasherFactory, vaultFactory, address(collateral));
         vault.setDelegator(address(delegator));
 
         vm.store(address(delegator), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
 
         address readHelper = address(new BaseMiddlewareReader());
 
-        deployRewards = new DeployRewards(true);
         address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
             address(vaultFactory), address(networkMiddlewareService), uint48(block.timestamp), NETWORK_EPOCH_DURATION
         );
@@ -180,6 +188,7 @@ contract MiddlewareTest is Test {
             readHelper
         );
         middleware.setGateway(address(gateway));
+        middleware.setCollateralToOracle(address(collateral), collateralOracle);
 
         vm.startPrank(tanssi);
         registry.register();
@@ -1048,7 +1057,7 @@ contract MiddlewareTest is Test {
         middleware.registerSharedVault(address(vault), stakerRewardsParams);
 
         //Creating another vault to have stake on another vault
-        VaultMock vault2 = new VaultMock(delegatorFactory, slasherFactory, vaultFactory);
+        VaultMock vault2 = new VaultMock(delegatorFactory, slasherFactory, vaultFactory, address(collateral));
         DelegatorMock delegator2 = new DelegatorMock(
             address(registry),
             vaultFactory,

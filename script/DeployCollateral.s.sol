@@ -17,6 +17,7 @@ pragma solidity 0.8.25;
 import {Script, console2} from "forge-std/Script.sol";
 
 import {Token} from "../test/mocks/Token.sol";
+import {AggregatorV3Mock} from "../test/mocks/AggregatorV3Mock.sol";
 
 contract DeployCollateral is Script {
     uint256 public constant OPERATOR_INITIAL_BALANCE = 1000 ether;
@@ -51,5 +52,12 @@ contract DeployCollateral is Script {
         console2.log("Balance: ", token.balanceOf(owner));
 
         return tokenAddress;
+    }
+
+    function deployMockOracle(uint8 decimals, int256 answer) public returns (address) {
+        AggregatorV3Mock oracle = new AggregatorV3Mock(decimals);
+        oracle.setAnswer(answer);
+
+        return address(oracle);
     }
 }

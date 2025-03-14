@@ -22,28 +22,38 @@ interface IMiddleware {
      */
     event OperatorRewardContractSet(address indexed operatorRewardsAddress);
 
+    /**
+     * @notice Emitted when an oracle is set for a collateral.
+     * @dev If the oracle is set to address(0), the collateral will no longer be supported.
+     * @param collateral The collateral address
+     * @param oracle The oracle address
+     */
+    event CollateralToOracleSet(address indexed collateral, address indexed oracle);
+
     // Errors
-    error Middleware__NotOperator();
-    error Middleware__NotVault();
+    error Middleware__AlreadySet();
     error Middleware__CallerNotGateway();
     error Middleware__GatewayNotSet();
-    error Middleware__OperatorRewardsNotSet();
+    error Middleware__InsufficientBalance();
+    error Middleware__InvalidAddress();
+    error Middleware__InvalidEpoch();
+    error Middleware__InvalidSubnetworksCnt();
+    error Middleware__NotOperator();
+    error Middleware__NotSupportedCollateral(address collateral);
+    error Middleware__NotVault();
+    error Middleware__OperatorAlreadyRegistred();
+    error Middleware__OperatorGracePeriodNotPassed();
+    error Middleware__OperatorNotFound(bytes32 operatorKey, uint48 epoch);
     error Middleware__OperatorNotOptedIn();
     error Middleware__OperatorNotRegistred();
-    error Middleware__OperatorGracePeriodNotPassed();
-    error Middleware__OperatorAlreadyRegistred();
+    error Middleware__OperatorRewardsNotSet();
+    error Middleware__SlashingWindowTooShort();
+    error Middleware__SlashPercentageTooBig(uint48 epoch, address operator, uint256 percentage);
+    error Middleware__TooOldEpoch();
+    error Middleware__UnknownSlasherType();
     error Middleware__VaultAlreadyRegistered();
     error Middleware__VaultEpochTooShort();
     error Middleware__VaultGracePeriodNotPassed();
-    error Middleware__InvalidSubnetworksCnt();
-    error Middleware__TooOldEpoch();
-    error Middleware__InvalidEpoch();
-    error Middleware__InvalidAddress();
-    error Middleware__InsufficientBalance();
-    error Middleware__SlashingWindowTooShort();
-    error Middleware__UnknownSlasherType();
-    error Middleware__OperatorNotFound(bytes32 operatorKey, uint48 epoch);
-    error Middleware__SlashPercentageTooBig(uint48 epoch, address operator, uint256 percentage);
 
     // /**
     //  * @notice Slasher type enum

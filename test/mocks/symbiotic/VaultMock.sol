@@ -30,8 +30,11 @@ contract VaultMock is VaultStorage, MigratableEntity, IVault {
     constructor(
         address delegatorFactory,
         address slasherFactory,
-        address vaultFactory
-    ) VaultStorage(delegatorFactory, slasherFactory) MigratableEntity(vaultFactory) {}
+        address vaultFactory,
+        address _collateral
+    ) VaultStorage(delegatorFactory, slasherFactory) MigratableEntity(vaultFactory) {
+        collateral = _collateral;
+    }
 
     function test() public {}
 

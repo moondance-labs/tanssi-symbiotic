@@ -27,6 +27,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 //**************************************************************************************************
 import {IEntity} from "@symbiotic/interfaces/common/IEntity.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
+import {IVaultStorage} from "@symbiotic/interfaces/vault/IVaultStorage.sol";
 import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
 import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
@@ -43,6 +44,7 @@ import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfa
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
+import {IAggregatorV3} from "src/interfaces/IAggregatorV3.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {OSharedVaults} from "src/contracts/extensions/OSharedVaults.sol";
 import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
@@ -149,11 +151,21 @@ contract Middleware is
         stakerRewardsParams.vault = sharedVault;
         address stakerRewards = IODefaultStakerRewardsFactory(i_stakerRewardsFactory).create(stakerRewardsParams);
         IODefaultOperatorRewards(i_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
+        address collateral = IVault(sharedVault).collateral();
+        _setVaultToCollateral(sharedVault, collateral);
     }
 
     // TODO: this should probably take into account underlying asset price and return a power which could be either the total value of the stake in usd or a value that makes sense for us
     function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
-        return stake;
+        address collateral = vaultToCollateral(vault);
+        address oracle = collateralToOracle(collateral);
+
+        if (oracle == address(0)) {
+            revert Middleware__NotSupportedCollateral(collateral);
+        }
+        (, int256 price,,,) = IAggregatorV3(oracle).latestRoundData();
+        uint8 decimals = IAggregatorV3(oracle).decimals();
+        return stake.mulDiv(uint256(price), 10 ** decimals); // TODO Steven, check math
     }
 
     // /**
@@ -164,6 +176,29 @@ contract Middleware is
     ) external checkAccess {
         StorageMiddleware storage $ = _getMiddlewareStorage();
         $.gateway = IOGateway(_gateway);
+    }
+
+    function setCollateralToOracle(address collateral, address oracle) external checkAccess {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+
+        // Oracle is not checked against zero so this can be used to remove the oracle from a collateral
+        if (collateral == address(0)) {
+            revert Middleware__InvalidAddress();
+        }
+
+        if ($.collateralToOracle[collateral] == oracle) {
+            revert Middleware__AlreadySet();
+        }
+
+        $.collateralToOracle[collateral] = oracle;
+        emit CollateralToOracleSet(collateral, oracle);
+    }
+
+    function setMinStake(
+        uint256 minStake_
+    ) external checkAccess {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        $.minStake = minStake_;
     }
 
     // /**
@@ -247,15 +282,15 @@ contract Middleware is
     //TODO use prebuilt function from SDK
     function slash(
         uint48 epoch,
-        bytes32 operatorKey,
+        bytes32 operatorKey_,
         uint256 percentage
     ) external onlyGateway updateStakeCache(epoch) {
         uint48 epochStartTs = getEpochStart(epoch);
-        address operator = operatorByKey(abi.encode(operatorKey));
+        address operator = operatorByKey(abi.encode(operatorKey_));
 
         // If address is 0, then we should return
         if (operator == address(0)) {
-            revert Middleware__OperatorNotFound(operatorKey, epoch);
+            revert Middleware__OperatorNotFound(operatorKey_, epoch);
         }
 
         // Sanitization: check percentage is below 100% (or 1 billion in other words)
@@ -533,5 +568,13 @@ contract Middleware is
             uint256 operatorStake = getOperatorStake(operators[i], epoch);
             totalStake += operatorStake;
         }
+    }
+
+    function _setVaultToCollateral(address vault, address collateral) private {
+        if (collateral == address(0)) {
+            revert Middleware__InvalidAddress();
+        }
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        $.vaultToCollateral[vault] = collateral;
     }
 }

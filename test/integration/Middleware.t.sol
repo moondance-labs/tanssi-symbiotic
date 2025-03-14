@@ -108,6 +108,11 @@ contract MiddlewareTest is Test {
     uint256 public constant TOTAL_NETWORK_SHARES = 3;
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
 
+    uint8 public constant ORACLE_DECIMALS = 18;
+    int256 public constant ORACLE_ANSWER_ST_ETH = 3000;
+    int256 public constant ORACLE_ANSWER_R_ETH = 3000;
+    int256 public constant ORACLE_ANSWER_W_BTC = 100_000;
+
     struct VaultAddresses {
         address vault;
         address delegator;
@@ -197,6 +202,10 @@ contract MiddlewareTest is Test {
         wBTC.mint(owner, 1_000_000 ether);
         vm.stopPrank();
 
+        address stEthOracle = deployCollateral.deployMockOracle(ORACLE_DECIMALS, ORACLE_ANSWER_ST_ETH);
+        address rEthOracle = deployCollateral.deployMockOracle(ORACLE_DECIMALS, ORACLE_ANSWER_R_ETH);
+        address wBtcOracle = deployCollateral.deployMockOracle(ORACLE_DECIMALS, ORACLE_ANSWER_W_BTC);
+
         deployVault = new DeployVault();
         deployRewards = new DeployRewards(true);
         DeploySymbiotic deploySymbiotic = new DeploySymbiotic();
@@ -241,6 +250,9 @@ contract MiddlewareTest is Test {
         middleware = _deployMiddlewareWithProxy(tanssi, owner, operatorRewardsAddress, stakerRewardsFactoryAddress);
         _createGateway();
         middleware.setGateway(address(gateway));
+        middleware.setCollateralToOracle(address(stETH), stEthOracle);
+        middleware.setCollateralToOracle(address(rETH), rEthOracle);
+        middleware.setCollateralToOracle(address(wBTC), wBtcOracle);
 
         vetoSlasher = VetoSlasher(vaultAddresses.slasherVetoed);
 

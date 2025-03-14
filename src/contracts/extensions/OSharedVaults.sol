@@ -20,6 +20,7 @@ abstract contract OSharedVaults is BaseMiddleware, IOSharedVaults {
         address sharedVault,
         IODefaultStakerRewards.InitParams memory stakerRewardsParams
     ) public checkAccess {
+        // TODO Steven: check if sharedVault is a valid vault
         _beforeRegisterSharedVault(sharedVault, stakerRewardsParams);
         _registerSharedVault(sharedVault);
     }
