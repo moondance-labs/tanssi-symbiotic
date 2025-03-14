@@ -613,6 +613,8 @@ contract DeployTest is Test {
     }
 
     function testDeployVaultWithVaultConfiguratorEmpty() public {
+        (Token stETHToken,,) = deployTanssiEcosystem.tokensAddresses();
+
         DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
@@ -620,7 +622,7 @@ contract DeployTest is Test {
             delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
             shouldBroadcast: false,
             vaultConfigurator: address(0),
-            collateral: address(1),
+            collateral: address(stETHToken),
             owner: tanssi
         });
 
@@ -633,6 +635,7 @@ contract DeployTest is Test {
     //**************************************************************************************************
     function testDeployVaultWithCollateralEmpty() public {
         (, IVaultConfigurator vaultConfigurator,) = deployTanssiEcosystem.ecosystemEntities();
+        (Token stETHToken,,) = deployTanssiEcosystem.tokensAddresses();
 
         DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
             epochDuration: VAULT_EPOCH_DURATION,
@@ -641,7 +644,7 @@ contract DeployTest is Test {
             delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
             shouldBroadcast: false,
             vaultConfigurator: address(vaultConfigurator),
-            collateral: address(0),
+            collateral: address(stETHToken),
             owner: tanssi
         });
 
@@ -699,11 +702,12 @@ contract DeployTest is Test {
         vm.recordLogs();
 
         (, IVaultConfigurator vaultConfigurator,) = deployTanssiEcosystem.ecosystemEntities();
+        (Token stETHToken,,) = deployTanssiEcosystem.tokensAddresses();
 
         DeployVault.VaultDeployParams memory deployParams = DeployVault.VaultDeployParams({
             vaultConfigurator: address(vaultConfigurator),
             owner: tanssi,
-            collateral: address(1),
+            collateral: address(stETHToken),
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
             depositLimit: 0,

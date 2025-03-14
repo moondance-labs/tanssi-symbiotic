@@ -39,10 +39,13 @@ abstract contract MiddlewareStorage {
         mapping(uint48 epoch => uint256 amount) totalStakeCache;
         mapping(uint48 epoch => bool) totalStakeIsCached;
         mapping(uint48 epoch => mapping(address operator => uint256 amount)) operatorStakeCache;
+        uint256 minStake;
+        mapping(address collateral => address oracle) collateralToOracle;
+        mapping(address vault => address collateral) vaultToCollateral;
     }
 
     // keccak256(abi.encode(uint256(keccak256("tanssi.middleware.MiddlewareStorage.v1")) - 1)) & ~bytes32(uint256(0xff));
-    bytes32 private constant MIDDLEWARE_STORAGE_LOCATION =
+    bytes32 public constant MIDDLEWARE_STORAGE_LOCATION =
         0x744f79b1118793e0a060dca4f01184704394f6e567161215b3d2c3126631e700;
 
     function _getMiddlewareStorage() internal pure returns (StorageMiddleware storage $v1) {
@@ -93,5 +96,31 @@ abstract contract MiddlewareStorage {
     function operatorStakeCache(uint48 epoch, address operator) public view returns (uint256) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
         return $.operatorStakeCache[epoch][operator];
+    }
+
+    function collateralToOracle(
+        address collateral
+    ) public view returns (address) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        return $.collateralToOracle[collateral];
+    }
+
+    function vaultToCollateral(
+        address vault
+    ) public view returns (address) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        return $.vaultToCollateral[vault];
+    }
+
+    function vaultToOracle(
+        address vault
+    ) public view returns (address) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        return $.collateralToOracle[$.vaultToCollateral[vault]];
+    }
+
+    function minStake() public view returns (uint256) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        return $.minStake;
     }
 }

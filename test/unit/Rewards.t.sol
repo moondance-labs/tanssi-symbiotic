@@ -62,6 +62,7 @@ import {Token} from "../mocks/Token.sol";
 import {MockFeeToken} from "../mocks/FeeToken.sol";
 
 import {DeployRewards} from "script/DeployRewards.s.sol";
+import {DeployCollateral} from "script/DeployCollateral.s.sol";
 
 contract RewardsTest is Test {
     uint48 public constant NETWORK_EPOCH_DURATION = 6 days;
@@ -72,6 +73,8 @@ contract RewardsTest is Test {
     uint256 public constant EXPECTED_CLAIMABLE = uint256(AMOUNT_TO_CLAIM) * TOKENS_PER_POINT;
     uint256 public constant ADMIN_FEE = 800; // 8%
     uint48 public constant OPERATOR_SHARE = 2000;
+    uint8 public constant ORACLE_DECIMALS = 18;
+    int256 public constant ORACLE_CONVERSION_TOKEN = 3000;
 
     // Root hash of the rewards merkle tree. It represents the rewards for the epoch 0 for alice and bob with 20 points each
     bytes32 public constant REWARDS_ROOT = 0x4b0ddd8b9b8ec6aec84bcd2003c973254c41d976f6f29a163054eec4e7947810;
@@ -102,6 +105,7 @@ contract RewardsTest is Test {
     Token token;
     MockFeeToken feeToken;
     DeployRewards deployRewards;
+    DeployCollateral deployCollateral;
 
     function setUp() public {
         //Extract rewards data from json
@@ -127,6 +131,7 @@ contract RewardsTest is Test {
         address readHelper = address(new BaseMiddlewareReader());
 
         deployRewards = new DeployRewards(true);
+        deployCollateral = new DeployCollateral();
         address operatorRewardsAddress = deployRewards.deployOperatorRewardsContract(
             tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
         );
@@ -141,7 +146,10 @@ contract RewardsTest is Test {
             0
         );
 
-        vault = new VaultMock(delegatorFactory, slasherFactory, address(vaultFactory));
+        token = new Token("Token");
+        address collateralOracle = deployCollateral.deployMockOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_TOKEN);
+
+        vault = new VaultMock(delegatorFactory, slasherFactory, address(vaultFactory), address(token));
         vault.setDelegator(address(delegator));
         vm.store(address(delegator), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
 
@@ -179,9 +187,10 @@ contract RewardsTest is Test {
         );
         slasher = new Slasher(address(vaultFactory), address(networkMiddlewareService), slasherFactory, 0);
 
+        token.transfer(address(middleware), token.totalSupply());
+
         vm.startPrank(tanssi);
-        token = new Token("Test");
-        token.transfer(address(middleware), token.balanceOf(tanssi));
+        middleware.setCollateralToOracle(address(token), collateralOracle);
         networkRegistry.registerNetwork();
         networkMiddlewareService.setMiddleware(address(middleware));
 
