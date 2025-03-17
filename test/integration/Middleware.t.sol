@@ -97,7 +97,8 @@ contract MiddlewareTest is Test {
     uint48 public constant SLASHING_WINDOW = 7 days;
     uint48 public constant VETO_DURATION = 1 days;
     uint256 public constant SLASH_AMOUNT = 30 ether;
-    uint256 public constant OPERATOR_STAKE = 100 ether;
+    uint256 public constant OPERATOR_STAKE_ETH = 100 ether;
+    uint256 public constant OPERATOR_STAKE_BTC = 100 ether; // TODO Steven: Test changing it to 10
     uint256 public constant DEFAULT_WITHDRAW_AMOUNT = 30 ether;
     uint256 public constant OPERATOR_INITIAL_BALANCE = 1000 ether;
     uint256 public constant MIN_SLASHING_WINDOW = 1 days;
@@ -108,10 +109,11 @@ contract MiddlewareTest is Test {
     uint256 public constant TOTAL_NETWORK_SHARES = 3;
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
 
-    uint8 public constant ORACLE_DECIMALS = 18;
-    int256 public constant ORACLE_CONVERSION_ST_ETH = 3000;
-    int256 public constant ORACLE_CONVERSION_R_ETH = 3000;
-    int256 public constant ORACLE_CONVERSION_W_BTC = 100_000;
+    // TODO Steven: Change to realistic values
+    uint8 public constant ORACLE_DECIMALS = 0; // TODO Steven: Test changing it to 8 for BTC
+    int256 public constant ORACLE_CONVERSION_ST_ETH = 1;
+    int256 public constant ORACLE_CONVERSION_R_ETH = 1; // TODO Steven: Test changing it to a bit lower value
+    int256 public constant ORACLE_CONVERSION_W_BTC = 1;
 
     struct VaultAddresses {
         address vault;
@@ -267,6 +269,7 @@ contract MiddlewareTest is Test {
         vaults.push(vaultSlashable);
         vaults.push(vaultVetoed);
 
+        // TODO Steven: operator 2 and 3 are registered to a specific vault but using multiple
         _registerOperator(operator, tanssi, address(vault));
         _registerOperator(operator3, tanssi, address(vaultSlashable));
         _registerOperator(operator2, tanssi, address(vaultVetoed));
@@ -277,20 +280,20 @@ contract MiddlewareTest is Test {
         _setLimitForNetworkAndOperators(tanssi);
 
         vm.startPrank(operator);
-        _depositToVault(vault, operator, 100 ether, stETH);
+        _depositToVault(vault, operator, OPERATOR_STAKE_ETH, stETH);
 
         vm.startPrank(operator2);
         operatorVaultOptInService.optIn(address(vaultSlashable));
-        _depositToVault(vaultSlashable, operator2, 100 ether, rETH);
-        _depositToVault(vaultVetoed, operator2, 100 ether, wBTC);
+        _depositToVault(vaultSlashable, operator2, OPERATOR_STAKE_ETH, rETH);
+        _depositToVault(vaultVetoed, operator2, OPERATOR_STAKE_BTC, wBTC);
         vm.stopPrank();
 
         vm.startPrank(operator3);
         operatorVaultOptInService.optIn(address(vault));
         operatorVaultOptInService.optIn(address(vaultVetoed));
-        _depositToVault(vault, operator3, 100 ether, stETH);
-        _depositToVault(vaultSlashable, operator3, 100 ether, rETH);
-        _depositToVault(vaultVetoed, operator3, 100 ether, wBTC);
+        _depositToVault(vault, operator3, OPERATOR_STAKE_ETH, stETH);
+        _depositToVault(vaultSlashable, operator3, OPERATOR_STAKE_ETH, rETH);
+        _depositToVault(vaultVetoed, operator3, OPERATOR_STAKE_BTC, wBTC);
 
         vm.stopPrank();
     }
@@ -528,7 +531,7 @@ contract MiddlewareTest is Test {
         currentEpoch = vaultSlashable.currentEpoch();
         vm.prank(operator2);
         vaultSlashable.claim(operator2, currentEpoch - 1);
-        assertEq(rETH.balanceOf(operator2), OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE + DEFAULT_WITHDRAW_AMOUNT);
+        assertEq(rETH.balanceOf(operator2), OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE_ETH + DEFAULT_WITHDRAW_AMOUNT);
     }
 
     function testSlashingOnOperator2AndVetoingSlash() public {
@@ -540,10 +543,10 @@ contract MiddlewareTest is Test {
         uint256 activeStakeInVetoed = vaultVetoed.activeStake();
 
         (uint256 totalOperator2Stake, uint256 remainingOperator2Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
+            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
 
         (uint256 totalOperator3Stake, uint256 remainingOperator3Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
+            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
 
         assertEq(validators[1].stake, totalOperator2Stake);
         //We need to assert like this instead of putting OPERATOR_STAKE * 2 * 2 because of the precision loss. We know that remainingOperator3Stake will be the same even for the other vault so we can just sum it.
@@ -566,10 +569,10 @@ contract MiddlewareTest is Test {
         validators = middleware.getValidatorSet(newEpoch);
 
         (uint256 totalOperator2StakeAfter,) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, slashAmountSlashable);
+            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, slashAmountSlashable);
 
         (uint256 totalOperator3StakeAfter,) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE * 2 * 2, activeStakeInVetoed, slashAmountSlashable);
+            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2 * 2, activeStakeInVetoed, slashAmountSlashable);
         assertEq(validators[1].stake, totalOperator2StakeAfter);
         assertEq(validators[2].stake, totalOperator3StakeAfter);
     }
@@ -585,7 +588,7 @@ contract MiddlewareTest is Test {
         //Since vaultVetoed is full restake, it exactly gets the amount deposited, so no need to calculations
         uint256 activeStakeInVetoed = vaultVetoed.activeStake();
 
-        (uint256 totalOperator2Stake,) = _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
+        (uint256 totalOperator2Stake,) = _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
         uint256 slashedAmount = 30 ether;
         // We want to slash 30 ether, so we need to calculate what percentage
         uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
@@ -625,10 +628,10 @@ contract MiddlewareTest is Test {
         uint256 activeStakeInVetoed = vaultVetoed.activeStake();
 
         (uint256 totalOperator2Stake, uint256 remainingOperator2Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
+            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
 
         (uint256 totalOperator3Stake, uint256 remainingOperator3Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
+            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
 
         assertEq(validators[1].stake, totalOperator2Stake);
         //We need to assert like this instead of putting OPERATOR_STAKE * 2 * 2 because of the precision loss. We know that remainingOperator3Stake will be the same even for the other vault so we can just sum it.
@@ -653,10 +656,10 @@ contract MiddlewareTest is Test {
 
         activeStakeInVetoed = vaultVetoed.activeStake();
         (uint256 totalOperator2StakeAfter,) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, slashAmountSlashable);
+            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, slashAmountSlashable);
 
         (uint256 totalOperator3StakeAfter,) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE * 2 * 2, activeStakeInVetoed, slashAmountSlashable);
+            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2 * 2, activeStakeInVetoed, slashAmountSlashable);
         assertEq(validators[1].stake, totalOperator2StakeAfter);
         assertEq(validators[2].stake, totalOperator3StakeAfter);
     }
@@ -669,10 +672,10 @@ contract MiddlewareTest is Test {
         //Since vaultVetoed is full restake, it exactly gets the amount deposited, so no need to calculations
         uint256 activeStakeInVetoed = vaultVetoed.activeStake();
 
-        (uint256 totalOperator2Stake,) = _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
+        (uint256 totalOperator2Stake,) = _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
 
         (uint256 totalOperator3Stake, uint256 remainingOperator3Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
+            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
 
         assertEq(validators[1].stake, totalOperator2Stake);
         //We need to assert like this instead of putting OPERATOR_STAKE * 2 * 2 because of the precision loss. We know that remainingOperator3Stake will be the same even for the other (non slashable) vault so we can just sum it.
@@ -695,10 +698,10 @@ contract MiddlewareTest is Test {
         validators = middleware.getValidatorSet(newEpoch);
 
         (uint256 totalOperator2StakeAfter,) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, slashAmountSlashable3);
+            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, slashAmountSlashable3);
 
         (uint256 totalOperator3StakeAfter,) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE * 2 * 2, activeStakeInVetoed, slashAmountSlashable3);
+            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2 * 2, activeStakeInVetoed, slashAmountSlashable3);
         assertEq(validators[1].stake, totalOperator2StakeAfter);
         assertEq(validators[2].stake, totalOperator3StakeAfter);
     }
@@ -711,10 +714,10 @@ contract MiddlewareTest is Test {
         //Since vaultVetoed is full restake, it exactly gets the amount deposited, so no need to calculations
         uint256 activeStakeInVetoed = vaultVetoed.activeStake();
 
-        (uint256 totalOperator2Stake,) = _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
+        (uint256 totalOperator2Stake,) = _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
 
         (uint256 totalOperator3Stake, uint256 remainingOperator3Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
+            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
 
         assertEq(validators[1].stake, totalOperator2Stake);
         //We need to assert like this instead of putting OPERATOR_STAKE * 2 * 2 because of the precision loss. We know that remainingOperator3Stake will be the same even for the other (non slashable) vault so we can just sum it.
@@ -742,10 +745,10 @@ contract MiddlewareTest is Test {
 
         activeStakeInVetoed = vaultVetoed.activeStake();
         (uint256 totalOperator2StakeAfter,) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, slashAmountSlashable3);
+            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, slashAmountSlashable3);
 
         (uint256 totalOperator3StakeAfter,) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE * 2 * 2, activeStakeInVetoed, slashAmountSlashable3);
+            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2 * 2, activeStakeInVetoed, slashAmountSlashable3);
 
         assertEq(validators[1].stake, totalOperator2StakeAfter);
         assertEq(validators[2].stake, totalOperator3StakeAfter);
@@ -760,10 +763,10 @@ contract MiddlewareTest is Test {
         uint256 activeStakeInVetoed = vaultVetoed.activeStake();
 
         (uint256 totalOperator2Stake, uint256 remainingOperator2Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
+            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
 
         (uint256 totalOperator3Stake, uint256 remainingOperator3Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
+            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
 
         assertEq(validators[1].stake, totalOperator2Stake);
         //We need to assert like this instead of putting OPERATOR_STAKE * 2 * 2 because of the precision loss. We know that remainingOperator3Stake will be the same even for the other vault so we can just sum it.
@@ -783,8 +786,8 @@ contract MiddlewareTest is Test {
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = middleware.getValidatorSet(newEpoch);
 
-        assertEq(validators[1].stake, OPERATOR_STAKE * 2);
-        assertEq(validators[2].stake, OPERATOR_STAKE * 2 + remainingOperator2Stake);
+        assertEq(validators[1].stake, OPERATOR_STAKE_ETH * 2);
+        assertEq(validators[2].stake, OPERATOR_STAKE_ETH * 2 + remainingOperator2Stake);
     }
 
     function testSlashingAndPausingOperator() public {
@@ -796,10 +799,10 @@ contract MiddlewareTest is Test {
         uint256 activeStakeInVetoed = vaultVetoed.activeStake();
 
         (uint256 totalOperator2Stake, uint256 remainingOperator2Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
+            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
 
         (uint256 totalOperator3Stake, uint256 remainingOperator3Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
+            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
 
         assertEq(validators[1].stake, totalOperator2Stake);
         //We need to assert like this instead of putting OPERATOR_STAKE * 2 * 2 because of the precision loss. We know that remainingOperator3Stake will be the same even for the other vault so we can just sum it.
@@ -823,7 +826,7 @@ contract MiddlewareTest is Test {
         validators = middleware.getValidatorSet(newEpoch);
 
         (uint256 totalOperator3StakeAfter,) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE * 2 * 2, activeStakeInVetoed, slashAmountSlashable);
+            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2 * 2, activeStakeInVetoed, slashAmountSlashable);
         assertEq(validators[1].stake, totalOperator3StakeAfter);
     }
 
@@ -832,14 +835,15 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         Middleware.ValidatorData[] memory validators = middleware.getValidatorSet(currentEpoch);
+
         //Since vaultVetoed is full restake, it exactly gets the amount deposited, so no need to calculations
         uint256 activeStakeInVetoed = vaultVetoed.activeStake();
 
         (uint256 totalOperator2Stake, uint256 remainingOperator2Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
+            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
 
         (uint256 totalOperator3Stake, uint256 remainingOperator3Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, 0);
+            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
 
         assertEq(validators[1].stake, totalOperator2Stake);
         //We need to assert like this instead of putting OPERATOR_STAKE * 2 * 2 because of the precision loss. We know that remainingOperator3Stake will be the same even for the other vault so we can just sum it.
@@ -871,10 +875,10 @@ contract MiddlewareTest is Test {
         validators = middleware.getValidatorSet(newEpoch);
 
         (uint256 totalOperator2StakeAfter,) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE * 2, activeStakeInVetoed, slashAmountSlashable);
+            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, slashAmountSlashable);
 
         (uint256 totalOperator3StakeAfter,) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE * 2 * 2, activeStakeInVetoed, slashAmountSlashable);
+            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2 * 2, activeStakeInVetoed, slashAmountSlashable);
         assertEq(validators[1].stake, totalOperator2StakeAfter);
         assertEq(validators[2].stake, totalOperator3StakeAfter);
     }

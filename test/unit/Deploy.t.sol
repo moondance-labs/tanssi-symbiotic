@@ -644,7 +644,7 @@ contract DeployTest is Test {
             delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
             shouldBroadcast: false,
             vaultConfigurator: address(vaultConfigurator),
-            collateral: address(stETHToken),
+            collateral: address(0),
             owner: tanssi
         });
 
