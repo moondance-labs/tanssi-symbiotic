@@ -97,8 +97,9 @@ contract MiddlewareTest is Test {
     uint48 public constant SLASHING_WINDOW = 7 days;
     uint48 public constant VETO_DURATION = 1 days;
     uint256 public constant SLASH_AMOUNT = 30 ether;
-    uint256 public constant OPERATOR_STAKE_ETH = 100 ether;
-    uint256 public constant OPERATOR_STAKE_BTC = 100 ether; // TODO Steven: Test changing it to 10
+    uint256 public constant OPERATOR_STAKE_ST_ETH = 100 ether;
+    uint256 public constant OPERATOR_STAKE_R_ETH = 100 ether;
+    uint256 public constant OPERATOR_STAKE_BTC = 10 ether;
     uint256 public constant DEFAULT_WITHDRAW_AMOUNT = 30 ether;
     uint256 public constant OPERATOR_INITIAL_BALANCE = 1000 ether;
     uint256 public constant MIN_SLASHING_WINDOW = 1 days;
@@ -108,12 +109,17 @@ contract MiddlewareTest is Test {
     uint256 public constant OPERATOR_SHARE = 1;
     uint256 public constant TOTAL_NETWORK_SHARES = 3;
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
+    uint256 public constant SLASHING_FRACTION = PARTS_PER_BILLION / 10; // 10%
 
     // TODO Steven: Change to realistic values
-    uint8 public constant ORACLE_DECIMALS = 0; // TODO Steven: Test changing it to 8 for BTC
-    int256 public constant ORACLE_CONVERSION_ST_ETH = 1;
-    int256 public constant ORACLE_CONVERSION_R_ETH = 1; // TODO Steven: Test changing it to a bit lower value
-    int256 public constant ORACLE_CONVERSION_W_BTC = 1;
+    uint8 public constant ORACLE_DECIMALS = 10; // TODO Steven: This decimals are actually on staked value, not on price
+    int256 public constant ORACLE_CONVERSION_ST_ETH = 3000;
+    int256 public constant ORACLE_CONVERSION_R_ETH = 3000; // TODO Steven: Test changing it to a bit lower value
+    int256 public constant ORACLE_CONVERSION_W_BTC = 100_000;
+
+    uint256 public totalFullRestakePower; // Each operator participates with 100% of all operators stake
+    uint256 public totalPowerVault; // By shares. Each operator participates gets 1/3 of the total power
+    uint256 public totalPowerVaultSlashable; // By shares. Each operator participates gets 1/3 of the total power
 
     struct VaultAddresses {
         address vault;
@@ -269,10 +275,9 @@ contract MiddlewareTest is Test {
         vaults.push(vaultSlashable);
         vaults.push(vaultVetoed);
 
-        // TODO Steven: operator 2 and 3 are registered to a specific vault but using multiple
-        _registerOperator(operator, tanssi, address(vault));
-        _registerOperator(operator3, tanssi, address(vaultSlashable));
-        _registerOperator(operator2, tanssi, address(vaultVetoed));
+        _registerOperatorAndOptIn(operator, tanssi, address(vault), address(0), address(0));
+        _registerOperatorAndOptIn(operator2, tanssi, address(vaultVetoed), address(vaultSlashable), address(0));
+        _registerOperatorAndOptIn(operator3, tanssi, address(vault), address(vaultVetoed), address(vaultSlashable));
 
         _registerEntitiesToMiddleware(owner);
         _setOperatorsNetworkShares(tanssi);
@@ -280,21 +285,22 @@ contract MiddlewareTest is Test {
         _setLimitForNetworkAndOperators(tanssi);
 
         vm.startPrank(operator);
-        _depositToVault(vault, operator, OPERATOR_STAKE_ETH, stETH);
+        _depositToVault(vault, operator, OPERATOR_STAKE_ST_ETH, stETH);
 
         vm.startPrank(operator2);
-        operatorVaultOptInService.optIn(address(vaultSlashable));
-        _depositToVault(vaultSlashable, operator2, OPERATOR_STAKE_ETH, rETH);
+        _depositToVault(vaultSlashable, operator2, OPERATOR_STAKE_R_ETH, rETH);
         _depositToVault(vaultVetoed, operator2, OPERATOR_STAKE_BTC, wBTC);
         vm.stopPrank();
 
         vm.startPrank(operator3);
-        operatorVaultOptInService.optIn(address(vault));
-        operatorVaultOptInService.optIn(address(vaultVetoed));
-        _depositToVault(vault, operator3, OPERATOR_STAKE_ETH, stETH);
-        _depositToVault(vaultSlashable, operator3, OPERATOR_STAKE_ETH, rETH);
+        _depositToVault(vault, operator3, OPERATOR_STAKE_ST_ETH, stETH);
+        _depositToVault(vaultSlashable, operator3, OPERATOR_STAKE_R_ETH, rETH);
         _depositToVault(vaultVetoed, operator3, OPERATOR_STAKE_BTC, wBTC);
 
+        totalFullRestakePower = ((OPERATOR_STAKE_BTC * 2) * uint256(ORACLE_CONVERSION_W_BTC)) / 10 ** ORACLE_DECIMALS;
+
+        totalPowerVault = (OPERATOR_STAKE_ST_ETH * 2 * uint256(ORACLE_CONVERSION_ST_ETH)) / 10 ** ORACLE_DECIMALS;
+        totalPowerVaultSlashable = (OPERATOR_STAKE_R_ETH * 2 * uint256(ORACLE_CONVERSION_R_ETH)) / 10 ** ORACLE_DECIMALS;
         vm.stopPrank();
     }
 
@@ -380,11 +386,24 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
     }
 
-    function _registerOperator(address _operator, address _network, address _vault) public {
+    function _registerOperatorAndOptIn(
+        address _operator,
+        address _network,
+        address _vault,
+        address vault2,
+        address vault3
+    ) public {
         vm.startPrank(_operator);
         operatorRegistry.registerOperator();
         operatorVaultOptInService.optIn(address(_vault));
         operatorNetworkOptInService.optIn(_network);
+
+        if (vault2 != address(0)) {
+            operatorVaultOptInService.optIn(address(vault2));
+        }
+        if (vault3 != address(0)) {
+            operatorVaultOptInService.optIn(address(vault3));
+        }
         vm.stopPrank();
     }
 
@@ -440,20 +459,20 @@ contract MiddlewareTest is Test {
     }
 
     /**
-     * @param _operatorStake the total stake of the operator in each vault he is registered
-     * @param _activeStake the active stake of vault's FullRestake delegated
-     * @param _amountSlashed the amount slashed from the operator
-     * @return totalOperatorStake
-     * @return remainingOperatorStake
+     * @param networkRestakePower The total stake of all operator vaults using NetworkRestake delegation
+     * @param fullRestakePower The total stake of all operator vaults using FullRestake delegation
+     * @param amountSlashed The amount slashed from the operator
+     * @return totalOperatorPower
+     * @return operatorPowerFromShares
      */
-    function _calculateTotalOperatorStake(
-        uint256 _operatorStake,
-        uint256 _activeStake,
-        uint256 _amountSlashed
-    ) public pure returns (uint256 totalOperatorStake, uint256 remainingOperatorStake) {
-        remainingOperatorStake =
-            _calculateRemainingStake(OPERATOR_SHARE, TOTAL_NETWORK_SHARES, _operatorStake - _amountSlashed);
-        totalOperatorStake = remainingOperatorStake + _activeStake;
+    function _calculateOperatorPower(
+        uint256 networkRestakePower,
+        uint256 fullRestakePower,
+        uint256 amountSlashed
+    ) public pure returns (uint256 totalOperatorPower, uint256 operatorPowerFromShares) {
+        operatorPowerFromShares =
+            _calculateRemainingStake(OPERATOR_SHARE, TOTAL_NETWORK_SHARES, networkRestakePower - amountSlashed);
+        totalOperatorPower = operatorPowerFromShares + fullRestakePower;
     }
 
     function _calculateRemainingStake(
@@ -531,36 +550,30 @@ contract MiddlewareTest is Test {
         currentEpoch = vaultSlashable.currentEpoch();
         vm.prank(operator2);
         vaultSlashable.claim(operator2, currentEpoch - 1);
-        assertEq(rETH.balanceOf(operator2), OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE_ETH + DEFAULT_WITHDRAW_AMOUNT);
+        assertEq(rETH.balanceOf(operator2), OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE_ST_ETH + DEFAULT_WITHDRAW_AMOUNT);
+    }
+
+    function testOperatorPower() public {
+        (, Middleware.ValidatorData[] memory validators, uint256 totalOperator2Stake,, uint256 totalOperator3Stake,) =
+            _prepareSlashingTest();
+
+        //Since vaultVetoed is full restake, it exactly gets the amount deposited, so no need to calculations
+        uint256 activeStakeInVetoed = vaultVetoed.activeStake();
+        uint256 activePowerInVetoed = (activeStakeInVetoed * uint256(ORACLE_CONVERSION_W_BTC)) / 10 ** ORACLE_DECIMALS;
+        assertEq(activePowerInVetoed, totalFullRestakePower);
+
+        assertApproxEqAbs(validators[1].stake, totalOperator2Stake, 1);
+        assertApproxEqAbs(validators[2].stake, totalOperator3Stake, 2);
     }
 
     function testSlashingOnOperator2AndVetoingSlash() public {
-        vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW - 1);
-        uint48 currentEpoch = middleware.getCurrentEpoch();
+        (uint48 currentEpoch, Middleware.ValidatorData[] memory validators,, uint256 powerFromSharesOperator2,,) =
+            _prepareSlashingTest();
 
-        Middleware.ValidatorData[] memory validators = middleware.getValidatorSet(currentEpoch);
-        //Since vaultVetoed is full restake, it exactly gets the amount deposited, so no need to calculations
-        uint256 activeStakeInVetoed = vaultVetoed.activeStake();
-
-        (uint256 totalOperator2Stake, uint256 remainingOperator2Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
-
-        (uint256 totalOperator3Stake, uint256 remainingOperator3Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
-
-        assertEq(validators[1].stake, totalOperator2Stake);
-        //We need to assert like this instead of putting OPERATOR_STAKE * 2 * 2 because of the precision loss. We know that remainingOperator3Stake will be the same even for the other vault so we can just sum it.
-        assertEq(validators[2].stake, totalOperator3Stake + remainingOperator3Stake);
-
-        //We calculate the amount slashable for only the operator2 since it's the only one that should be slashed. As a side effect operator3 will be slashed too since it's taking part in a NetworkRestake delegator based vault
-        uint256 slashAmountSlashable = (SLASH_AMOUNT * remainingOperator2Stake) / totalOperator2Stake;
-
-        uint256 slashedAmount = 30 ether;
-        // We want to slash 30 ether, so we need to calculate what percentage
-        uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
+        uint256 slashingPower = (SLASHING_FRACTION * powerFromSharesOperator2) / PARTS_PER_BILLION;
 
         vm.prank(gateway);
-        middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
+        middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
         vm.prank(resolver1);
         vetoSlasher.vetoSlash(0, hex"");
@@ -569,12 +582,12 @@ contract MiddlewareTest is Test {
         validators = middleware.getValidatorSet(newEpoch);
 
         (uint256 totalOperator2StakeAfter,) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, slashAmountSlashable);
-
+            _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
         (uint256 totalOperator3StakeAfter,) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2 * 2, activeStakeInVetoed, slashAmountSlashable);
+            _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
+
         assertEq(validators[1].stake, totalOperator2StakeAfter);
-        assertEq(validators[2].stake, totalOperator3StakeAfter);
+        assertApproxEqAbs(validators[2].stake, totalOperator3StakeAfter, 1);
     }
 
     function testSlashingOnOperator2ButWrongSlashingWindow() public {
@@ -585,17 +598,9 @@ contract MiddlewareTest is Test {
         // We go directly to epochStart as it 100% ensure that the epoch is started and thus the slashing is invalid
         vm.warp(epochStartTs);
 
-        //Since vaultVetoed is full restake, it exactly gets the amount deposited, so no need to calculations
-        uint256 activeStakeInVetoed = vaultVetoed.activeStake();
-
-        (uint256 totalOperator2Stake,) = _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
-        uint256 slashedAmount = 30 ether;
-        // We want to slash 30 ether, so we need to calculate what percentage
-        uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
-
         vm.prank(gateway);
         vm.expectRevert(IVetoSlasher.InvalidCaptureTimestamp.selector);
-        middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
+        middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
         vm.stopPrank();
     }
 
@@ -607,7 +612,7 @@ contract MiddlewareTest is Test {
         // We go directly to epochStart as it 100% ensure that the epoch is started and thus the slashing is invalid
         vm.warp(epochStartTs);
 
-        // We want to slash 30 ether, so we need to calculate what percentage
+        // 150%
         uint256 slashingFraction = (3 * PARTS_PER_BILLION) / 2;
 
         vm.prank(gateway);
@@ -620,32 +625,14 @@ contract MiddlewareTest is Test {
     }
 
     function testSlashingOnOperator2AndExecuteSlashOnVetoVault() public {
-        vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW - 1);
-        uint48 currentEpoch = middleware.getCurrentEpoch();
+        (uint48 currentEpoch, Middleware.ValidatorData[] memory validators,, uint256 powerFromSharesOperator2,,) =
+            _prepareSlashingTest();
 
-        Middleware.ValidatorData[] memory validators = middleware.getValidatorSet(currentEpoch);
-        //Since vaultVetoed is full restake, it exactly gets the amount deposited, so no need to calculations
-        uint256 activeStakeInVetoed = vaultVetoed.activeStake();
-
-        (uint256 totalOperator2Stake, uint256 remainingOperator2Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
-
-        (uint256 totalOperator3Stake, uint256 remainingOperator3Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
-
-        assertEq(validators[1].stake, totalOperator2Stake);
-        //We need to assert like this instead of putting OPERATOR_STAKE * 2 * 2 because of the precision loss. We know that remainingOperator3Stake will be the same even for the other vault so we can just sum it.
-        assertEq(validators[2].stake, totalOperator3Stake + remainingOperator3Stake);
-
-        //We calculate the amount slashable for only the operator2 since it's the only one that should be slashed. As a side effect operator3 will be slashed too since it's taking part in a NetworkRestake delegator based vault
-        uint256 slashAmountSlashable = (SLASH_AMOUNT * remainingOperator2Stake) / totalOperator2Stake;
-
-        uint256 slashedAmount = 30 ether;
-        // We want to slash 30 ether, so we need to calculate what percentage
-        uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
+        // We calculate the amount slashable for only the operator2 since it's the only one that should be slashed. As a side effect operator3 will be slashed too since it's taking part in a NetworkRestake delegator based vault
+        uint256 slashingPower = (SLASHING_FRACTION * powerFromSharesOperator2) / PARTS_PER_BILLION;
 
         vm.prank(gateway);
-        middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
+        middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
         vm.warp(block.timestamp + VETO_DURATION);
         vm.prank(address(middleware));
@@ -654,210 +641,127 @@ contract MiddlewareTest is Test {
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = middleware.getValidatorSet(newEpoch);
 
-        activeStakeInVetoed = vaultVetoed.activeStake();
-        (uint256 totalOperator2StakeAfter,) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, slashAmountSlashable);
+        uint256 activeStakeInVetoed = vaultVetoed.activeStake();
+        uint256 activePowerInVetoed = (activeStakeInVetoed * uint256(ORACLE_CONVERSION_W_BTC)) / 10 ** ORACLE_DECIMALS;
 
+        (uint256 totalOperator2StakeAfter,) =
+            _calculateOperatorPower(totalPowerVaultSlashable, activePowerInVetoed, slashingPower);
         (uint256 totalOperator3StakeAfter,) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2 * 2, activeStakeInVetoed, slashAmountSlashable);
+            _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, activePowerInVetoed, slashingPower);
+
         assertEq(validators[1].stake, totalOperator2StakeAfter);
-        assertEq(validators[2].stake, totalOperator3StakeAfter);
+        assertApproxEqAbs(validators[2].stake, totalOperator3StakeAfter, 1);
     }
 
     function testSlashingOnOperator3AndVetoingSlash() public {
-        vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW - 1);
-        uint48 currentEpoch = middleware.getCurrentEpoch();
+        (uint48 currentEpoch, Middleware.ValidatorData[] memory validators,,,, uint256 powerFromSharesOperator3) =
+            _prepareSlashingTest();
 
-        Middleware.ValidatorData[] memory validators = middleware.getValidatorSet(currentEpoch);
-        //Since vaultVetoed is full restake, it exactly gets the amount deposited, so no need to calculations
-        uint256 activeStakeInVetoed = vaultVetoed.activeStake();
-
-        (uint256 totalOperator2Stake,) = _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
-
-        (uint256 totalOperator3Stake, uint256 remainingOperator3Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
-
-        assertEq(validators[1].stake, totalOperator2Stake);
-        //We need to assert like this instead of putting OPERATOR_STAKE * 2 * 2 because of the precision loss. We know that remainingOperator3Stake will be the same even for the other (non slashable) vault so we can just sum it.
-        assertEq(validators[2].stake, totalOperator3Stake + remainingOperator3Stake);
-
-        //We calculate the amount slashable for only the operator3 since it's the only one that should be slashed. As a side effect operator2 will be slashed too since it's taking part in a NetworkRestake delegator based vault
-        uint256 slashAmountSlashable3 = (SLASH_AMOUNT * remainingOperator3Stake) / totalOperator3Stake;
-
-        uint256 slashedAmount = 30 ether;
-        // We want to slash 30 ether, so we need to calculate what percentage
-        uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator3Stake);
+        // We calculate the amount slashable for only the operator3 since it's the only one that should be slashed. As a side effect operator2 will be slashed too since it's taking part in a NetworkRestake delegator based vault
+        uint256 slashingPower = (SLASHING_FRACTION * powerFromSharesOperator3) / PARTS_PER_BILLION;
 
         vm.prank(gateway);
-        middleware.slash(currentEpoch, OPERATOR3_KEY, slashingFraction);
+        middleware.slash(currentEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
 
         vm.prank(resolver1);
         vetoSlasher.vetoSlash(0, hex"");
+
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = middleware.getValidatorSet(newEpoch);
 
         (uint256 totalOperator2StakeAfter,) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, slashAmountSlashable3);
-
+            _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
         (uint256 totalOperator3StakeAfter,) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2 * 2, activeStakeInVetoed, slashAmountSlashable3);
+            _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
+
         assertEq(validators[1].stake, totalOperator2StakeAfter);
-        assertEq(validators[2].stake, totalOperator3StakeAfter);
+        assertApproxEqAbs(validators[2].stake, totalOperator3StakeAfter, 1);
     }
 
     function testSlashingOnOperator3AndExecuteSlashOnVetoVault() public {
-        vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW - 1);
-        uint48 currentEpoch = middleware.getCurrentEpoch();
+        (uint48 currentEpoch, Middleware.ValidatorData[] memory validators,,,, uint256 powerFromSharesOperator3) =
+            _prepareSlashingTest();
 
-        Middleware.ValidatorData[] memory validators = middleware.getValidatorSet(currentEpoch);
-        //Since vaultVetoed is full restake, it exactly gets the amount deposited, so no need to calculations
-        uint256 activeStakeInVetoed = vaultVetoed.activeStake();
-
-        (uint256 totalOperator2Stake,) = _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
-
-        (uint256 totalOperator3Stake, uint256 remainingOperator3Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
-
-        assertEq(validators[1].stake, totalOperator2Stake);
-        //We need to assert like this instead of putting OPERATOR_STAKE * 2 * 2 because of the precision loss. We know that remainingOperator3Stake will be the same even for the other (non slashable) vault so we can just sum it.
-        assertEq(validators[2].stake, totalOperator3Stake + remainingOperator3Stake);
-
-        //We calculate the amount slashable for only the operator3 since it's the only one that should be slashed. As a side effect operator2 will be slashed too since it's taking part in a NetworkRestake delegator based vault
-        uint256 slashAmountSlashable3 =
-            (SLASH_AMOUNT * remainingOperator3Stake) / (totalOperator3Stake + remainingOperator3Stake);
-
-        uint256 slashedAmount = 30 ether;
-        // We want to slash 30 ether, so we need to calculate what percentage
-
-        uint256 slashingFraction =
-            slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator3Stake + remainingOperator3Stake);
+        // We calculate the amount slashable for only the operator2 since it's the only one that should be slashed. As a side effect operator2 will be slashed too since it's taking part in a NetworkRestake delegator based vault
+        uint256 slashingPower = (SLASHING_FRACTION * powerFromSharesOperator3) / PARTS_PER_BILLION;
 
         vm.prank(gateway);
-        middleware.slash(currentEpoch, OPERATOR3_KEY, slashingFraction);
+        middleware.slash(currentEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
 
         vm.warp(block.timestamp + VETO_DURATION);
         vm.prank(address(middleware));
         vetoSlasher.executeSlash(0, hex"");
+
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = middleware.getValidatorSet(newEpoch);
 
-        activeStakeInVetoed = vaultVetoed.activeStake();
-        (uint256 totalOperator2StakeAfter,) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, slashAmountSlashable3);
+        uint256 activeStakeInVetoed = vaultVetoed.activeStake();
+        uint256 activePowerInVetoed = (activeStakeInVetoed * uint256(ORACLE_CONVERSION_W_BTC)) / 10 ** ORACLE_DECIMALS;
 
+        (uint256 totalOperator2StakeAfter,) =
+            _calculateOperatorPower(totalPowerVaultSlashable, activePowerInVetoed, slashingPower);
         (uint256 totalOperator3StakeAfter,) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2 * 2, activeStakeInVetoed, slashAmountSlashable3);
+            _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, activePowerInVetoed, slashingPower);
 
         assertEq(validators[1].stake, totalOperator2StakeAfter);
         assertEq(validators[2].stake, totalOperator3StakeAfter);
     }
 
     function testSlashingAndPausingVault() public {
-        vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW - 1);
-        uint48 currentEpoch = middleware.getCurrentEpoch();
-
-        Middleware.ValidatorData[] memory validators = middleware.getValidatorSet(currentEpoch);
-        //Since vaultVetoed is full restake, it exactly gets the amount deposited, so no need to calculations
-        uint256 activeStakeInVetoed = vaultVetoed.activeStake();
-
-        (uint256 totalOperator2Stake, uint256 remainingOperator2Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
-
-        (uint256 totalOperator3Stake, uint256 remainingOperator3Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
-
-        assertEq(validators[1].stake, totalOperator2Stake);
-        //We need to assert like this instead of putting OPERATOR_STAKE * 2 * 2 because of the precision loss. We know that remainingOperator3Stake will be the same even for the other vault so we can just sum it.
-        assertEq(validators[2].stake, totalOperator3Stake + remainingOperator3Stake);
-
-        uint256 slashedAmount = 30 ether;
-        // We want to slash 30 ether, so we need to calculate what percentage
-        uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
+        (uint48 currentEpoch, Middleware.ValidatorData[] memory validators,,,,) = _prepareSlashingTest();
 
         vm.prank(owner);
         middleware.pauseSharedVault(vaultAddresses.vaultSlashable);
 
         vm.prank(gateway);
-        middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
+        middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = middleware.getValidatorSet(newEpoch);
 
-        assertEq(validators[1].stake, OPERATOR_STAKE_ETH * 2);
-        assertEq(validators[2].stake, OPERATOR_STAKE_ETH * 2 + remainingOperator2Stake);
+        (uint256 totalOperator2StakeAfter,) = _calculateOperatorPower(0, totalFullRestakePower, 0);
+        (uint256 totalOperator3StakeAfter,) = _calculateOperatorPower(totalPowerVault, totalFullRestakePower, 0);
+
+        assertEq(validators[1].stake, totalOperator2StakeAfter);
+        assertApproxEqAbs(validators[2].stake, totalOperator3StakeAfter, 1);
     }
 
     function testSlashingAndPausingOperator() public {
-        vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW - 1);
-        uint48 currentEpoch = middleware.getCurrentEpoch();
-
-        Middleware.ValidatorData[] memory validators = middleware.getValidatorSet(currentEpoch);
-        //Since vaultVetoed is full restake, it exactly gets the amount deposited, so no need to calculations
-        uint256 activeStakeInVetoed = vaultVetoed.activeStake();
-
-        (uint256 totalOperator2Stake, uint256 remainingOperator2Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
-
-        (uint256 totalOperator3Stake, uint256 remainingOperator3Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
-
-        assertEq(validators[1].stake, totalOperator2Stake);
-        //We need to assert like this instead of putting OPERATOR_STAKE * 2 * 2 because of the precision loss. We know that remainingOperator3Stake will be the same even for the other vault so we can just sum it.
-        assertEq(validators[2].stake, totalOperator3Stake + remainingOperator3Stake);
-
-        uint256 slashAmountSlashable = (SLASH_AMOUNT * remainingOperator2Stake) / totalOperator2Stake;
+        (uint48 currentEpoch, Middleware.ValidatorData[] memory validators,, uint256 powerFromSharesOperator2,,) =
+            _prepareSlashingTest();
 
         vm.prank(owner);
         middleware.pauseOperator(operator2);
 
-        uint256 slashedAmount = 30 ether;
-        // We want to slash 30 ether, so we need to calculate what percentage
-        uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
+        // We calculate the amount slashable for only the operator2 since it's the only one that should be slashed. As a side effect operator3 will be slashed too since it's taking part in a NetworkRestake delegator based vault
+        uint256 slashingPower = (SLASHING_FRACTION * powerFromSharesOperator2) / PARTS_PER_BILLION;
 
         vm.prank(gateway);
         //! Why this slash should anyway go through if operator was paused? Shouldn't it revert?
-        middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
+        middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = middleware.getValidatorSet(newEpoch);
 
         (uint256 totalOperator3StakeAfter,) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2 * 2, activeStakeInVetoed, slashAmountSlashable);
-        assertEq(validators[1].stake, totalOperator3StakeAfter);
+            _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
+        // Index is 1 instead of 2 because operator2 was paused
+        assertApproxEqAbs(validators[1].stake, totalOperator3StakeAfter, 1);
     }
 
     function testSlashEvenIfWeChangeOperatorKey() public {
-        vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW - 1);
-        uint48 currentEpoch = middleware.getCurrentEpoch();
+        (uint48 currentEpoch, Middleware.ValidatorData[] memory validators,, uint256 powerFromSharesOperator2,,) =
+            _prepareSlashingTest();
 
-        Middleware.ValidatorData[] memory validators = middleware.getValidatorSet(currentEpoch);
-
-        //Since vaultVetoed is full restake, it exactly gets the amount deposited, so no need to calculations
-        uint256 activeStakeInVetoed = vaultVetoed.activeStake();
-
-        (uint256 totalOperator2Stake, uint256 remainingOperator2Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
-
-        (uint256 totalOperator3Stake, uint256 remainingOperator3Stake) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, 0);
-
-        assertEq(validators[1].stake, totalOperator2Stake);
-        //We need to assert like this instead of putting OPERATOR_STAKE * 2 * 2 because of the precision loss. We know that remainingOperator3Stake will be the same even for the other vault so we can just sum it.
-        assertEq(validators[2].stake, totalOperator3Stake + remainingOperator3Stake);
-
-        //We calculate the amount slashable for only the operator2 since it's the only one that should be slashed. As a side effect operator3 will be slashed too since it's taking part in a NetworkRestake delegator based vault
-        uint256 slashAmountSlashable = (SLASH_AMOUNT * remainingOperator2Stake) / totalOperator2Stake;
+        // We calculate the amount slashable for only the operator2 since it's the only one that should be slashed. As a side effect operator3 will be slashed too since it's taking part in a NetworkRestake delegator based vault
+        uint256 slashingPower = (SLASHING_FRACTION * powerFromSharesOperator2) / PARTS_PER_BILLION;
 
         // Everything below should be call with the owner key
         vm.startPrank(owner);
-
-        uint256 slashedAmount = 30 ether;
-        // We want to slash 30 ether, so we need to calculate what percentage
-        uint256 slashingFraction = slashedAmount.mulDiv(PARTS_PER_BILLION, totalOperator2Stake);
 
         // Before slashing, we will change the operator2 key to something else, and prove we can still slash
         // This is because operator keys work with timestamps and old keys are maintained, not removed
@@ -866,7 +770,7 @@ contract MiddlewareTest is Test {
         middleware.updateOperatorKey(operator2, abi.encode(differentOperatorKey));
 
         vm.startPrank(gateway);
-        middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
+        middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
         vm.startPrank(resolver1);
         vetoSlasher.vetoSlash(0, hex"");
@@ -875,12 +779,12 @@ contract MiddlewareTest is Test {
         validators = middleware.getValidatorSet(newEpoch);
 
         (uint256 totalOperator2StakeAfter,) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2, activeStakeInVetoed, slashAmountSlashable);
-
+            _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
         (uint256 totalOperator3StakeAfter,) =
-            _calculateTotalOperatorStake(OPERATOR_STAKE_ETH * 2 * 2, activeStakeInVetoed, slashAmountSlashable);
+            _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
+
         assertEq(validators[1].stake, totalOperator2StakeAfter);
-        assertEq(validators[2].stake, totalOperator3StakeAfter);
+        assertApproxEqAbs(validators[2].stake, totalOperator3StakeAfter, 1);
     }
 
     function testOperatorsOnlyInTanssiNetwork() public {
@@ -901,7 +805,7 @@ contract MiddlewareTest is Test {
         INetworkRestakeDelegator(vaultAddresses.delegator).setNetworkLimit(network2.subnetwork(0), 300 ether);
 
         // Operator4 registration and network configuration
-        _registerOperator(operator4, network2, address(vault));
+        _registerOperatorAndOptIn(operator4, network2, address(vault), address(0), address(0));
 
         address operatorRewardsAddress2 =
             deployRewards.deployOperatorRewardsContract(network2, address(networkMiddlewareService), 5000, owner);
@@ -1035,7 +939,7 @@ contract MiddlewareTest is Test {
             } else {
                 stETH.transfer(_operator, 1 ether);
             }
-            _registerOperator(_operator, tanssi, address(_vault));
+            _registerOperatorAndOptIn(_operator, tanssi, address(_vault), address(0), address(0));
             vm.startPrank(_operator);
             uint256 depositAmount = 0.001 ether * (i + 1);
             _depositToVault(Vault(_vault), _operator, 0.001 ether * (i + 1), token);
@@ -1298,5 +1202,27 @@ contract MiddlewareTest is Test {
             deployVault.createBaseVault(params);
 
         return testVaultAddresses;
+    }
+
+    function _prepareSlashingTest()
+        public
+        returns (
+            uint48 currentEpoch,
+            Middleware.ValidatorData[] memory validators,
+            uint256 totalOperator2Stake,
+            uint256 powerFromSharesOperator2,
+            uint256 totalOperator3Stake,
+            uint256 powerFromSharesOperator3
+        )
+    {
+        vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW - 1);
+        currentEpoch = middleware.getCurrentEpoch();
+
+        validators = middleware.getValidatorSet(currentEpoch);
+
+        (totalOperator2Stake, powerFromSharesOperator2) =
+            _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, 0);
+        (totalOperator3Stake, powerFromSharesOperator3) =
+            _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, totalFullRestakePower, 0);
     }
 }
