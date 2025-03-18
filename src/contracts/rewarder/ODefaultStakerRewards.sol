@@ -325,10 +325,10 @@ contract ODefaultStakerRewards is
             $.rewards[epoch][tokenAddress].push(distributeAmount);
         }
     }
+
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-
     function claimRewards(
         address recipient,
         uint48 epoch,

@@ -18,8 +18,12 @@ import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfa
 
 abstract contract MiddlewareStorage {
     uint256 public constant VERSION = 1;
-
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
+    bytes32 internal constant GATEWAY_ROLE = keccak256("GATEWAY_ROLE");
+
+    // keccak256(abi.encode(uint256(keccak256("tanssi.middleware.MiddlewareStorage.v1")) - 1)) & ~bytes32(uint256(0xff));
+    bytes32 private constant MIDDLEWARE_STORAGE_LOCATION =
+        0x744f79b1118793e0a060dca4f01184704394f6e567161215b3d2c3126631e700;
 
     /**
      * @notice Get the operator rewards contract address
@@ -35,15 +39,12 @@ abstract contract MiddlewareStorage {
 
     /// @custom:storage-location erc7201:tanssi.middleware.MiddlewareStorage.v1
     struct StorageMiddleware {
-        IOGateway gateway;
+        address gateway;
+        //Unused, can be removed on fresh/prod deployment
         mapping(uint48 epoch => uint256 amount) totalStakeCache;
         mapping(uint48 epoch => bool) totalStakeIsCached;
         mapping(uint48 epoch => mapping(address operator => uint256 amount)) operatorStakeCache;
     }
-
-    // keccak256(abi.encode(uint256(keccak256("tanssi.middleware.MiddlewareStorage.v1")) - 1)) & ~bytes32(uint256(0xff));
-    bytes32 private constant MIDDLEWARE_STORAGE_LOCATION =
-        0x744f79b1118793e0a060dca4f01184704394f6e567161215b3d2c3126631e700;
 
     function _getMiddlewareStorage() internal pure returns (StorageMiddleware storage $v1) {
         assembly {
@@ -55,43 +56,8 @@ abstract contract MiddlewareStorage {
      * @notice Get the gateway contract
      * @return gateway contract
      */
-    function getGateway() public view returns (IOGateway) {
+    function getGateway() public view returns (address) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
         return $.gateway;
-    }
-
-    /**
-     * @notice Get the cached total stake amount for an epoch
-     * @param epoch epoch of which to get the total stake
-     * @return amount total stake amount
-     */
-    function totalStakeCache(
-        uint48 epoch
-    ) public view returns (uint256) {
-        StorageMiddleware storage $ = _getMiddlewareStorage();
-        return $.totalStakeCache[epoch];
-    }
-
-    /**
-     * @notice Get the total stake cache status for an epoch
-     * @param epoch epoch of which to get the cache status
-     * @return true if the total stake is cached, false otherwise
-     */
-    function totalStakeIsCached(
-        uint48 epoch
-    ) public view returns (bool) {
-        StorageMiddleware storage $ = _getMiddlewareStorage();
-        return $.totalStakeIsCached[epoch];
-    }
-
-    /**
-     * @notice Get the operator's stake amount cached for an epoch
-     * @param epoch epoch of the related operator's stake
-     * @param operator operator's address
-     * @return operator's stake amount
-     */
-    function operatorStakeCache(uint48 epoch, address operator) public view returns (uint256) {
-        StorageMiddleware storage $ = _getMiddlewareStorage();
-        return $.operatorStakeCache[epoch][operator];
     }
 }

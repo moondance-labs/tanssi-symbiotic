@@ -214,7 +214,7 @@ contract DeployTest is Test {
         address operatorRegistry = addresses.operatorRegistry;
         address vaultFactory = addresses.vaultFactory;
         address operatorNetworkOptIn = addresses.operatorNetworkOptInService;
-
+        address networkMiddlewareService = addresses.networkMiddlewareService;
         address middleware = deployTanssiEcosystem.deployMiddleware(
             tanssi,
             operatorRegistry,
@@ -225,7 +225,8 @@ contract DeployTest is Test {
             8 days,
             operatorRewardsAddress,
             stakerRewardsFactoryAddress,
-            address(0)
+            address(0),
+            networkMiddlewareService
         );
         assertNotEq(middleware, ZERO_ADDRESS);
     }
@@ -275,6 +276,7 @@ contract DeployTest is Test {
             9 days,
             operatorRewardsAddress,
             stakerRewardsFactoryAddress,
+            address(0),
             address(0)
         );
 

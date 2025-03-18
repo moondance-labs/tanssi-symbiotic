@@ -376,7 +376,8 @@ contract DeployTanssiEcosystem is Script {
         uint48 slashingWindow,
         address operatorRewardsAddress,
         address stakerRewardsFactoryAddress,
-        address readHelperAddress
+        address readHelperAddress,
+        address networkMiddlewareServiceAddress
     ) external returns (address) {
         vm.startBroadcast(ownerPrivateKey);
 
@@ -392,6 +393,12 @@ contract DeployTanssiEcosystem is Script {
             operatorRewardsAddress,
             stakerRewardsFactoryAddress
         );
+
+        if (networkMiddlewareServiceAddress != address(0)) {
+            INetworkMiddlewareService(networkMiddlewareServiceAddress).setMiddleware(
+                address(ecosystemEntities.middleware)
+            );
+        }
 
         vm.stopBroadcast();
         return address(ecosystemEntities.middleware);
