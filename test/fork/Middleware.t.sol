@@ -718,13 +718,10 @@ contract MiddlewareTest is Test {
 
         INetworkMiddlewareService(networkMiddlewareServiceAddress).setMiddleware(address(middleware2));
         IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
-            vault: address(0),
             adminFee: 0,
             defaultAdminRoleHolder: network2,
             adminFeeClaimRoleHolder: network2,
-            adminFeeSetRoleHolder: network2,
-            operatorRewardsRoleHolder: network2,
-            network: network2
+            adminFeeSetRoleHolder: network2
         });
         middleware2.registerSharedVault(address(ecosystemEntities.vault), stakerRewardsParams);
         middleware2.registerOperator(operator4, abi.encode(OPERATOR4_KEY), address(0));
@@ -755,12 +752,13 @@ contract MiddlewareTest is Test {
         address networkMiddlewareServiceAddress
     ) private returns (Middleware middlewareImpl) {
         DeployRewards deployRewards = new DeployRewards(true);
-        address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
-            vaultFactoryAddress, networkMiddlewareServiceAddress, uint48(block.timestamp), NETWORK_EPOCH_DURATION
-        );
 
         address operatorRewardsAddress =
             deployRewards.deployOperatorRewardsContract(network, networkMiddlewareServiceAddress, 5000, owner);
+
+        address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
+            vaultFactoryAddress, networkMiddlewareServiceAddress, operatorRewardsAddress, owner
+        );
 
         middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
     }

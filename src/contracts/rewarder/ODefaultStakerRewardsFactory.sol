@@ -22,30 +22,37 @@ import {ODefaultStakerRewards} from "./ODefaultStakerRewards.sol";
 import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
 
 contract ODefaultStakerRewardsFactory is Registry, IODefaultStakerRewardsFactory {
-    address private immutable VAULT_FACTORY;
-    address private immutable NETWORK_MIDDLEWARE_SERVICE;
-    uint48 private immutable START_TIME;
-    uint48 private immutable EPOCH_DURATION;
+    address private immutable i_vaultFactory;
+    address private immutable i_networkMiddlewareService;
+    address private immutable i_operatorRewards;
+    address private immutable i_network;
 
-    constructor(address vaultFactory, address networkMiddlewareService, uint48 startTime, uint48 epochDuration) {
-        VAULT_FACTORY = vaultFactory;
-        NETWORK_MIDDLEWARE_SERVICE = networkMiddlewareService;
-        START_TIME = startTime;
-        EPOCH_DURATION = epochDuration;
+    constructor(address vaultFactory, address networkMiddlewareService, address operatorRewards, address network) {
+        if (
+            vaultFactory == address(0) || networkMiddlewareService == address(0) || operatorRewards == address(0)
+                || network == address(0)
+        ) {
+            revert ODefaultStakerRewardsFactory__InvalidAddress();
+        }
+
+        i_vaultFactory = vaultFactory;
+        i_networkMiddlewareService = networkMiddlewareService;
+        i_operatorRewards = operatorRewards;
+        i_network = network;
     }
 
     /**
      * @inheritdoc IODefaultStakerRewardsFactory
      */
-    function create(
-        ODefaultStakerRewards.InitParams calldata params
-    ) external returns (address) {
-        ODefaultStakerRewards stakerRewards = new ODefaultStakerRewards(
-            VAULT_FACTORY, NETWORK_MIDDLEWARE_SERVICE, START_TIME, EPOCH_DURATION, params.vault, params.network
-        );
+    function create(address vault, ODefaultStakerRewards.InitParams calldata params) external returns (address) {
+        if (vault == address(0) || !Registry(i_vaultFactory).isEntity(vault)) {
+            revert ODefaultStakerRewardsFactory__NotVault();
+        }
+
+        ODefaultStakerRewards stakerRewards = new ODefaultStakerRewards(i_networkMiddlewareService, vault, i_network);
 
         address proxy = address(new ERC1967Proxy((address(stakerRewards)), ""));
-        ODefaultStakerRewards(proxy).initialize(params);
+        ODefaultStakerRewards(proxy).initialize(i_operatorRewards, params);
         _addEntity(proxy);
 
         return proxy;

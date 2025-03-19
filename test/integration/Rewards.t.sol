@@ -256,7 +256,7 @@ contract RewardsTest is Test {
         );
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
         address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
-            address(vaultFactory), address(networkMiddlewareService), uint48(block.timestamp), NETWORK_EPOCH_DURATION
+            address(vaultFactory), address(networkMiddlewareService), operatorRewardsAddress, tanssi
         );
         middleware = _deployMiddlewareWithProxy(tanssi, owner, address(operatorRewards), stakerRewardsFactoryAddress);
 
@@ -367,13 +367,10 @@ contract RewardsTest is Test {
     ) public {
         vm.startPrank(_owner);
         IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
-            vault: address(0),
             adminFee: 0,
             defaultAdminRoleHolder: _owner,
             adminFeeClaimRoleHolder: _owner,
-            adminFeeSetRoleHolder: _owner,
-            operatorRewardsRoleHolder: _owner,
-            network: tanssi
+            adminFeeSetRoleHolder: _owner
         });
         middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
         middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsParams);

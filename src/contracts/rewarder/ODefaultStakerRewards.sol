@@ -19,9 +19,8 @@ pragma solidity 0.8.25;
 // *********************************************************************************************************************
 import {IStakerRewards} from "@symbiotic-rewards/interfaces/stakerRewards/IStakerRewards.sol";
 import {INetworkMiddlewareService} from "@symbiotic/interfaces/service/INetworkMiddlewareService.sol";
-import {IRegistry} from "@symbiotic/interfaces/common/IRegistry.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
-
+import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 // *********************************************************************************************************************
 //                                                  OPENZEPPELIN
 // *********************************************************************************************************************
@@ -83,12 +82,6 @@ contract ODefaultStakerRewards is
      * @inheritdoc IODefaultStakerRewards
      */
     bytes32 public constant OPERATOR_REWARDS_ROLE = keccak256("OPERATOR_REWARDS_ROLE");
-
-    /**
-     * @inheritdoc IODefaultStakerRewards
-     */
-    address public immutable i_vaultFactory;
-
     /**
      * @inheritdoc IODefaultStakerRewards
      */
@@ -104,57 +97,18 @@ contract ODefaultStakerRewards is
      */
     address public immutable i_network;
 
-    /**
-     * @inheritdoc IODefaultStakerRewards
-     */
-    uint48 public immutable i_startTime;
-
-    /**
-     * @inheritdoc IODefaultStakerRewards
-     */
-    uint48 public immutable i_epochDuration;
-
-    constructor(
-        address vaultFactory,
-        address networkMiddlewareService,
-        uint48 startTime,
-        uint48 epochDuration,
-        address vault,
-        address network
-    ) {
+    constructor(address networkMiddlewareService, address vault, address network) {
         _disableInitializers();
-
-        if (vaultFactory == address(0)) {
-            revert ODefaultStakerRewards__NotVaultFactory();
-        }
-
-        if (networkMiddlewareService == address(0)) {
-            revert ODefaultStakerRewards__NotNetworkMiddleware();
-        }
-
-        if (vault == address(0)) {
-            revert ODefaultStakerRewards__NotVault();
-        }
 
         if (network == address(0)) {
             revert ODefaultStakerRewards__NotNetwork();
         }
-
-        if (!IRegistry(vaultFactory).isEntity(vault)) {
-            revert ODefaultStakerRewards__NotVault();
-        }
-
-        i_vaultFactory = vaultFactory;
         i_networkMiddlewareService = networkMiddlewareService;
-        i_startTime = startTime;
-        i_epochDuration = epochDuration;
         i_vault = vault;
         i_network = network;
     }
 
-    function initialize(
-        InitParams calldata params
-    ) external initializer {
+    function initialize(address operatorRewards, InitParams calldata params) external initializer {
         if (params.defaultAdminRoleHolder == address(0)) {
             if (params.adminFee == 0) {
                 if (params.adminFeeClaimRoleHolder == address(0)) {
@@ -167,10 +121,6 @@ contract ODefaultStakerRewards is
             } else if (params.adminFeeClaimRoleHolder == address(0)) {
                 revert ODefaultStakerRewards__MissingRoles();
             }
-        }
-
-        if (params.operatorRewardsRoleHolder == address(0)) {
-            revert ODefaultStakerRewards__MissingRoles();
         }
 
         __AccessControl_init();
@@ -188,18 +138,7 @@ contract ODefaultStakerRewards is
         if (params.adminFeeSetRoleHolder != address(0)) {
             _grantRole(ADMIN_FEE_SET_ROLE, params.adminFeeSetRoleHolder);
         }
-        if (params.operatorRewardsRoleHolder != address(0)) {
-            _grantRole(OPERATOR_REWARDS_ROLE, params.operatorRewardsRoleHolder);
-        }
-    }
-
-    /**
-     * @inheritdoc IODefaultStakerRewards
-     */
-    function getEpochStartTs(
-        uint48 epoch
-    ) public view returns (uint48 timestamp) {
-        return i_startTime + epoch * i_epochDuration;
+        _grantRole(OPERATOR_REWARDS_ROLE, operatorRewards);
     }
 
     /**
@@ -226,7 +165,9 @@ contract ODefaultStakerRewards is
         // Get the min between how many the user wants to claim and how many rewards are available
         uint256 rewardsToClaim = Math.min(maxRewards, rewardsPerEpoch.length - rewardIndex);
 
-        uint48 epochTs = getEpochStartTs(epoch);
+        uint48 epochTs = EpochCapture(INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network))
+            .getEpochStart(epoch);
+
         for (uint256 i; i < rewardsToClaim;) {
             uint256 rewardAmount = rewardsPerEpoch[rewardIndex];
 
@@ -257,7 +198,8 @@ contract ODefaultStakerRewards is
         (uint256 maxAdminFee, bytes memory activeSharesHint, bytes memory activeStakeHint) =
             abi.decode(data, (uint256, bytes, bytes));
 
-        uint48 epochTs = getEpochStartTs(epoch);
+        uint48 epochTs = EpochCapture(INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network))
+            .getEpochStart(epoch);
         // If the epoch is in the future, revert
         if (epochTs >= Time.timestamp()) {
             revert ODefaultStakerRewards__InvalidRewardTimestamp();
@@ -400,7 +342,8 @@ contract ODefaultStakerRewards is
         uint48 epoch,
         bytes[] memory activeSharesOfHints
     ) private view returns (uint256 amount) {
-        uint48 epochTs = getEpochStartTs(epoch);
+        uint48 epochTs = EpochCapture(INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network))
+            .getEpochStart(epoch);
 
         for (uint256 i; i < rewardsToClaim;) {
             uint256 rewardAmount = rewardsPerEpoch[rewardIndex];

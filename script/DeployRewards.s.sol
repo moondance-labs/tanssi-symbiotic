@@ -77,14 +77,14 @@ contract DeployRewards is Script {
     function deployStakerRewardsFactoryContract(
         address vaultFactory,
         address networkMiddlewareService,
-        uint48 startTime,
-        uint48 epochDuration
+        address operatorRewardsAddress,
+        address network
     ) public returns (address) {
         if (!isTest) {
             vm.startBroadcast(ownerPrivateKey);
         }
         stakerRewardsFactory =
-            new ODefaultStakerRewardsFactory(vaultFactory, networkMiddlewareService, startTime, epochDuration);
+            new ODefaultStakerRewardsFactory(vaultFactory, networkMiddlewareService, operatorRewardsAddress, network);
         console2.log("Staker rewards factory deployed at address: ", address(stakerRewardsFactory));
 
         if (!isTest) {
@@ -97,10 +97,12 @@ contract DeployRewards is Script {
     function run(
         DeployParams calldata params
     ) external {
-        deployOperatorRewardsContract(
+        address operatorRewardsAddress = deployOperatorRewardsContract(
             params.network, params.networkMiddlewareService, params.operatorShare, params.defaultAdminRole
         );
-        deployStakerRewardsFactoryContract(params.vaultFactory, params.network, params.startTime, params.epochDuration);
+        deployStakerRewardsFactoryContract(
+            params.vaultFactory, params.networkMiddlewareService, operatorRewardsAddress, params.network
+        );
         emit Done();
     }
 }
