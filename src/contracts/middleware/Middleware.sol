@@ -146,8 +146,9 @@ contract Middleware is
         address sharedVault,
         IODefaultStakerRewards.InitParams memory stakerRewardsParams
     ) internal virtual override {
-        stakerRewardsParams.vault = sharedVault;
-        address stakerRewards = IODefaultStakerRewardsFactory(i_stakerRewardsFactory).create(stakerRewardsParams);
+        address stakerRewards =
+            IODefaultStakerRewardsFactory(i_stakerRewardsFactory).create(sharedVault, stakerRewardsParams);
+
         IODefaultOperatorRewards(i_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
     }
 
