@@ -45,9 +45,6 @@ contract ODefaultStakerRewards is
     using SafeERC20 for IERC20;
     using Math for uint256;
 
-    // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultStakerRewards.v1")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 public constant MAIN_STORAGE_LOCATION = 0xe07cde22a6017f26eee680b6867ce6727151fb6097c75742cbe379265c377400;
-
     /// @custom:storage-location erc7201:tanssi.rewards.ODefaultStakerRewards.v1
     struct StakerRewardsStorage {
         uint256 adminFee;
@@ -57,6 +54,10 @@ contract ODefaultStakerRewards is
         mapping(uint48 epoch => mapping(address tokenAddress => uint256 amount)) claimableAdminFee;
         mapping(uint48 epoch => uint256 amount) activeSharesCache;
     }
+
+    // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultStakerRewards.v1")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant STAKER_REWARDS_STORAGE_LOCATION =
+        0xe07cde22a6017f26eee680b6867ce6727151fb6097c75742cbe379265c377400;
 
     /**
      * @inheritdoc IODefaultStakerRewards
@@ -446,7 +447,7 @@ contract ODefaultStakerRewards is
     }
 
     function _getStakerRewardsStorage() private pure returns (StakerRewardsStorage storage $) {
-        bytes32 position = MAIN_STORAGE_LOCATION;
+        bytes32 position = STAKER_REWARDS_STORAGE_LOCATION;
         assembly {
             $.slot := position
         }

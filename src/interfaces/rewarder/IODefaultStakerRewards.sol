@@ -26,9 +26,6 @@ interface IODefaultStakerRewards {
     error ODefaultStakerRewards__MissingRoles();
     error ODefaultStakerRewards__NoRewardsToClaim();
     error ODefaultStakerRewards__NotNetwork();
-    error ODefaultStakerRewards__InvalidMiddleware();
-    error ODefaultStakerRewards__NotVault();
-    error ODefaultStakerRewards__NotVaultFactory();
 
     /**
      * @notice Emitted when a reward is distributed.
@@ -96,16 +93,6 @@ interface IODefaultStakerRewards {
         address defaultAdminRoleHolder;
         address adminFeeClaimRoleHolder;
         address adminFeeSetRoleHolder;
-    }
-    /**
-     * @notice Reward data structure.
-     * @param amount amount of tokens
-     * @param tokenAddress address of the reward token
-     */
-
-    struct Reward {
-        uint256 amount;
-        address tokenAddress;
     }
 
     /**

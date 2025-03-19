@@ -76,6 +76,8 @@ contract RewardsTest is Test {
 
     // Root hash of the rewards merkle tree. It represents the rewards for the epoch 0 for alice and bob with 20 points each
     bytes32 public constant REWARDS_ROOT = 0x4b0ddd8b9b8ec6aec84bcd2003c973254c41d976f6f29a163054eec4e7947810;
+    bytes32 public constant STAKER_REWARDS_STORAGE_LOCATION =
+        0xe07cde22a6017f26eee680b6867ce6727151fb6097c75742cbe379265c377400;
 
     // Operator keys with which the operator is registered
     bytes32 public ALICE_KEY;
@@ -274,7 +276,7 @@ contract RewardsTest is Test {
         // For StakerRewardsStorage.rewards[epoch][tokenAddress] = [10 ether]
 
         // Get base slot for first mapping
-        bytes32 slot = bytes32(uint256(stakerRewards.MAIN_STORAGE_LOCATION()) + uint256(1)); // 1 is mapping slot number for the variable rewards
+        bytes32 slot = bytes32(uint256(STAKER_REWARDS_STORAGE_LOCATION) + uint256(1)); // 1 is mapping slot number for the variable rewards
         slot = keccak256(abi.encode(epoch, slot));
         // Get slot for second mapping with tokenAddress
         bytes32 tokenSlot = keccak256(abi.encode(address(token), slot));
@@ -302,14 +304,14 @@ contract RewardsTest is Test {
     function _setActiveSharesCache(uint48 epoch, address _stakerRewards) private {
         // For StakerRewardsStorage.activeSharesCache[epoch] = AMOUNT_TO_DISTRIBUTE / 10
 
-        bytes32 slot = bytes32(uint256(ODefaultStakerRewards(_stakerRewards).MAIN_STORAGE_LOCATION()) + uint256(4)); // 4 is mapping slot number for the variable activeSharesCache
+        bytes32 slot = bytes32(uint256(STAKER_REWARDS_STORAGE_LOCATION) + uint256(4)); // 4 is mapping slot number for the variable activeSharesCache
         slot = keccak256(abi.encode(epoch, slot));
         vm.store(address(_stakerRewards), slot, bytes32(uint256(AMOUNT_TO_DISTRIBUTE / 10)));
     }
 
     function _setClaimableAdminFee(uint48 epoch, address _token) private {
         // For StakerRewardsStorage.claimableAdminFee[epoch][tokenAddress] = 10 ether
-        bytes32 slot = bytes32(uint256(stakerRewards.MAIN_STORAGE_LOCATION()) + uint256(3)); // 3 is slot number for the variable claimableAdminFee
+        bytes32 slot = bytes32(uint256(STAKER_REWARDS_STORAGE_LOCATION) + uint256(3)); // 3 is slot number for the variable claimableAdminFee
         slot = keccak256(abi.encode(epoch, slot));
         slot = keccak256(abi.encode(_token, slot));
         vm.store(address(stakerRewards), slot, bytes32(uint256(10 ether)));
