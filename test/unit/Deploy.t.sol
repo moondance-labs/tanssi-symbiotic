@@ -244,13 +244,10 @@ contract DeployTest is Test {
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
 
         IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
-            vault: _vault,
             adminFee: 0,
             defaultAdminRoleHolder: tanssi,
             adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi,
-            operatorRewardsRoleHolder: tanssi,
-            network: tanssi
+            adminFeeSetRoleHolder: tanssi
         });
         deployTanssiEcosystem.registerSharedVault(address(middleware), _vault, stakerRewardsParams);
     }
@@ -762,9 +759,11 @@ contract DeployTest is Test {
 
     function testDeployRewardsStakerFactory() public {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
+        address operatorRewards =
+            deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20, tanssi);
 
         address stakerFactory = deployRewards.deployStakerRewardsFactoryContract(
-            addresses.vaultFactory, addresses.networkMiddlewareService, uint48(block.timestamp), NETWORK_EPOCH_DURATION
+            addresses.vaultFactory, addresses.networkMiddlewareService, operatorRewards, tanssi
         );
         assertNotEq(stakerFactory, ZERO_ADDRESS);
     }

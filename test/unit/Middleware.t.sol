@@ -111,13 +111,10 @@ contract MiddlewareTest is Test {
     ODefaultStakerRewardsFactory stakerRewardsFactory;
 
     IODefaultStakerRewards.InitParams stakerRewardsParams = IODefaultStakerRewards.InitParams({
-        vault: address(0),
         adminFee: 0,
         defaultAdminRoleHolder: owner,
         adminFeeClaimRoleHolder: owner,
-        adminFeeSetRoleHolder: owner,
-        operatorRewardsRoleHolder: owner,
-        network: tanssi
+        adminFeeSetRoleHolder: owner
     });
 
     function setUp() public {
@@ -153,8 +150,12 @@ contract MiddlewareTest is Test {
         address readHelper = address(new BaseMiddlewareReader());
 
         deployRewards = new DeployRewards(true);
+        address operatorRewardsAddress =
+            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), 5000, owner);
+        operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
+
         address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
-            address(vaultFactory), address(networkMiddlewareService), uint48(block.timestamp), NETWORK_EPOCH_DURATION
+            vaultFactory, address(networkMiddlewareService), operatorRewardsAddress, tanssi
         );
         stakerRewardsFactory = ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress);
         vm.mockCall(
@@ -162,10 +163,6 @@ contract MiddlewareTest is Test {
             abi.encodeWithSelector(IODefaultStakerRewardsFactory.create.selector),
             abi.encode(makeAddr("stakerRewards"))
         );
-
-        address operatorRewardsAddress =
-            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), 5000, owner);
-        operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
         middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
         middleware = Middleware(address(new MiddlewareProxy(address(middlewareImpl), "")));
