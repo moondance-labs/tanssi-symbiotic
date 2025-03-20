@@ -29,5 +29,6 @@ contract SharedVaultMock is OSharedVaults, KeyManager256, EpochCapture {
         IODefaultStakerRewards.InitParams memory stakerRewardsParams
     ) public checkAccess {
         _beforeRegisterSharedVault(sharedVault, stakerRewardsParams);
+        _afterRegisterSharedVault(sharedVault);
     }
 }

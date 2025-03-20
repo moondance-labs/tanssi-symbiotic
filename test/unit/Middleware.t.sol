@@ -194,8 +194,6 @@ contract MiddlewareTest is Test {
         middleware.setGateway(address(gateway));
         middleware.setCollateralToOracle(address(collateral), collateralOracle);
 
-        console2.log("VAULT TO COLLATERAL", middleware.vaultToCollateral(address(vault)));
-
         vm.startPrank(tanssi);
         registry.register();
         networkMiddlewareService.setMiddleware(address(middleware));
@@ -1967,12 +1965,38 @@ contract MiddlewareTest is Test {
     // *                                   VAULT TO COLLATERAL AND TO ORACLE
     // ************************************************************************************************
 
-    function testVaultToCollateral() public view {
+    function testVaultToCollateral() public {
+        vm.mockCall(
+            address(registry), abi.encodeWithSelector(IRegistry.isEntity.selector, address(vault)), abi.encode(true)
+        );
+        vm.startPrank(owner);
+        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        vm.stopPrank();
+
         address currentCollateral = middleware.vaultToCollateral(address(vault));
         assertEq(currentCollateral, address(collateral));
     }
 
-    function testVaultToOracle() public view {
+    function testVaultToCollateralWithNoCollateral() public {
+        vm.startPrank(owner);
+        vault = new VaultMock(delegatorFactory, slasherFactory, vaultFactory, address(0));
+        vm.mockCall(
+            address(registry), abi.encodeWithSelector(IRegistry.isEntity.selector, address(vault)), abi.encode(true)
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(IMiddleware.Middleware__InvalidAddress.selector));
+        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        vm.stopPrank();
+    }
+
+    function testVaultToOracle() public {
+        vm.mockCall(
+            address(registry), abi.encodeWithSelector(IRegistry.isEntity.selector, address(vault)), abi.encode(true)
+        );
+        vm.startPrank(owner);
+        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        vm.stopPrank();
+
         address currentOracle = middleware.vaultToOracle(address(vault));
         assertEq(currentOracle, collateralOracle);
     }
@@ -2028,7 +2052,21 @@ contract MiddlewareTest is Test {
     // *                                          MIN STAKE
     // ************************************************************************************************
 
-    function testSetMinStake() public view {}
+    function testSetMinStake() public {
+        vm.startPrank(owner);
+        middleware.setMinStake(100);
+        vm.stopPrank();
+        assertEq(middleware.minStake(), 100);
+    }
+
+    function testSetMinStakeUnauthorized() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
+            )
+        );
+        middleware.setMinStake(100);
+    }
 
     // ************************************************************************************************
     // *                                          INTERNAL

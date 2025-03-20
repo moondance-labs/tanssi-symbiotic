@@ -34,6 +34,7 @@ contract VaultMock is VaultStorage, MigratableEntity, IVault {
         address _collateral
     ) VaultStorage(delegatorFactory, slasherFactory) MigratableEntity(vaultFactory) {
         collateral = _collateral;
+        epochDuration = 10 days;
     }
 
     function test() public {}
