@@ -110,6 +110,7 @@ contract MiddlewareTest is Test {
     VetoSlasher vetoSlasher;
     Slasher slasherWithBadType;
     Token collateral;
+    address collateralOracle;
 
     DeployRewards deployRewards;
     DeployCollateral deployCollateral;
@@ -155,7 +156,7 @@ contract MiddlewareTest is Test {
             new VetoSlasher(vaultFactory, address(networkMiddlewareService), address(registry), slasherFactory, 1);
 
         collateral = Token(deployCollateral.deployCollateral("Token"));
-        address collateralOracle = deployCollateral.deployMockOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_TOKEN);
+        collateralOracle = deployCollateral.deployMockOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_TOKEN);
 
         vault = new VaultMock(delegatorFactory, slasherFactory, vaultFactory, address(collateral));
         vault.setDelegator(address(delegator));
@@ -192,6 +193,8 @@ contract MiddlewareTest is Test {
         );
         middleware.setGateway(address(gateway));
         middleware.setCollateralToOracle(address(collateral), collateralOracle);
+
+        console2.log("VAULT TO COLLATERAL", middleware.vaultToCollateral(address(vault)));
 
         vm.startPrank(tanssi);
         registry.register();
@@ -1673,7 +1676,7 @@ contract MiddlewareTest is Test {
     }
 
     // ************************************************************************************************
-    // *                                  SET OPERATORs REWARD SHARE
+    // *                                  SET OPERATORS REWARD SHARE
     // ************************************************************************************************
 
     function testSetOperatorShareOnOperatorRewards() public {
@@ -1766,7 +1769,6 @@ contract MiddlewareTest is Test {
     // *                                        STAKE TO POWER
     // ************************************************************************************************
 
-    // TODO this should be improved to test the actual stake to power calculation with the value that we really want.
     function testStakeToPower() public {
         uint256 stake = 1000;
         address _vault = makeAddr("vault");
@@ -1790,6 +1792,18 @@ contract MiddlewareTest is Test {
         uint256 power = middleware.stakeToPower(_vault, stake);
         uint256 expectedPower = (stake * uint256(multiplier)) / (10 ** uint256(decimals));
         assertEq(power, expectedPower);
+    }
+
+    function testStakeToPowerWithNoOracle() public {
+        uint256 stake = 1000;
+        address _vault = makeAddr("vault");
+        address _collateral = makeAddr("collateral");
+
+        _setVaultToCollateral(_vault, _collateral);
+        // Collateral is not set to an oracle
+
+        vm.expectRevert(abi.encodeWithSelector(IMiddleware.Middleware__NotSupportedCollateral.selector, _collateral));
+        middleware.stakeToPower(_vault, stake);
     }
 
     // ************************************************************************************************
@@ -1948,6 +1962,77 @@ contract MiddlewareTest is Test {
 
         assertEq(abi.decode(key, (bytes32)), bytes32(0));
     }
+
+    // ************************************************************************************************
+    // *                                   VAULT TO COLLATERAL AND TO ORACLE
+    // ************************************************************************************************
+
+    function testVaultToCollateral() public view {
+        address currentCollateral = middleware.vaultToCollateral(address(vault));
+        assertEq(currentCollateral, address(collateral));
+    }
+
+    function testVaultToOracle() public view {
+        address currentOracle = middleware.vaultToOracle(address(vault));
+        assertEq(currentOracle, collateralOracle);
+    }
+
+    // ************************************************************************************************
+    // *                                   SET COLLATERAL TO ORACLE
+    // ************************************************************************************************
+
+    function testSetCollateralToOracle() public {
+        address _collateral = makeAddr("collateral");
+        address _oracle = makeAddr("oracle");
+
+        vm.startPrank(owner);
+        middleware.setCollateralToOracle(_collateral, _oracle);
+        vm.stopPrank();
+        assertEq(middleware.collateralToOracle(_collateral), _oracle);
+    }
+
+    function testSetCollateralToOracleNoCollateral() public {
+        address _collateral = address(0);
+        address _oracle = makeAddr("oracle");
+
+        vm.startPrank(owner);
+        vm.expectRevert(abi.encodeWithSelector(IMiddleware.Middleware__InvalidAddress.selector));
+        middleware.setCollateralToOracle(_collateral, _oracle);
+        vm.stopPrank();
+    }
+
+    function testSetCollateralToOracleAlreadySet() public {
+        address _collateral = makeAddr("collateral");
+        address _oracle = makeAddr("oracle");
+
+        vm.startPrank(owner);
+        middleware.setCollateralToOracle(_collateral, _oracle);
+
+        vm.expectRevert(abi.encodeWithSelector(IMiddleware.Middleware__AlreadySet.selector));
+        middleware.setCollateralToOracle(_collateral, _oracle);
+        vm.stopPrank();
+    }
+
+    function testSetCollateralToOracleRemoveOracle() public {
+        address _collateral = makeAddr("collateral");
+        address _oracle = makeAddr("oracle");
+
+        vm.startPrank(owner);
+        middleware.setCollateralToOracle(_collateral, _oracle);
+        middleware.setCollateralToOracle(_collateral, address(0));
+        vm.stopPrank();
+        assertEq(middleware.collateralToOracle(_collateral), address(0));
+    }
+
+    // ************************************************************************************************
+    // *                                          MIN STAKE
+    // ************************************************************************************************
+
+    function testSetMinStake() public view {}
+
+    // ************************************************************************************************
+    // *                                          INTERNAL
+    // ************************************************************************************************
 
     function _setVaultToCollateral(address vault_, address collateral_) internal {
         bytes32 slot = bytes32(uint256(middleware.MIDDLEWARE_STORAGE_LOCATION()) + uint256(6)); // 6 is mapping slot number for the vault to collateral

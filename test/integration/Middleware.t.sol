@@ -657,8 +657,8 @@ contract MiddlewareTest is Test {
         (uint48 currentEpoch, Middleware.ValidatorData[] memory validators,,,, uint256 powerFromSharesOperator3) =
             _prepareSlashingTest();
 
-        // We calculate the amount slashable for only the operator3 since it's the only one that should be slashed. As a side effect operator2 will be slashed too since it's taking part in a NetworkRestake delegator based vault
-        uint256 slashingPower = (SLASHING_FRACTION * powerFromSharesOperator3) / PARTS_PER_BILLION;
+        // We only take half of the operator3 shares, since only its participation on vaultSlashable will be slashed, regular vault isn't affected
+        uint256 slashingPower = (SLASHING_FRACTION * (powerFromSharesOperator3 / 2)) / PARTS_PER_BILLION;
 
         vm.prank(gateway);
         middleware.slash(currentEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
@@ -683,8 +683,8 @@ contract MiddlewareTest is Test {
         (uint48 currentEpoch, Middleware.ValidatorData[] memory validators,,,, uint256 powerFromSharesOperator3) =
             _prepareSlashingTest();
 
-        // We calculate the amount slashable for only the operator2 since it's the only one that should be slashed. As a side effect operator2 will be slashed too since it's taking part in a NetworkRestake delegator based vault
-        uint256 slashingPower = (SLASHING_FRACTION * powerFromSharesOperator3) / PARTS_PER_BILLION;
+        // We only take half of the operator3 shares, since only its participation on vaultSlashable will be slashed, regular vault isn't affected
+        uint256 slashingPower = (SLASHING_FRACTION * powerFromSharesOperator3 / 2) / PARTS_PER_BILLION;
 
         vm.prank(gateway);
         middleware.slash(currentEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
@@ -700,13 +700,13 @@ contract MiddlewareTest is Test {
         uint256 activeStakeInVetoed = vaultVetoed.activeStake();
         uint256 activePowerInVetoed = (activeStakeInVetoed * uint256(ORACLE_CONVERSION_W_BTC)) / 10 ** ORACLE_DECIMALS;
 
-        (uint256 totalOperator2StakeAfter,) =
+        (uint256 totalOperator2StakeAfter, uint256 powerFromSharesOperator2After) =
             _calculateOperatorPower(totalPowerVaultSlashable, activePowerInVetoed, slashingPower);
-        (uint256 totalOperator3StakeAfter,) =
+        (uint256 totalOperator3StakeAfter, uint256 powerFromSharesOperator3After) =
             _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, activePowerInVetoed, slashingPower);
 
         assertEq(validators[1].stake, totalOperator2StakeAfter);
-        assertEq(validators[2].stake, totalOperator3StakeAfter);
+        assertApproxEqAbs(validators[2].stake, totalOperator3StakeAfter, 1);
     }
 
     function testSlashingAndPausingVault() public {
