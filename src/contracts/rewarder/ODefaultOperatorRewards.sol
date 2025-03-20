@@ -209,6 +209,7 @@ contract ODefaultOperatorRewards is
         // TODO: Currently it's only for a specific vault. We don't care now about making it able to send rewards for multiple vaults. It's hardcoded to the first vault of the operator.
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         if (operatorVaults.length > 0) {
+            IERC20(tokenAddress).approve($.vaultToStakerRewardsContract[operatorVaults[0]], stakerAmount);
             IODefaultStakerRewards($.vaultToStakerRewardsContract[operatorVaults[0]]).distributeRewards(
                 epoch, eraIndex, stakerAmount, tokenAddress, data
             );

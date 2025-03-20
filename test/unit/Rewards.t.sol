@@ -207,8 +207,6 @@ contract RewardsTest is Test {
         token.approve(address(operatorRewards), type(uint256).max);
         token.approve(address(stakerRewards), type(uint256).max);
 
-        vm.startPrank(address(operatorRewards));
-        token.approve(address(stakerRewards), type(uint256).max);
         vm.stopPrank();
     }
 
