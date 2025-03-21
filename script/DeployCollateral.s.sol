@@ -53,11 +53,4 @@ contract DeployCollateral is Script {
 
         return tokenAddress;
     }
-
-    function deployMockOracle(uint8 decimals, int256 answer) public returns (address) {
-        AggregatorV3Mock oracle = new AggregatorV3Mock(decimals);
-        oracle.setAnswer(answer);
-
-        return address(oracle);
-    }
 }

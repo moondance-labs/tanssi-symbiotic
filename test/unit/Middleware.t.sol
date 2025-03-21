@@ -71,6 +71,7 @@ import {RegistryMock} from "../mocks/symbiotic/RegistryMock.sol";
 import {VaultMock} from "../mocks/symbiotic/VaultMock.sol";
 import {SharedVaultMock} from "../mocks/symbiotic/SharedVaultMock.sol";
 import {Token} from "../mocks/Token.sol";
+import {AggregatorV3Mock} from "../mocks/AggregatorV3Mock.sol";
 
 contract MiddlewareTest is Test {
     using Subnetwork for address;
@@ -110,7 +111,7 @@ contract MiddlewareTest is Test {
     VetoSlasher vetoSlasher;
     Slasher slasherWithBadType;
     Token collateral;
-    address collateralOracle;
+    AggregatorV3Mock collateralOracle;
 
     DeployRewards deployRewards;
     DeployCollateral deployCollateral;
@@ -156,7 +157,9 @@ contract MiddlewareTest is Test {
             new VetoSlasher(vaultFactory, address(networkMiddlewareService), address(registry), slasherFactory, 1);
 
         collateral = Token(deployCollateral.deployCollateral("Token"));
-        collateralOracle = deployCollateral.deployMockOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_TOKEN);
+
+        collateralOracle = new AggregatorV3Mock(ORACLE_DECIMALS);
+        collateralOracle.setAnswer(ORACLE_CONVERSION_TOKEN);
 
         vault = new VaultMock(delegatorFactory, slasherFactory, vaultFactory, address(collateral));
         vault.setDelegator(address(delegator));
@@ -192,7 +195,7 @@ contract MiddlewareTest is Test {
             readHelper
         );
         middleware.setGateway(address(gateway));
-        middleware.setCollateralToOracle(address(collateral), collateralOracle);
+        middleware.setCollateralToOracle(address(collateral), address(collateralOracle));
 
         vm.startPrank(tanssi);
         registry.register();
@@ -1998,7 +2001,7 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
 
         address currentOracle = middleware.vaultToOracle(address(vault));
-        assertEq(currentOracle, collateralOracle);
+        assertEq(currentOracle, address(collateralOracle));
     }
 
     // ************************************************************************************************
@@ -2073,7 +2076,11 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function _setVaultToCollateral(address vault_, address collateral_) internal {
-        bytes32 slot = bytes32(uint256(middleware.MIDDLEWARE_STORAGE_LOCATION()) + uint256(6)); // 6 is mapping slot number for the vault to collateral
+        // Taken from MiddlewareStorage.sol
+        bytes32 MIDDLEWARE_STORAGE_LOCATION =
+        0x744f79b1118793e0a060dca4f01184704394f6e567161215b3d2c3126631e700;
+
+        bytes32 slot = bytes32(uint256(MIDDLEWARE_STORAGE_LOCATION) + uint256(6)); // 6 is mapping slot number for the vault to collateral
         // Get slot for mapping with vault_
         slot = keccak256(abi.encode(vault_, slot));
 

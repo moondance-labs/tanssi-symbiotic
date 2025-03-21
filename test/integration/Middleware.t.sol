@@ -77,6 +77,7 @@ import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {Token} from "test/mocks/Token.sol";
+import {AggregatorV3Mock} from "test/mocks/AggregatorV3Mock.sol";
 import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
 import {DeployVault} from "script/DeployVault.s.sol";
@@ -210,9 +211,9 @@ contract MiddlewareTest is Test {
         wBTC.mint(owner, 1_000_000 ether);
         vm.stopPrank();
 
-        address stEthOracle = deployCollateral.deployMockOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_ST_ETH);
-        address rEthOracle = deployCollateral.deployMockOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_R_ETH);
-        address wBtcOracle = deployCollateral.deployMockOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_W_BTC);
+        address stEthOracle = _deployOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_ST_ETH);
+        address rEthOracle = _deployOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_R_ETH);
+        address wBtcOracle = _deployOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_W_BTC);
 
         deployVault = new DeployVault();
         deployRewards = new DeployRewards(true);
@@ -1224,5 +1225,12 @@ contract MiddlewareTest is Test {
             _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, 0);
         (totalOperator3Stake, powerFromSharesOperator3) =
             _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, totalFullRestakePower, 0);
+    }
+
+    function _deployOracle(uint8 decimals, int256 answer) public returns (address) {
+        AggregatorV3Mock oracle = new AggregatorV3Mock(decimals);
+        oracle.setAnswer(answer);
+
+        return address(oracle);
     }
 }

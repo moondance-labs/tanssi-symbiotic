@@ -613,7 +613,7 @@ contract DeployTest is Test {
     }
 
     function testDeployVaultWithVaultConfiguratorEmpty() public {
-        (Token stETHToken,,) = deployTanssiEcosystem.tokensAddresses();
+        address stEth = makeAddr("stETH");
 
         DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
             epochDuration: VAULT_EPOCH_DURATION,
@@ -622,7 +622,7 @@ contract DeployTest is Test {
             delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
             shouldBroadcast: false,
             vaultConfigurator: address(0),
-            collateral: address(stETHToken),
+            collateral: stEth,
             owner: tanssi
         });
 

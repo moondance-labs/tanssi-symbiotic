@@ -60,6 +60,7 @@ import {RegistryMock} from "../mocks/symbiotic/RegistryMock.sol";
 import {VaultMock} from "../mocks/symbiotic/VaultMock.sol";
 import {Token} from "../mocks/Token.sol";
 import {MockFeeToken} from "../mocks/FeeToken.sol";
+import {AggregatorV3Mock} from "../mocks/AggregatorV3Mock.sol";
 
 import {DeployRewards} from "script/DeployRewards.s.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
@@ -147,7 +148,8 @@ contract RewardsTest is Test {
         );
 
         token = new Token("Token");
-        address collateralOracle = deployCollateral.deployMockOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_TOKEN);
+        AggregatorV3Mock collateralOracle = new AggregatorV3Mock(ORACLE_DECIMALS);
+        collateralOracle.setAnswer(ORACLE_CONVERSION_TOKEN);
 
         vault = new VaultMock(delegatorFactory, slasherFactory, address(vaultFactory), address(token));
         vault.setDelegator(address(delegator));
@@ -190,7 +192,7 @@ contract RewardsTest is Test {
         token.transfer(address(middleware), token.totalSupply());
 
         vm.startPrank(tanssi);
-        middleware.setCollateralToOracle(address(token), collateralOracle);
+        middleware.setCollateralToOracle(address(token), address(collateralOracle));
         networkRegistry.registerNetwork();
         networkMiddlewareService.setMiddleware(address(middleware));
 
