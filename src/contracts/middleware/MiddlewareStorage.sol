@@ -32,7 +32,7 @@ abstract contract MiddlewareStorage {
     }
 
     // keccak256(abi.encode(uint256(keccak256("tanssi.middleware.MiddlewareStorage.v1")) - 1)) & ~bytes32(uint256(0xff));
-    bytes32 public constant MIDDLEWARE_STORAGE_LOCATION =
+    bytes32 private constant MIDDLEWARE_STORAGE_LOCATION =
         0x744f79b1118793e0a060dca4f01184704394f6e567161215b3d2c3126631e700;
 
     function _getMiddlewareStorage() internal pure returns (StorageMiddleware storage $v1) {
