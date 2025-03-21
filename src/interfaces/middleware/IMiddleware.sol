@@ -15,27 +15,9 @@
 pragma solidity ^0.8.0;
 
 interface IMiddleware {
-    // Events
-    /**
-     * @notice Emitted when rewards contracts are set
-     * @param operatorRewardsAddress Address of the operator rewards contract
-     */
-    event OperatorRewardContractSet(address indexed operatorRewardsAddress);
-
     // Errors
-    error Middleware__NotOperator();
-    error Middleware__NotVault();
     error Middleware__CallerNotGateway();
     error Middleware__GatewayNotSet();
-    error Middleware__OperatorRewardsNotSet();
-    error Middleware__OperatorNotOptedIn();
-    error Middleware__OperatorNotRegistred();
-    error Middleware__OperatorGracePeriodNotPassed();
-    error Middleware__OperatorAlreadyRegistred();
-    error Middleware__VaultAlreadyRegistered();
-    error Middleware__VaultEpochTooShort();
-    error Middleware__VaultGracePeriodNotPassed();
-    error Middleware__InvalidSubnetworksCnt();
     error Middleware__TooOldEpoch();
     error Middleware__InvalidEpoch();
     error Middleware__InvalidAddress();

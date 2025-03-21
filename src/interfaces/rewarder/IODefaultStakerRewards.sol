@@ -26,9 +26,6 @@ interface IODefaultStakerRewards {
     error ODefaultStakerRewards__MissingRoles();
     error ODefaultStakerRewards__NoRewardsToClaim();
     error ODefaultStakerRewards__NotNetwork();
-    error ODefaultStakerRewards__NotNetworkMiddleware();
-    error ODefaultStakerRewards__NotVault();
-    error ODefaultStakerRewards__NotVaultFactory();
 
     /**
      * @notice Emitted when a reward is distributed.
@@ -86,31 +83,16 @@ interface IODefaultStakerRewards {
 
     /**
      * @notice Initial parameters needed for a staker rewards contract deployment.
-     * @param vault address of the vault to get stakers' data from
      * @param adminFee admin fee (up to ADMIN_FEE_BASE inclusively)
      * @param defaultAdminRoleHolder address of the initial DEFAULT_ADMIN_ROLE holder
      * @param adminFeeClaimRoleHolder address of the initial ADMIN_FEE_CLAIM_ROLE holder
      * @param adminFeeSetRoleHolder address of the initial ADMIN_FEE_SET_ROLE holder
-     * @param network address of the network
      */
     struct InitParams {
-        address vault;
         uint256 adminFee;
         address defaultAdminRoleHolder;
         address adminFeeClaimRoleHolder;
         address adminFeeSetRoleHolder;
-        address operatorRewardsRoleHolder;
-        address network;
-    }
-    /**
-     * @notice Reward data structure.
-     * @param amount amount of tokens
-     * @param tokenAddress address of the reward token
-     */
-
-    struct Reward {
-        uint256 amount;
-        address tokenAddress;
     }
 
     /**
@@ -145,28 +127,10 @@ interface IODefaultStakerRewards {
     function OPERATOR_REWARDS_ROLE() external view returns (bytes32);
 
     /**
-     * @notice Get the vault factory's address.
-     * @return address of the vault factory
-     */
-    function i_vaultFactory() external view returns (address);
-
-    /**
      * @notice Get the network middleware service's address.
      * @return address of the network middleware service
      */
     function i_networkMiddlewareService() external view returns (address);
-
-    /**
-     * @notice Get the start time of network epoch.
-     * @return start time of the epoch
-     */
-    function i_startTime() external view returns (uint48);
-
-    /**
-     * @notice Get the duration of network epoch.
-     * @return duration of the epoch
-     */
-    function i_epochDuration() external view returns (uint48);
 
     /**
      * @notice Get the network's address.
@@ -217,16 +181,6 @@ interface IODefaultStakerRewards {
      * @return amount claimable admin fee
      */
     function claimableAdminFee(uint48 epoch, address tokenAddress) external view returns (uint256 amount);
-
-    /**
-     * @dev Added to allow to calculate timestamp in order to access activeSharesOfAt
-     * @notice Gets the timestamp when an epoch starts
-     * @param epoch The epoch number
-     * @return timestamp The start time of the epoch
-     */
-    function getEpochStartTs(
-        uint48 epoch
-    ) external view returns (uint48 timestamp);
 
     /**
      * @notice Get a total number of rewards for a given epoch.

@@ -48,9 +48,6 @@ contract ODefaultOperatorRewards is
     using SafeERC20 for IERC20;
     using Math for uint256;
 
-    // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultOperatorRewards.v1")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 constant MAIN_STORAGE_LOCATION = 0x57cf781f364664df22ab0472e35114435fb4a6881ab5a1b47ed6d1a7d4605400;
-
     /// @custom:storage-location erc7201:tanssi.rewards.ODefaultOperatorRewards.v1
     struct OperatorRewardsStorage {
         uint48 operatorShare;
@@ -60,7 +57,12 @@ contract ODefaultOperatorRewards is
         mapping(address vault => address stakerRewardsAddress) vaultToStakerRewardsContract;
     }
 
+    // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultOperatorRewards.v1")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 constant OPERATOR_REWARDS_STORAGE_LOCATION =
+        0x57cf781f364664df22ab0472e35114435fb4a6881ab5a1b47ed6d1a7d4605400;
+
     uint48 public constant MAX_PERCENTAGE = 10_000;
+
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
@@ -207,6 +209,7 @@ contract ODefaultOperatorRewards is
         // TODO: Currently it's only for a specific vault. We don't care now about making it able to send rewards for multiple vaults. It's hardcoded to the first vault of the operator.
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         if (operatorVaults.length > 0) {
+            IERC20(tokenAddress).approve($.vaultToStakerRewardsContract[operatorVaults[0]], stakerAmount);
             IODefaultStakerRewards($.vaultToStakerRewardsContract[operatorVaults[0]]).distributeRewards(
                 epoch, eraIndex, stakerAmount, tokenAddress, data
             );
@@ -301,7 +304,7 @@ contract ODefaultOperatorRewards is
     ) internal override onlyOwner {}
 
     function _getOperatorRewardsStorage() private pure returns (OperatorRewardsStorage storage $) {
-        bytes32 position = MAIN_STORAGE_LOCATION;
+        bytes32 position = OPERATOR_REWARDS_STORAGE_LOCATION;
         assembly {
             $.slot := position
         }
