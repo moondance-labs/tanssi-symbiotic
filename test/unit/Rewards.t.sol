@@ -30,6 +30,11 @@ import {IVaultStorage} from "@symbiotic/interfaces/vault/IVaultStorage.sol";
 import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlewareReader.sol";
 
 //**************************************************************************************************
+//                                      CHAINLINK
+//**************************************************************************************************
+import {MockV3Aggregator} from "@chainlink/local/src/data-feeds/MockV3Aggregator.sol";
+
+//**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
@@ -60,7 +65,6 @@ import {RegistryMock} from "../mocks/symbiotic/RegistryMock.sol";
 import {VaultMock} from "../mocks/symbiotic/VaultMock.sol";
 import {Token} from "../mocks/Token.sol";
 import {MockFeeToken} from "../mocks/FeeToken.sol";
-import {AggregatorV3Mock} from "../mocks/AggregatorV3Mock.sol";
 
 import {DeployRewards} from "script/DeployRewards.s.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
@@ -148,8 +152,7 @@ contract RewardsTest is Test {
         );
 
         token = new Token("Token");
-        AggregatorV3Mock collateralOracle = new AggregatorV3Mock(ORACLE_DECIMALS);
-        collateralOracle.setAnswer(ORACLE_CONVERSION_TOKEN);
+        MockV3Aggregator collateralOracle = new MockV3Aggregator(ORACLE_DECIMALS, ORACLE_CONVERSION_TOKEN);
 
         vault = new VaultMock(delegatorFactory, slasherFactory, address(vaultFactory), address(token));
         vault.setDelegator(address(delegator));

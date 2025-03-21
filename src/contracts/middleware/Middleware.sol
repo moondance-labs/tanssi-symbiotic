@@ -15,6 +15,11 @@
 pragma solidity 0.8.25;
 
 //**************************************************************************************************
+//                                      CHAINLINK
+//**************************************************************************************************
+import {AggregatorV3Interface} from "@chainlink/local/src/data-feeds/interfaces/AggregatorV3Interface.sol";
+
+//**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
@@ -44,7 +49,6 @@ import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfa
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
-import {IAggregatorV3} from "src/interfaces/IAggregatorV3.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {OSharedVaults} from "src/contracts/extensions/OSharedVaults.sol";
 import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
@@ -167,8 +171,8 @@ contract Middleware is
         if (oracle == address(0)) {
             revert Middleware__NotSupportedCollateral(collateral);
         }
-        (, int256 price,,,) = IAggregatorV3(oracle).latestRoundData();
-        uint8 decimals = IAggregatorV3(oracle).decimals();
+        (, int256 price,,,) = AggregatorV3Interface(oracle).latestRoundData();
+        uint8 decimals = AggregatorV3Interface(oracle).decimals();
         return stake.mulDiv(uint256(price), 10 ** decimals);
     }
 

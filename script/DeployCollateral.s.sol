@@ -17,7 +17,6 @@ pragma solidity 0.8.25;
 import {Script, console2} from "forge-std/Script.sol";
 
 import {Token} from "../test/mocks/Token.sol";
-import {AggregatorV3Mock} from "../test/mocks/AggregatorV3Mock.sol";
 
 contract DeployCollateral is Script {
     uint256 public constant OPERATOR_INITIAL_BALANCE = 1000 ether;

@@ -40,6 +40,12 @@ import {OperatorManager} from "@symbiotic-middleware/managers/OperatorManager.so
 import {KeyManager256} from "@symbiotic-middleware/extensions/managers/keys/KeyManager256.sol";
 
 //**************************************************************************************************
+//                                      CHAINLINK
+//**************************************************************************************************
+import {MockV3Aggregator} from "@chainlink/local/src/data-feeds/MockV3Aggregator.sol";
+import {AggregatorV3Interface} from "@chainlink/local/src/data-feeds/interfaces/AggregatorV3Interface.sol";
+
+//**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -60,7 +66,6 @@ import {MiddlewareV2} from "./utils/MiddlewareV2.sol";
 import {MiddlewareV3} from "./utils/MiddlewareV3.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
-import {IAggregatorV3} from "src/interfaces/IAggregatorV3.sol";
 import {QuickSort} from "src/contracts/libraries/QuickSort.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
@@ -71,7 +76,6 @@ import {RegistryMock} from "../mocks/symbiotic/RegistryMock.sol";
 import {VaultMock} from "../mocks/symbiotic/VaultMock.sol";
 import {SharedVaultMock} from "../mocks/symbiotic/SharedVaultMock.sol";
 import {Token} from "../mocks/Token.sol";
-import {AggregatorV3Mock} from "../mocks/AggregatorV3Mock.sol";
 
 contract MiddlewareTest is Test {
     using Subnetwork for address;
@@ -111,7 +115,7 @@ contract MiddlewareTest is Test {
     VetoSlasher vetoSlasher;
     Slasher slasherWithBadType;
     Token collateral;
-    AggregatorV3Mock collateralOracle;
+    MockV3Aggregator collateralOracle;
 
     DeployRewards deployRewards;
     DeployCollateral deployCollateral;
@@ -158,8 +162,7 @@ contract MiddlewareTest is Test {
 
         collateral = Token(deployCollateral.deployCollateral("Token"));
 
-        collateralOracle = new AggregatorV3Mock(ORACLE_DECIMALS);
-        collateralOracle.setAnswer(ORACLE_CONVERSION_TOKEN);
+        collateralOracle = new MockV3Aggregator(ORACLE_DECIMALS, ORACLE_CONVERSION_TOKEN);
 
         vault = new VaultMock(delegatorFactory, slasherFactory, vaultFactory, address(collateral));
         vault.setDelegator(address(delegator));
@@ -1785,10 +1788,10 @@ contract MiddlewareTest is Test {
 
         vm.mockCall(
             _oracle,
-            abi.encodeWithSelector(IAggregatorV3.latestRoundData.selector),
+            abi.encodeWithSelector(AggregatorV3Interface.latestRoundData.selector),
             abi.encode(uint80(0), multiplier, uint256(0), uint256(0), uint80(0))
         );
-        vm.mockCall(_oracle, abi.encodeWithSelector(IAggregatorV3.decimals.selector), abi.encode(uint8(decimals)));
+        vm.mockCall(_oracle, abi.encodeWithSelector(AggregatorV3Interface.decimals.selector), abi.encode(uint8(decimals)));
 
         uint256 power = middleware.stakeToPower(_vault, stake);
         uint256 expectedPower = (stake * uint256(multiplier)) / (10 ** uint256(decimals));

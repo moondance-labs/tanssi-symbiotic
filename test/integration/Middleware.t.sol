@@ -52,6 +52,11 @@ import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
 import {OperatorManager} from "@symbiotic-middleware/managers/OperatorManager.sol";
 
 //**************************************************************************************************
+//                                      CHAINLINK
+//**************************************************************************************************
+import {MockV3Aggregator} from "@chainlink/local/src/data-feeds/MockV3Aggregator.sol";
+
+//**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -77,7 +82,6 @@ import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {Token} from "test/mocks/Token.sol";
-import {AggregatorV3Mock} from "test/mocks/AggregatorV3Mock.sol";
 import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
 import {DeployVault} from "script/DeployVault.s.sol";
@@ -1228,9 +1232,7 @@ contract MiddlewareTest is Test {
     }
 
     function _deployOracle(uint8 decimals, int256 answer) public returns (address) {
-        AggregatorV3Mock oracle = new AggregatorV3Mock(decimals);
-        oracle.setAnswer(answer);
-
+        MockV3Aggregator oracle = new MockV3Aggregator(decimals, answer);
         return address(oracle);
     }
 }
