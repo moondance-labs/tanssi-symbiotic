@@ -45,7 +45,7 @@ $ make deploy
 #### Deploy Tanssi Ecosystem:
 
 ```shell
-$ make deploy-tanssi-eco ...
+$ make deploy-tanssi-eco RPC_URL=${RPC_URL} PRIVATE_KEY=${PRIVATE_KEY}  ETHERSCAN_API_KEY=${ETHERSCAN_API_KEY}
 ```
 
 #### Deploy Tanssi Rewards Contracts:

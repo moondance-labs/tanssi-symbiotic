@@ -65,24 +65,6 @@ contract Middleware is
     using Subnetwork for address;
     using Math for uint256;
 
-    modifier updateStakeCache(
-        uint48 epoch
-    ) {
-        if (!totalStakeIsCached(epoch)) {
-            calcAndCacheStakes(epoch);
-        }
-        _;
-    }
-
-    // TODO should use AccessControl instead of this modifier
-    // Add Gateway Role and use checkAccess modifier
-    modifier onlyGateway() {
-        if (msg.sender != address(getGateway())) {
-            revert Middleware__CallerNotGateway();
-        }
-        _;
-    }
-
     /*
      * @notice Constructor for the middleware
      * @param operatorRewards The operator rewards address
@@ -133,6 +115,8 @@ contract Middleware is
         __UUPSUpgradeable_init();
 
         _grantRole(DEFAULT_ADMIN_ROLE, owner);
+        _setSelectorRole(this.distributeRewards.selector, GATEWAY_ROLE);
+        _setSelectorRole(this.slash.selector, GATEWAY_ROLE);
     }
 
     function _authorizeUpgrade(
@@ -157,28 +141,30 @@ contract Middleware is
         return stake;
     }
 
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
+    /**
+     * @inheritdoc IMiddleware
+     */
     function setGateway(
         address _gateway
     ) external checkAccess {
         StorageMiddleware storage $ = _getMiddlewareStorage();
-        $.gateway = IOGateway(_gateway);
+        _revokeRole(GATEWAY_ROLE, $.gateway);
+        $.gateway = _gateway;
+        _grantRole(GATEWAY_ROLE, _gateway);
     }
 
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
+    /**
+     * @inheritdoc IMiddleware
+     */
     function setOperatorShareOnOperatorRewards(
         uint48 operatorShare
     ) external checkAccess {
         IODefaultOperatorRewards(i_operatorRewards).setOperatorShare(operatorShare);
     }
 
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
+    /**
+     * @inheritdoc IMiddleware
+     */
     function distributeRewards(
         uint256 epoch,
         uint256 eraIndex,
@@ -186,7 +172,7 @@ contract Middleware is
         uint256 tokensInflatedToken,
         bytes32 rewardsRoot,
         address tokenAddress
-    ) external onlyGateway {
+    ) external checkAccess {
         if (IERC20(tokenAddress).balanceOf(address(this)) < tokensInflatedToken) {
             revert Middleware__InsufficientBalance();
         }
@@ -198,26 +184,27 @@ contract Middleware is
         );
     }
 
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
-    //  TODO: this function should be split to allow to be called by chainlink in case
+    /**
+     * @inheritdoc IMiddleware
+     */
     function sendCurrentOperatorsKeys() external returns (bytes32[] memory sortedKeys) {
-        if (address(getGateway()) == address(0)) {
+        address gateway = getGateway();
+        if (gateway == address(0)) {
             revert Middleware__GatewayNotSet();
         }
 
         uint48 epoch = getCurrentEpoch();
         sortedKeys = sortOperatorsByVaults(epoch);
 
-        getGateway().sendOperatorsData(sortedKeys, epoch);
+        IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);
     }
 
-    function calcAndCacheStakes(
-        uint48 epoch
-    ) public returns (uint256 totalStake) {
+    /**
+     * @inheritdoc IMiddleware
+     */
+    function slash(uint48 epoch, bytes32 operatorKey, uint256 percentage) external checkAccess {
         uint48 epochStartTs = getEpochStart(epoch);
-        StorageMiddleware storage $ = _getMiddlewareStorage();
+        address operator = operatorByKey(abi.encode(operatorKey));
 
         // for epoch older than SLASHING_WINDOW total stake can be invalidated (use cache)
         if (epochStartTs < Time.timestamp() - _SLASHING_WINDOW()) {
@@ -227,32 +214,6 @@ contract Middleware is
         if (epochStartTs > Time.timestamp()) {
             revert Middleware__InvalidEpoch();
         }
-        address[] memory _operators = _activeOperatorsAt(epochStartTs);
-
-        uint256 operatorLength = _operators.length;
-        for (uint256 i; i < operatorLength; ++i) {
-            address operator = _operators[i];
-
-            uint256 operatorStake = getOperatorStake(operator, epoch);
-            $.operatorStakeCache[epoch][operator] = operatorStake;
-            totalStake += operatorStake;
-        }
-
-        $.totalStakeIsCached[epoch] = true;
-        $.totalStakeCache[epoch] = totalStake;
-    }
-
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
-    //TODO use prebuilt function from SDK
-    function slash(
-        uint48 epoch,
-        bytes32 operatorKey,
-        uint256 percentage
-    ) external onlyGateway updateStakeCache(epoch) {
-        uint48 epochStartTs = getEpochStart(epoch);
-        address operator = operatorByKey(abi.encode(operatorKey));
 
         // If address is 0, then we should return
         if (operator == address(0)) {
@@ -282,22 +243,24 @@ contract Middleware is
      * @param params Struct containing slashing parameters
      */
     function _processVaultSlashing(address vault, SlashParams memory params) private {
-        for (uint96 j = 0; j < _subnetworksLength(); ++j) {
-            bytes32 subnetwork = _NETWORK().subnetwork(j);
-            //! This can be manipulated. I get slashed for 100 ETH, but if I participate to multiple vaults without any slashing, I can get slashed for far lower amount of ETH
-            uint256 vaultStake = IBaseDelegator(IVault(vault).delegator()).stakeAt(
-                subnetwork, params.operator, params.epochStartTs, new bytes(0)
-            );
-            // Slash percentage is already in parts per billion
-            // so we need to divide by a billion
-            uint256 slashAmount = params.slashPercentage.mulDiv(vaultStake, PARTS_PER_BILLION);
+        //? Tanssi will use probably only one subnetwork, so we can skip this loop
 
-            _slashVault(params.epochStartTs, vault, subnetwork, params.operator, slashAmount);
-        }
+        // for (uint96 j = 0; j < _subnetworksLength(); ++j) {
+        //! This can be manipulated. I get slashed for 100 ETH, but if I participate to multiple vaults without any slashing, I can get slashed for far lower amount of ETH
+        bytes32 subnetwork = _NETWORK().subnetwork(0);
+        //? Probably we should check only for his slashable stake and not for the whole stake?
+        uint256 vaultStake = IBaseDelegator(IVault(vault).delegator()).stakeAt(
+            subnetwork, params.operator, params.epochStartTs, new bytes(0)
+        );
+        // Slash percentage is already in parts per billion
+        // so we need to divide by a billion
+        uint256 slashAmount = params.slashPercentage.mulDiv(vaultStake, PARTS_PER_BILLION);
+
+        _slashVault(params.epochStartTs, vault, subnetwork, params.operator, slashAmount);
     }
 
     /**
-     * @dev Slashes a vault's stake for a specific operator
+     * @dev Slashes a vault's stake for a specific operator. Middleware SDK already provides _slashVault function but  custom version is needed to avoid revert in specific scenarios for the gateway message passing.
      * @param timestamp Time at which the epoch started
      * @param vault Address of the vault to slash
      * @param subnetwork Subnetwork identifier
@@ -317,6 +280,7 @@ contract Middleware is
             return;
         }
         uint256 slasherType = IEntity(slasher).TYPE();
+        //? Shall we add event for each slash?
         if (slasherType == uint256(SlasherType.INSTANT)) {
             ISlasher(slasher).slash(subnetwork, operator, amount, timestamp, new bytes(0));
         } else if (slasherType == uint256(SlasherType.VETO)) {
@@ -336,9 +300,9 @@ contract Middleware is
     //                                      VIEW FUNCTIONS
     // **************************************************************************************************
 
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
+    /**
+     * @inheritdoc IMiddleware
+     */
     function getOperatorsByEpoch(
         uint48 epoch
     ) external view returns (address[] memory activeOperators) {
@@ -347,9 +311,40 @@ contract Middleware is
     }
 
     /**
-     * @dev Sorts operators by their total stake in descending order, after 500 it will be almost impossible to be used on-chain since 500 ≈ 36M gas
-     * @param epoch The epoch number
-     * @return sortedKeys Array of sorted operators keys based on their stake
+     * @inheritdoc IMiddleware
+     */
+    function getOperatorVaultPairs(
+        uint48 epoch
+    ) external view returns (OperatorVaultPair[] memory operatorVaultPairs) {
+        uint48 epochStartTs = getEpochStart(epoch);
+        address[] memory operators = _activeOperatorsAt(epochStartTs);
+
+        operatorVaultPairs = new OperatorVaultPair[](operators.length);
+
+        uint256 valIdx = 0;
+        uint256 operatorsLength = operators.length;
+        for (uint256 i; i < operatorsLength; ++i) {
+            address operator = operators[i];
+            (uint256 vaultIdx, address[] memory _vaults) = getOperatorVaults(operator, epochStartTs);
+
+            if (vaultIdx > 0) {
+                operatorVaultPairs[valIdx++] = OperatorVaultPair(operator, _vaults);
+            }
+        }
+    }
+
+    /**
+     * @inheritdoc IMiddleware
+     */
+    function isVaultRegistered(
+        address vault
+    ) external view returns (bool) {
+        VaultManagerStorage storage $ = _getVaultManagerStorage();
+        return $._sharedVaults.contains(vault);
+    }
+
+    /**
+     * @inheritdoc IMiddleware
      */
     function sortOperatorsByVaults(
         uint48 epoch
@@ -367,34 +362,9 @@ contract Middleware is
         }
     }
 
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
-    function getOperatorVaultPairs(
-        uint48 epoch
-    ) external view returns (OperatorVaultPair[] memory operatorVaultPairs) {
-        uint48 epochStartTs = getEpochStart(epoch);
-        address[] memory operators = _activeOperatorsAt(epochStartTs);
-
-        operatorVaultPairs = new OperatorVaultPair[](operators.length);
-
-        uint256 valIdx = 0;
-        uint256 operatorsLength = operators.length;
-        for (uint256 i; i < operatorsLength; ++i) {
-            address operator = operators[i];
-            (uint256 vaultIdx, address[] memory _vaults) = getOperatorVaults(operator, epochStartTs);
-            assembly {
-                mstore(_vaults, vaultIdx)
-            }
-            if (vaultIdx > 0) {
-                operatorVaultPairs[valIdx++] = OperatorVaultPair(operator, _vaults);
-            }
-        }
-    }
-
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
+    /**
+     * @inheritdoc IMiddleware
+     */
     function getOperatorVaults(
         address operator,
         uint48 epochStartTs
@@ -404,59 +374,45 @@ contract Middleware is
         vaultIdx = 0;
         uint256 operatorVaultsLength = operatorVaults.length;
         for (uint256 j; j < operatorVaultsLength; ++j) {
-            uint256 operatorStake = 0;
             address _vault = operatorVaults[j];
-            for (uint96 k = 0; k < _subnetworksLength(); ++k) {
-                operatorStake += IBaseDelegator(IVault(_vault).delegator()).stakeAt(
-                    _NETWORK().subnetwork(k), operator, epochStartTs, new bytes(0)
-                );
-            }
+            // Tanssi will use probably only one subnetwork, so we can skip this loop
+            // for (uint96 k = 0; k < _subnetworksLength(); ++k) {
+            uint256 operatorStake = IBaseDelegator(IVault(_vault).delegator()).stakeAt(
+                _NETWORK().subnetwork(0), operator, epochStartTs, new bytes(0)
+            );
+            // }
 
             if (operatorStake > 0) {
                 vaults[vaultIdx++] = _vault;
             }
         }
-    }
-
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
-    function isVaultRegistered(
-        address vault
-    ) external view returns (bool) {
-        VaultManagerStorage storage $ = _getVaultManagerStorage();
-        return $._sharedVaults.contains(vault);
-    }
-
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
-    function getOperatorStake(address operator, uint48 epoch) public view returns (uint256 power) {
-        if (totalStakeIsCached(epoch)) {
-            return operatorStakeCache(epoch, operator);
+        assembly ("memory-safe") {
+            mstore(vaults, vaultIdx)
         }
-        uint48 epochStartTs = getEpochStart(epoch);
-        power = _getOperatorPowerAt(epochStartTs, operator);
-    }
-
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
-    function getTotalStake(
-        uint48 epoch
-    ) public view returns (uint256) {
-        if (totalStakeIsCached(epoch)) {
-            return totalStakeCache(epoch);
-        }
-        return _calcTotalStake(epoch);
     }
 
     /**
-     * @notice Gets an operator's active key at the current capture timestamp
-     * @param operator The operator address to lookup
-     * @return The operator's active key encoded as bytes, or encoded zero bytes if none
+     * @inheritdoc IMiddleware
      */
-    // TODO use this function where it's needed
+    function getTotalStake(
+        uint48 epoch
+    ) public view returns (uint256 totalStake) {
+        uint48 epochStartTs = getEpochStart(epoch);
+
+        if (epochStartTs > Time.timestamp()) {
+            revert Middleware__InvalidEpoch();
+        }
+        address[] memory operators = _activeOperatorsAt(epochStartTs);
+        uint256 operatorsLength = operators.length;
+        for (uint256 i; i < operatorsLength; ++i) {
+            uint256 operatorStake = _getOperatorPowerAt(epochStartTs, operators[i]);
+            totalStake += operatorStake;
+        }
+    }
+
+    /**
+     * @inheritdoc IMiddleware
+     */
     function getOperatorKeyAt(address operator, uint48 timestamp) public view returns (bytes memory) {
         KeyManager256Storage storage $ = _getKeyManager256Storage();
         bytes32 key = $._key[operator];
@@ -470,9 +426,9 @@ contract Middleware is
         return abi.encode(bytes32(0));
     }
 
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
+    /**
+     * @inheritdoc IMiddleware
+     */
     function getValidatorSet(
         uint48 epoch
     ) public view returns (ValidatorData[] memory validatorSet) {
@@ -485,8 +441,8 @@ contract Middleware is
         for (uint256 i; i < operatorsLength; ++i) {
             address operator = operators[i];
 
-            bytes32 key = abi.decode(operatorKey(operator), (bytes32));
-            if (key == bytes32(0) || !keyWasActiveAt(epochStartTs, abi.encode(key))) {
+            bytes32 key = abi.decode(getOperatorKeyAt(operator, epochStartTs), (bytes32));
+            if (key == bytes32(0)) {
                 continue;
             }
 
@@ -509,30 +465,5 @@ contract Middleware is
     ) public view returns (uint48 epoch) {
         EpochCaptureStorage storage $ = _getEpochCaptureStorage();
         return (timestamp - $.startTimestamp) / $.epochDuration;
-    }
-
-    /**
-     * @dev Calculates total stake for an epoch
-     * @param epoch The epoch to calculate stake for
-     * @return totalStake The total stake amount
-     */
-    function _calcTotalStake(
-        uint48 epoch
-    ) private view returns (uint256 totalStake) {
-        uint48 epochStartTs = getEpochStart(epoch);
-        // for epoch older than _SLASHING_WINDOW total stake can be invalidated (use cache)
-        if (epochStartTs < Time.timestamp() - _SLASHING_WINDOW()) {
-            revert Middleware__TooOldEpoch();
-        }
-
-        if (epochStartTs > Time.timestamp()) {
-            revert Middleware__InvalidEpoch();
-        }
-        address[] memory operators = _activeOperatorsAt(epochStartTs);
-        uint256 operatorsLength = operators.length;
-        for (uint256 i; i < operatorsLength; ++i) {
-            uint256 operatorStake = getOperatorStake(operators[i], epoch);
-            totalStake += operatorStake;
-        }
     }
 }
