@@ -25,10 +25,11 @@ import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-ti
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 //**************************************************************************************************
 //                                      SNOWBRIDGE
 //**************************************************************************************************
@@ -38,11 +39,30 @@ import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 
-contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
+contract ODefaultOperatorRewards is
+    OwnableUpgradeable,
+    UUPSUpgradeable,
+    ReentrancyGuardUpgradeable,
+    IODefaultOperatorRewards
+{
     using SafeERC20 for IERC20;
     using Math for uint256;
 
+    /// @custom:storage-location erc7201:tanssi.rewards.ODefaultOperatorRewards.v1
+    struct OperatorRewardsStorage {
+        uint48 operatorShare;
+        mapping(uint48 eraIndex => EraRoot eraRoot) eraRoot;
+        mapping(uint48 epoch => uint48[] eraIndexes) eraIndexesPerEpoch;
+        mapping(uint48 eraIndex => mapping(address account => uint256 amount)) claimed;
+        mapping(address vault => address stakerRewardsAddress) vaultToStakerRewardsContract;
+    }
+
+    // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultOperatorRewards.v1")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 constant OPERATOR_REWARDS_STORAGE_LOCATION =
+        0x57cf781f364664df22ab0472e35114435fb4a6881ab5a1b47ed6d1a7d4605400;
+
     uint48 public constant MAX_PERCENTAGE = 10_000;
+
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
@@ -53,31 +73,6 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
      */
     address public immutable i_network;
 
-    /**
-     * @inheritdoc IODefaultOperatorRewards
-     */
-    uint48 public s_operatorShare;
-
-    /**
-     * @inheritdoc IODefaultOperatorRewards
-     */
-    mapping(uint48 eraIndex => EraRoot eraRoot) public s_eraRoot;
-
-    /**
-     * @inheritdoc IODefaultOperatorRewards
-     */
-    mapping(uint48 epoch => uint48[] eraIndexes) public s_eraIndexesPerEpoch;
-
-    /**
-     * @inheritdoc IODefaultOperatorRewards
-     */
-    mapping(uint48 eraIndex => mapping(address account => uint256 amount)) public s_claimed;
-
-    /**
-     * @inheritdoc IODefaultOperatorRewards
-     */
-    mapping(address vault => address stakerRewardsAddress) public s_vaultToStakerRewardsContract;
-
     modifier onlyMiddleware() {
         if (INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network) != msg.sender) {
             revert ODefaultOperatorRewards__NotNetworkMiddleware();
@@ -85,10 +80,17 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         _;
     }
 
-    constructor(address network, address networkMiddlewareService, uint48 operatorShare) {
+    constructor(address network, address networkMiddlewareService) {
         i_network = network;
         i_networkMiddlewareService = networkMiddlewareService;
-        s_operatorShare = operatorShare;
+    }
+
+    function initialize(uint48 operatorShare_, address owner_) public initializer {
+        __Ownable_init(owner_);
+        __UUPSUpgradeable_init();
+        __ReentrancyGuard_init();
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        $.operatorShare = operatorShare_;
     }
 
     /**
@@ -117,7 +119,7 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
             }
         }
 
-        EraRoot memory eraRoot = EraRoot({
+        EraRoot memory eraRoot_ = EraRoot({
             epoch: epoch,
             amount: amount,
             // We need to calculate how much each point is worth in tokens
@@ -127,10 +129,11 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         });
         // We store the eraRoot struct which contains useful information for the claimRewards function and for UI
         // We store also the eraIndex in an array to be able to get all the eras for each epoch
-        s_eraRoot[eraIndex] = eraRoot;
-        s_eraIndexesPerEpoch[epoch].push(eraIndex);
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        $.eraRoot[eraIndex] = eraRoot_;
+        $.eraIndexesPerEpoch[epoch].push(eraIndex);
 
-        emit DistributeRewards(epoch, eraIndex, tokenAddress, eraRoot.tokensPerPoint, amount, root);
+        emit DistributeRewards(epoch, eraIndex, tokenAddress, eraRoot_.tokensPerPoint, amount, root);
     }
 
     /**
@@ -139,10 +142,10 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
     function claimRewards(
         ClaimRewardsInput calldata input
     ) external nonReentrant returns (uint256 amount) {
-        EraRoot memory eraRoot = s_eraRoot[input.eraIndex];
-        uint48 epoch = eraRoot.epoch;
-        address tokenAddress = eraRoot.tokenAddress;
-        if (eraRoot.root == bytes32(0)) {
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        EraRoot memory eraRoot_ = $.eraRoot[input.eraIndex];
+        address tokenAddress = eraRoot_.tokenAddress;
+        if (eraRoot_.root == bytes32(0)) {
             revert ODefaultOperatorRewards__RootNotSet();
         }
 
@@ -150,7 +153,7 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         if (
             !MerkleProof.verifyCalldata(
                 input.proof,
-                eraRoot.root,
+                eraRoot_.root,
                 keccak256(abi.encodePacked(input.operatorKey, ScaleCodec.encodeU32(input.totalPointsClaimable)))
             )
         ) {
@@ -163,30 +166,30 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
 
         // Calculate the total amount of tokens that can be claimed which is:
         // total amount of tokens = total points claimable * tokens per point
-        amount = input.totalPointsClaimable * eraRoot.tokensPerPoint;
+        amount = input.totalPointsClaimable * eraRoot_.tokensPerPoint;
 
         // You can only claim everything and if it's claimed before revert
-        if (s_claimed[input.eraIndex][recipient] > 0) {
+        if ($.claimed[input.eraIndex][recipient] > 0) {
             revert ODefaultOperatorRewards__InsufficientTotalClaimable();
         }
 
-        s_claimed[input.eraIndex][recipient] = amount;
+        $.claimed[input.eraIndex][recipient] = amount;
 
-        // s_operatorShare% of the rewards to the operator
-        uint256 operatorAmount = amount.mulDiv(s_operatorShare, MAX_PERCENTAGE);
+        // operatorShare% of the rewards to the operator
+        uint256 operatorAmount = amount.mulDiv($.operatorShare, MAX_PERCENTAGE);
 
         // (1-s_operatorShare)% of the rewards to the stakers
         uint256 stakerAmount = amount - operatorAmount;
 
-        // On every claim send s_operatorShare% of the rewards to the operator
+        // On every claim send operatorShare% of the rewards to the operator
         // And then distribute rewards to the stakers
         // This is gonna send (1-s_operatorShare)% of the rewards
         IERC20(tokenAddress).safeTransfer(recipient, operatorAmount);
 
         _distributeRewardsToStakers(
-            epoch, input.eraIndex, stakerAmount, recipient, middlewareAddress, tokenAddress, input.data
+            eraRoot_.epoch, input.eraIndex, stakerAmount, recipient, middlewareAddress, tokenAddress, input.data
         );
-        emit ClaimRewards(recipient, tokenAddress, input.eraIndex, epoch, msg.sender, amount);
+        emit ClaimRewards(recipient, tokenAddress, input.eraIndex, eraRoot_.epoch, msg.sender, amount);
     }
 
     function _distributeRewardsToStakers(
@@ -204,8 +207,10 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         (, address[] memory operatorVaults) = Middleware(middlewareAddress).getOperatorVaults(recipient, epochStartTs);
 
         // TODO: Currently it's only for a specific vault. We don't care now about making it able to send rewards for multiple vaults. It's hardcoded to the first vault of the operator.
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         if (operatorVaults.length > 0) {
-            IODefaultStakerRewards(s_vaultToStakerRewardsContract[operatorVaults[0]]).distributeRewards(
+            IERC20(tokenAddress).approve($.vaultToStakerRewardsContract[operatorVaults[0]], stakerAmount);
+            IODefaultStakerRewards($.vaultToStakerRewardsContract[operatorVaults[0]]).distributeRewards(
                 epoch, eraIndex, stakerAmount, tokenAddress, data
             );
         }
@@ -219,12 +224,13 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
         if (stakerRewards == address(0) || vault == address(0)) {
             revert ODefaultOperatorRewards__InvalidAddress();
         }
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
 
-        if (s_vaultToStakerRewardsContract[vault] == stakerRewards) {
+        if ($.vaultToStakerRewardsContract[vault] == stakerRewards) {
             revert ODefaultOperatorRewards__AlreadySet();
         }
 
-        s_vaultToStakerRewardsContract[vault] = stakerRewards;
+        $.vaultToStakerRewardsContract[vault] = stakerRewards;
 
         emit SetStakerRewardContract(stakerRewards, vault);
     }
@@ -233,18 +239,74 @@ contract ODefaultOperatorRewards is ReentrancyGuard, IODefaultOperatorRewards {
      * @inheritdoc IODefaultOperatorRewards
      */
     function setOperatorShare(
-        uint48 operatorShare
+        uint48 operatorShare_
     ) external onlyMiddleware {
         //TODO A maximum value for the operatorShare should be chosen. 100% shouldn't be a valid option.
-        if (operatorShare >= MAX_PERCENTAGE) {
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        if (operatorShare_ >= MAX_PERCENTAGE) {
             revert ODefaultOperatorRewards__InvalidOperatorShare();
         }
-        if (operatorShare == s_operatorShare) {
+        if (operatorShare_ == $.operatorShare) {
             revert ODefaultOperatorRewards__AlreadySet();
         }
 
-        s_operatorShare = operatorShare;
+        $.operatorShare = operatorShare_;
 
-        emit SetOperatorShare(operatorShare);
+        emit SetOperatorShare(operatorShare_);
+    }
+
+    /**
+     * @inheritdoc IODefaultOperatorRewards
+     */
+    function operatorShare() external view returns (uint48 operatorShare_) {
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        operatorShare_ = $.operatorShare;
+    }
+
+    /**
+     * @inheritdoc IODefaultOperatorRewards
+     */
+    function eraRoot(
+        uint48 eraIndex
+    ) external view returns (EraRoot memory eraRoot_) {
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        eraRoot_ = $.eraRoot[eraIndex];
+    }
+
+    /**
+     * @inheritdoc IODefaultOperatorRewards
+     */
+    function eraIndexesPerEpoch(uint48 epoch, uint256 index) external view returns (uint48 eraIndex) {
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        eraIndex = $.eraIndexesPerEpoch[epoch][index];
+    }
+
+    /**
+     * @inheritdoc IODefaultOperatorRewards
+     */
+    function claimed(uint48 eraIndex, address account) external view returns (uint256 amount) {
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        amount = $.claimed[eraIndex][account];
+    }
+
+    /**
+     * @inheritdoc IODefaultOperatorRewards
+     */
+    function vaultToStakerRewardsContract(
+        address vault
+    ) external view returns (address stakerRewards) {
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        stakerRewards = $.vaultToStakerRewardsContract[vault];
+    }
+
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyOwner {}
+
+    function _getOperatorRewardsStorage() private pure returns (OperatorRewardsStorage storage $) {
+        bytes32 position = OPERATOR_REWARDS_STORAGE_LOCATION;
+        assembly {
+            $.slot := position
+        }
     }
 }

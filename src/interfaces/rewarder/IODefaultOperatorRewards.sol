@@ -15,7 +15,6 @@
 pragma solidity ^0.8.0;
 
 interface IODefaultOperatorRewards {
-    error ODefaultOperatorRewards__InsufficientBalance();
     error ODefaultOperatorRewards__InsufficientTotalClaimable();
     error ODefaultOperatorRewards__InsufficientTransfer();
     error ODefaultOperatorRewards__NotNetworkMiddleware();
@@ -122,23 +121,16 @@ interface IODefaultOperatorRewards {
      * @notice Get the operator share.
      * @return operator share
      */
-    function s_operatorShare() external view returns (uint48);
+    function operatorShare() external view returns (uint48);
 
     /**
      * @notice Get an information of a particular era rewards data distribution
      * @param eraIndex era index of Starlight's rewards distribution
-     * @return epoch network epoch of the middleware
-     * @return amount of tokens that can be claimed
-     * @return tokensPerPoints amount of tokens per point
-     * @return root Merkle root of the reward distribution
-     * @return tokenAddress address of the reward token
+     * @return eraRoot_ information of a particular era rewards data distribution
      */
-    function s_eraRoot(
+    function eraRoot(
         uint48 eraIndex
-    )
-        external
-        view
-        returns (uint48 epoch, uint256 amount, uint256 tokensPerPoints, bytes32 root, address tokenAddress);
+    ) external view returns (EraRoot memory eraRoot_);
 
     /**
      * @notice Get an array of era indexes for a particular epoch.
@@ -146,22 +138,22 @@ interface IODefaultOperatorRewards {
      * @param index in the array of era indexes
      * @return eraIndex era index of Starlight's rewards distribution
      */
-    function s_eraIndexesPerEpoch(uint48 epoch, uint256 index) external view returns (uint48 eraIndex);
+    function eraIndexesPerEpoch(uint48 epoch, uint256 index) external view returns (uint48 eraIndex);
 
     /**
      * @notice Get a claimed amount of rewards for a particular account and epoch
      * @param eraIndex era index of Starlight's rewards distribution
      * @param account address of the claimer
-     * @return claimed amount of tokens
+     * @return amount claimed amount of tokens
      */
-    function s_claimed(uint48 eraIndex, address account) external view returns (uint256);
+    function claimed(uint48 eraIndex, address account) external view returns (uint256 amount);
 
     /**
      * @notice Get the staker rewards contract's address for a particular vault
      * @param vault address of the vault
      * @return stakerRewardsAddress address of the staker rewards contract
      */
-    function s_vaultToStakerRewardsContract(
+    function vaultToStakerRewardsContract(
         address vault
     ) external view returns (address stakerRewardsAddress);
 

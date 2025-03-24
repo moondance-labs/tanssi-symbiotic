@@ -45,7 +45,7 @@ import {OperatorManager} from "@symbiotic-middleware/managers/OperatorManager.so
 //**************************************************************************************************
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Errors} from "@openzeppelin/contracts/utils/Errors.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 
 //**************************************************************************************************
 //                                      SNOWBRIDGE
@@ -250,12 +250,13 @@ contract RewardsTest is Test {
 
         _deployVaults(tanssi);
 
-        DeployRewards deployRewards = new DeployRewards();
-        address operatorRewardsAddress =
-            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), OPERATOR_SHARE);
+        DeployRewards deployRewards = new DeployRewards(true);
+        address operatorRewardsAddress = deployRewards.deployOperatorRewardsContract(
+            tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
+        );
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
-        (address stakerRewardsFactoryAddress,) = deployRewards.deployStakerRewardsFactoryContract(
-            address(vaultFactory), address(networkMiddlewareService), uint48(block.timestamp), NETWORK_EPOCH_DURATION
+        address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
+            address(vaultFactory), address(networkMiddlewareService), operatorRewardsAddress, tanssi
         );
         middleware = _deployMiddlewareWithProxy(tanssi, owner, address(operatorRewards), stakerRewardsFactoryAddress);
 
@@ -315,7 +316,7 @@ contract RewardsTest is Test {
         address _stakerRewardsFactoryAddress
     ) public returns (Middleware _middleware) {
         Middleware _middlewareImpl = new Middleware(_operatorRewardsAddress, _stakerRewardsFactoryAddress);
-        _middleware = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
+        _middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
         _middleware.initialize(
             _network,
             address(operatorRegistry),
@@ -366,13 +367,10 @@ contract RewardsTest is Test {
     ) public {
         vm.startPrank(_owner);
         IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
-            vault: address(0),
             adminFee: 0,
             defaultAdminRoleHolder: _owner,
-            adminFeeClaimRoleHolder: address(0),
-            adminFeeSetRoleHolder: address(0),
-            operatorRewardsRoleHolder: _owner,
-            network: tanssi
+            adminFeeClaimRoleHolder: _owner,
+            adminFeeSetRoleHolder: _owner
         });
         middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
         middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsParams);

@@ -16,6 +16,8 @@ pragma solidity 0.8.25;
 
 import {Script, console2} from "forge-std/Script.sol";
 
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
@@ -24,8 +26,12 @@ import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStake
 contract DeployRewards is Script {
     ODefaultStakerRewardsFactory public stakerRewardsFactory;
     ODefaultOperatorRewards public operatorRewards;
-    ODefaultStakerRewards public stakerRewards;
     ODefaultStakerRewards public stakerRewardsImpl;
+
+    uint256 ownerPrivateKey =
+        vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
+
+    bool isTest = false;
 
     struct DeployParams {
         address vault;
@@ -43,66 +49,59 @@ contract DeployRewards is Script {
 
     event Done();
 
+    constructor(
+        bool _isTest
+    ) {
+        isTest = _isTest;
+    }
+
     function deployOperatorRewardsContract(
         address network,
         address networkMiddlewareService,
-        uint48 operatorShare
+        uint48 operatorShare,
+        address owner
     ) public returns (address) {
-        operatorRewards = new ODefaultOperatorRewards(network, networkMiddlewareService, operatorShare);
+        if (!isTest) {
+            vm.startBroadcast(ownerPrivateKey);
+        }
+        ODefaultOperatorRewards operatorRewardsImpl = new ODefaultOperatorRewards(network, networkMiddlewareService);
+        operatorRewards = ODefaultOperatorRewards(address(new ERC1967Proxy(address(operatorRewardsImpl), "")));
+        operatorRewards.initialize(operatorShare, owner);
         console2.log("Operator rewards contract deployed at address: ", address(operatorRewards));
+        if (!isTest) {
+            vm.stopBroadcast();
+        }
         return address(operatorRewards);
     }
 
     function deployStakerRewardsFactoryContract(
         address vaultFactory,
         address networkMiddlewareService,
-        uint48 startTime,
-        uint48 epochDuration
-    ) public returns (address, address) {
-        stakerRewardsImpl = new ODefaultStakerRewards(vaultFactory, networkMiddlewareService, startTime, epochDuration);
-        stakerRewardsFactory = new ODefaultStakerRewardsFactory(address(stakerRewardsImpl));
-        console2.log("Staker rewards factory deployed at address: ", address(stakerRewardsFactory));
-        console2.log("Staker rewards implementation deployed at address: ", address(stakerRewardsImpl));
-
-        return (address(stakerRewardsFactory), address(stakerRewardsImpl));
-    }
-
-    function deployStakerRewardsContract(
-        address vault,
-        uint256 adminFee,
-        address defaultAdminRole,
-        address adminFeeClaimRole,
-        address adminFeeSetRole,
-        address operatorRewardsRole,
+        address operatorRewardsAddress,
         address network
     ) public returns (address) {
-        IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
-            vault: vault,
-            adminFee: adminFee,
-            defaultAdminRoleHolder: defaultAdminRole,
-            adminFeeClaimRoleHolder: adminFeeClaimRole,
-            adminFeeSetRoleHolder: adminFeeSetRole,
-            operatorRewardsRoleHolder: operatorRewardsRole,
-            network: network
-        });
-        address newStakerRewards = stakerRewardsFactory.create(params);
-        console2.log("Staker rewards contract deployed at address: ", newStakerRewards);
-        return newStakerRewards;
+        if (!isTest) {
+            vm.startBroadcast(ownerPrivateKey);
+        }
+        stakerRewardsFactory =
+            new ODefaultStakerRewardsFactory(vaultFactory, networkMiddlewareService, operatorRewardsAddress, network);
+        console2.log("Staker rewards factory deployed at address: ", address(stakerRewardsFactory));
+
+        if (!isTest) {
+            vm.stopBroadcast();
+        }
+
+        return address(stakerRewardsFactory);
     }
 
     function run(
         DeployParams calldata params
     ) external {
-        deployOperatorRewardsContract(params.network, params.networkMiddlewareService, params.operatorShare);
-        deployStakerRewardsFactoryContract(params.vaultFactory, params.network, params.startTime, params.epochDuration);
-        deployStakerRewardsContract(
-            params.vault,
-            params.adminFee,
-            params.defaultAdminRole,
-            params.adminFeeClaimRole,
-            params.adminFeeSetRole,
-            address(operatorRewards),
-            params.network
+        address operatorRewardsAddress = deployOperatorRewardsContract(
+            params.network, params.networkMiddlewareService, params.operatorShare, params.defaultAdminRole
+        );
+        deployStakerRewardsFactoryContract(
+            params.vaultFactory, params.networkMiddlewareService, operatorRewardsAddress, params.network
         );
         emit Done();
     }

@@ -37,8 +37,8 @@ import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-ti
 //**************************************************************************************************
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
+import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
@@ -702,10 +702,10 @@ contract MiddlewareTest is Test {
         vm.startPrank(network2);
 
         Middleware _middlewareImpl = _getMiddlewareImpl(network2, vaultFactoryAddress, networkMiddlewareServiceAddress);
-        Middleware middleware2 = Middleware(address(new ERC1967Proxy(address(_middlewareImpl), "")));
+        Middleware middleware2 = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
         address readHelper = address(new BaseMiddlewareReader());
 
-        Middleware(address(middleware2)).initialize(
+        middleware2.initialize(
             network2,
             operatorRegistryAddress,
             vaultFactoryAddress,
@@ -718,13 +718,10 @@ contract MiddlewareTest is Test {
 
         INetworkMiddlewareService(networkMiddlewareServiceAddress).setMiddleware(address(middleware2));
         IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
-            vault: address(0),
             adminFee: 0,
             defaultAdminRoleHolder: network2,
             adminFeeClaimRoleHolder: network2,
-            adminFeeSetRoleHolder: address(0),
-            operatorRewardsRoleHolder: network2,
-            network: network2
+            adminFeeSetRoleHolder: network2
         });
         middleware2.registerSharedVault(address(ecosystemEntities.vault), stakerRewardsParams);
         middleware2.registerOperator(operator4, abi.encode(OPERATOR4_KEY), address(0));
@@ -754,13 +751,14 @@ contract MiddlewareTest is Test {
         address vaultFactoryAddress,
         address networkMiddlewareServiceAddress
     ) private returns (Middleware middlewareImpl) {
-        DeployRewards deployRewards = new DeployRewards();
-        (address stakerRewardsFactoryAddress,) = deployRewards.deployStakerRewardsFactoryContract(
-            vaultFactoryAddress, networkMiddlewareServiceAddress, uint48(block.timestamp), NETWORK_EPOCH_DURATION
-        );
+        DeployRewards deployRewards = new DeployRewards(true);
 
         address operatorRewardsAddress =
-            deployRewards.deployOperatorRewardsContract(network, networkMiddlewareServiceAddress, 5000);
+            deployRewards.deployOperatorRewardsContract(network, networkMiddlewareServiceAddress, 5000, owner);
+
+        address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
+            vaultFactoryAddress, networkMiddlewareServiceAddress, operatorRewardsAddress, owner
+        );
 
         middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
     }

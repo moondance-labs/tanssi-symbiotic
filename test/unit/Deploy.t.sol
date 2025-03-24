@@ -74,7 +74,7 @@ contract DeployTest is Test {
         deploySymbiotic = new DeploySymbiotic();
         deployTanssiEcosystem = new DeployTanssiEcosystem();
         deployVault = new DeployVault();
-        deployRewards = new DeployRewards();
+        deployRewards = new DeployRewards(true);
         helperConfig = new HelperConfig();
 
         deployTanssiEcosystem.deployTanssiEcosystem(helperConfig);
@@ -214,7 +214,7 @@ contract DeployTest is Test {
         address operatorRegistry = addresses.operatorRegistry;
         address vaultFactory = addresses.vaultFactory;
         address operatorNetworkOptIn = addresses.operatorNetworkOptInService;
-
+        address networkMiddlewareService = addresses.networkMiddlewareService;
         address middleware = deployTanssiEcosystem.deployMiddleware(
             tanssi,
             operatorRegistry,
@@ -225,7 +225,8 @@ contract DeployTest is Test {
             8 days,
             operatorRewardsAddress,
             stakerRewardsFactoryAddress,
-            address(0)
+            address(0),
+            networkMiddlewareService
         );
         assertNotEq(middleware, ZERO_ADDRESS);
     }
@@ -244,13 +245,10 @@ contract DeployTest is Test {
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
 
         IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
-            vault: _vault,
             adminFee: 0,
             defaultAdminRoleHolder: tanssi,
-            adminFeeClaimRoleHolder: address(0),
-            adminFeeSetRoleHolder: address(0),
-            operatorRewardsRoleHolder: tanssi,
-            network: tanssi
+            adminFeeClaimRoleHolder: tanssi,
+            adminFeeSetRoleHolder: tanssi
         });
         deployTanssiEcosystem.registerSharedVault(address(middleware), _vault, stakerRewardsParams);
     }
@@ -275,6 +273,7 @@ contract DeployTest is Test {
             9 days,
             operatorRewardsAddress,
             stakerRewardsFactoryAddress,
+            address(0),
             address(0)
         );
 
@@ -756,31 +755,18 @@ contract DeployTest is Test {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
 
         address operatorRewards =
-            deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20);
+            deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20, tanssi);
         assertNotEq(operatorRewards, ZERO_ADDRESS);
     }
 
     function testDeployRewardsStakerFactory() public {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
+        address operatorRewards =
+            deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20, tanssi);
 
-        (address stakerFactory, address stakerImpl) = deployRewards.deployStakerRewardsFactoryContract(
-            addresses.vaultFactory, addresses.networkMiddlewareService, uint48(block.timestamp), NETWORK_EPOCH_DURATION
+        address stakerFactory = deployRewards.deployStakerRewardsFactoryContract(
+            addresses.vaultFactory, addresses.networkMiddlewareService, operatorRewards, tanssi
         );
         assertNotEq(stakerFactory, ZERO_ADDRESS);
-        assertNotEq(stakerImpl, ZERO_ADDRESS);
-    }
-
-    function testDeployRewardsStaker() public {
-        DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
-        (address vault,,,,,,,,) = deployTanssiEcosystem.vaultAddresses();
-
-        deployRewards.deployStakerRewardsFactoryContract(
-            addresses.vaultFactory, addresses.networkMiddlewareService, 1 days, NETWORK_EPOCH_DURATION
-        );
-        vm.mockCall(addresses.vaultFactory, abi.encodeWithSelector(IRegistry.isEntity.selector), abi.encode(true));
-
-        address stakerRewards =
-            deployRewards.deployStakerRewardsContract(vault, 0, tanssi, tanssi, tanssi, tanssi, tanssi);
-        assertNotEq(stakerRewards, ZERO_ADDRESS);
     }
 }

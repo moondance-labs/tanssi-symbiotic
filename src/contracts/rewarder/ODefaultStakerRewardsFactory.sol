@@ -14,32 +14,47 @@
 
 pragma solidity 0.8.25;
 
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+
+import {Registry} from "@symbioticfi/core/src/contracts/common/Registry.sol";
+
 import {ODefaultStakerRewards} from "./ODefaultStakerRewards.sol";
 import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
-import {Registry} from "@symbioticfi/core/src/contracts/common/Registry.sol";
-import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 
 contract ODefaultStakerRewardsFactory is Registry, IODefaultStakerRewardsFactory {
-    using Clones for address;
+    address private immutable i_vaultFactory;
+    address private immutable i_networkMiddlewareService;
+    address private immutable i_operatorRewards;
+    address private immutable i_network;
 
-    address private immutable STAKER_REWARDS_IMPLEMENTATION;
+    constructor(address vaultFactory, address networkMiddlewareService, address operatorRewards, address network) {
+        if (
+            vaultFactory == address(0) || networkMiddlewareService == address(0) || operatorRewards == address(0)
+                || network == address(0)
+        ) {
+            revert ODefaultStakerRewardsFactory__InvalidAddress();
+        }
 
-    constructor(
-        address stakerRewardsImplementation
-    ) {
-        STAKER_REWARDS_IMPLEMENTATION = stakerRewardsImplementation;
+        i_vaultFactory = vaultFactory;
+        i_networkMiddlewareService = networkMiddlewareService;
+        i_operatorRewards = operatorRewards;
+        i_network = network;
     }
 
     /**
      * @inheritdoc IODefaultStakerRewardsFactory
      */
-    function create(
-        ODefaultStakerRewards.InitParams calldata params
-    ) external returns (address) {
-        address stakerRewards =
-            STAKER_REWARDS_IMPLEMENTATION.cloneDeterministic(keccak256(abi.encode(totalEntities(), params)));
-        ODefaultStakerRewards(stakerRewards).initialize(params);
-        _addEntity(stakerRewards);
-        return stakerRewards;
+    function create(address vault, ODefaultStakerRewards.InitParams calldata params) external returns (address) {
+        if (vault == address(0) || !Registry(i_vaultFactory).isEntity(vault)) {
+            revert ODefaultStakerRewardsFactory__NotVault();
+        }
+
+        ODefaultStakerRewards stakerRewards = new ODefaultStakerRewards(i_networkMiddlewareService, vault, i_network);
+
+        address proxy = address(new ERC1967Proxy((address(stakerRewards)), ""));
+        ODefaultStakerRewards(proxy).initialize(i_operatorRewards, params);
+        _addEntity(proxy);
+
+        return proxy;
     }
 }

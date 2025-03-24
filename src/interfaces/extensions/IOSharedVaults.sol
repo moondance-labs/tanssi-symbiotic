@@ -3,11 +3,11 @@ pragma solidity ^0.8.25;
 
 import {IODefaultStakerRewards} from "../rewarder/IODefaultStakerRewards.sol";
 /**
- * @title ISharedVaults
+ * @title IOSharedVaults
  * @notice Interface for managing shared vaults that can be used by multiple operators
  */
 
-interface ISharedVaults {
+interface IOSharedVaults {
     /**
      * @notice Registers a new shared vault
      * @param sharedVault The address of the vault to register

@@ -45,6 +45,8 @@ coverage :; forge coverage --nmp test/fork/*
 
 dcoverage :; forge coverage --nmp test/fork/* --report debug > coverage.txt
 
+hcoverage:; forge coverage  --nmp test/fork/* --report lcov && genhtml lcov.info -o report --branch-coverage
+
 snapshot :; forge snapshot --nmp test/fork/*
 
 format :; forge fmt
