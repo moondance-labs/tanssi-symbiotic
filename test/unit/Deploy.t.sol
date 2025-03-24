@@ -225,8 +225,7 @@ contract DeployTest is Test {
             owner: tanssi,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: 8 days,
-            reader: address(0),
-            forwarder: address(0)
+            reader: address(0)
         });
         address middleware = deployTanssiEcosystem.deployMiddleware(
             params, operatorRewardsAddress, stakerRewardsFactoryAddress, networkMiddlewareService
@@ -273,8 +272,7 @@ contract DeployTest is Test {
             owner: _tanssi,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: 9 days,
-            reader: address(0),
-            forwarder: address(0)
+            reader: address(0)
         });
         address middleware = deployTanssiEcosystem.deployMiddleware(
             params, operatorRewardsAddress, stakerRewardsFactoryAddress, address(0)

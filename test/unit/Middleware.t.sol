@@ -177,8 +177,7 @@ contract MiddlewareTest is Test {
             owner: owner,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
-            reader: readHelper,
-            forwarder: address(0)
+            reader: readHelper
         });
         middleware.initialize(params);
         middleware.setGateway(address(gateway));
@@ -219,8 +218,7 @@ contract MiddlewareTest is Test {
             owner: owner,
             epochDuration: EPOCH_DURATION_,
             slashingWindow: SHORT_SLASHING_WINDOW_,
-            reader: readHelper,
-            forwarder: address(0)
+            reader: readHelper
         });
         Middleware(address(middlewareProxy)).initialize(params);
 
@@ -1699,8 +1697,7 @@ contract MiddlewareTest is Test {
             owner: address(0),
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
-            reader: readHelper,
-            forwarder: address(0)
+            reader: readHelper
         });
         middleware2.initialize(params);
     }
@@ -1716,8 +1713,7 @@ contract MiddlewareTest is Test {
             owner: owner,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
-            reader: address(0),
-            forwarder: address(0)
+            reader: address(0)
         });
         middleware2.initialize(params);
     }

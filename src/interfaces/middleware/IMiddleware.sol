@@ -72,7 +72,6 @@ interface IMiddleware {
      * @param epochDuration The epoch duration
      * @param slashingWindow The slashing window
      * @param reader The reader address
-     * @param forwarder The Chainlink forwarder address
      */
     struct InitParams {
         address network;
@@ -83,7 +82,6 @@ interface IMiddleware {
         uint48 epochDuration;
         uint48 slashingWindow;
         address reader;
-        address forwarder;
     }
 
     /**

@@ -325,8 +325,7 @@ contract RewardsTest is Test {
             owner: _owner,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
-            reader: address(new BaseMiddlewareReader()),
-            forwarder: address(0)
+            reader: address(new BaseMiddlewareReader())
         });
         _middleware.initialize(params);
 

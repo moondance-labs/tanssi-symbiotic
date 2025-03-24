@@ -104,7 +104,6 @@ contract Middleware is
      * @param epochDuration The epoch duration
      * @param slashingWindow The slashing window
      * @param reader The reader address
-     * @param forwarder The Chainlink forwarder address
      */
     function initialize(
         InitParams memory params
@@ -120,7 +119,6 @@ contract Middleware is
             StorageMiddleware storage $ = _getMiddlewareStorage();
             $.lastTimestamp = Time.timestamp();
             $.interval = params.epochDuration;
-            $.forwarderAddress = params.forwarder;
         }
 
         __BaseMiddleware_init(

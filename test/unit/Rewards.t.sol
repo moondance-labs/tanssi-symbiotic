@@ -176,8 +176,7 @@ contract RewardsTest is Test {
             owner: tanssi,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
-            reader: readHelper,
-            forwarder: address(0)
+            reader: readHelper
         });
         Middleware(address(middleware)).initialize(params);
         slasher = new Slasher(address(vaultFactory), address(networkMiddlewareService), slasherFactory, 0);

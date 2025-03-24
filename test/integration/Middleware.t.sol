@@ -306,8 +306,7 @@ contract MiddlewareTest is Test {
             owner: _owner,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
-            reader: readHelper,
-            forwarder: address(0)
+            reader: readHelper
         });
         _middleware.initialize(params);
 

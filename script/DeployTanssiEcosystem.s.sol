@@ -312,8 +312,7 @@ contract DeployTanssiEcosystem is Script {
             owner: tanssi,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
-            reader: address(0),
-            forwarder: address(0)
+            reader: address(0)
         });
 
         ecosystemEntities.middleware =
