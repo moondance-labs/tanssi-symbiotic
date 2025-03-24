@@ -16,8 +16,6 @@ pragma solidity ^0.8.0;
 
 interface IMiddleware {
     // Errors
-    error Middleware__NotForwarder();
-    error Middleware__CallerNotGateway();
     error Middleware__GatewayNotSet();
     error Middleware__TooOldEpoch();
     error Middleware__InvalidEpoch();

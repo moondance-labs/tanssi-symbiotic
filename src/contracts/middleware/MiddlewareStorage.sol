@@ -32,6 +32,7 @@ abstract contract MiddlewareStorage {
     uint256 public constant VERSION = 1;
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
     bytes32 internal constant GATEWAY_ROLE = keccak256("GATEWAY_ROLE");
+    bytes32 internal constant FORWARDER_ROLE = keccak256("FORWARDER_ROLE");
 
     /**
      * @notice Get the operator rewards contract address

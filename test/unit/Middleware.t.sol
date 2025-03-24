@@ -86,6 +86,7 @@ contract MiddlewareTest is Test {
     uint48 public constant START_TIME = 1;
 
     bytes32 public constant GATEWAY_ROLE = keccak256("GATEWAY_ROLE");
+    bytes32 public constant FORWARDER_ROLE = keccak256("FORWARDER_ROLE");
 
     address tanssi = makeAddr("tanssi");
     address vaultFactory = makeAddr("vaultFactory");
@@ -1972,7 +1973,11 @@ contract MiddlewareTest is Test {
         (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
 
-        vm.expectRevert(IMiddleware.Middleware__NotForwarder.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), FORWARDER_ROLE
+            )
+        );
         middleware.performUpkeep(performData);
     }
 
@@ -1996,6 +2001,7 @@ contract MiddlewareTest is Test {
         (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
 
+        vm.prank(forwarder);
         vm.expectRevert(IMiddleware.Middleware__GatewayNotSet.selector);
         middleware.performUpkeep(performData);
     }

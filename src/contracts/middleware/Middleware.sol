@@ -71,13 +71,6 @@ contract Middleware is
     using Subnetwork for address;
     using Math for uint256;
 
-    modifier onlyIfGatewayExists() {
-        if (getGateway() == address(0)) {
-            revert Middleware__GatewayNotSet();
-        }
-        _;
-    }
-
     /*
      * @notice Constructor for the middleware
      * @param operatorRewards The operator rewards address
@@ -136,6 +129,7 @@ contract Middleware is
         _grantRole(DEFAULT_ADMIN_ROLE, params.owner);
         _setSelectorRole(this.distributeRewards.selector, GATEWAY_ROLE);
         _setSelectorRole(this.slash.selector, GATEWAY_ROLE);
+        _setSelectorRole(this.performUpkeep.selector, FORWARDER_ROLE);
     }
 
     function _authorizeUpgrade(
@@ -197,6 +191,7 @@ contract Middleware is
 
         StorageMiddleware storage $ = _getMiddlewareStorage();
         $.forwarderAddress = forwarder;
+        _grantRole(FORWARDER_ROLE, forwarder);
     }
 
     /**
@@ -233,11 +228,15 @@ contract Middleware is
     /**
      * @inheritdoc IMiddleware
      */
-    function sendCurrentOperatorsKeys() external onlyIfGatewayExists returns (bytes32[] memory sortedKeys) {
+    function sendCurrentOperatorsKeys() external returns (bytes32[] memory sortedKeys) {
+        address gateway = getGateway();
+        if (gateway == address(0)) {
+            revert Middleware__GatewayNotSet();
+        }
+
         uint48 epoch = getCurrentEpoch();
         sortedKeys = sortOperatorsByVaults(epoch);
-
-        IOGateway(getGateway()).sendOperatorsData(sortedKeys, epoch);
+        IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);
     }
 
     /**
@@ -265,11 +264,13 @@ contract Middleware is
      */
     function performUpkeep(
         bytes calldata performData
-    ) external override onlyIfGatewayExists {
+    ) external override checkAccess {
         StorageMiddleware storage $ = _getMiddlewareStorage();
-        if (msg.sender != $.forwarderAddress) {
-            revert Middleware__NotForwarder();
+        address gateway = $.gateway;
+        if (gateway == address(0)) {
+            revert Middleware__GatewayNotSet();
         }
+
         uint48 currentTimestamp = Time.timestamp();
         if ((currentTimestamp - $.lastTimestamp) > $.interval) {
             $.lastTimestamp = currentTimestamp;
@@ -277,7 +278,7 @@ contract Middleware is
             // Decode the sorted keys and the epoch from performData
             (bytes32[] memory sortedKeys, uint48 epoch) = abi.decode(performData, (bytes32[], uint48));
 
-            IOGateway($.gateway).sendOperatorsData(sortedKeys, epoch);
+            IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);
         }
     }
 
