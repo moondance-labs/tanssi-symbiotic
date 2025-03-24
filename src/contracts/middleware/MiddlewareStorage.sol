@@ -20,6 +20,9 @@ abstract contract MiddlewareStorage {
     /// @custom:storage-location erc7201:tanssi.middleware.MiddlewareStorage.v1.1
     struct StorageMiddleware {
         address gateway;
+        uint256 lastTimestamp;
+        address forwarderAddress;
+        uint256 interval;
     }
 
     // keccak256(abi.encode(uint256(keccak256("tanssi.middleware.MiddlewareStorage.v1.1")) - 1)) & ~bytes32(uint256(0xff));
@@ -55,5 +58,32 @@ abstract contract MiddlewareStorage {
     function getGateway() public view returns (address) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
         return $.gateway;
+    }
+
+    /**
+     * @notice Get the last timestamp
+     * @return last timestamp
+     */
+    function getLastTimestamp() public view returns (uint256) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        return $.lastTimestamp;
+    }
+
+    /**
+     * @notice Get the forwarder address
+     * @return forwarder address
+     */
+    function getForwarderAddress() public view returns (address) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        return $.forwarderAddress;
+    }
+
+    /**
+     * @notice Get the interval
+     * @return interval
+     */
+    function getInterval() public view returns (uint256) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        return $.interval;
     }
 }

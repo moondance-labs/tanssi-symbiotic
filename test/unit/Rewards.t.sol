@@ -167,16 +167,19 @@ contract RewardsTest is Test {
 
         Middleware _middlewareImpl = new Middleware(operatorRewardsAddress, address(stakerRewards));
         middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
-        Middleware(address(middleware)).initialize(
-            tanssi,
-            address(operatorRegistry),
-            address(networkRegistry),
-            address(operatorNetworkOptIn),
-            tanssi,
-            NETWORK_EPOCH_DURATION,
-            SLASHING_WINDOW,
-            readHelper
-        );
+
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: tanssi,
+            operatorRegistry: address(operatorRegistry),
+            vaultRegistry: address(vaultFactory),
+            operatorNetworkOptIn: address(operatorNetworkOptIn),
+            owner: tanssi,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: SLASHING_WINDOW,
+            reader: readHelper,
+            forwarder: address(0)
+        });
+        Middleware(address(middleware)).initialize(params);
         slasher = new Slasher(address(vaultFactory), address(networkMiddlewareService), slasherFactory, 0);
 
         vm.startPrank(tanssi);

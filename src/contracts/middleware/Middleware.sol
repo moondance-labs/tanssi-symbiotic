@@ -72,7 +72,7 @@ contract Middleware is
     using Math for uint256;
 
     modifier onlyIfGatewayExists() {
-        if (address(s_gateway) == address(0)) {
+        if (getGateway() == address(0)) {
             revert Middleware__GatewayNotSet();
         }
         _;
@@ -104,32 +104,38 @@ contract Middleware is
      * @param epochDuration The epoch duration
      * @param slashingWindow The slashing window
      * @param reader The reader address
+     * @param forwarder The Chainlink forwarder address
      */
     function initialize(
-        address network,
-        address operatorRegistry,
-        address vaultRegistry,
-        address operatorNetOptin,
-        address owner,
-        uint48 epochDuration,
-        uint48 slashingWindow,
-        address reader
+        InitParams memory params
     ) public initializer {
-        if (owner == address(0) || reader == address(0)) {
+        if (params.owner == address(0) || params.reader == address(0)) {
             revert Middleware__InvalidAddress();
         }
-        if (slashingWindow < epochDuration) {
+        if (params.slashingWindow < params.epochDuration) {
             revert Middleware__SlashingWindowTooShort();
         }
-        s_lastTimestamp = Time.timestamp();
-        s_interval = epochDuration;
 
-        __BaseMiddleware_init(network, slashingWindow, vaultRegistry, operatorRegistry, operatorNetOptin, reader);
-        __OzAccessControl_init(owner);
-        __EpochCapture_init(epochDuration);
+        {
+            StorageMiddleware storage $ = _getMiddlewareStorage();
+            $.lastTimestamp = Time.timestamp();
+            $.interval = params.epochDuration;
+            $.forwarderAddress = params.forwarder;
+        }
+
+        __BaseMiddleware_init(
+            params.network,
+            params.slashingWindow,
+            params.vaultRegistry,
+            params.operatorRegistry,
+            params.operatorNetworkOptIn,
+            params.reader
+        );
+        __OzAccessControl_init(params.owner);
+        __EpochCapture_init(params.epochDuration);
         __UUPSUpgradeable_init();
 
-        _grantRole(DEFAULT_ADMIN_ROLE, owner);
+        _grantRole(DEFAULT_ADMIN_ROLE, params.owner);
         _setSelectorRole(this.distributeRewards.selector, GATEWAY_ROLE);
         _setSelectorRole(this.slash.selector, GATEWAY_ROLE);
     }
@@ -160,30 +166,30 @@ contract Middleware is
      * @inheritdoc IMiddleware
      */
     function setGateway(
-        address _gateway
+        address gateway
     ) external checkAccess {
         StorageMiddleware storage $ = _getMiddlewareStorage();
         _revokeRole(GATEWAY_ROLE, $.gateway);
-        $.gateway = _gateway;
-        _grantRole(GATEWAY_ROLE, _gateway);
+        $.gateway = gateway;
+        _grantRole(GATEWAY_ROLE, gateway);
     }
 
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
+    /**
+     * @inheritdoc IMiddleware
+     */
     function setInterval(
         uint256 interval
     ) external checkAccess {
         if (interval == 0) {
             revert Middleware__InvalidInterval();
         }
-
-        s_interval = interval;
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        $.interval = interval;
     }
 
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
+    /**
+     * @inheritdoc IMiddleware
+     */
     function setForwarder(
         address forwarder
     ) external checkAccess {
@@ -191,7 +197,8 @@ contract Middleware is
             revert Middleware__InvalidAddress();
         }
 
-        s_forwarderAddress = forwarder;
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        $.forwarderAddress = forwarder;
     }
 
     /**
@@ -232,7 +239,7 @@ contract Middleware is
         uint48 epoch = getCurrentEpoch();
         sortedKeys = sortOperatorsByVaults(epoch);
 
-        IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);
+        IOGateway(getGateway()).sendOperatorsData(sortedKeys, epoch);
     }
 
     /**
@@ -246,9 +253,10 @@ contract Middleware is
     ) external view override returns (bool upkeepNeeded, bytes memory performData) {
         uint48 epoch = getCurrentEpoch();
         bytes32[] memory sortedKeys = sortOperatorsByVaults(epoch);
+        StorageMiddleware storage $ = _getMiddlewareStorage();
 
         // Should it be epochDuration? Because we wanna send it once per network epoch
-        upkeepNeeded = (block.timestamp - s_lastTimestamp) > s_interval;
+        upkeepNeeded = (Time.timestamp() - $.lastTimestamp) > $.interval;
 
         performData = abi.encode(sortedKeys, epoch);
     }
@@ -260,17 +268,18 @@ contract Middleware is
     function performUpkeep(
         bytes calldata performData
     ) external override onlyIfGatewayExists {
-        if (msg.sender != s_forwarderAddress) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        if (msg.sender != $.forwarderAddress) {
             revert Middleware__NotForwarder();
         }
-
-        if ((block.timestamp - s_lastTimestamp) > s_interval) {
-            s_lastTimestamp = block.timestamp;
+        uint48 currentTimestamp = Time.timestamp();
+        if ((currentTimestamp - $.lastTimestamp) > $.interval) {
+            $.lastTimestamp = currentTimestamp;
 
             // Decode the sorted keys and the epoch from performData
             (bytes32[] memory sortedKeys, uint48 epoch) = abi.decode(performData, (bytes32[], uint48));
 
-            s_gateway.sendOperatorsData(sortedKeys, epoch);
+            IOGateway($.gateway).sendOperatorsData(sortedKeys, epoch);
         }
     }
 

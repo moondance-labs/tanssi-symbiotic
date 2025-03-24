@@ -89,12 +89,13 @@ contract MiddlewareTest is Test {
 
     address tanssi = makeAddr("tanssi");
     address vaultFactory = makeAddr("vaultFactory");
-    address slasherFactory = makeAddr("vaultFactory");
+    address slasherFactory = makeAddr("slasherFactory");
     address delegatorFactory = makeAddr("delegatorFactory");
 
     address owner = makeAddr("owner");
     address operator = makeAddr("operator");
     address gateway = makeAddr("gateway");
+    address forwarder = makeAddr("forwarder");
 
     NetworkMiddlewareService networkMiddlewareService;
     OptInServiceMock operatorNetworkOptInServiceMock;
@@ -168,16 +169,18 @@ contract MiddlewareTest is Test {
 
         middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
         middleware = Middleware(address(new MiddlewareProxy(address(middlewareImpl), "")));
-        middleware.initialize(
-            tanssi,
-            address(registry),
-            address(registry),
-            address(operatorNetworkOptInServiceMock),
-            owner,
-            NETWORK_EPOCH_DURATION,
-            SLASHING_WINDOW,
-            readHelper
-        );
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: tanssi,
+            operatorRegistry: address(registry),
+            vaultRegistry: address(registry),
+            operatorNetworkOptIn: address(operatorNetworkOptInServiceMock),
+            owner: owner,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: SLASHING_WINDOW,
+            reader: readHelper,
+            forwarder: address(0)
+        });
+        middleware.initialize(params);
         middleware.setGateway(address(gateway));
 
         vm.startPrank(tanssi);
@@ -208,17 +211,18 @@ contract MiddlewareTest is Test {
         Middleware _middleware = new Middleware(address(operatorRewards), address(stakerRewardsFactory));
         Middleware middlewareProxy = Middleware(address(new MiddlewareProxy(address(_middleware), "")));
         vm.expectRevert(IMiddleware.Middleware__SlashingWindowTooShort.selector);
-
-        Middleware(address(middlewareProxy)).initialize(
-            tanssi,
-            address(registry),
-            address(registry),
-            address(operatorNetworkOptInServiceMock),
-            owner,
-            EPOCH_DURATION_,
-            SHORT_SLASHING_WINDOW_,
-            readHelper
-        );
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: tanssi,
+            operatorRegistry: address(registry),
+            vaultRegistry: address(registry),
+            operatorNetworkOptIn: address(operatorNetworkOptInServiceMock),
+            owner: owner,
+            epochDuration: EPOCH_DURATION_,
+            slashingWindow: SHORT_SLASHING_WINDOW_,
+            reader: readHelper,
+            forwarder: address(0)
+        });
+        Middleware(address(middlewareProxy)).initialize(params);
 
         vm.stopPrank();
     }
@@ -305,6 +309,9 @@ contract MiddlewareTest is Test {
         assertEq(BaseMiddlewareReader(address(middleware)).SLASHING_WINDOW(), SLASHING_WINDOW);
         assertEq(BaseMiddlewareReader(address(middleware)).subnetworksLength(), 1);
         assertEq(middleware.getGateway(), address(gateway));
+        assertEq(middleware.getLastTimestamp(), 1); // Start time in tests is 1
+        assertEq(middleware.getForwarderAddress(), address(0));
+        assertEq(middleware.getInterval(), NETWORK_EPOCH_DURATION);
     }
 
     // ************************************************************************************************
@@ -1684,31 +1691,35 @@ contract MiddlewareTest is Test {
         Middleware middleware2 = Middleware(address(new MiddlewareProxy(address(middlewareImpl), "")));
         address readHelper = address(new BaseMiddlewareReader());
         vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
-        middleware2.initialize(
-            tanssi, // network
-            address(registry), // operatorRegistry
-            address(registry), // vaultRegistry
-            address(operatorNetworkOptInServiceMock), // operatorNetOptin
-            address(0), // owner
-            NETWORK_EPOCH_DURATION, // epoch duration
-            SLASHING_WINDOW, // slashing window
-            readHelper // reader
-        );
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: tanssi,
+            operatorRegistry: address(registry),
+            vaultRegistry: address(registry),
+            operatorNetworkOptIn: address(operatorNetworkOptInServiceMock),
+            owner: address(0),
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: SLASHING_WINDOW,
+            reader: readHelper,
+            forwarder: address(0)
+        });
+        middleware2.initialize(params);
     }
 
     function testInitializeWithNoReader() public {
         Middleware middleware2 = Middleware(address(new MiddlewareProxy(address(middlewareImpl), "")));
         vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
-        middleware2.initialize(
-            tanssi, // network
-            address(registry), // operatorRegistry
-            address(registry), // vaultRegistry
-            address(operatorNetworkOptInServiceMock), // operatorNetOptin
-            owner, // owner
-            NETWORK_EPOCH_DURATION, // epoch duration
-            SLASHING_WINDOW, // slashing window
-            address(0) // reader
-        );
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: tanssi,
+            operatorRegistry: address(registry),
+            vaultRegistry: address(registry),
+            operatorNetworkOptIn: address(operatorNetworkOptInServiceMock),
+            owner: owner,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: SLASHING_WINDOW,
+            reader: address(0),
+            forwarder: address(0)
+        });
+        middleware2.initialize(params);
     }
 
     // ************************************************************************************************
@@ -1838,27 +1849,27 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function testSetForwarder() public {
-        address forwarder = makeAddr("forwarder");
+        address forwarder2 = makeAddr("forwarder2");
         vm.prank(owner);
-        middleware.setForwarder(forwarder);
-        assertEq(middleware.s_forwarderAddress(), forwarder);
+        middleware.setForwarder(forwarder2);
+        assertEq(middleware.getForwarderAddress(), forwarder2);
     }
 
     function testSetForwarderUnauthorizedAccount() public {
-        address forwarder = makeAddr("forwarder");
+        address forwarder2 = makeAddr("forwarder2");
         vm.expectRevert(
             abi.encodeWithSelector(
                 IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
             )
         );
-        middleware.setForwarder(forwarder);
+        middleware.setForwarder(forwarder2);
     }
 
     function testSetForwarderRevertIfZero() public {
-        address forwarder = address(0);
+        address forwarderNull = address(0);
         vm.prank(owner);
         vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
-        middleware.setForwarder(forwarder);
+        middleware.setForwarder(forwarderNull);
     }
 
     // ************************************************************************************************
@@ -1869,7 +1880,7 @@ contract MiddlewareTest is Test {
         uint256 interval = 3 days;
         vm.prank(owner);
         middleware.setInterval(interval);
-        assertEq(middleware.s_interval(), interval);
+        assertEq(middleware.getInterval(), interval);
     }
 
     function testSetIntervalUnauthorizedAccount() public {
@@ -1894,9 +1905,9 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function testUpkeepWhenKeysAre0() public {
-        address forwarder = makeAddr("forwarder");
+        address forwarder2 = makeAddr("forwarder2");
         vm.prank(owner);
-        middleware.setForwarder(forwarder);
+        middleware.setForwarder(forwarder2);
 
         // It's not needed, it's just for explaining and showing the flow
         address offlineKeepers = makeAddr("offlineKeepers");
@@ -1912,12 +1923,11 @@ contract MiddlewareTest is Test {
         assertEq(sortedKeys.length, 0);
 
         vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
-        vm.prank(forwarder);
+        vm.prank(forwarder2);
         middleware.performUpkeep(performData);
     }
 
     function testUpkeepWithMoreOperators() public {
-        address forwarder = makeAddr("forwarder");
         address operator2 = makeAddr("operator2");
         bytes32 OPERATOR2_KEY = bytes32(uint256(2));
 
@@ -1950,8 +1960,6 @@ contract MiddlewareTest is Test {
     }
 
     function testUpkeepShouldRevertIfNotCalledByForwarder() public {
-        address forwarder = makeAddr("forwarder");
-
         _registerOperatorToNetwork(operator, address(vault), false, false);
 
         vm.startPrank(owner);
@@ -1973,8 +1981,6 @@ contract MiddlewareTest is Test {
     }
 
     function testUpkeepShouldRevertIfGatewayNotSet() public {
-        address forwarder = makeAddr("forwarder");
-
         // We set the gateway to 0 address
         _registerOperatorToNetwork(operator, address(vault), false, false);
 

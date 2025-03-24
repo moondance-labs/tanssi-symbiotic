@@ -163,6 +163,7 @@ contract MiddlewareTest is Test {
 
     address public resolver1 = makeAddr("resolver1");
     address public resolver2 = makeAddr("resolver2");
+    address public forwarder = makeAddr("forwarder");
 
     address tanssi;
     address otherNetwork;
@@ -297,16 +298,18 @@ contract MiddlewareTest is Test {
 
         Middleware _middlewareImpl = new Middleware(_operatorRewardsAddress, _stakerRewardsFactoryAddress);
         _middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
-        _middleware.initialize(
-            _network,
-            address(operatorRegistry),
-            address(vaultFactory),
-            address(operatorNetworkOptInService),
-            _owner,
-            NETWORK_EPOCH_DURATION,
-            SLASHING_WINDOW,
-            readHelper
-        );
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: _network,
+            operatorRegistry: address(operatorRegistry),
+            vaultRegistry: address(vaultFactory),
+            operatorNetworkOptIn: address(operatorNetworkOptInService),
+            owner: _owner,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: SLASHING_WINDOW,
+            reader: readHelper,
+            forwarder: address(0)
+        });
+        _middleware.initialize(params);
 
         networkMiddlewareService.setMiddleware(address(_middleware));
     }
@@ -1221,10 +1224,8 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function testUpkeep() public {
-        address forwarder = makeAddr("forwarder");
         vm.prank(owner);
         middleware.setForwarder(forwarder);
-
         // It's not needed, it's just for explaining and showing the flow
         address offlineKeepers = makeAddr("offlineKeepers");
         vm.prank(offlineKeepers);
