@@ -60,7 +60,7 @@ contract MiddlewareTest is Test {
     uint48 public constant SLASHING_WINDOW = 7 days;
     uint48 public constant VETO_DURATION = 1 days;
     uint256 public constant SLASH_AMOUNT = 30 ether;
-    uint256 public constant OPERATOR_STAKE = 100 ether;
+    uint256 public constant OPERATOR_STAKE = 90 ether;
     uint256 public constant DEFAULT_WITHDRAW_AMOUNT = 30 ether;
     uint256 public constant OPERATOR_INITIAL_BALANCE = 1000 ether;
     uint256 public constant MIN_SLASHING_WINDOW = 1 days;
@@ -462,8 +462,8 @@ contract MiddlewareTest is Test {
         uint256 activePowerInVetoed = (activeStakeInVetoed * uint256(ORACLE_CONVERSION_TOKEN)) / 10 ** ORACLE_DECIMALS;
         assertEq(activePowerInVetoed, totalFullRestakePower);
 
-        assertApproxEqAbs(validators[1].stake, totalOperator2Stake, 2);
-        assertApproxEqAbs(validators[2].stake, totalOperator3Stake, 2);
+        assertEq(validators[1].stake, totalOperator2Stake);
+        assertEq(validators[2].stake, totalOperator3Stake);
     }
 
     function testSlashingOnOperator2AndVetoingSlash() public {
@@ -486,8 +486,8 @@ contract MiddlewareTest is Test {
         (uint256 totalOperator3StakeAfter,) =
             _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
 
-        assertApproxEqAbs(validators[1].stake, totalOperator2StakeAfter, 2);
-        assertApproxEqAbs(validators[2].stake, totalOperator3StakeAfter, 2);
+        assertEq(validators[1].stake, totalOperator2StakeAfter);
+        assertEq(validators[2].stake, totalOperator3StakeAfter);
     }
 
     function testSlashingOnOperator2AndExecuteSlashOnVetoVault() public {
@@ -515,8 +515,8 @@ contract MiddlewareTest is Test {
         (uint256 totalOperator3StakeAfter,) =
             _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, activePowerInVetoed, slashingPower);
 
-        assertApproxEqAbs(validators[1].stake, totalOperator2StakeAfter, 2);
-        assertApproxEqAbs(validators[2].stake, totalOperator3StakeAfter, 2);
+        assertEq(validators[1].stake, totalOperator2StakeAfter);
+        assertEq(validators[2].stake, totalOperator3StakeAfter);
     }
 
     function testSlashingOnOperator3AndVetoingSlash() public {
@@ -541,8 +541,8 @@ contract MiddlewareTest is Test {
         (uint256 totalOperator3StakeAfter,) =
             _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
 
-        assertApproxEqAbs(validators[1].stake, totalOperator2StakeAfter, 2);
-        assertApproxEqAbs(validators[2].stake, totalOperator3StakeAfter, 2);
+        assertEq(validators[1].stake, totalOperator2StakeAfter);
+        assertEq(validators[2].stake, totalOperator3StakeAfter);
     }
 
     function testSlashingOnOperator3AndExecuteSlashOnVetoVault() public {
@@ -571,8 +571,8 @@ contract MiddlewareTest is Test {
         (uint256 totalOperator3StakeAfter, uint256 powerFromSharesOperator3After) =
             _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, activePowerInVetoed, slashingPower);
 
-        assertApproxEqAbs(validators[1].stake, totalOperator2StakeAfter, 2);
-        assertApproxEqAbs(validators[2].stake, totalOperator3StakeAfter, 2);
+        assertEq(validators[1].stake, totalOperator2StakeAfter);
+        assertEq(validators[2].stake, totalOperator3StakeAfter);
     }
 
     function testSlashingAndPausingVault() public {
@@ -592,7 +592,7 @@ contract MiddlewareTest is Test {
         (uint256 totalOperator3StakeAfter,) = _calculateOperatorPower(totalPowerVault, totalFullRestakePower, 0);
 
         assertEq(validators[1].stake, totalOperator2StakeAfter);
-        assertApproxEqAbs(validators[2].stake, totalOperator3StakeAfter, 1);
+        assertEq(validators[2].stake, totalOperator3StakeAfter);
     }
 
     function testSlashingAndPausingOperator() public {
@@ -616,7 +616,7 @@ contract MiddlewareTest is Test {
         (uint256 totalOperator3StakeAfter,) =
             _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
         // Index is 1 instead of 2 because operator2 was paused
-        assertApproxEqAbs(validators[1].stake, totalOperator3StakeAfter, 2);
+        assertEq(validators[1].stake, totalOperator3StakeAfter);
     }
 
     function testOperatorsOnlyInTanssiNetwork() public {
