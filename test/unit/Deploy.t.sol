@@ -503,46 +503,6 @@ contract DeployTest is Test {
         vm.stopPrank();
     }
 
-    function testSetDelegatorConfigsWithSepoliaChain() public {
-        vm.chainId(11_155_111);
-        helperConfig = new HelperConfig();
-
-        deployTanssiEcosystem.deployTanssiEcosystem(helperConfig);
-        vm.startPrank(tanssi);
-
-        (, address delegator,,, address delegatorSlashable,,, address delegatorVetoed,) =
-            deployTanssiEcosystem.vaultAddresses();
-
-        assertEq(
-            INetworkRestakeDelegator(delegator).maxNetworkLimit(tanssi.subnetwork(0)),
-            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
-        );
-        assertEq(
-            INetworkRestakeDelegator(delegatorSlashable).maxNetworkLimit(tanssi.subnetwork(0)),
-            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
-        );
-        assertEq(
-            INetworkRestakeDelegator(delegatorVetoed).maxNetworkLimit(tanssi.subnetwork(0)),
-            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
-        );
-
-        // Verify subnet network limits
-        assertEq(
-            INetworkRestakeDelegator(delegator).networkLimit(tanssi.subnetwork(0)),
-            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
-        );
-        assertEq(
-            INetworkRestakeDelegator(delegatorSlashable).networkLimit(tanssi.subnetwork(0)),
-            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
-        );
-
-        assertEq(
-            INetworkRestakeDelegator(delegatorVetoed).networkLimit(tanssi.subnetwork(0)),
-            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
-        );
-        vm.stopPrank();
-    }
-
     function testDefaultCollateralBeingDeployedIfHolesky() public {
         vm.createSelectFork(HOLESKY_RPC);
 
@@ -559,18 +519,6 @@ contract DeployTest is Test {
 
     function testDefaultCollateralNotBeingDeployedIfLocal() public {
         vm.chainId(31_337);
-        vm.startPrank(tanssi);
-        deployTanssiEcosystem.deployTanssiEcosystem(helperConfig);
-
-        (,, address defaultCollateralAddress) = deployTanssiEcosystem.ecosystemEntities();
-
-        // Verify default collateral was deployed
-        assertTrue(defaultCollateralAddress == address(0));
-        vm.stopPrank();
-    }
-
-    function testDefaultCollateralNotBeingDeployedIfSepolia() public {
-        vm.chainId(11_155_111);
         vm.startPrank(tanssi);
         deployTanssiEcosystem.deployTanssiEcosystem(helperConfig);
 
