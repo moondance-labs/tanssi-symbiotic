@@ -71,6 +71,13 @@ contract Middleware is
     using Subnetwork for address;
     using Math for uint256;
 
+    modifier notZeroAddress(
+        address address_
+    ) {
+        _checkNotZeroAddress(address_);
+        _;
+    }
+
     /*
      * @notice Constructor for the middleware
      * @param operatorRewards The operator rewards address
@@ -79,9 +86,8 @@ contract Middleware is
     constructor(address operatorRewards, address stakerRewardsFactory) {
         _disableInitializers();
 
-        if (operatorRewards == address(0) || stakerRewardsFactory == address(0)) {
-            revert Middleware__InvalidAddress();
-        }
+        _checkNotZeroAddress(operatorRewards);
+        _checkNotZeroAddress(stakerRewardsFactory);
 
         i_operatorRewards = operatorRewards;
         i_stakerRewardsFactory = stakerRewardsFactory;
@@ -108,9 +114,11 @@ contract Middleware is
         uint48 slashingWindow,
         address reader
     ) public initializer {
-        if (owner == address(0) || reader == address(0)) {
-            revert Middleware__InvalidAddress();
+        {
+            _checkNotZeroAddress(owner);
+            _checkNotZeroAddress(reader);
         }
+
         if (slashingWindow < epochDuration) {
             revert Middleware__SlashingWindowTooShort();
         }
@@ -169,14 +177,13 @@ contract Middleware is
         _grantRole(GATEWAY_ROLE, _gateway);
     }
 
-    function setCollateralToOracle(address collateral, address oracle) external checkAccess {
+    function setCollateralToOracle(
+        address collateral,
+        address oracle
+    ) external checkAccess notZeroAddress(collateral) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
 
         // Oracle is not checked against zero so this can be used to remove the oracle from a collateral
-        if (collateral == address(0)) {
-            revert Middleware__InvalidAddress();
-        }
-
         if ($.collateralToOracle[collateral] == oracle) {
             revert Middleware__AlreadySet();
         }
@@ -507,10 +514,16 @@ contract Middleware is
     }
 
     function _setVaultToCollateral(address vault, address collateral) private {
-        if (collateral == address(0)) {
-            revert Middleware__InvalidAddress();
-        }
+        _checkNotZeroAddress(collateral);
         StorageMiddleware storage $ = _getMiddlewareStorage();
         $.vaultToCollateral[vault] = collateral;
+    }
+
+    function _checkNotZeroAddress(
+        address address_
+    ) private pure {
+        if (address_ == address(0)) {
+            revert Middleware__InvalidAddress();
+        }
     }
 }
