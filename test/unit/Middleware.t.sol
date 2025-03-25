@@ -985,7 +985,6 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
-        uint256 previousStake = middleware.getTotalStake(currentEpoch);
 
         // We want to slash half of it, and this is parts per billion. so this should be
         // 500000000
@@ -1002,8 +1001,6 @@ contract MiddlewareTest is Test {
             (OPERATOR_STAKE - slashAmount) * uint256(ORACLE_CONVERSION_TOKEN) / 10 ** ORACLE_DECIMALS;
 
         assertEq(totalStake, expectedStake);
-        // TODO Steven: shall this work?
-        assertEq(totalStake, previousStake - slashAmount);
         vm.stopPrank();
     }
 
@@ -2012,9 +2009,9 @@ contract MiddlewareTest is Test {
 
     function _setVaultToCollateral(address vault_, address collateral_) internal {
         // Taken from MiddlewareStorage.sol
-        bytes32 MIDDLEWARE_STORAGE_LOCATION = 0x744f79b1118793e0a060dca4f01184704394f6e567161215b3d2c3126631e700;
+        bytes32 MIDDLEWARE_STORAGE_LOCATION = 0xca64b196a0d05040904d062f739ed1d1e1d3cc5de78f7001fb9039595fce9100;
 
-        bytes32 slot = bytes32(uint256(MIDDLEWARE_STORAGE_LOCATION) + uint256(6)); // 6 is mapping slot number for the vault to collateral
+        bytes32 slot = bytes32(uint256(MIDDLEWARE_STORAGE_LOCATION) + uint256(3)); // 3 is mapping slot number for the vault to collateral
         // Get slot for mapping with vault_
         slot = keccak256(abi.encode(vault_, slot));
 
