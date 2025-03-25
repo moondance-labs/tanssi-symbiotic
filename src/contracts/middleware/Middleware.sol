@@ -83,7 +83,10 @@ contract Middleware is
      * @param operatorRewards The operator rewards address
      * @param stakerRewardsFactory The staker rewards factory address
      */
-    constructor(address operatorRewards, address stakerRewardsFactory) notZeroAddress(operatorRewards) notZeroAddress(stakerRewardsFactory) {
+    constructor(
+        address operatorRewards,
+        address stakerRewardsFactory
+    ) notZeroAddress(operatorRewards) notZeroAddress(stakerRewardsFactory) {
         _disableInitializers();
 
         i_operatorRewards = operatorRewards;
