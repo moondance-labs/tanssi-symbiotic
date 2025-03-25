@@ -272,7 +272,7 @@ contract Middleware is
         bytes32[] memory sortedKeys = sortOperatorsByVaults(epoch);
         StorageMiddleware storage $ = _getMiddlewareStorage();
 
-        // Should it be epochDuration? Because we wanna send it once per network epoch
+        //TODO Should it be epochDuration? Because we wanna send it once per network epoch
         upkeepNeeded = (Time.timestamp() - $.lastTimestamp) > $.interval;
 
         performData = abi.encode(sortedKeys, epoch);

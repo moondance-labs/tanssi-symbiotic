@@ -1990,14 +1990,8 @@ contract MiddlewareTest is Test {
         middleware.registerOperator(operator2, abi.encode(OPERATOR2_KEY), address(0));
         vm.stopPrank();
 
-        // It's not needed, it's just for explaining and showing the flow
-        address offlineKeepers = makeAddr("offlineKeepers");
-        vm.prank(offlineKeepers);
-        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
-        assertEq(upkeepNeeded, false);
-
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
-        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
 
         bytes32[] memory sortedKeys = abi.decode(performData, (bytes32[]));
@@ -2014,14 +2008,8 @@ contract MiddlewareTest is Test {
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vm.stopPrank();
 
-        // It's not needed, it's just for explaining and showing the flow
-        address offlineKeepers = makeAddr("offlineKeepers");
-        vm.prank(offlineKeepers);
-        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
-        assertEq(upkeepNeeded, false);
-
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
-        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
 
         vm.expectRevert(
@@ -2045,14 +2033,8 @@ contract MiddlewareTest is Test {
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vm.stopPrank();
 
-        // It's not needed, it's just for explaining and showing the flow
-        address offlineKeepers = makeAddr("offlineKeepers");
-        vm.prank(offlineKeepers);
-        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
-        assertEq(upkeepNeeded, false);
-
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
-        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
 
         vm.prank(forwarder);
