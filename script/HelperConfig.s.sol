@@ -36,7 +36,7 @@ contract HelperConfig is Script {
     uint256 public DEFAULT_ANVIL_PRIVATE_KEY = 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6;
 
     constructor() {
-        if (block.chainid == 31_337 || block.chainid == 11_155_111) {
+        if (block.chainid == 31_337) {
             activeNetworkConfig = getAnvilEthConfig();
         } else {
             activeNetworkConfig = getChainConfig();
