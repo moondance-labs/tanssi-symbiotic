@@ -158,12 +158,22 @@ contract Middleware is
      * @inheritdoc IMiddleware
      */
     function setGateway(
-        address gateway
+        address newGateway
     ) external checkAccess {
+        if (newGateway == address(0)) {
+            revert Middleware__InvalidAddress();
+        }
+
         StorageMiddleware storage $ = _getMiddlewareStorage();
-        _revokeRole(GATEWAY_ROLE, $.gateway);
-        $.gateway = gateway;
-        _grantRole(GATEWAY_ROLE, gateway);
+        address oldGateway = $.gateway;
+
+        if (newGateway == oldGateway) {
+            revert Middleware__AlreadySet();
+        }
+
+        $.gateway = newGateway;
+        _revokeRole(GATEWAY_ROLE, oldGateway);
+        _grantRole(GATEWAY_ROLE, newGateway);
     }
 
     /**
@@ -176,6 +186,11 @@ contract Middleware is
             revert Middleware__InvalidInterval();
         }
         StorageMiddleware storage $ = _getMiddlewareStorage();
+
+        if (interval == $.interval) {
+            revert Middleware__AlreadySet();
+        }
+
         $.interval = interval;
     }
 
@@ -190,6 +205,11 @@ contract Middleware is
         }
 
         StorageMiddleware storage $ = _getMiddlewareStorage();
+
+        if (forwarder == $.forwarderAddress) {
+            revert Middleware__AlreadySet();
+        }
+
         $.forwarderAddress = forwarder;
         _grantRole(FORWARDER_ROLE, forwarder);
     }

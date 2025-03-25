@@ -82,6 +82,8 @@ contract MiddlewareTest is Test {
     bytes32 public constant OPERATOR_KEY = bytes32(uint256(1));
     bytes32 public constant PREV_OPERATOR_KEY = bytes32(uint256(4));
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
+    bytes32 public constant MIDDLEWARE_STORAGE_LOCATION =
+        0xca64b196a0d05040904d062f739ed1d1e1d3cc5de78f7001fb9039595fce9100;
 
     uint48 public constant START_TIME = 1;
 
@@ -1411,8 +1413,9 @@ contract MiddlewareTest is Test {
     }
 
     function testSendCurrentOperatorKeysButGatewayNotSet() public {
-        vm.prank(owner);
-        middleware.setGateway(address(0));
+        bytes32 slot = bytes32(uint256(MIDDLEWARE_STORAGE_LOCATION));
+
+        vm.store(address(middleware), slot, bytes32(0));
 
         vm.expectRevert(IMiddleware.Middleware__GatewayNotSet.selector);
         middleware.sendCurrentOperatorsKeys();
@@ -1842,6 +1845,40 @@ contract MiddlewareTest is Test {
     }
 
     // ************************************************************************************************
+    // *                                        SET GATEWAY
+    // ************************************************************************************************
+
+    function testSetGateway() public {
+        address gateway2 = makeAddr("gateway2");
+        vm.prank(owner);
+        middleware.setGateway(gateway2);
+        assertEq(middleware.getGateway(), gateway2);
+    }
+
+    function testSetGatewayUnauthorizedAccount() public {
+        address gateway2 = makeAddr("gateway2");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
+            )
+        );
+        middleware.setGateway(gateway2);
+    }
+
+    function testSetGatewayRevertIfZero() public {
+        address gatewayNull = address(0);
+        vm.prank(owner);
+        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
+        middleware.setGateway(gatewayNull);
+    }
+
+    function testSetGatewayRevertIfAlreadySet() public {
+        vm.prank(owner);
+        vm.expectRevert(IMiddleware.Middleware__AlreadySet.selector);
+        middleware.setGateway(gateway);
+    }
+
+    // ************************************************************************************************
     // *                                        SET FORWARDER
     // ************************************************************************************************
 
@@ -1867,6 +1904,14 @@ contract MiddlewareTest is Test {
         vm.prank(owner);
         vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
         middleware.setForwarder(forwarderNull);
+    }
+
+    function testSetForwarderRevertIfAlreadySet() public {
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+
+        vm.expectRevert(IMiddleware.Middleware__AlreadySet.selector);
+        middleware.setForwarder(forwarder);
     }
 
     // ************************************************************************************************
@@ -1895,6 +1940,12 @@ contract MiddlewareTest is Test {
         vm.prank(owner);
         vm.expectRevert(IMiddleware.Middleware__InvalidInterval.selector);
         middleware.setInterval(interval);
+    }
+
+    function testSetIntervalRevertIfAlreadySet() public {
+        vm.prank(owner);
+        vm.expectRevert(IMiddleware.Middleware__AlreadySet.selector);
+        middleware.setInterval(NETWORK_EPOCH_DURATION);
     }
 
     // ************************************************************************************************
@@ -1985,8 +2036,11 @@ contract MiddlewareTest is Test {
         // We set the gateway to 0 address
         _registerOperatorToNetwork(operator, address(vault), false, false);
 
+        bytes32 slot = bytes32(uint256(MIDDLEWARE_STORAGE_LOCATION));
+
+        vm.store(address(middleware), slot, bytes32(0));
+
         vm.startPrank(owner);
-        middleware.setGateway(address(0));
         middleware.setForwarder(forwarder);
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vm.stopPrank();
