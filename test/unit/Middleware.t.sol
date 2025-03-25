@@ -1619,7 +1619,7 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function testMiddlewareIsUpgradeable() public {
-        uint48 OPERATOR_SHARE = 2000;
+        // uint48 OPERATOR_SHARE = 2000;
 
         // ODefaultOperatorRewards newOperatorRewards = ODefaultOperatorRewards(
         //     deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner));
