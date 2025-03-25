@@ -220,13 +220,10 @@ contract DeployTanssiEcosystem is Script {
 
     function _registerEntitiesToMiddleware() private {
         IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
-            vault: address(0),
             adminFee: 0,
             defaultAdminRoleHolder: tanssi,
             adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi,
-            operatorRewardsRoleHolder: tanssi,
-            network: tanssi
+            adminFeeSetRoleHolder: tanssi
         });
         if (block.chainid == 31_337 || block.chainid == 11_155_111 || isTest) {
             ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
@@ -294,12 +291,13 @@ contract DeployTanssiEcosystem is Script {
         if (!isTest) {
             vm.stopBroadcast();
         }
-        address stakerRewardsFactoryAddress = contractScripts.deployRewards.deployStakerRewardsFactoryContract(
-            vaultRegistryAddress, networkMiddlewareServiceAddress, uint48(block.timestamp), NETWORK_EPOCH_DURATION
-        );
 
         address operatorRewardsAddress = contractScripts.deployRewards.deployOperatorRewardsContract(
             tanssi, networkMiddlewareServiceAddress, 2000, tanssi
+        );
+
+        address stakerRewardsFactoryAddress = contractScripts.deployRewards.deployStakerRewardsFactoryContract(
+            vaultRegistryAddress, networkMiddlewareServiceAddress, address(operatorRewardsAddress), tanssi
         );
 
         if (!isTest) {
@@ -376,7 +374,8 @@ contract DeployTanssiEcosystem is Script {
         uint48 slashingWindow,
         address operatorRewardsAddress,
         address stakerRewardsFactoryAddress,
-        address readHelperAddress
+        address readHelperAddress,
+        address networkMiddlewareServiceAddress
     ) external returns (address) {
         vm.startBroadcast(ownerPrivateKey);
 
@@ -392,6 +391,12 @@ contract DeployTanssiEcosystem is Script {
             operatorRewardsAddress,
             stakerRewardsFactoryAddress
         );
+
+        if (networkMiddlewareServiceAddress != address(0)) {
+            INetworkMiddlewareService(networkMiddlewareServiceAddress).setMiddleware(
+                address(ecosystemEntities.middleware)
+            );
+        }
 
         vm.stopBroadcast();
         return address(ecosystemEntities.middleware);
