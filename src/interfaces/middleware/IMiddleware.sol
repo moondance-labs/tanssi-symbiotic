@@ -24,7 +24,6 @@ interface IMiddleware {
     event CollateralToOracleSet(address indexed collateral, address indexed oracle);
 
     // Errors
-    error Middleware__AlreadySet();
     error Middleware__CallerNotGateway();
     error Middleware__GatewayNotSet();
     error Middleware__TooOldEpoch();

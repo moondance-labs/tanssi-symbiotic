@@ -83,11 +83,8 @@ contract Middleware is
      * @param operatorRewards The operator rewards address
      * @param stakerRewardsFactory The staker rewards factory address
      */
-    constructor(address operatorRewards, address stakerRewardsFactory) {
+    constructor(address operatorRewards, address stakerRewardsFactory) notZeroAddress(operatorRewards) notZeroAddress(stakerRewardsFactory) {
         _disableInitializers();
-
-        _checkNotZeroAddress(operatorRewards);
-        _checkNotZeroAddress(stakerRewardsFactory);
 
         i_operatorRewards = operatorRewards;
         i_stakerRewardsFactory = stakerRewardsFactory;
@@ -184,19 +181,9 @@ contract Middleware is
         StorageMiddleware storage $ = _getMiddlewareStorage();
 
         // Oracle is not checked against zero so this can be used to remove the oracle from a collateral
-        if ($.collateralToOracle[collateral] == oracle) {
-            revert Middleware__AlreadySet();
-        }
 
         $.collateralToOracle[collateral] = oracle;
         emit CollateralToOracleSet(collateral, oracle);
-    }
-
-    function setMinStake(
-        uint256 minStake_
-    ) external checkAccess {
-        StorageMiddleware storage $ = _getMiddlewareStorage();
-        $.minStake = minStake_;
     }
 
     /**
@@ -503,9 +490,9 @@ contract Middleware is
         }
     }
 
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
+    /**
+     * @inheritdoc IMiddleware
+     */
     function getEpochAtTs(
         uint48 timestamp
     ) public view returns (uint48 epoch) {
@@ -513,8 +500,7 @@ contract Middleware is
         return (timestamp - $.startTimestamp) / $.epochDuration;
     }
 
-    function _setVaultToCollateral(address vault, address collateral) private {
-        _checkNotZeroAddress(collateral);
+    function _setVaultToCollateral(address vault, address collateral) private notZeroAddress(collateral) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
         $.vaultToCollateral[vault] = collateral;
     }

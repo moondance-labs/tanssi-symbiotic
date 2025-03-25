@@ -1960,18 +1960,6 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
     }
 
-    function testSetCollateralToOracleAlreadySet() public {
-        address _collateral = makeAddr("collateral");
-        address _oracle = makeAddr("oracle");
-
-        vm.startPrank(owner);
-        middleware.setCollateralToOracle(_collateral, _oracle);
-
-        vm.expectRevert(abi.encodeWithSelector(IMiddleware.Middleware__AlreadySet.selector));
-        middleware.setCollateralToOracle(_collateral, _oracle);
-        vm.stopPrank();
-    }
-
     function testSetCollateralToOracleRemoveOracle() public {
         address _collateral = makeAddr("collateral");
         address _oracle = makeAddr("oracle");
@@ -1984,26 +1972,6 @@ contract MiddlewareTest is Test {
     }
 
     // ************************************************************************************************
-    // *                                          MIN STAKE
-    // ************************************************************************************************
-
-    function testSetMinStake() public {
-        vm.startPrank(owner);
-        middleware.setMinStake(100);
-        vm.stopPrank();
-        assertEq(middleware.minStake(), 100);
-    }
-
-    function testSetMinStakeUnauthorized() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
-            )
-        );
-        middleware.setMinStake(100);
-    }
-
-    // ************************************************************************************************
     // *                                          INTERNAL
     // ************************************************************************************************
 
@@ -2011,7 +1979,7 @@ contract MiddlewareTest is Test {
         // Taken from MiddlewareStorage.sol
         bytes32 MIDDLEWARE_STORAGE_LOCATION = 0xca64b196a0d05040904d062f739ed1d1e1d3cc5de78f7001fb9039595fce9100;
 
-        bytes32 slot = bytes32(uint256(MIDDLEWARE_STORAGE_LOCATION) + uint256(3)); // 3 is mapping slot number for the vault to collateral
+        bytes32 slot = bytes32(uint256(MIDDLEWARE_STORAGE_LOCATION) + uint256(2)); // 2 is mapping slot number for the vault to collateral
         // Get slot for mapping with vault_
         slot = keccak256(abi.encode(vault_, slot));
 
