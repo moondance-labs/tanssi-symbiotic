@@ -132,7 +132,7 @@ contract Middleware is
     /**
      * @inheritdoc OSharedVaults
      */
-    function _beforeRegisterSharedVault(
+    function _afterRegisterSharedVault(
         address sharedVault,
         IODefaultStakerRewards.InitParams memory stakerRewardsParams
     ) internal virtual override {
@@ -140,11 +140,7 @@ contract Middleware is
             IODefaultStakerRewardsFactory(i_stakerRewardsFactory).create(sharedVault, stakerRewardsParams);
 
         IODefaultOperatorRewards(i_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
-    }
 
-    function _afterRegisterSharedVault(
-        address sharedVault
-    ) internal virtual override {
         address collateral = IVault(sharedVault).collateral();
         _setVaultToCollateral(sharedVault, collateral);
     }

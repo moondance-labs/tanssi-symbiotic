@@ -598,7 +598,7 @@ contract MiddlewareTest is Test {
     function testRegisterVaultWithNoHookOverwritten() public {
         // This was added just to cover the default implementation of the _beforeRegisterSharedVault hook
         SharedVaultMock vaultMock = new SharedVaultMock();
-        vaultMock.callBeforeRegisterHook(address(vaultMock), stakerRewardsParams);
+        vaultMock.callAfterRegisterHook(address(vaultMock), stakerRewardsParams);
         assertEq(vaultMock.stakeToPower(makeAddr("mock"), 1), 0);
     }
 

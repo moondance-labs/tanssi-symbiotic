@@ -20,9 +20,9 @@ abstract contract OSharedVaults is BaseMiddleware, IOSharedVaults {
         address sharedVault,
         IODefaultStakerRewards.InitParams memory stakerRewardsParams
     ) public checkAccess {
-        _beforeRegisterSharedVault(sharedVault, stakerRewardsParams);
+        _beforeRegisterSharedVault(sharedVault);
         _registerSharedVault(sharedVault);
-        _afterRegisterSharedVault(sharedVault);
+        _afterRegisterSharedVault(sharedVault, stakerRewardsParams);
     }
 
     /**
@@ -58,19 +58,19 @@ abstract contract OSharedVaults is BaseMiddleware, IOSharedVaults {
     /**
      * @notice Hook called before registering a shared vault
      * @param sharedVault The vault address
-     * @param stakerRewardsParams Init params to create a staker rewards contract associated with the shared vault
      */
     function _beforeRegisterSharedVault(
-        address sharedVault,
-        IODefaultStakerRewards.InitParams memory stakerRewardsParams
+        address sharedVault
     ) internal virtual {}
 
     /**
      * @notice Hook called after registering a shared vault
      * @param sharedVault The vault address
+     * @param stakerRewardsParams Init params to create a staker rewards contract associated with the shared vault
      */
     function _afterRegisterSharedVault(
-        address sharedVault
+        address sharedVault,
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams
     ) internal virtual {}
 
     /**
