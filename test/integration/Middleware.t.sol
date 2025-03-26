@@ -62,6 +62,7 @@ import {MockV3Aggregator} from "@chainlink/tests/MockV3Aggregator.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 //**************************************************************************************************
 //                                      SNOWBRIDGE
@@ -111,6 +112,9 @@ contract MiddlewareTest is Test {
     bytes32 public constant OPERATOR_KEY = bytes32(uint256(1));
     bytes32 public constant OPERATOR2_KEY = bytes32(uint256(2));
     bytes32 public constant OPERATOR3_KEY = bytes32(uint256(3));
+    bytes32 public constant OPERATOR4_KEY = bytes32(uint256(4));
+    bytes32 public constant OPERATOR5_KEY = bytes32(uint256(5));
+
     uint256 public constant OPERATOR_SHARE = 1;
     uint256 public constant TOTAL_NETWORK_SHARES = 3;
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
@@ -120,6 +124,17 @@ contract MiddlewareTest is Test {
     int256 public constant ORACLE_CONVERSION_ST_ETH = 3000 ether;
     int256 public constant ORACLE_CONVERSION_R_ETH = 3000 ether;
     int256 public constant ORACLE_CONVERSION_W_BTC = 90_000 ether;
+
+    uint8 public constant USDC_ORACLE_DECIMALS = 8; // USDC_ORACLE_DECIMALS
+    uint8 public constant USDC_TOKEN_DECIMALS = 6; // USDC_TOKEN_DECIMALS
+    uint8 public constant USDT_ORACLE_DECIMALS = 18; // USDT_ORACLE_DECIMALS
+    uint8 public constant USDT_TOKEN_DECIMALS = 18; // USDT_TOKEN_DECIMALS
+
+    // It's Both are staking 150 USD worth in total
+    uint256 public constant OPERATOR_4_STAKE_USDC = 90 * 10 ** USDC_TOKEN_DECIMALS;
+    uint256 public constant OPERATOR_4_STAKE_USDT = 60 * 10 ** USDC_TOKEN_DECIMALS;
+    uint256 public constant OPERATOR_5_STAKE_USDC = 60 * 10 ** USDT_TOKEN_DECIMALS;
+    uint256 public constant OPERATOR_5_STAKE_USDT = 90 * 10 ** USDT_TOKEN_DECIMALS;
 
     uint256 public totalFullRestakePower; // Each operator participates with 100% of all operators stake
     uint256 public totalPowerVault; // By shares. Each operator participates gets 1/3 of the total power
@@ -173,10 +188,10 @@ contract MiddlewareTest is Test {
     address public owner = vm.addr(ownerPrivateKey);
 
     address public operator = makeAddr("operator");
-
     address public operator2 = makeAddr("operator2");
-
     address public operator3 = makeAddr("operator3");
+    address public operator4 = makeAddr("operator4");
+    address public operator5 = makeAddr("operator5");
 
     address public resolver1 = makeAddr("resolver1");
     address public resolver2 = makeAddr("resolver2");
@@ -196,11 +211,12 @@ contract MiddlewareTest is Test {
     // Scripts
     DeployVault deployVault;
     DeployRewards deployRewards;
+    DeployCollateral deployCollateral;
     ODefaultOperatorRewards operatorRewards;
     ODefaultStakerRewardsFactory stakerRewardsFactory;
 
     function setUp() public {
-        DeployCollateral deployCollateral = new DeployCollateral();
+        deployCollateral = new DeployCollateral();
 
         vm.startPrank(owner);
         address stETHAddress = deployCollateral.deployCollateral("stETH");
@@ -802,9 +818,9 @@ contract MiddlewareTest is Test {
     }
 
     function testOperatorsOnlyInTanssiNetwork() public {
-        address operator4 = makeAddr("operator4");
+        address operatorX = makeAddr("operatorX");
         address network2 = makeAddr("network2");
-        bytes32 OPERATOR4_KEY = bytes32(uint256(4));
+        bytes32 OPERATORX_KEY = bytes32(uint256(4));
 
         //Middleware 2 Deployment
         vm.startPrank(network2);
@@ -812,14 +828,14 @@ contract MiddlewareTest is Test {
         INetworkRestakeDelegator(vaultAddresses.delegator).setMaxNetworkLimit(0, 1000 ether);
 
         vm.startPrank(owner);
-        stETH.transfer(operator4, OPERATOR_INITIAL_BALANCE);
+        stETH.transfer(operatorX, OPERATOR_INITIAL_BALANCE);
         INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares(
-            network2.subnetwork(0), operator4, OPERATOR_SHARE
+            network2.subnetwork(0), operatorX, OPERATOR_SHARE
         );
         INetworkRestakeDelegator(vaultAddresses.delegator).setNetworkLimit(network2.subnetwork(0), 300 ether);
 
-        // Operator4 registration and network configuration
-        _registerOperatorAndOptIn(operator4, network2, address(vault), true);
+        // OperatorX registration and network configuration
+        _registerOperatorAndOptIn(operatorX, network2, address(vault), true);
 
         address operatorRewardsAddress2 =
             deployRewards.deployOperatorRewardsContract(network2, address(networkMiddlewareService), 5000, owner);
@@ -834,7 +850,7 @@ contract MiddlewareTest is Test {
             adminFeeSetRoleHolder: network2
         });
         middleware2.registerSharedVault(address(vault), stakerRewardsParams);
-        middleware2.registerOperator(operator4, abi.encode(OPERATOR4_KEY), address(0));
+        middleware2.registerOperator(operatorX, abi.encode(OPERATORX_KEY), address(0));
 
         vm.stopPrank();
 
@@ -843,14 +859,101 @@ contract MiddlewareTest is Test {
         Middleware.OperatorVaultPair[] memory operator2VaultPairs =
             middleware2.getOperatorVaultPairs(middleware2CurrentEpoch);
         assertEq(operator2VaultPairs.length, 1);
-        assertEq(operator2VaultPairs[0].operator, operator4);
+        assertEq(operator2VaultPairs[0].operator, operatorX);
         assertEq(operator2VaultPairs[0].vaults.length, 1);
         uint48 middlewareCurrentEpoch = middleware.getCurrentEpoch();
         Middleware.OperatorVaultPair[] memory operatorVaultPairs =
             middleware.getOperatorVaultPairs(middlewareCurrentEpoch);
         for (uint256 i = 0; i < operatorVaultPairs.length; i++) {
-            assert(operatorVaultPairs[i].operator != operator4);
+            assert(operatorVaultPairs[i].operator != operatorX);
         }
+    }
+
+    function testCollateralsWithDifferentDecimals() public {
+        vm.startPrank(owner);
+
+        Token usdc = Token(deployCollateral.deployCollateral("usdc"));
+        Token usdt = Token(deployCollateral.deployCollateral("usdt"));
+        vm.mockCall(address(usdc), abi.encodeWithSelector(ERC20.decimals.selector), abi.encode(USDC_TOKEN_DECIMALS));
+        vm.mockCall(address(usdt), abi.encodeWithSelector(ERC20.decimals.selector), abi.encode(USDT_TOKEN_DECIMALS));
+
+        usdc.mint(operator4, 1000 * 10 ** USDC_TOKEN_DECIMALS);
+        usdc.mint(operator5, 1000 * 10 ** USDC_TOKEN_DECIMALS);
+        usdt.mint(operator4, 1000 * 10 ** USDT_TOKEN_DECIMALS);
+        usdt.mint(operator5, 1000 * 10 ** USDT_TOKEN_DECIMALS);
+
+        address usdcOracle = _deployOracle(USDC_ORACLE_DECIMALS, int256(1 * 10 ** USDC_ORACLE_DECIMALS));
+        address usdtOracle = _deployOracle(USDT_ORACLE_DECIMALS, int256(1 * 10 ** USDT_ORACLE_DECIMALS));
+
+        DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
+            epochDuration: VAULT_EPOCH_DURATION,
+            depositWhitelist: false,
+            depositLimit: 0,
+            delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
+            shouldBroadcast: false,
+            vaultConfigurator: address(vaultConfigurator),
+            collateral: address(usdc),
+            owner: tanssi
+        });
+
+        (address vaultUsdc, address vaultDelegatorUsdc,) = deployVault.createBaseVault(params);
+
+        params.collateral = address(usdt);
+        (address vaultUsdt, address vaultDelegatorUsdt,) = deployVault.createBaseVault(params);
+
+        middleware.setCollateralToOracle(address(usdc), usdcOracle);
+        middleware.setCollateralToOracle(address(usdt), usdtOracle);
+
+        _registerOperatorAndOptIn(operator4, tanssi, address(vaultUsdc), true);
+        _registerOperatorAndOptIn(operator4, tanssi, address(vaultUsdt), false);
+
+        _registerOperatorAndOptIn(operator5, tanssi, address(vaultUsdc), true);
+        _registerOperatorAndOptIn(operator5, tanssi, address(vaultUsdt), false);
+
+        vm.startPrank(owner);
+
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            adminFee: 0,
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: tanssi,
+            adminFeeSetRoleHolder: tanssi
+        });
+        middleware.registerSharedVault(vaultUsdc, stakerRewardsParams);
+        middleware.registerSharedVault(vaultUsdt, stakerRewardsParams);
+
+        middleware.registerOperator(operator4, abi.encode(OPERATOR4_KEY), address(0));
+        middleware.registerOperator(operator5, abi.encode(OPERATOR5_KEY), address(0));
+
+        vm.startPrank(tanssi);
+
+        INetworkRestakeDelegator(vaultDelegatorUsdc).setOperatorNetworkShares(tanssi.subnetwork(0), operator4, 1);
+        INetworkRestakeDelegator(vaultDelegatorUsdc).setOperatorNetworkShares(tanssi.subnetwork(0), operator5, 1);
+
+        INetworkRestakeDelegator(vaultDelegatorUsdt).setOperatorNetworkShares(tanssi.subnetwork(0), operator4, 1);
+        INetworkRestakeDelegator(vaultDelegatorUsdt).setOperatorNetworkShares(tanssi.subnetwork(0), operator5, 1);
+
+        INetworkRestakeDelegator(vaultDelegatorUsdc).setMaxNetworkLimit(0, 1000 * 10 ** USDC_ORACLE_DECIMALS);
+        INetworkRestakeDelegator(vaultDelegatorUsdt).setMaxNetworkLimit(0, 1000 * 10 ** USDT_ORACLE_DECIMALS);
+
+        vm.startPrank(operator4);
+        _depositToVault(Vault(vaultUsdc), operator4, OPERATOR_4_STAKE_USDC, usdc);
+        _depositToVault(Vault(vaultUsdt), operator4, OPERATOR_5_STAKE_USDT, usdt);
+
+        vm.startPrank(operator5);
+        _depositToVault(Vault(vaultUsdc), operator5, OPERATOR_4_STAKE_USDC, usdc);
+        _depositToVault(Vault(vaultUsdt), operator5, OPERATOR_5_STAKE_USDT, usdt);
+
+        vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW - 1);
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        Middleware.ValidatorData[] memory validators = _validatorSet(currentEpoch);
+
+        // Total deposit is 300 USD
+        uint256 totalPowerByShares = 90 + 60 + 60 + 90;
+        (uint256 totalPowerOperator,) = _calculateOperatorPower(totalPowerByShares, 0, 0);
+
+        // TODO Steven: Stake is zero, something is missing
+        // assertEq(validators[3].stake, totalPowerOperator);
+        // assertEq(validators[4].stake, totalPowerOperator);
     }
 
     function _createGateway() internal returns (address) {

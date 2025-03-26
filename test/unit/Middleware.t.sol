@@ -57,6 +57,7 @@ import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfa
 
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
+import {IOERC20} from "src/interfaces/extensions/IOERC20.sol";
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
@@ -89,8 +90,8 @@ contract MiddlewareTest is Test {
     bytes32 public constant OPERATOR_KEY = bytes32(uint256(1));
     bytes32 public constant PREV_OPERATOR_KEY = bytes32(uint256(4));
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
-    uint8 public constant ORACLE_DECIMALS = 2;
-    int256 public constant ORACLE_CONVERSION_TOKEN = 3000;
+    uint8 public constant ORACLE_DECIMALS = 18;
+    int256 public constant ORACLE_CONVERSION_TOKEN = 3000 ether;
 
     uint48 public constant START_TIME = 1;
 
@@ -1701,12 +1702,13 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function testStakeToPower() public {
-        uint256 stake = 1000;
+        uint256 stake = 1000 ether;
         address _vault = makeAddr("vault");
         address _collateral = makeAddr("collateral");
         address _oracle = makeAddr("oracle");
         int256 multiplier = 5000;
-        uint8 decimals = 2;
+        uint8 oracleDecimals = 2;
+        uint8 tokenDecimals = 18;
 
         vm.startPrank(owner);
         middleware.setCollateralToOracle(_collateral, _oracle);
@@ -1719,11 +1721,12 @@ contract MiddlewareTest is Test {
             abi.encode(uint80(0), multiplier, uint256(0), uint256(0), uint80(0))
         );
         vm.mockCall(
-            _oracle, abi.encodeWithSelector(AggregatorV3Interface.decimals.selector), abi.encode(uint8(decimals))
+            _oracle, abi.encodeWithSelector(AggregatorV3Interface.decimals.selector), abi.encode(uint8(oracleDecimals))
         );
+        vm.mockCall(_collateral, abi.encodeWithSelector(IOERC20.decimals.selector), abi.encode(uint8(tokenDecimals)));
 
         uint256 power = middleware.stakeToPower(_vault, stake);
-        uint256 expectedPower = (stake * uint256(multiplier)) / (10 ** uint256(decimals));
+        uint256 expectedPower = (stake * uint256(multiplier)) / (10 ** uint256(oracleDecimals));
         assertEq(power, expectedPower);
     }
 

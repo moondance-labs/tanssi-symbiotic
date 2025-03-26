@@ -25,7 +25,6 @@ import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 //**************************************************************************************************
 //                                      SYMBIOTIC
@@ -42,6 +41,7 @@ import {KeyManager256} from "@symbiotic-middleware/extensions/managers/keys/KeyM
 import {OzAccessControl} from "@symbiotic-middleware/extensions/managers/access/OzAccessControl.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 import {PauseableEnumerableSet} from "@symbiotic-middleware/libraries/PauseableEnumerableSet.sol";
+
 //**************************************************************************************************
 //                                      SNOWBRIDGE
 //**************************************************************************************************
@@ -49,10 +49,10 @@ import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfa
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
+import {IOERC20} from "src/interfaces/extensions/IOERC20.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {OSharedVaults} from "src/contracts/extensions/OSharedVaults.sol";
 import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
-
 import {QuickSort} from "../libraries/QuickSort.sol";
 
 contract Middleware is
@@ -164,12 +164,11 @@ contract Middleware is
         uint8 priceDecimals = AggregatorV3Interface(oracle).decimals();
         power = stake.mulDiv(uint256(price), 10 ** priceDecimals);
 
-        // TODO Steven: Test with collaterals with different decimals, this normaalization is probably needed
-        // // Normalize power to 18 decimals
-        // address collateralDecimals = IERC20(collateral).decimals();
-        // if (collateralDecimals != 18) {
-        //     power = power.mulDiv(10 ** 18, 10 ** collateralDecimals);
-        // }
+        // Normalize power to 18 decimals
+        uint8 collateralDecimals = IOERC20(collateral).decimals();
+        if (collateralDecimals != uint8(18)) {
+            power = power.mulDiv(10 ** 18, 10 ** collateralDecimals);
+        }
     }
 
     /**
@@ -216,11 +215,11 @@ contract Middleware is
         bytes32 rewardsRoot,
         address tokenAddress
     ) external checkAccess {
-        if (IERC20(tokenAddress).balanceOf(address(this)) < tokensInflatedToken) {
+        if (IOERC20(tokenAddress).balanceOf(address(this)) < tokensInflatedToken) {
             revert Middleware__InsufficientBalance();
         }
 
-        IERC20(tokenAddress).approve(i_operatorRewards, tokensInflatedToken);
+        IOERC20(tokenAddress).approve(i_operatorRewards, tokensInflatedToken);
 
         IODefaultOperatorRewards(i_operatorRewards).distributeRewards(
             uint48(epoch), uint48(eraIndex), tokensInflatedToken, totalPointsToken, rewardsRoot, tokenAddress
@@ -477,14 +476,14 @@ contract Middleware is
     ) public view returns (ValidatorData[] memory validatorSet) {
         uint48 epochStartTs = getEpochStart(epoch);
         address[] memory operators = _activeOperatorsAt(epochStartTs);
-
         validatorSet = new ValidatorData[](operators.length);
+
         uint256 len = 0;
         uint256 operatorsLength = operators.length;
         for (uint256 i; i < operatorsLength; ++i) {
             address operator = operators[i];
-
             bytes32 key = abi.decode(getOperatorKeyAt(operator, epochStartTs), (bytes32));
+
             if (key == bytes32(0)) {
                 continue;
             }
