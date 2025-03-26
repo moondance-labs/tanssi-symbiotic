@@ -54,7 +54,7 @@ import {OperatorManager} from "@symbiotic-middleware/managers/OperatorManager.so
 //**************************************************************************************************
 //                                      CHAINLINK
 //**************************************************************************************************
-import {MockV3Aggregator} from "@chainlink/local/src/data-feeds/MockV3Aggregator.sol";
+import {MockV3Aggregator} from "@chainlink/tests/MockV3Aggregator.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN
@@ -116,11 +116,10 @@ contract MiddlewareTest is Test {
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
     uint256 public constant SLASHING_FRACTION = PARTS_PER_BILLION / 10; // 10%
 
-    // TODO Steven: Change to realistic values
-    uint8 public constant ORACLE_DECIMALS = 10; // TODO Steven: This decimals are actually on staked value, not on price
-    int256 public constant ORACLE_CONVERSION_ST_ETH = 3000;
-    int256 public constant ORACLE_CONVERSION_R_ETH = 3000; // TODO Steven: Test changing it to a bit lower value
-    int256 public constant ORACLE_CONVERSION_W_BTC = 100_000;
+    uint8 public constant ORACLE_DECIMALS = 18;
+    int256 public constant ORACLE_CONVERSION_ST_ETH = 3000 ether;
+    int256 public constant ORACLE_CONVERSION_R_ETH = 3000 ether;
+    int256 public constant ORACLE_CONVERSION_W_BTC = 90_000 ether;
 
     uint256 public totalFullRestakePower; // Each operator participates with 100% of all operators stake
     uint256 public totalPowerVault; // By shares. Each operator participates gets 1/3 of the total power
@@ -280,9 +279,12 @@ contract MiddlewareTest is Test {
         vaults.push(vaultSlashable);
         vaults.push(vaultVetoed);
 
-        _registerOperatorAndOptIn(operator, tanssi, address(vault), address(0), address(0));
-        _registerOperatorAndOptIn(operator2, tanssi, address(vaultVetoed), address(vaultSlashable), address(0));
-        _registerOperatorAndOptIn(operator3, tanssi, address(vault), address(vaultVetoed), address(vaultSlashable));
+        _registerOperatorAndOptIn(operator, tanssi, address(vault), true);
+        _registerOperatorAndOptIn(operator2, tanssi, address(vaultVetoed), true);
+        _registerOperatorAndOptIn(operator2, tanssi, address(vaultSlashable), false);
+        _registerOperatorAndOptIn(operator3, tanssi, address(vault), true);
+        _registerOperatorAndOptIn(operator3, tanssi, address(vaultVetoed), false);
+        _registerOperatorAndOptIn(operator3, tanssi, address(vaultSlashable), false);
 
         _registerEntitiesToMiddleware(owner);
         _setOperatorsNetworkShares(tanssi);
@@ -388,24 +390,13 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
     }
 
-    function _registerOperatorAndOptIn(
-        address _operator,
-        address _network,
-        address _vault,
-        address vault2,
-        address vault3
-    ) public {
+    function _registerOperatorAndOptIn(address _operator, address _network, address _vault, bool firstTime) public {
         vm.startPrank(_operator);
-        operatorRegistry.registerOperator();
+        if (firstTime) {
+            operatorRegistry.registerOperator();
+            operatorNetworkOptInService.optIn(_network);
+        }
         operatorVaultOptInService.optIn(address(_vault));
-        operatorNetworkOptInService.optIn(_network);
-
-        if (vault2 != address(0)) {
-            operatorVaultOptInService.optIn(address(vault2));
-        }
-        if (vault3 != address(0)) {
-            operatorVaultOptInService.optIn(address(vault3));
-        }
         vm.stopPrank();
     }
 
@@ -691,6 +682,11 @@ contract MiddlewareTest is Test {
         vm.prank(gateway);
         middleware.slash(currentEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
 
+        console2.log("slashingPower", slashingPower);
+        console2.log("totalPowerVault", totalPowerVault);
+        console2.log("totalPowerVaultSlashable", totalPowerVaultSlashable);
+        console2.log("totalFullRestakePower", totalFullRestakePower);
+
         vm.warp(block.timestamp + VETO_DURATION);
         vm.prank(address(middleware));
         vetoSlasher.executeSlash(0, hex"");
@@ -705,10 +701,26 @@ contract MiddlewareTest is Test {
         (uint256 totalOperator2StakeAfter, uint256 powerFromSharesOperator2After) =
             _calculateOperatorPower(totalPowerVaultSlashable, activePowerInVetoed, slashingPower);
         (uint256 totalOperator3StakeAfter, uint256 powerFromSharesOperator3After) =
-            _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, activePowerInVetoed, slashingPower);
+            _calculateOperatorPower(totalPowerVaultSlashable, activePowerInVetoed, slashingPower);
+        // The first vault is not Slashable, so we calculate the power with no slashing
+        (uint256 totalOperator3StakeFirstVault,) = _calculateOperatorPower(totalPowerVault, 0, 0);
+
+        console2.log("activePowerInVetoed", activePowerInVetoed);
+        console2.log("totalOperator2StakeAfter", totalOperator2StakeAfter);
+        console2.log("powerFromSharesOperator2After", powerFromSharesOperator2After);
+        console2.log("totalOperator3StakeAfter", totalOperator3StakeAfter);
+        console2.log("totalOperator3StakeFirstVault", totalOperator3StakeFirstVault);
+        console2.log(
+            "totalOperator3StakeAfter+totalOperator3StakeFirstVault",
+            totalOperator3StakeAfter + totalOperator3StakeFirstVault
+        );
+        console2.log("powerFromSharesOperator3After", powerFromSharesOperator3After);
+
+        console2.log("validators[1].stake", validators[1].stake);
+        console2.log("validators[2].stake", validators[2].stake);
 
         assertEq(validators[1].stake, totalOperator2StakeAfter);
-        assertEq(validators[2].stake, totalOperator3StakeAfter);
+        assertEq(validators[2].stake, totalOperator3StakeAfter + totalOperator3StakeFirstVault);
     }
 
     function testSlashingAndPausingVault() public {
@@ -807,7 +819,7 @@ contract MiddlewareTest is Test {
         INetworkRestakeDelegator(vaultAddresses.delegator).setNetworkLimit(network2.subnetwork(0), 300 ether);
 
         // Operator4 registration and network configuration
-        _registerOperatorAndOptIn(operator4, network2, address(vault), address(0), address(0));
+        _registerOperatorAndOptIn(operator4, network2, address(vault), true);
 
         address operatorRewardsAddress2 =
             deployRewards.deployOperatorRewardsContract(network2, address(networkMiddlewareService), 5000, owner);
@@ -938,7 +950,7 @@ contract MiddlewareTest is Test {
             } else {
                 stETH.transfer(_operator, 1 ether);
             }
-            _registerOperatorAndOptIn(_operator, tanssi, address(_vault), address(0), address(0));
+            _registerOperatorAndOptIn(_operator, tanssi, address(_vault), true);
             vm.startPrank(_operator);
             uint256 depositAmount = 0.001 ether * (i + 1);
             _depositToVault(Vault(_vault), _operator, 0.001 ether * (i + 1), token);

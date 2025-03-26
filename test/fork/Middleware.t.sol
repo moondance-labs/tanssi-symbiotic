@@ -35,7 +35,7 @@ import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-ti
 //**************************************************************************************************
 //                                      CHAINLINK
 //**************************************************************************************************
-import {AggregatorV3Interface} from "@chainlink/local/src/data-feeds/interfaces/AggregatorV3Interface.sol";
+import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3Interface.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN

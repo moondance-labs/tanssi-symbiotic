@@ -32,6 +32,6 @@
 [submodule "lib/middleware-sdk"]
 	path = lib/middleware-sdk
 	url = https://github.com/symbioticfi/middleware-sdk
-[submodule "lib/chainlink-local"]
-	path = lib/chainlink-local
-	url = https://github.com/smartcontractkit/chainlink-local
+[submodule "lib/chainlink-brownie-contracts"]
+	path = lib/chainlink-brownie-contracts
+	url = https://github.com/smartcontractkit/chainlink-brownie-contracts

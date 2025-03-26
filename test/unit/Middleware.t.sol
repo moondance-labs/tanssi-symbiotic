@@ -42,8 +42,8 @@ import {KeyManager256} from "@symbiotic-middleware/extensions/managers/keys/KeyM
 //**************************************************************************************************
 //                                      CHAINLINK
 //**************************************************************************************************
-import {MockV3Aggregator} from "@chainlink/local/src/data-feeds/MockV3Aggregator.sol";
-import {AggregatorV3Interface} from "@chainlink/local/src/data-feeds/interfaces/AggregatorV3Interface.sol";
+import {MockV3Aggregator} from "@chainlink/tests/MockV3Aggregator.sol";
+import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3Interface.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN
@@ -89,7 +89,7 @@ contract MiddlewareTest is Test {
     bytes32 public constant OPERATOR_KEY = bytes32(uint256(1));
     bytes32 public constant PREV_OPERATOR_KEY = bytes32(uint256(4));
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
-    uint8 public constant ORACLE_DECIMALS = 18;
+    uint8 public constant ORACLE_DECIMALS = 2;
     int256 public constant ORACLE_CONVERSION_TOKEN = 3000;
 
     uint48 public constant START_TIME = 1;

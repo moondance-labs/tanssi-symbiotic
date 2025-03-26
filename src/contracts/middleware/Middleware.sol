@@ -17,7 +17,7 @@ pragma solidity 0.8.25;
 //**************************************************************************************************
 //                                      CHAINLINK
 //**************************************************************************************************
-import {AggregatorV3Interface} from "@chainlink/local/src/data-feeds/interfaces/AggregatorV3Interface.sol";
+import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3Interface.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN
@@ -161,8 +161,15 @@ contract Middleware is
             revert Middleware__NotSupportedCollateral(collateral);
         }
         (, int256 price,,,) = AggregatorV3Interface(oracle).latestRoundData();
-        uint8 decimals = AggregatorV3Interface(oracle).decimals();
-        return stake.mulDiv(uint256(price), 10 ** decimals);
+        uint8 priceDecimals = AggregatorV3Interface(oracle).decimals();
+        power = stake.mulDiv(uint256(price), 10 ** priceDecimals);
+
+        // TODO Steven: Test with collaterals with different decimals, this normaalization is probably needed
+        // // Normalize power to 18 decimals
+        // address collateralDecimals = IERC20(collateral).decimals();
+        // if (collateralDecimals != 18) {
+        //     power = power.mulDiv(10 ** 18, 10 ** collateralDecimals);
+        // }
     }
 
     /**

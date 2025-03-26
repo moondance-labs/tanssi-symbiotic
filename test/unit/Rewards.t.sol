@@ -32,7 +32,7 @@ import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlew
 //**************************************************************************************************
 //                                      CHAINLINK
 //**************************************************************************************************
-import {MockV3Aggregator} from "@chainlink/local/src/data-feeds/MockV3Aggregator.sol";
+import {MockV3Aggregator} from "@chainlink/tests/MockV3Aggregator.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN
