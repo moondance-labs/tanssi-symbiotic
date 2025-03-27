@@ -132,8 +132,8 @@ contract MiddlewareTest is Test {
 
     // It's Both are staking 150 USD worth in total
     uint256 public constant OPERATOR_4_STAKE_USDC = 90 * 10 ** USDC_TOKEN_DECIMALS;
-    uint256 public constant OPERATOR_4_STAKE_USDT = 60 * 10 ** USDC_TOKEN_DECIMALS;
-    uint256 public constant OPERATOR_5_STAKE_USDC = 60 * 10 ** USDT_TOKEN_DECIMALS;
+    uint256 public constant OPERATOR_4_STAKE_USDT = 60 * 10 ** USDT_TOKEN_DECIMALS;
+    uint256 public constant OPERATOR_5_STAKE_USDC = 60 * 10 ** USDC_TOKEN_DECIMALS;
     uint256 public constant OPERATOR_5_STAKE_USDT = 90 * 10 ** USDT_TOKEN_DECIMALS;
 
     uint256 public totalFullRestakePower; // Each operator participates with 100% of all operators stake
@@ -935,25 +935,32 @@ contract MiddlewareTest is Test {
         INetworkRestakeDelegator(vaultDelegatorUsdc).setMaxNetworkLimit(0, 1000 * 10 ** USDC_ORACLE_DECIMALS);
         INetworkRestakeDelegator(vaultDelegatorUsdt).setMaxNetworkLimit(0, 1000 * 10 ** USDT_ORACLE_DECIMALS);
 
+        INetworkRestakeDelegator(vaultDelegatorUsdc).setNetworkLimit(
+            tanssi.subnetwork(0), 1000 * 10 ** USDC_ORACLE_DECIMALS
+        );
+        INetworkRestakeDelegator(vaultDelegatorUsdt).setNetworkLimit(
+            tanssi.subnetwork(0), 1000 * 10 ** USDT_ORACLE_DECIMALS
+        );
+
         vm.startPrank(operator4);
         _depositToVault(Vault(vaultUsdc), operator4, OPERATOR_4_STAKE_USDC, usdc);
-        _depositToVault(Vault(vaultUsdt), operator4, OPERATOR_5_STAKE_USDT, usdt);
+        _depositToVault(Vault(vaultUsdt), operator4, OPERATOR_4_STAKE_USDT, usdt);
 
         vm.startPrank(operator5);
-        _depositToVault(Vault(vaultUsdc), operator5, OPERATOR_4_STAKE_USDC, usdc);
+        _depositToVault(Vault(vaultUsdc), operator5, OPERATOR_5_STAKE_USDC, usdc);
         _depositToVault(Vault(vaultUsdt), operator5, OPERATOR_5_STAKE_USDT, usdt);
 
         vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW - 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validators = _validatorSet(currentEpoch);
 
-        // Total deposit is 300 USD
-        uint256 totalPowerByShares = 90 + 60 + 60 + 90;
-        (uint256 totalPowerOperator,) = _calculateOperatorPower(totalPowerByShares, 0, 0);
+        // Total deposit is 300 USD, it should be normalized to 18 decimals
+        uint256 totalPowerByShares = 300 ether;
+        // Only 2 operators participate in the USD vaults, so each has half of the power.
+        uint256 totalPowerOperator = totalPowerByShares / 2;
 
-        // TODO Steven: Stake is zero, something is missing
-        // assertEq(validators[3].stake, totalPowerOperator);
-        // assertEq(validators[4].stake, totalPowerOperator);
+        assertEq(validators[3].stake, totalPowerOperator);
+        assertEq(validators[4].stake, totalPowerOperator);
     }
 
     function _createGateway() internal returns (address) {
