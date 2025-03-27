@@ -186,9 +186,7 @@ contract Middleware is
     function setGateway(
         address newGateway
     ) external checkAccess {
-        if (newGateway == address(0)) {
-            revert Middleware__InvalidAddress();
-        }
+        _checkNotZeroAddress(newGateway);
 
         StorageMiddleware storage $ = _getMiddlewareStorage();
         address oldGateway = $.gateway;
@@ -226,9 +224,7 @@ contract Middleware is
     function setForwarder(
         address forwarder
     ) external checkAccess {
-        if (forwarder == address(0)) {
-            revert Middleware__InvalidAddress();
-        }
+        _checkNotZeroAddress(forwarder);
 
         StorageMiddleware storage $ = _getMiddlewareStorage();
 
