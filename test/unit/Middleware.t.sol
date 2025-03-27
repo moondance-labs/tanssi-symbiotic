@@ -2110,8 +2110,9 @@ contract MiddlewareTest is Test {
         vm.prank(forwarder);
         vm.expectRevert(IMiddleware.Middleware__GatewayNotSet.selector);
         middleware.performUpkeep(performData);
+    }
 
-            // ************************************************************************************************
+    // ************************************************************************************************
     // *                                   VAULT TO COLLATERAL AND TO ORACLE
     // ************************************************************************************************
 
@@ -2191,10 +2192,7 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function _setVaultToCollateral(address vault_, address collateral_) internal {
-        // Taken from MiddlewareStorage.sol
-        bytes32 MIDDLEWARE_STORAGE_LOCATION = 0xca64b196a0d05040904d062f739ed1d1e1d3cc5de78f7001fb9039595fce9100;
-
-        bytes32 slot = bytes32(uint256(MIDDLEWARE_STORAGE_LOCATION) + uint256(2)); // 2 is mapping slot number for the vault to collateral
+        bytes32 slot = bytes32(uint256(MIDDLEWARE_STORAGE_LOCATION) + uint256(5)); // 5 is mapping slot number for the vault to collateral
         // Get slot for mapping with vault_
         slot = keccak256(abi.encode(vault_, slot));
 
