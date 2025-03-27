@@ -163,7 +163,6 @@ contract Middleware is
         (, int256 price,,,) = AggregatorV3Interface(oracle).latestRoundData();
         uint8 priceDecimals = AggregatorV3Interface(oracle).decimals();
         power = stake.mulDiv(uint256(price), 10 ** priceDecimals);
-
         // Normalize power to 18 decimals
         uint8 collateralDecimals = IOERC20(collateral).decimals();
         if (collateralDecimals != uint8(18)) {
@@ -274,8 +273,11 @@ contract Middleware is
         address[] memory vaults = _activeVaultsAt(epochStartTs, operator);
         // simple pro-rata slasher
         uint256 vaultsLength = vaults.length;
-        for (uint256 i; i < vaultsLength; ++i) {
+        for (uint256 i; i < vaultsLength;) {
             _processVaultSlashing(vaults[i], params);
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -365,12 +367,15 @@ contract Middleware is
 
         uint256 valIdx = 0;
         uint256 operatorsLength = operators.length;
-        for (uint256 i; i < operatorsLength; ++i) {
+        for (uint256 i; i < operatorsLength;) {
             address operator = operators[i];
             (uint256 vaultIdx, address[] memory _vaults) = getOperatorVaults(operator, epochStartTs);
 
             if (vaultIdx > 0) {
                 operatorVaultPairs[valIdx++] = OperatorVaultPair(operator, _vaults);
+            }
+            unchecked {
+                ++i;
             }
         }
     }
@@ -399,8 +404,11 @@ contract Middleware is
 
         sortedKeys = new bytes32[](validatorSet.length);
         uint256 validatorSetLength = validatorSet.length;
-        for (uint256 i; i < validatorSetLength; ++i) {
+        for (uint256 i; i < validatorSetLength;) {
             sortedKeys[i] = validatorSet[i].key;
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -415,7 +423,7 @@ contract Middleware is
         vaults = new address[](operatorVaults.length);
         vaultIdx = 0;
         uint256 operatorVaultsLength = operatorVaults.length;
-        for (uint256 j; j < operatorVaultsLength; ++j) {
+        for (uint256 j; j < operatorVaultsLength;) {
             address _vault = operatorVaults[j];
             // Tanssi will use probably only one subnetwork, so we can skip this loop
             // for (uint96 k = 0; k < _subnetworksLength(); ++k) {
@@ -426,6 +434,9 @@ contract Middleware is
 
             if (operatorStake > 0) {
                 vaults[vaultIdx++] = _vault;
+            }
+            unchecked {
+                ++j;
             }
         }
         assembly ("memory-safe") {
@@ -446,9 +457,12 @@ contract Middleware is
         }
         address[] memory operators = _activeOperatorsAt(epochStartTs);
         uint256 operatorsLength = operators.length;
-        for (uint256 i; i < operatorsLength; ++i) {
+        for (uint256 i; i < operatorsLength;) {
             uint256 operatorStake = _getOperatorPowerAt(epochStartTs, operators[i]);
             totalStake += operatorStake;
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -480,8 +494,11 @@ contract Middleware is
 
         uint256 len = 0;
         uint256 operatorsLength = operators.length;
-        for (uint256 i; i < operatorsLength; ++i) {
+        for (uint256 i; i < operatorsLength;) {
             address operator = operators[i];
+            unchecked {
+                ++i;
+            }
             bytes32 key = abi.decode(getOperatorKeyAt(operator, epochStartTs), (bytes32));
 
             if (key == bytes32(0)) {
@@ -489,7 +506,6 @@ contract Middleware is
             }
 
             uint256 power = _getOperatorPowerAt(epochStartTs, operator);
-
             validatorSet[len++] = ValidatorData(power, key);
         }
 
