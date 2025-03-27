@@ -17,21 +17,24 @@ pragma solidity 0.8.25;
 //**************************************************************************************************
 //                                      CHAINLINK
 //**************************************************************************************************
-import "@chainlink/automation/interfaces/AutomationCompatibleInterface.sol";
+import {AutomationCompatibleInterface} from "@chainlink/automation/interfaces/AutomationCompatibleInterface.sol";
+import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3Interface.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 //**************************************************************************************************
 //                                      SYMBIOTIC
 //**************************************************************************************************
 import {IEntity} from "@symbiotic/interfaces/common/IEntity.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
+import {IVaultStorage} from "@symbiotic/interfaces/vault/IVaultStorage.sol";
 import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
 import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
@@ -41,6 +44,7 @@ import {KeyManager256} from "@symbiotic-middleware/extensions/managers/keys/KeyM
 import {OzAccessControl} from "@symbiotic-middleware/extensions/managers/access/OzAccessControl.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 import {PauseableEnumerableSet} from "@symbiotic-middleware/libraries/PauseableEnumerableSet.sol";
+
 //**************************************************************************************************
 //                                      SNOWBRIDGE
 //**************************************************************************************************
@@ -51,7 +55,6 @@ import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultSt
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {OSharedVaults} from "src/contracts/extensions/OSharedVaults.sol";
 import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
-
 import {QuickSort} from "../libraries/QuickSort.sol";
 
 contract Middleware is
@@ -71,17 +74,23 @@ contract Middleware is
     using Subnetwork for address;
     using Math for uint256;
 
+    modifier notZeroAddress(
+        address address_
+    ) {
+        _checkNotZeroAddress(address_);
+        _;
+    }
+
     /*
      * @notice Constructor for the middleware
      * @param operatorRewards The operator rewards address
      * @param stakerRewardsFactory The staker rewards factory address
      */
-    constructor(address operatorRewards, address stakerRewardsFactory) {
+    constructor(
+        address operatorRewards,
+        address stakerRewardsFactory
+    ) notZeroAddress(operatorRewards) notZeroAddress(stakerRewardsFactory) {
         _disableInitializers();
-
-        if (operatorRewards == address(0) || stakerRewardsFactory == address(0)) {
-            revert Middleware__InvalidAddress();
-        }
 
         i_operatorRewards = operatorRewards;
         i_stakerRewardsFactory = stakerRewardsFactory;
@@ -101,9 +110,11 @@ contract Middleware is
     function initialize(
         InitParams memory params
     ) public initializer {
-        if (params.owner == address(0) || params.reader == address(0)) {
-            revert Middleware__InvalidAddress();
+        {
+            _checkNotZeroAddress(params.owner);
+            _checkNotZeroAddress(params.reader);
         }
+
         if (params.slashingWindow < params.epochDuration) {
             revert Middleware__SlashingWindowTooShort();
         }
@@ -139,7 +150,7 @@ contract Middleware is
     /**
      * @inheritdoc OSharedVaults
      */
-    function _beforeRegisterSharedVault(
+    function _afterRegisterSharedVault(
         address sharedVault,
         IODefaultStakerRewards.InitParams memory stakerRewardsParams
     ) internal override {
@@ -147,11 +158,26 @@ contract Middleware is
             IODefaultStakerRewardsFactory(i_stakerRewardsFactory).create(sharedVault, stakerRewardsParams);
 
         IODefaultOperatorRewards(i_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
+
+        address collateral = IVault(sharedVault).collateral();
+        _setVaultToCollateral(sharedVault, collateral);
     }
 
-    // TODO: this should probably take into account underlying asset price and return a power which could be either the total value of the stake in usd or a value that makes sense for us
     function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
-        return stake;
+        address collateral = vaultToCollateral(vault);
+        address oracle = collateralToOracle(collateral);
+
+        if (oracle == address(0)) {
+            revert Middleware__NotSupportedCollateral(collateral);
+        }
+        (, int256 price,,,) = AggregatorV3Interface(oracle).latestRoundData();
+        uint8 priceDecimals = AggregatorV3Interface(oracle).decimals();
+        power = stake.mulDiv(uint256(price), 10 ** priceDecimals);
+        // Normalize power to 18 decimals
+        uint8 collateralDecimals = IERC20Metadata(collateral).decimals();
+        if (collateralDecimals != uint8(18)) {
+            power = power.mulDiv(10 ** 18, 10 ** collateralDecimals);
+        }
     }
 
     /**
@@ -212,6 +238,18 @@ contract Middleware is
 
         $.forwarderAddress = forwarder;
         _grantRole(FORWARDER_ROLE, forwarder);
+    }
+
+    function setCollateralToOracle(
+        address collateral,
+        address oracle
+    ) external checkAccess notZeroAddress(collateral) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+
+        // Oracle is not checked against zero so this can be used to remove the oracle from a collateral
+
+        $.collateralToOracle[collateral] = oracle;
+        emit CollateralToOracleSet(collateral, oracle);
     }
 
     /**
@@ -335,8 +373,11 @@ contract Middleware is
         address[] memory vaults = _activeVaultsAt(epochStartTs, operator);
         // simple pro-rata slasher
         uint256 vaultsLength = vaults.length;
-        for (uint256 i; i < vaultsLength; ++i) {
+        for (uint256 i; i < vaultsLength;) {
             _processVaultSlashing(vaults[i], params);
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -426,12 +467,15 @@ contract Middleware is
 
         uint256 valIdx = 0;
         uint256 operatorsLength = operators.length;
-        for (uint256 i; i < operatorsLength; ++i) {
+        for (uint256 i; i < operatorsLength;) {
             address operator = operators[i];
             (uint256 vaultIdx, address[] memory _vaults) = getOperatorVaults(operator, epochStartTs);
 
             if (vaultIdx > 0) {
                 operatorVaultPairs[valIdx++] = OperatorVaultPair(operator, _vaults);
+            }
+            unchecked {
+                ++i;
             }
         }
     }
@@ -460,8 +504,11 @@ contract Middleware is
 
         sortedKeys = new bytes32[](validatorSet.length);
         uint256 validatorSetLength = validatorSet.length;
-        for (uint256 i; i < validatorSetLength; ++i) {
+        for (uint256 i; i < validatorSetLength;) {
             sortedKeys[i] = validatorSet[i].key;
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -476,7 +523,7 @@ contract Middleware is
         vaults = new address[](operatorVaults.length);
         vaultIdx = 0;
         uint256 operatorVaultsLength = operatorVaults.length;
-        for (uint256 j; j < operatorVaultsLength; ++j) {
+        for (uint256 j; j < operatorVaultsLength;) {
             address _vault = operatorVaults[j];
             // Tanssi will use probably only one subnetwork, so we can skip this loop
             // for (uint96 k = 0; k < _subnetworksLength(); ++k) {
@@ -487,6 +534,9 @@ contract Middleware is
 
             if (operatorStake > 0) {
                 vaults[vaultIdx++] = _vault;
+            }
+            unchecked {
+                ++j;
             }
         }
         assembly ("memory-safe") {
@@ -507,9 +557,12 @@ contract Middleware is
         }
         address[] memory operators = _activeOperatorsAt(epochStartTs);
         uint256 operatorsLength = operators.length;
-        for (uint256 i; i < operatorsLength; ++i) {
+        for (uint256 i; i < operatorsLength;) {
             uint256 operatorStake = _getOperatorPowerAt(epochStartTs, operators[i]);
             totalStake += operatorStake;
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -537,20 +590,22 @@ contract Middleware is
     ) public view returns (ValidatorData[] memory validatorSet) {
         uint48 epochStartTs = getEpochStart(epoch);
         address[] memory operators = _activeOperatorsAt(epochStartTs);
-
         validatorSet = new ValidatorData[](operators.length);
+
         uint256 len = 0;
         uint256 operatorsLength = operators.length;
-        for (uint256 i; i < operatorsLength; ++i) {
+        for (uint256 i; i < operatorsLength;) {
             address operator = operators[i];
-
+            unchecked {
+                ++i;
+            }
             bytes32 key = abi.decode(getOperatorKeyAt(operator, epochStartTs), (bytes32));
+
             if (key == bytes32(0)) {
                 continue;
             }
 
             uint256 power = _getOperatorPowerAt(epochStartTs, operator);
-
             validatorSet[len++] = ValidatorData(power, key);
         }
 
@@ -560,13 +615,26 @@ contract Middleware is
         }
     }
 
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
+    /**
+     * @inheritdoc IMiddleware
+     */
     function getEpochAtTs(
         uint48 timestamp
     ) public view returns (uint48 epoch) {
         EpochCaptureStorage storage $ = _getEpochCaptureStorage();
         return (timestamp - $.startTimestamp) / $.epochDuration;
+    }
+
+    function _setVaultToCollateral(address vault, address collateral) private notZeroAddress(collateral) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        $.vaultToCollateral[vault] = collateral;
+    }
+
+    function _checkNotZeroAddress(
+        address address_
+    ) private pure {
+        if (address_ == address(0)) {
+            revert Middleware__InvalidAddress();
+        }
     }
 }

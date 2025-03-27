@@ -21,8 +21,10 @@ abstract contract MiddlewareStorage {
     struct StorageMiddleware {
         address gateway;
         uint256 lastTimestamp;
-        address forwarderAddress;
         uint256 interval;
+        address forwarderAddress;
+        mapping(address collateral => address oracle) collateralToOracle;
+        mapping(address vault => address collateral) vaultToCollateral;
     }
 
     // keccak256(abi.encode(uint256(keccak256("tanssi.middleware.MiddlewareStorage.v1.1")) - 1)) & ~bytes32(uint256(0xff));
@@ -86,5 +88,38 @@ abstract contract MiddlewareStorage {
     function getInterval() public view returns (uint256) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
         return $.interval;
+    }
+
+    /**
+     * @notice Get the oracle address for a collateral
+     * @return oracle address
+     */
+    function collateralToOracle(
+        address collateral
+    ) public view returns (address) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        return $.collateralToOracle[collateral];
+    }
+
+    /**
+     * @notice Get the collateral address for a vault
+     * @return collateral address
+     */
+    function vaultToCollateral(
+        address vault
+    ) public view returns (address) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        return $.vaultToCollateral[vault];
+    }
+
+    /**
+     * @notice Get the oracle address for a vault
+     * @return oracle address
+     */
+    function vaultToOracle(
+        address vault
+    ) public view returns (address) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        return $.collateralToOracle[$.vaultToCollateral[vault]];
     }
 }

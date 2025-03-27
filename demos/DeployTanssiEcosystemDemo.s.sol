@@ -290,9 +290,16 @@ contract DeployTanssiEcosystem is Script {
         tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator, 1000 ether);
         tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator2, 1000 ether);
         tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator3, 1000 ether);
+        tokensAddresses.rETHToken.transfer{gas: 1_000_000}(operator2, 1000 ether);
+        tokensAddresses.rETHToken.transfer{gas: 1_000_000}(operator3, 1000 ether);
         vm.stopBroadcast();
 
         IVault _vault = IVault(vaultAddresses.vault);
+        IVault _vaultSlashable = IVault(vaultAddresses.vaultSlashable);
+
+        // Operator 1 goes to vault without slash
+        // Operator 2 goes to vault 1 and 2, the latter being instant slashable
+        // Operator 3 goes only to vault 2, being instant slashable
         vm.startBroadcast(operatorPrivateKey);
         operatorRegistry.registerOperator();
         operatorNetworkOptInService.optIn(tanssi);
@@ -304,14 +311,17 @@ contract DeployTanssiEcosystem is Script {
         operatorRegistry.registerOperator();
         operatorNetworkOptInService.optIn(tanssi);
         operatorVaultOptInService.optIn(vaultAddresses.vault);
+        operatorVaultOptInService.optIn(vaultAddresses.vaultSlashable);
         _depositToVault(_vault, operator2, 100 ether, tokensAddresses.stETHToken);
+        _depositToVault(_vaultSlashable, operator2, 100 ether, tokensAddresses.rETHToken);
+
         vm.stopBroadcast();
 
         vm.startBroadcast(operator3PrivateKey);
         operatorRegistry.registerOperator();
         operatorNetworkOptInService.optIn(tanssi);
-        operatorVaultOptInService.optIn(vaultAddresses.vault);
-        _depositToVault(_vault, operator3, 100 ether, tokensAddresses.stETHToken);
+        operatorVaultOptInService.optIn(vaultAddresses.vaultSlashable);
+        _depositToVault(_vaultSlashable, operator3, 100 ether, tokensAddresses.rETHToken);
         vm.stopBroadcast();
 
         address operatorRewardsAddress = contractScripts.deployRewards.deployOperatorRewardsContract(
@@ -334,15 +344,25 @@ contract DeployTanssiEcosystem is Script {
             operatorRewardsAddress,
             stakerRewardsFactoryAddress
         );
+
+        // Operator 1 goes to first vault
         INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares{gas: 10_000_000}(
             tanssi.subnetwork(0), operator, 1
         );
+
+        // Operator 2 goes to the first and second vault
         INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares{gas: 10_000_000}(
             tanssi.subnetwork(0), operator2, 1
         );
-        INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares{gas: 10_000_000}(
+        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setOperatorNetworkShares{gas: 10_000_000}(
+            tanssi.subnetwork(0), operator2, 1
+        );
+
+        // Operator 3 goes to the second vault
+        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setOperatorNetworkShares{gas: 10_000_000}(
             tanssi.subnetwork(0), operator3, 1
         );
+
         _setDelegatorConfigs();
         networkMiddlewareService.setMiddleware(address(ecosystemEntities.middleware));
         _registerEntitiesToMiddleware();

@@ -40,9 +40,17 @@ import {OperatorManager} from "@symbiotic-middleware/managers/OperatorManager.so
 import {KeyManager256} from "@symbiotic-middleware/extensions/managers/keys/KeyManager256.sol";
 
 //**************************************************************************************************
+//                                      CHAINLINK
+//**************************************************************************************************
+import {MockV3Aggregator} from "@chainlink/tests/MockV3Aggregator.sol";
+import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3Interface.sol";
+
+//**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 //**************************************************************************************************
 //                                      SNOWBRIDGE
@@ -62,6 +70,7 @@ import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
 import {QuickSort} from "src/contracts/libraries/QuickSort.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
+import {DeployCollateral} from "script/DeployCollateral.s.sol";
 
 import {DelegatorMock} from "../mocks/symbiotic/DelegatorMock.sol";
 import {OptInServiceMock} from "../mocks/symbiotic/OptInServiceMock.sol";
@@ -84,6 +93,9 @@ contract MiddlewareTest is Test {
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
     bytes32 public constant MIDDLEWARE_STORAGE_LOCATION =
         0xca64b196a0d05040904d062f739ed1d1e1d3cc5de78f7001fb9039595fce9100;
+
+    uint8 public constant ORACLE_DECIMALS = 18;
+    int256 public constant ORACLE_CONVERSION_TOKEN = 3000 ether;
 
     uint48 public constant START_TIME = 1;
 
@@ -111,8 +123,11 @@ contract MiddlewareTest is Test {
     Slasher slasher;
     VetoSlasher vetoSlasher;
     Slasher slasherWithBadType;
+    Token collateral;
+    MockV3Aggregator collateralOracle;
 
     DeployRewards deployRewards;
+    DeployCollateral deployCollateral;
     ODefaultOperatorRewards operatorRewards;
     ODefaultStakerRewardsFactory stakerRewardsFactory;
 
@@ -125,6 +140,9 @@ contract MiddlewareTest is Test {
 
     function setUp() public {
         vm.startPrank(owner);
+
+        deployRewards = new DeployRewards(true);
+        deployCollateral = new DeployCollateral();
 
         registry = new RegistryMock();
         operatorNetworkOptInServiceMock =
@@ -148,7 +166,11 @@ contract MiddlewareTest is Test {
         vetoSlasher =
             new VetoSlasher(vaultFactory, address(networkMiddlewareService), address(registry), slasherFactory, 1);
 
-        vault = new VaultMock(delegatorFactory, slasherFactory, vaultFactory);
+        collateral = Token(deployCollateral.deployCollateral("Token"));
+
+        collateralOracle = new MockV3Aggregator(ORACLE_DECIMALS, ORACLE_CONVERSION_TOKEN);
+
+        vault = new VaultMock(delegatorFactory, slasherFactory, vaultFactory, address(collateral));
         vault.setDelegator(address(delegator));
 
         vm.store(address(delegator), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
@@ -184,6 +206,7 @@ contract MiddlewareTest is Test {
         });
         middleware.initialize(params);
         middleware.setGateway(address(gateway));
+        middleware.setCollateralToOracle(address(collateral), address(collateralOracle));
 
         vm.startPrank(tanssi);
         registry.register();
@@ -586,7 +609,7 @@ contract MiddlewareTest is Test {
     function testRegisterVaultWithNoHookOverwritten() public {
         // This was added just to cover the default implementation of the _beforeRegisterSharedVault hook
         SharedVaultMock vaultMock = new SharedVaultMock();
-        vaultMock.callBeforeRegisterHook(address(vaultMock), stakerRewardsParams);
+        vaultMock.callAfterRegisterHook(address(vaultMock), stakerRewardsParams);
         assertEq(vaultMock.stakeToPower(makeAddr("mock"), 1), 0);
     }
 
@@ -709,7 +732,8 @@ contract MiddlewareTest is Test {
         uint48 epochStartTs = EpochCapture(address(middleware)).getEpochStart(currentEpoch);
         uint256 stake = BaseMiddlewareReader(address(middleware)).getOperatorPowerAt(epochStartTs, operator);
 
-        assertEq(stake, OPERATOR_STAKE);
+        uint256 expectedStake = OPERATOR_STAKE * uint256(ORACLE_CONVERSION_TOKEN) / 10 ** ORACLE_DECIMALS;
+        assertEq(stake, expectedStake);
         vm.stopPrank();
     }
 
@@ -731,11 +755,13 @@ contract MiddlewareTest is Test {
         uint48 epochStartTs = EpochCapture(address(middleware)).getEpochStart(currentEpoch);
         uint256 stake = BaseMiddlewareReader(address(middleware)).getOperatorPowerAt(epochStartTs, operator);
 
-        assertEq(stake, OPERATOR_STAKE);
+        uint256 expectedStake = OPERATOR_STAKE * uint256(ORACLE_CONVERSION_TOKEN) / 10 ** ORACLE_DECIMALS;
+        assertEq(stake, expectedStake);
 
         vm.warp(NETWORK_EPOCH_DURATION * 2 + 2);
         stake = BaseMiddlewareReader(address(middleware)).getOperatorPowerAt(epochStartTs, operator);
-        assertEq(stake, OPERATOR_STAKE);
+
+        assertEq(stake, expectedStake);
         vm.stopPrank();
     }
 
@@ -777,7 +803,8 @@ contract MiddlewareTest is Test {
 
         uint256 stake = BaseMiddlewareReader(address(middleware)).getOperatorPowerAt(epochStartTs, operator);
 
-        assertEq(stake, OPERATOR_STAKE);
+        uint256 expectedStake = OPERATOR_STAKE * uint256(ORACLE_CONVERSION_TOKEN) / 10 ** ORACLE_DECIMALS;
+        assertEq(stake, expectedStake);
         vm.stopPrank();
     }
 
@@ -822,7 +849,8 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
         uint256 totalStake = middleware.getTotalStake(currentEpoch);
 
-        assertEq(totalStake, OPERATOR_STAKE);
+        uint256 expectedStake = OPERATOR_STAKE * uint256(ORACLE_CONVERSION_TOKEN) / 10 ** ORACLE_DECIMALS;
+        assertEq(totalStake, expectedStake);
         vm.stopPrank();
     }
 
@@ -844,8 +872,9 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 totalStake = middleware.getTotalStake(currentEpoch);
+        uint256 expectedStake = OPERATOR_STAKE * uint256(ORACLE_CONVERSION_TOKEN) / 10 ** ORACLE_DECIMALS;
 
-        assertEq(totalStake, OPERATOR_STAKE);
+        assertEq(totalStake, expectedStake);
         vm.stopPrank();
     }
 
@@ -907,7 +936,8 @@ contract MiddlewareTest is Test {
 
         assertEq(validators.length, 1);
         assertEq(validators[0].key, OPERATOR_KEY);
-        assertEq(validators[0].stake, OPERATOR_STAKE);
+        uint256 expectedStake = OPERATOR_STAKE * uint256(ORACLE_CONVERSION_TOKEN) / 10 ** ORACLE_DECIMALS;
+        assertEq(validators[0].stake, expectedStake);
         vm.stopPrank();
     }
 
@@ -966,7 +996,6 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
-        uint256 previousStake = middleware.getTotalStake(currentEpoch);
 
         // We want to slash half of it, and this is parts per billion. so this should be
         // 500000000
@@ -979,7 +1008,10 @@ contract MiddlewareTest is Test {
         vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
         currentEpoch = middleware.getCurrentEpoch();
         uint256 totalStake = middleware.getTotalStake(currentEpoch);
-        assertEq(totalStake, previousStake - slashAmount);
+        uint256 expectedStake =
+            (OPERATOR_STAKE - slashAmount) * uint256(ORACLE_CONVERSION_TOKEN) / 10 ** ORACLE_DECIMALS;
+
+        assertEq(totalStake, expectedStake);
         vm.stopPrank();
     }
 
@@ -1058,7 +1090,7 @@ contract MiddlewareTest is Test {
         middleware.registerSharedVault(address(vault), stakerRewardsParams);
 
         //Creating another vault to have stake on another vault
-        VaultMock vault2 = new VaultMock(delegatorFactory, slasherFactory, vaultFactory);
+        VaultMock vault2 = new VaultMock(delegatorFactory, slasherFactory, vaultFactory, address(collateral));
         DelegatorMock delegator2 = new DelegatorMock(
             address(registry),
             vaultFactory,
@@ -1099,7 +1131,9 @@ contract MiddlewareTest is Test {
         vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
         currentEpoch = middleware.getCurrentEpoch();
         uint256 totalStake = middleware.getTotalStake(currentEpoch);
-        assertEq(totalStake, OPERATOR_STAKE / 2); //Because it slashes the operator everywhere, but the operator has stake only in vault2, since the first vault is paused
+
+        uint256 expectedStake = (OPERATOR_STAKE / 2) * uint256(ORACLE_CONVERSION_TOKEN) / 10 ** ORACLE_DECIMALS;
+        assertEq(totalStake, expectedStake); //Because it slashes the operator everywhere, but the operator has stake only in vault2, since the first vault is paused
         vm.stopPrank();
     }
 
@@ -1128,7 +1162,8 @@ contract MiddlewareTest is Test {
         vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
         currentEpoch = middleware.getCurrentEpoch();
         uint256 totalStake = middleware.getTotalStake(currentEpoch);
-        assertEq(totalStake, OPERATOR_STAKE);
+        uint256 expectedStake = OPERATOR_STAKE * uint256(ORACLE_CONVERSION_TOKEN) / 10 ** ORACLE_DECIMALS;
+        assertEq(totalStake, expectedStake);
         vm.stopPrank();
     }
 
@@ -1246,7 +1281,7 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function testDistributeRewards() public {
-        Token token = new Token("Test");
+        Token token = new Token("Test", 18);
         token.transfer(address(middleware), 1000);
 
         uint256 epoch = 0;
@@ -1284,7 +1319,7 @@ contract MiddlewareTest is Test {
         uint256 tokensInflatedToken = 1000;
         bytes32 rewardsRoot = 0x4b0ddd8b9b8ec6aec84bcd2003c973254c41d976f6f29a163054eec4e7947810;
 
-        Token token = new Token("Test");
+        Token token = new Token("Test", 18);
         token.transfer(address(middleware), 800);
 
         vm.startPrank(gateway);
@@ -1584,7 +1619,7 @@ contract MiddlewareTest is Test {
     }
 
     // ************************************************************************************************
-    // *                                  SET OPERATORs REWARD SHARE
+    // *                                  SET OPERATORS REWARD SHARE
     // ************************************************************************************************
 
     function testSetOperatorShareOnOperatorRewards() public {
@@ -1677,12 +1712,47 @@ contract MiddlewareTest is Test {
     // *                                        STAKE TO POWER
     // ************************************************************************************************
 
-    // TODO this should be improved to test the actual stake to power calculation with the value that we really want.
     function testStakeToPower() public {
+        uint256 stake = 1000 ether;
+        address _vault = makeAddr("vault");
+        address _collateral = makeAddr("collateral");
+        address _oracle = makeAddr("oracle");
+        int256 multiplier = 5000;
+        uint8 oracleDecimals = 2;
+        uint8 tokenDecimals = 18;
+
+        vm.startPrank(owner);
+        middleware.setCollateralToOracle(_collateral, _oracle);
+        vm.stopPrank();
+        _setVaultToCollateral(_vault, _collateral);
+
+        vm.mockCall(
+            _oracle,
+            abi.encodeWithSelector(AggregatorV3Interface.latestRoundData.selector),
+            abi.encode(uint80(0), multiplier, uint256(0), uint256(0), uint80(0))
+        );
+        vm.mockCall(
+            _oracle, abi.encodeWithSelector(AggregatorV3Interface.decimals.selector), abi.encode(uint8(oracleDecimals))
+        );
+        vm.mockCall(
+            _collateral, abi.encodeWithSelector(IERC20Metadata.decimals.selector), abi.encode(uint8(tokenDecimals))
+        );
+
+        uint256 power = middleware.stakeToPower(_vault, stake);
+        uint256 expectedPower = (stake * uint256(multiplier)) / (10 ** uint256(oracleDecimals));
+        assertEq(power, expectedPower);
+    }
+
+    function testStakeToPowerWithNoOracle() public {
         uint256 stake = 1000;
         address _vault = makeAddr("vault");
-        uint256 power = middleware.stakeToPower(_vault, stake);
-        assertEq(power, 1000);
+        address _collateral = makeAddr("collateral");
+
+        _setVaultToCollateral(_vault, _collateral);
+        // Collateral is not set to an oracle
+
+        vm.expectRevert(abi.encodeWithSelector(IMiddleware.Middleware__NotSupportedCollateral.selector, _collateral));
+        middleware.stakeToPower(_vault, stake);
     }
 
     // ************************************************************************************************
@@ -2040,5 +2110,95 @@ contract MiddlewareTest is Test {
         vm.prank(forwarder);
         vm.expectRevert(IMiddleware.Middleware__GatewayNotSet.selector);
         middleware.performUpkeep(performData);
+
+            // ************************************************************************************************
+    // *                                   VAULT TO COLLATERAL AND TO ORACLE
+    // ************************************************************************************************
+
+    function testVaultToCollateral() public {
+        vm.mockCall(
+            address(registry), abi.encodeWithSelector(IRegistry.isEntity.selector, address(vault)), abi.encode(true)
+        );
+        vm.startPrank(owner);
+        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        vm.stopPrank();
+
+        address currentCollateral = middleware.vaultToCollateral(address(vault));
+        assertEq(currentCollateral, address(collateral));
+    }
+
+    function testVaultToCollateralWithNoCollateral() public {
+        vm.startPrank(owner);
+        vault = new VaultMock(delegatorFactory, slasherFactory, vaultFactory, address(0));
+        vm.mockCall(
+            address(registry), abi.encodeWithSelector(IRegistry.isEntity.selector, address(vault)), abi.encode(true)
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(IMiddleware.Middleware__InvalidAddress.selector));
+        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        vm.stopPrank();
+    }
+
+    function testVaultToOracle() public {
+        vm.mockCall(
+            address(registry), abi.encodeWithSelector(IRegistry.isEntity.selector, address(vault)), abi.encode(true)
+        );
+        vm.startPrank(owner);
+        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        vm.stopPrank();
+
+        address currentOracle = middleware.vaultToOracle(address(vault));
+        assertEq(currentOracle, address(collateralOracle));
+    }
+
+    // ************************************************************************************************
+    // *                                   SET COLLATERAL TO ORACLE
+    // ************************************************************************************************
+
+    function testSetCollateralToOracle() public {
+        address _collateral = makeAddr("collateral");
+        address _oracle = makeAddr("oracle");
+
+        vm.startPrank(owner);
+        middleware.setCollateralToOracle(_collateral, _oracle);
+        vm.stopPrank();
+        assertEq(middleware.collateralToOracle(_collateral), _oracle);
+    }
+
+    function testSetCollateralToOracleNoCollateral() public {
+        address _collateral = address(0);
+        address _oracle = makeAddr("oracle");
+
+        vm.startPrank(owner);
+        vm.expectRevert(abi.encodeWithSelector(IMiddleware.Middleware__InvalidAddress.selector));
+        middleware.setCollateralToOracle(_collateral, _oracle);
+        vm.stopPrank();
+    }
+
+    function testSetCollateralToOracleRemoveOracle() public {
+        address _collateral = makeAddr("collateral");
+        address _oracle = makeAddr("oracle");
+
+        vm.startPrank(owner);
+        middleware.setCollateralToOracle(_collateral, _oracle);
+        middleware.setCollateralToOracle(_collateral, address(0));
+        vm.stopPrank();
+        assertEq(middleware.collateralToOracle(_collateral), address(0));
+    }
+
+    // ************************************************************************************************
+    // *                                          INTERNAL
+    // ************************************************************************************************
+
+    function _setVaultToCollateral(address vault_, address collateral_) internal {
+        // Taken from MiddlewareStorage.sol
+        bytes32 MIDDLEWARE_STORAGE_LOCATION = 0xca64b196a0d05040904d062f739ed1d1e1d3cc5de78f7001fb9039595fce9100;
+
+        bytes32 slot = bytes32(uint256(MIDDLEWARE_STORAGE_LOCATION) + uint256(2)); // 2 is mapping slot number for the vault to collateral
+        // Get slot for mapping with vault_
+        slot = keccak256(abi.encode(vault_, slot));
+
+        // Store array length
+        vm.store(address(middleware), slot, bytes32(uint256(uint160(collateral_))));
     }
 }

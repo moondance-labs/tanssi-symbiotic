@@ -24,6 +24,7 @@ remappings = [
     'openzeppelin-contracts/=lib/openzeppelin-contracts/',
     'openzeppelin/=lib/openzeppelin-contracts/contracts/',
     'prb/math/=lib/prb-math/',
+    "@chainlink/=lib/chainlink-brownie-contracts/contracts/src/v0.8/",
 ]
 
 [rpc_endpoints]
