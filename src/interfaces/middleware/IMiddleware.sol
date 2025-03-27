@@ -15,6 +15,14 @@
 pragma solidity ^0.8.0;
 
 interface IMiddleware {
+    /**
+     * @notice Emitted when an oracle is set for a collateral.
+     * @dev If the oracle is set to address(0), the collateral will no longer be supported.
+     * @param collateral The collateral address
+     * @param oracle The oracle address
+     */
+    event CollateralToOracleSet(address indexed collateral, address indexed oracle);
+
     // Errors
     error Middleware__CallerNotGateway();
     error Middleware__GatewayNotSet();
@@ -22,6 +30,7 @@ interface IMiddleware {
     error Middleware__InvalidEpoch();
     error Middleware__InvalidAddress();
     error Middleware__InsufficientBalance();
+    error Middleware__NotSupportedCollateral(address collateral);
     error Middleware__SlashingWindowTooShort();
     error Middleware__UnknownSlasherType();
     error Middleware__OperatorNotFound(bytes32 operatorKey, uint48 epoch);

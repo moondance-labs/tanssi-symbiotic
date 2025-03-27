@@ -20,6 +20,8 @@ abstract contract MiddlewareStorage {
     /// @custom:storage-location erc7201:tanssi.middleware.MiddlewareStorage.v1.1
     struct StorageMiddleware {
         address gateway;
+        mapping(address collateral => address oracle) collateralToOracle;
+        mapping(address vault => address collateral) vaultToCollateral;
     }
 
     // keccak256(abi.encode(uint256(keccak256("tanssi.middleware.MiddlewareStorage.v1.1")) - 1)) & ~bytes32(uint256(0xff));
@@ -55,5 +57,26 @@ abstract contract MiddlewareStorage {
     function getGateway() public view returns (address) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
         return $.gateway;
+    }
+
+    function collateralToOracle(
+        address collateral
+    ) public view returns (address) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        return $.collateralToOracle[collateral];
+    }
+
+    function vaultToCollateral(
+        address vault
+    ) public view returns (address) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        return $.vaultToCollateral[vault];
+    }
+
+    function vaultToOracle(
+        address vault
+    ) public view returns (address) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        return $.collateralToOracle[$.vaultToCollateral[vault]];
     }
 }

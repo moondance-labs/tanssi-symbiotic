@@ -503,46 +503,6 @@ contract DeployTest is Test {
         vm.stopPrank();
     }
 
-    function testSetDelegatorConfigsWithSepoliaChain() public {
-        vm.chainId(11_155_111);
-        helperConfig = new HelperConfig();
-
-        deployTanssiEcosystem.deployTanssiEcosystem(helperConfig);
-        vm.startPrank(tanssi);
-
-        (, address delegator,,, address delegatorSlashable,,, address delegatorVetoed,) =
-            deployTanssiEcosystem.vaultAddresses();
-
-        assertEq(
-            INetworkRestakeDelegator(delegator).maxNetworkLimit(tanssi.subnetwork(0)),
-            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
-        );
-        assertEq(
-            INetworkRestakeDelegator(delegatorSlashable).maxNetworkLimit(tanssi.subnetwork(0)),
-            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
-        );
-        assertEq(
-            INetworkRestakeDelegator(delegatorVetoed).maxNetworkLimit(tanssi.subnetwork(0)),
-            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
-        );
-
-        // Verify subnet network limits
-        assertEq(
-            INetworkRestakeDelegator(delegator).networkLimit(tanssi.subnetwork(0)),
-            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
-        );
-        assertEq(
-            INetworkRestakeDelegator(delegatorSlashable).networkLimit(tanssi.subnetwork(0)),
-            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
-        );
-
-        assertEq(
-            INetworkRestakeDelegator(delegatorVetoed).networkLimit(tanssi.subnetwork(0)),
-            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
-        );
-        vm.stopPrank();
-    }
-
     function testDefaultCollateralBeingDeployedIfHolesky() public {
         vm.createSelectFork(HOLESKY_RPC);
 
@@ -559,18 +519,6 @@ contract DeployTest is Test {
 
     function testDefaultCollateralNotBeingDeployedIfLocal() public {
         vm.chainId(31_337);
-        vm.startPrank(tanssi);
-        deployTanssiEcosystem.deployTanssiEcosystem(helperConfig);
-
-        (,, address defaultCollateralAddress) = deployTanssiEcosystem.ecosystemEntities();
-
-        // Verify default collateral was deployed
-        assertTrue(defaultCollateralAddress == address(0));
-        vm.stopPrank();
-    }
-
-    function testDefaultCollateralNotBeingDeployedIfSepolia() public {
-        vm.chainId(11_155_111);
         vm.startPrank(tanssi);
         deployTanssiEcosystem.deployTanssiEcosystem(helperConfig);
 
@@ -612,6 +560,8 @@ contract DeployTest is Test {
     }
 
     function testDeployVaultWithVaultConfiguratorEmpty() public {
+        address stEth = makeAddr("stETH");
+
         DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
@@ -619,7 +569,7 @@ contract DeployTest is Test {
             delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
             shouldBroadcast: false,
             vaultConfigurator: address(0),
-            collateral: address(1),
+            collateral: stEth,
             owner: tanssi
         });
 
@@ -632,6 +582,7 @@ contract DeployTest is Test {
     //**************************************************************************************************
     function testDeployVaultWithCollateralEmpty() public {
         (, IVaultConfigurator vaultConfigurator,) = deployTanssiEcosystem.ecosystemEntities();
+        (Token stETHToken,,) = deployTanssiEcosystem.tokensAddresses();
 
         DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
             epochDuration: VAULT_EPOCH_DURATION,
@@ -698,11 +649,12 @@ contract DeployTest is Test {
         vm.recordLogs();
 
         (, IVaultConfigurator vaultConfigurator,) = deployTanssiEcosystem.ecosystemEntities();
+        (Token stETHToken,,) = deployTanssiEcosystem.tokensAddresses();
 
         DeployVault.VaultDeployParams memory deployParams = DeployVault.VaultDeployParams({
             vaultConfigurator: address(vaultConfigurator),
             owner: tanssi,
-            collateral: address(1),
+            collateral: address(stETHToken),
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
             depositLimit: 0,

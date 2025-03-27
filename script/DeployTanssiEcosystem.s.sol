@@ -160,7 +160,7 @@ contract DeployTanssiEcosystem is Script {
         }
 
         // On real scenario we want to deploy only the slashable vault. TBD
-        if (isTest || block.chainid == 31_337 || block.chainid == 11_155_111) {
+        if (isTest || block.chainid == 31_337) {
             (vaultAddresses.vault, vaultAddresses.delegator, vaultAddresses.slasher) =
                 contractScripts.deployVault.createBaseVault(params);
             console2.log("Vault Collateral: ", IVault(vaultAddresses.vault).collateral());
@@ -170,7 +170,7 @@ contract DeployTanssiEcosystem is Script {
             console2.log(" ");
         }
 
-        if (block.chainid == 31_337 || block.chainid == 11_155_111) {
+        if (block.chainid == 31_337) {
             params.collateral = address(tokensAddresses.rETHToken);
         }
         (vaultAddresses.vaultSlashable, vaultAddresses.delegatorSlashable, vaultAddresses.slasherSlashable) =
@@ -181,9 +181,9 @@ contract DeployTanssiEcosystem is Script {
         console2.log("SlasherSlashable: ", vaultAddresses.slasherSlashable);
         console2.log(" ");
 
-        if (isTest || block.chainid == 31_337 || block.chainid == 11_155_111) {
+        if (isTest || block.chainid == 31_337) {
             params.delegatorIndex = DeployVault.DelegatorIndex.FULL_RESTAKE;
-            if (block.chainid == 31_337 || block.chainid == 11_155_111) {
+            if (block.chainid == 31_337) {
                 params.collateral = address(tokensAddresses.wBTCToken);
             }
             (vaultAddresses.vaultVetoed, vaultAddresses.delegatorVetoed, vaultAddresses.slasherVetoed) =
@@ -202,7 +202,7 @@ contract DeployTanssiEcosystem is Script {
     }
 
     function _setDelegatorConfigs() private {
-        if (block.chainid == 31_337 || block.chainid == 11_155_111 || isTest) {
+        if (block.chainid == 31_337 || isTest) {
             INetworkRestakeDelegator(vaultAddresses.delegator).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
             INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
 
@@ -225,7 +225,7 @@ contract DeployTanssiEcosystem is Script {
             adminFeeClaimRoleHolder: tanssi,
             adminFeeSetRoleHolder: tanssi
         });
-        if (block.chainid == 31_337 || block.chainid == 11_155_111 || isTest) {
+        if (block.chainid == 31_337 || isTest) {
             ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
             ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsParams);
         }
@@ -249,7 +249,7 @@ contract DeployTanssiEcosystem is Script {
             contractScripts.helperConfig.activeNetworkConfig();
 
         IDefaultCollateralFactory defaultCollateralFactory;
-        if (block.chainid != 31_337 && block.chainid != 11_155_111) {
+        if (block.chainid != 31_337) {
             defaultCollateralFactory = IDefaultCollateralFactory(defaultCollateralFactoryAddress);
             ecosystemEntities.defaultCollateralAddress =
                 defaultCollateralFactory.create(address(stETHAddress), 10_000 ether, address(0));
@@ -278,7 +278,7 @@ contract DeployTanssiEcosystem is Script {
 
         INetworkMiddlewareService networkMiddlewareService = INetworkMiddlewareService(networkMiddlewareServiceAddress);
 
-        if (block.chainid == 31_337 || block.chainid == 11_155_111) {
+        if (block.chainid == 31_337) {
             // Deploy simple ERC20 collateral tokens
             deployTokens(tanssi);
             _transferTokensToOperators();
