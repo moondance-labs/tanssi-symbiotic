@@ -698,11 +698,6 @@ contract MiddlewareTest is Test {
         vm.prank(gateway);
         middleware.slash(currentEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
 
-        console2.log("slashingPower", slashingPower);
-        console2.log("totalPowerVault", totalPowerVault);
-        console2.log("totalPowerVaultSlashable", totalPowerVaultSlashable);
-        console2.log("totalFullRestakePower", totalFullRestakePower);
-
         vm.warp(block.timestamp + VETO_DURATION);
         vm.prank(address(middleware));
         vetoSlasher.executeSlash(0, hex"");
@@ -720,20 +715,6 @@ contract MiddlewareTest is Test {
             _calculateOperatorPower(totalPowerVaultSlashable, activePowerInVetoed, slashingPower);
         // The first vault is not Slashable, so we calculate the power with no slashing
         (uint256 totalOperator3StakeFirstVault,) = _calculateOperatorPower(totalPowerVault, 0, 0);
-
-        console2.log("activePowerInVetoed", activePowerInVetoed);
-        console2.log("totalOperator2StakeAfter", totalOperator2StakeAfter);
-        console2.log("powerFromSharesOperator2After", powerFromSharesOperator2After);
-        console2.log("totalOperator3StakeAfter", totalOperator3StakeAfter);
-        console2.log("totalOperator3StakeFirstVault", totalOperator3StakeFirstVault);
-        console2.log(
-            "totalOperator3StakeAfter+totalOperator3StakeFirstVault",
-            totalOperator3StakeAfter + totalOperator3StakeFirstVault
-        );
-        console2.log("powerFromSharesOperator3After", powerFromSharesOperator3After);
-
-        console2.log("validators[1].stake", validators[1].stake);
-        console2.log("validators[2].stake", validators[2].stake);
 
         assertEq(validators[1].stake, totalOperator2StakeAfter);
         assertEq(validators[2].stake, totalOperator3StakeAfter + totalOperator3StakeFirstVault);
