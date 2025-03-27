@@ -304,18 +304,20 @@ contract DeployTanssiEcosystem is Script {
             vm.startBroadcast(ownerPrivateKey);
         }
 
-        ecosystemEntities.middleware = _deployMiddlewareWithProxy(
-            tanssi,
-            operatorRegistryAddress,
-            vaultRegistryAddress,
-            operatorNetworkOptInServiceAddress,
-            tanssi,
-            NETWORK_EPOCH_DURATION,
-            SLASHING_WINDOW,
-            address(0),
-            operatorRewardsAddress,
-            stakerRewardsFactoryAddress
-        );
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: tanssi,
+            operatorRegistry: operatorRegistryAddress,
+            vaultRegistry: vaultRegistryAddress,
+            operatorNetworkOptIn: operatorNetworkOptInServiceAddress,
+            owner: tanssi,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: SLASHING_WINDOW,
+            reader: address(0)
+        });
+
+        ecosystemEntities.middleware =
+            _deployMiddlewareWithProxy(params, operatorRewardsAddress, stakerRewardsFactoryAddress);
+
         networkMiddlewareService.setMiddleware(address(ecosystemEntities.middleware));
         _registerEntitiesToMiddleware();
 
@@ -342,55 +344,29 @@ contract DeployTanssiEcosystem is Script {
     }
 
     function _deployMiddlewareWithProxy(
-        address network,
-        address operatorRegistry,
-        address vaultRegistry,
-        address operatorNetOptin,
-        address owner,
-        uint48 epochDuration,
-        uint48 slashingWindow,
-        address reader,
+        IMiddleware.InitParams memory params,
         address operatorRewards,
         address stakerRewardsFactory
     ) private returns (Middleware _middleware) {
         Middleware _middlewareImpl = new Middleware(operatorRewards, stakerRewardsFactory);
         _middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
 
-        if (reader == address(0)) {
-            reader = address(new BaseMiddlewareReader());
+        if (params.reader == address(0)) {
+            params.reader = address(new BaseMiddlewareReader());
         }
-        _middleware.initialize(
-            network, operatorRegistry, vaultRegistry, operatorNetOptin, owner, epochDuration, slashingWindow, reader
-        );
+        _middleware.initialize(params);
     }
 
     function deployMiddleware(
-        address networkAddress,
-        address operatorRegistryAddress,
-        address vaultRegistryAddress,
-        address operatorNetworkOptInServiceAddress,
-        address ownerAddress,
-        uint48 epochDuration,
-        uint48 slashingWindow,
+        IMiddleware.InitParams memory params,
         address operatorRewardsAddress,
         address stakerRewardsFactoryAddress,
-        address readHelperAddress,
         address networkMiddlewareServiceAddress
     ) external returns (address) {
         vm.startBroadcast(ownerPrivateKey);
 
-        ecosystemEntities.middleware = _deployMiddlewareWithProxy(
-            networkAddress,
-            operatorRegistryAddress,
-            vaultRegistryAddress,
-            operatorNetworkOptInServiceAddress,
-            ownerAddress,
-            epochDuration,
-            slashingWindow,
-            readHelperAddress,
-            operatorRewardsAddress,
-            stakerRewardsFactoryAddress
-        );
+        ecosystemEntities.middleware =
+            _deployMiddlewareWithProxy(params, operatorRewardsAddress, stakerRewardsFactoryAddress);
 
         if (networkMiddlewareServiceAddress != address(0)) {
             INetworkMiddlewareService(networkMiddlewareServiceAddress).setMiddleware(

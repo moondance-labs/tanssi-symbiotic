@@ -91,21 +91,26 @@ contract MiddlewareTest is Test {
     bytes32 public constant OPERATOR_KEY = bytes32(uint256(1));
     bytes32 public constant PREV_OPERATOR_KEY = bytes32(uint256(4));
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
+    bytes32 public constant MIDDLEWARE_STORAGE_LOCATION =
+        0xca64b196a0d05040904d062f739ed1d1e1d3cc5de78f7001fb9039595fce9100;
+
     uint8 public constant ORACLE_DECIMALS = 18;
     int256 public constant ORACLE_CONVERSION_TOKEN = 3000 ether;
 
     uint48 public constant START_TIME = 1;
 
     bytes32 public constant GATEWAY_ROLE = keccak256("GATEWAY_ROLE");
+    bytes32 public constant FORWARDER_ROLE = keccak256("FORWARDER_ROLE");
 
     address tanssi = makeAddr("tanssi");
     address vaultFactory = makeAddr("vaultFactory");
-    address slasherFactory = makeAddr("vaultFactory");
+    address slasherFactory = makeAddr("slasherFactory");
     address delegatorFactory = makeAddr("delegatorFactory");
 
     address owner = makeAddr("owner");
     address operator = makeAddr("operator");
     address gateway = makeAddr("gateway");
+    address forwarder = makeAddr("forwarder");
 
     NetworkMiddlewareService networkMiddlewareService;
     OptInServiceMock operatorNetworkOptInServiceMock;
@@ -189,16 +194,17 @@ contract MiddlewareTest is Test {
 
         middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
         middleware = Middleware(address(new MiddlewareProxy(address(middlewareImpl), "")));
-        middleware.initialize(
-            tanssi,
-            address(registry),
-            address(registry),
-            address(operatorNetworkOptInServiceMock),
-            owner,
-            NETWORK_EPOCH_DURATION,
-            SLASHING_WINDOW,
-            readHelper
-        );
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: tanssi,
+            operatorRegistry: address(registry),
+            vaultRegistry: address(registry),
+            operatorNetworkOptIn: address(operatorNetworkOptInServiceMock),
+            owner: owner,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: SLASHING_WINDOW,
+            reader: readHelper
+        });
+        middleware.initialize(params);
         middleware.setGateway(address(gateway));
         middleware.setCollateralToOracle(address(collateral), address(collateralOracle));
 
@@ -230,17 +236,17 @@ contract MiddlewareTest is Test {
         Middleware _middleware = new Middleware(address(operatorRewards), address(stakerRewardsFactory));
         Middleware middlewareProxy = Middleware(address(new MiddlewareProxy(address(_middleware), "")));
         vm.expectRevert(IMiddleware.Middleware__SlashingWindowTooShort.selector);
-
-        Middleware(address(middlewareProxy)).initialize(
-            tanssi,
-            address(registry),
-            address(registry),
-            address(operatorNetworkOptInServiceMock),
-            owner,
-            EPOCH_DURATION_,
-            SHORT_SLASHING_WINDOW_,
-            readHelper
-        );
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: tanssi,
+            operatorRegistry: address(registry),
+            vaultRegistry: address(registry),
+            operatorNetworkOptIn: address(operatorNetworkOptInServiceMock),
+            owner: owner,
+            epochDuration: EPOCH_DURATION_,
+            slashingWindow: SHORT_SLASHING_WINDOW_,
+            reader: readHelper
+        });
+        Middleware(address(middlewareProxy)).initialize(params);
 
         vm.stopPrank();
     }
@@ -327,6 +333,9 @@ contract MiddlewareTest is Test {
         assertEq(BaseMiddlewareReader(address(middleware)).SLASHING_WINDOW(), SLASHING_WINDOW);
         assertEq(BaseMiddlewareReader(address(middleware)).subnetworksLength(), 1);
         assertEq(middleware.getGateway(), address(gateway));
+        assertEq(middleware.getLastTimestamp(), 1); // Start time in tests is 1
+        assertEq(middleware.getForwarderAddress(), address(0));
+        assertEq(middleware.getInterval(), NETWORK_EPOCH_DURATION);
     }
 
     // ************************************************************************************************
@@ -1439,8 +1448,9 @@ contract MiddlewareTest is Test {
     }
 
     function testSendCurrentOperatorKeysButGatewayNotSet() public {
-        vm.prank(owner);
-        middleware.setGateway(address(0));
+        bytes32 slot = bytes32(uint256(MIDDLEWARE_STORAGE_LOCATION));
+
+        vm.store(address(middleware), slot, bytes32(0));
 
         vm.expectRevert(IMiddleware.Middleware__GatewayNotSet.selector);
         middleware.sendCurrentOperatorsKeys();
@@ -1644,7 +1654,7 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function testMiddlewareIsUpgradeable() public {
-        uint48 OPERATOR_SHARE = 2000;
+        // uint48 OPERATOR_SHARE = 2000;
 
         // ODefaultOperatorRewards newOperatorRewards = ODefaultOperatorRewards(
         //     deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner));
@@ -1753,31 +1763,33 @@ contract MiddlewareTest is Test {
         Middleware middleware2 = Middleware(address(new MiddlewareProxy(address(middlewareImpl), "")));
         address readHelper = address(new BaseMiddlewareReader());
         vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
-        middleware2.initialize(
-            tanssi, // network
-            address(registry), // operatorRegistry
-            address(registry), // vaultRegistry
-            address(operatorNetworkOptInServiceMock), // operatorNetOptin
-            address(0), // owner
-            NETWORK_EPOCH_DURATION, // epoch duration
-            SLASHING_WINDOW, // slashing window
-            readHelper // reader
-        );
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: tanssi,
+            operatorRegistry: address(registry),
+            vaultRegistry: address(registry),
+            operatorNetworkOptIn: address(operatorNetworkOptInServiceMock),
+            owner: address(0),
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: SLASHING_WINDOW,
+            reader: readHelper
+        });
+        middleware2.initialize(params);
     }
 
     function testInitializeWithNoReader() public {
         Middleware middleware2 = Middleware(address(new MiddlewareProxy(address(middlewareImpl), "")));
         vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
-        middleware2.initialize(
-            tanssi, // network
-            address(registry), // operatorRegistry
-            address(registry), // vaultRegistry
-            address(operatorNetworkOptInServiceMock), // operatorNetOptin
-            owner, // owner
-            NETWORK_EPOCH_DURATION, // epoch duration
-            SLASHING_WINDOW, // slashing window
-            address(0) // reader
-        );
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: tanssi,
+            operatorRegistry: address(registry),
+            vaultRegistry: address(registry),
+            operatorNetworkOptIn: address(operatorNetworkOptInServiceMock),
+            owner: owner,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: SLASHING_WINDOW,
+            reader: address(0)
+        });
+        middleware2.initialize(params);
     }
 
     // ************************************************************************************************
@@ -1903,6 +1915,204 @@ contract MiddlewareTest is Test {
     }
 
     // ************************************************************************************************
+    // *                                        SET GATEWAY
+    // ************************************************************************************************
+
+    function testSetGateway() public {
+        address gateway2 = makeAddr("gateway2");
+        vm.prank(owner);
+        middleware.setGateway(gateway2);
+        assertEq(middleware.getGateway(), gateway2);
+    }
+
+    function testSetGatewayUnauthorizedAccount() public {
+        address gateway2 = makeAddr("gateway2");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
+            )
+        );
+        middleware.setGateway(gateway2);
+    }
+
+    function testSetGatewayRevertIfZero() public {
+        address gatewayNull = address(0);
+        vm.prank(owner);
+        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
+        middleware.setGateway(gatewayNull);
+    }
+
+    function testSetGatewayRevertIfAlreadySet() public {
+        vm.prank(owner);
+        vm.expectRevert(IMiddleware.Middleware__AlreadySet.selector);
+        middleware.setGateway(gateway);
+    }
+
+    // ************************************************************************************************
+    // *                                        SET FORWARDER
+    // ************************************************************************************************
+
+    function testSetForwarder() public {
+        address forwarder2 = makeAddr("forwarder2");
+        vm.prank(owner);
+        middleware.setForwarder(forwarder2);
+        assertEq(middleware.getForwarderAddress(), forwarder2);
+    }
+
+    function testSetForwarderUnauthorizedAccount() public {
+        address forwarder2 = makeAddr("forwarder2");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
+            )
+        );
+        middleware.setForwarder(forwarder2);
+    }
+
+    function testSetForwarderRevertIfZero() public {
+        address forwarderNull = address(0);
+        vm.prank(owner);
+        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
+        middleware.setForwarder(forwarderNull);
+    }
+
+    function testSetForwarderRevertIfAlreadySet() public {
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+
+        vm.expectRevert(IMiddleware.Middleware__AlreadySet.selector);
+        middleware.setForwarder(forwarder);
+    }
+
+    // ************************************************************************************************
+    // *                                        SET INTERVAL
+    // ************************************************************************************************
+
+    function testSetInterval() public {
+        uint256 interval = 3 days;
+        vm.prank(owner);
+        middleware.setInterval(interval);
+        assertEq(middleware.getInterval(), interval);
+    }
+
+    function testSetIntervalUnauthorizedAccount() public {
+        uint256 interval = 3 days;
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
+            )
+        );
+        middleware.setInterval(interval);
+    }
+
+    function testSetIntervalRevertIfZero() public {
+        uint256 interval = 0;
+        vm.prank(owner);
+        vm.expectRevert(IMiddleware.Middleware__InvalidInterval.selector);
+        middleware.setInterval(interval);
+    }
+
+    function testSetIntervalRevertIfAlreadySet() public {
+        vm.prank(owner);
+        vm.expectRevert(IMiddleware.Middleware__AlreadySet.selector);
+        middleware.setInterval(NETWORK_EPOCH_DURATION);
+    }
+
+    // ************************************************************************************************
+    // *                                        UPKEEP
+    // ************************************************************************************************
+
+    function testUpkeepWhenKeysAre0() public {
+        address forwarder2 = makeAddr("forwarder2");
+        vm.prank(owner);
+        middleware.setForwarder(forwarder2);
+
+        // It's not needed, it's just for explaining and showing the flow
+        address offlineKeepers = makeAddr("offlineKeepers");
+        vm.prank(offlineKeepers);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+
+        bytes32[] memory sortedKeys = abi.decode(performData, (bytes32[]));
+        assertEq(sortedKeys.length, 0);
+
+        vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
+        vm.prank(forwarder2);
+        middleware.performUpkeep(performData);
+    }
+
+    function testUpkeepWithMoreOperators() public {
+        address operator2 = makeAddr("operator2");
+        bytes32 OPERATOR2_KEY = bytes32(uint256(2));
+
+        vm.prank(owner);
+        middleware.setForwarder(forwarder);
+
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+        _registerOperatorToNetwork(operator2, address(vault), false, false);
+
+        vm.startPrank(owner);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        middleware.registerOperator(operator2, abi.encode(OPERATOR2_KEY), address(0));
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+
+        bytes32[] memory sortedKeys = abi.decode(performData, (bytes32[]));
+        assertEq(sortedKeys.length, 2);
+        vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
+        vm.prank(forwarder);
+        middleware.performUpkeep(performData);
+    }
+
+    function testUpkeepShouldRevertIfNotCalledByForwarder() public {
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+
+        vm.startPrank(owner);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), FORWARDER_ROLE
+            )
+        );
+        middleware.performUpkeep(performData);
+    }
+
+    function testUpkeepShouldRevertIfGatewayNotSet() public {
+        // We set the gateway to 0 address
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+
+        bytes32 slot = bytes32(uint256(MIDDLEWARE_STORAGE_LOCATION));
+
+        vm.store(address(middleware), slot, bytes32(0));
+
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+
+        vm.prank(forwarder);
+        vm.expectRevert(IMiddleware.Middleware__GatewayNotSet.selector);
+        middleware.performUpkeep(performData);
+    }
+
+    // ************************************************************************************************
     // *                                   VAULT TO COLLATERAL AND TO ORACLE
     // ************************************************************************************************
 
@@ -1982,10 +2192,7 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function _setVaultToCollateral(address vault_, address collateral_) internal {
-        // Taken from MiddlewareStorage.sol
-        bytes32 MIDDLEWARE_STORAGE_LOCATION = 0xca64b196a0d05040904d062f739ed1d1e1d3cc5de78f7001fb9039595fce9100;
-
-        bytes32 slot = bytes32(uint256(MIDDLEWARE_STORAGE_LOCATION) + uint256(2)); // 2 is mapping slot number for the vault to collateral
+        bytes32 slot = bytes32(uint256(MIDDLEWARE_STORAGE_LOCATION) + uint256(5)); // 5 is mapping slot number for the vault to collateral
         // Get slot for mapping with vault_
         slot = keccak256(abi.encode(vault_, slot));
 

@@ -39,6 +39,7 @@ import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-ti
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {Token} from "test/mocks/Token.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
+import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
 import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
@@ -215,18 +216,19 @@ contract DeployTest is Test {
         address vaultFactory = addresses.vaultFactory;
         address operatorNetworkOptIn = addresses.operatorNetworkOptInService;
         address networkMiddlewareService = addresses.networkMiddlewareService;
+
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: tanssi,
+            operatorRegistry: operatorRegistry,
+            vaultRegistry: vaultFactory,
+            operatorNetworkOptIn: operatorNetworkOptIn,
+            owner: tanssi,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: 8 days,
+            reader: address(0)
+        });
         address middleware = deployTanssiEcosystem.deployMiddleware(
-            tanssi,
-            operatorRegistry,
-            vaultFactory,
-            operatorNetworkOptIn,
-            tanssi,
-            NETWORK_EPOCH_DURATION,
-            8 days,
-            operatorRewardsAddress,
-            stakerRewardsFactoryAddress,
-            address(0),
-            networkMiddlewareService
+            params, operatorRewardsAddress, stakerRewardsFactoryAddress, networkMiddlewareService
         );
         assertNotEq(middleware, ZERO_ADDRESS);
     }
@@ -262,19 +264,18 @@ contract DeployTest is Test {
         uint256 ownerPrivateKey =
             vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
         address _tanssi = vm.addr(ownerPrivateKey);
-
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: _tanssi,
+            operatorRegistry: operatorRegistry,
+            vaultRegistry: vaultFactory,
+            operatorNetworkOptIn: operatorNetworkOptIn,
+            owner: _tanssi,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: 9 days,
+            reader: address(0)
+        });
         address middleware = deployTanssiEcosystem.deployMiddleware(
-            _tanssi,
-            operatorRegistry,
-            vaultFactory,
-            operatorNetworkOptIn,
-            _tanssi,
-            NETWORK_EPOCH_DURATION,
-            9 days,
-            operatorRewardsAddress,
-            stakerRewardsFactoryAddress,
-            address(0),
-            address(0)
+            params, operatorRewardsAddress, stakerRewardsFactoryAddress, address(0)
         );
 
         vm.expectEmit(true, true, false, false);

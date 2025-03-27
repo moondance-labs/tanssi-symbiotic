@@ -17,6 +17,7 @@ pragma solidity 0.8.25;
 //**************************************************************************************************
 //                                      CHAINLINK
 //**************************************************************************************************
+import {AutomationCompatibleInterface} from "@chainlink/automation/interfaces/AutomationCompatibleInterface.sol";
 import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3Interface.sol";
 
 //**************************************************************************************************
@@ -63,6 +64,7 @@ contract Middleware is
     KeyManager256,
     OzAccessControl,
     EpochCapture,
+    AutomationCompatibleInterface,
     MiddlewareStorage,
     IMiddleware
 {
@@ -106,32 +108,34 @@ contract Middleware is
      * @param reader The reader address
      */
     function initialize(
-        address network,
-        address operatorRegistry,
-        address vaultRegistry,
-        address operatorNetOptin,
-        address owner,
-        uint48 epochDuration,
-        uint48 slashingWindow,
-        address reader
-    ) public initializer {
-        {
-            _checkNotZeroAddress(owner);
-            _checkNotZeroAddress(reader);
-        }
-
-        if (slashingWindow < epochDuration) {
+        InitParams memory params
+    ) public initializer notZeroAddress(params.owner) notZeroAddress(params.reader) {
+        if (params.slashingWindow < params.epochDuration) {
             revert Middleware__SlashingWindowTooShort();
         }
 
-        __BaseMiddleware_init(network, slashingWindow, vaultRegistry, operatorRegistry, operatorNetOptin, reader);
-        __OzAccessControl_init(owner);
-        __EpochCapture_init(epochDuration);
+        {
+            StorageMiddleware storage $ = _getMiddlewareStorage();
+            $.lastTimestamp = Time.timestamp();
+            $.interval = params.epochDuration;
+        }
+
+        __BaseMiddleware_init(
+            params.network,
+            params.slashingWindow,
+            params.vaultRegistry,
+            params.operatorRegistry,
+            params.operatorNetworkOptIn,
+            params.reader
+        );
+        __OzAccessControl_init(params.owner);
+        __EpochCapture_init(params.epochDuration);
         __UUPSUpgradeable_init();
 
-        _grantRole(DEFAULT_ADMIN_ROLE, owner);
+        _grantRole(DEFAULT_ADMIN_ROLE, params.owner);
         _setSelectorRole(this.distributeRewards.selector, GATEWAY_ROLE);
         _setSelectorRole(this.slash.selector, GATEWAY_ROLE);
+        _setSelectorRole(this.performUpkeep.selector, FORWARDER_ROLE);
     }
 
     function _authorizeUpgrade(
@@ -144,7 +148,7 @@ contract Middleware is
     function _afterRegisterSharedVault(
         address sharedVault,
         IODefaultStakerRewards.InitParams memory stakerRewardsParams
-    ) internal virtual override {
+    ) internal override {
         address stakerRewards =
             IODefaultStakerRewardsFactory(i_stakerRewardsFactory).create(sharedVault, stakerRewardsParams);
 
@@ -175,12 +179,52 @@ contract Middleware is
      * @inheritdoc IMiddleware
      */
     function setGateway(
-        address _gateway
-    ) external checkAccess {
+        address newGateway
+    ) external checkAccess notZeroAddress(newGateway) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
-        _revokeRole(GATEWAY_ROLE, $.gateway);
-        $.gateway = _gateway;
-        _grantRole(GATEWAY_ROLE, _gateway);
+        address oldGateway = $.gateway;
+
+        if (newGateway == oldGateway) {
+            revert Middleware__AlreadySet();
+        }
+
+        $.gateway = newGateway;
+        _revokeRole(GATEWAY_ROLE, oldGateway);
+        _grantRole(GATEWAY_ROLE, newGateway);
+    }
+
+    /**
+     * @inheritdoc IMiddleware
+     */
+    function setInterval(
+        uint256 interval
+    ) external checkAccess {
+        if (interval == 0) {
+            revert Middleware__InvalidInterval();
+        }
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+
+        if (interval == $.interval) {
+            revert Middleware__AlreadySet();
+        }
+
+        $.interval = interval;
+    }
+
+    /**
+     * @inheritdoc IMiddleware
+     */
+    function setForwarder(
+        address forwarder
+    ) external checkAccess notZeroAddress(forwarder) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+
+        if (forwarder == $.forwarderAddress) {
+            revert Middleware__AlreadySet();
+        }
+
+        $.forwarderAddress = forwarder;
+        _grantRole(FORWARDER_ROLE, forwarder);
     }
 
     function setCollateralToOracle(
@@ -237,8 +281,50 @@ contract Middleware is
 
         uint48 epoch = getCurrentEpoch();
         sortedKeys = sortOperatorsByVaults(epoch);
-
         IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);
+    }
+
+    /**
+     * @inheritdoc AutomationCompatibleInterface
+     * @dev Called by chainlink nodes off-chain to check if the upkeep is needed
+     * @return upkeepNeeded boolean to indicate whether the keeper should call performUpkeep or not.
+     * @return performData bytes of the sorted operators' keys and the epoch that will be used by the keeper when calling performUpkeep, if upkeep is needed.
+     */
+    function checkUpkeep(
+        bytes calldata /* checkData */
+    ) external view override returns (bool upkeepNeeded, bytes memory performData) {
+        uint48 epoch = getCurrentEpoch();
+        bytes32[] memory sortedKeys = sortOperatorsByVaults(epoch);
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+
+        //TODO Should it be epochDuration? Because we wanna send it once per network epoch
+        upkeepNeeded = (Time.timestamp() - $.lastTimestamp) > $.interval;
+
+        performData = abi.encode(sortedKeys, epoch);
+    }
+
+    /**
+     * @inheritdoc AutomationCompatibleInterface
+     * @dev Called by chainlink nodes off-chain to perform the upkeep. It will send the sorted keys to the gateway
+     */
+    function performUpkeep(
+        bytes calldata performData
+    ) external override checkAccess {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        address gateway = $.gateway;
+        if (gateway == address(0)) {
+            revert Middleware__GatewayNotSet();
+        }
+
+        uint48 currentTimestamp = Time.timestamp();
+        if ((currentTimestamp - $.lastTimestamp) > $.interval) {
+            $.lastTimestamp = currentTimestamp;
+
+            // Decode the sorted keys and the epoch from performData
+            (bytes32[] memory sortedKeys, uint48 epoch) = abi.decode(performData, (bytes32[], uint48));
+
+            IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);
+        }
     }
 
     /**

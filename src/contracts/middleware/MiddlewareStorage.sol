@@ -20,6 +20,9 @@ abstract contract MiddlewareStorage {
     /// @custom:storage-location erc7201:tanssi.middleware.MiddlewareStorage.v1.1
     struct StorageMiddleware {
         address gateway;
+        uint256 lastTimestamp;
+        uint256 interval;
+        address forwarderAddress;
         mapping(address collateral => address oracle) collateralToOracle;
         mapping(address vault => address collateral) vaultToCollateral;
     }
@@ -31,6 +34,7 @@ abstract contract MiddlewareStorage {
     uint256 public constant VERSION = 1;
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
     bytes32 internal constant GATEWAY_ROLE = keccak256("GATEWAY_ROLE");
+    bytes32 internal constant FORWARDER_ROLE = keccak256("FORWARDER_ROLE");
 
     /**
      * @notice Get the operator rewards contract address
@@ -59,6 +63,37 @@ abstract contract MiddlewareStorage {
         return $.gateway;
     }
 
+    /**
+     * @notice Get the last timestamp
+     * @return last timestamp
+     */
+    function getLastTimestamp() public view returns (uint256) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        return $.lastTimestamp;
+    }
+
+    /**
+     * @notice Get the forwarder address
+     * @return forwarder address
+     */
+    function getForwarderAddress() public view returns (address) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        return $.forwarderAddress;
+    }
+
+    /**
+     * @notice Get the interval
+     * @return interval
+     */
+    function getInterval() public view returns (uint256) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        return $.interval;
+    }
+
+    /**
+     * @notice Get the oracle address for a collateral
+     * @return oracle address
+     */
     function collateralToOracle(
         address collateral
     ) public view returns (address) {
@@ -66,6 +101,10 @@ abstract contract MiddlewareStorage {
         return $.collateralToOracle[collateral];
     }
 
+    /**
+     * @notice Get the collateral address for a vault
+     * @return collateral address
+     */
     function vaultToCollateral(
         address vault
     ) public view returns (address) {
@@ -73,6 +112,10 @@ abstract contract MiddlewareStorage {
         return $.vaultToCollateral[vault];
     }
 
+    /**
+     * @notice Get the oracle address for a vault
+     * @return oracle address
+     */
     function vaultToOracle(
         address vault
     ) public view returns (address) {

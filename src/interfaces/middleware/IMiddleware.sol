@@ -24,11 +24,12 @@ interface IMiddleware {
     event CollateralToOracleSet(address indexed collateral, address indexed oracle);
 
     // Errors
-    error Middleware__CallerNotGateway();
     error Middleware__GatewayNotSet();
+    error Middleware__AlreadySet();
     error Middleware__TooOldEpoch();
     error Middleware__InvalidEpoch();
     error Middleware__InvalidAddress();
+    error Middleware__InvalidInterval();
     error Middleware__InsufficientBalance();
     error Middleware__NotSupportedCollateral(address collateral);
     error Middleware__SlashingWindowTooShort();
@@ -71,12 +72,50 @@ interface IMiddleware {
     }
 
     /**
+     * @param network The network address
+     * @param operatorRegistry The operator registry address
+     * @param vaultRegistry The vault registry address
+     * @param operatorNetOptin The operator network optin address
+     * @param owner The owner address
+     * @param epochDuration The epoch duration
+     * @param slashingWindow The slashing window
+     * @param reader The reader address
+     */
+    struct InitParams {
+        address network;
+        address operatorRegistry;
+        address vaultRegistry;
+        address operatorNetworkOptIn;
+        address owner;
+        uint48 epochDuration;
+        uint48 slashingWindow;
+        address reader;
+    }
+
+    /**
      * @notice Sets the gateway contract
      * @dev Only the owner can call this function
-     * @param _gateway The gateway contract address
+     * @param gateway The gateway contract address
      */
     function setGateway(
-        address _gateway
+        address gateway
+    ) external;
+
+    /**
+     * @notice Sets the interval on which to let Chainlink forwarder to call `performUpkeep`
+     * @dev Only the owner can call this function
+     * @param interval The interval
+     */
+    function setInterval(
+        uint256 interval
+    ) external;
+
+    /**
+     * @notice Sets the forwarder address
+     * @param forwarder The forwarder address
+     */
+    function setForwarder(
+        address forwarder
     ) external;
 
     /**

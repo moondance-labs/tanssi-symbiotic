@@ -180,16 +180,18 @@ contract RewardsTest is Test {
 
         Middleware _middlewareImpl = new Middleware(operatorRewardsAddress, address(stakerRewards));
         middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
-        Middleware(address(middleware)).initialize(
-            tanssi,
-            address(operatorRegistry),
-            address(networkRegistry),
-            address(operatorNetworkOptIn),
-            tanssi,
-            NETWORK_EPOCH_DURATION,
-            SLASHING_WINDOW,
-            readHelper
-        );
+
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: tanssi,
+            operatorRegistry: address(operatorRegistry),
+            vaultRegistry: address(vaultFactory),
+            operatorNetworkOptIn: address(operatorNetworkOptIn),
+            owner: tanssi,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: SLASHING_WINDOW,
+            reader: readHelper
+        });
+        Middleware(address(middleware)).initialize(params);
         slasher = new Slasher(address(vaultFactory), address(networkMiddlewareService), slasherFactory, 0);
 
         token.transfer(address(middleware), token.totalSupply());
@@ -684,28 +686,28 @@ contract RewardsTest is Test {
 
     function testStakerRewardsFactoryConstructorNoVaultFactory() public {
         vm.expectRevert(IODefaultStakerRewardsFactory.ODefaultStakerRewardsFactory__InvalidAddress.selector);
-        address stakerRewardsFactoryAddress2 = deployRewards.deployStakerRewardsFactoryContract(
+        deployRewards.deployStakerRewardsFactoryContract(
             address(0), address(networkMiddlewareService), address(operatorRewards), tanssi
         );
     }
 
     function testStakerRewardsFactoryConstructorNoNetworkMiddlewareService() public {
         vm.expectRevert(IODefaultStakerRewardsFactory.ODefaultStakerRewardsFactory__InvalidAddress.selector);
-        address stakerRewardsFactoryAddress2 = deployRewards.deployStakerRewardsFactoryContract(
+        deployRewards.deployStakerRewardsFactoryContract(
             address(vaultFactory), address(0), address(operatorRewards), tanssi
         );
     }
 
     function testStakerRewardsFactoryConstructorNoOperatorRewards() public {
         vm.expectRevert(IODefaultStakerRewardsFactory.ODefaultStakerRewardsFactory__InvalidAddress.selector);
-        address stakerRewardsFactoryAddress2 = deployRewards.deployStakerRewardsFactoryContract(
+        deployRewards.deployStakerRewardsFactoryContract(
             address(vaultFactory), address(networkMiddlewareService), address(0), tanssi
         );
     }
 
     function testStakerRewardsFactoryConstructorNoNetwork() public {
         vm.expectRevert(IODefaultStakerRewardsFactory.ODefaultStakerRewardsFactory__InvalidAddress.selector);
-        address stakerRewardsFactoryAddress2 = deployRewards.deployStakerRewardsFactoryContract(
+        deployRewards.deployStakerRewardsFactoryContract(
             address(vaultFactory), address(networkMiddlewareService), address(operatorRewards), address(0)
         );
     }

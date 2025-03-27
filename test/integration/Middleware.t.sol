@@ -195,6 +195,7 @@ contract MiddlewareTest is Test {
 
     address public resolver1 = makeAddr("resolver1");
     address public resolver2 = makeAddr("resolver2");
+    address public forwarder = makeAddr("forwarder");
 
     address tanssi;
     address otherNetwork;
@@ -341,16 +342,17 @@ contract MiddlewareTest is Test {
 
         Middleware _middlewareImpl = new Middleware(_operatorRewardsAddress, _stakerRewardsFactoryAddress);
         _middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
-        _middleware.initialize(
-            _network,
-            address(operatorRegistry),
-            address(vaultFactory),
-            address(operatorNetworkOptInService),
-            _owner,
-            NETWORK_EPOCH_DURATION,
-            SLASHING_WINDOW,
-            readHelper
-        );
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: _network,
+            operatorRegistry: address(operatorRegistry),
+            vaultRegistry: address(vaultFactory),
+            operatorNetworkOptIn: address(operatorNetworkOptInService),
+            owner: _owner,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: SLASHING_WINDOW,
+            reader: readHelper
+        });
+        _middleware.initialize(params);
 
         networkMiddlewareService.setMiddleware(address(_middleware));
     }
@@ -1008,15 +1010,6 @@ contract MiddlewareTest is Test {
         return paraID;
     }
 
-    // function testSendingOperatorsDataToGateway() public {
-    //     IOGateway gateway = IOGateway(address(_createGateway()));
-    //     _createParaIDAndAgent(gateway);
-    //     vm.startPrank(owner);
-    //     middleware.setGateway(address(gateway));
-    //     middleware.sendCurrentOperatorsKeys();
-    //     vm.stopPrank();
-    // }
-
     function _addOperatorsToNetwork(
         uint256 _count
     ) public {
@@ -1249,6 +1242,32 @@ contract MiddlewareTest is Test {
         _assertDataIsValidAndSorted(validators, sortedValidators, count);
 
         vm.stopPrank();
+    }
+
+    // ************************************************************************************************
+    // *                                        UPKEEP
+    // ************************************************************************************************
+
+    function testUpkeep() public {
+        vm.prank(owner);
+        middleware.setForwarder(forwarder);
+        // It's not needed, it's just for explaining and showing the flow
+        address offlineKeepers = makeAddr("offlineKeepers");
+        vm.prank(offlineKeepers);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+
+        bytes32[] memory sortedKeys = abi.decode(performData, (bytes32[]));
+        assertEq(sortedKeys.length, 3);
+
+        vm.prank(forwarder);
+        vm.expectEmit(true, false, false, false);
+        emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
+        middleware.performUpkeep(performData);
     }
 
     function testWhenRegisteringVaultThenStakerRewardsAreDeployed() public {
