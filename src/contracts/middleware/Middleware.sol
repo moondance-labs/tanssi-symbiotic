@@ -109,12 +109,7 @@ contract Middleware is
      */
     function initialize(
         InitParams memory params
-    ) public initializer {
-        {
-            _checkNotZeroAddress(params.owner);
-            _checkNotZeroAddress(params.reader);
-        }
-
+    ) public initializer notZeroAddress(params.owner) notZeroAddress(params.reader) {
         if (params.slashingWindow < params.epochDuration) {
             revert Middleware__SlashingWindowTooShort();
         }
@@ -185,9 +180,7 @@ contract Middleware is
      */
     function setGateway(
         address newGateway
-    ) external checkAccess {
-        _checkNotZeroAddress(newGateway);
-
+    ) external checkAccess notZeroAddress(newGateway) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
         address oldGateway = $.gateway;
 
@@ -223,9 +216,7 @@ contract Middleware is
      */
     function setForwarder(
         address forwarder
-    ) external checkAccess {
-        _checkNotZeroAddress(forwarder);
-
+    ) external checkAccess notZeroAddress(forwarder) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
 
         if (forwarder == $.forwarderAddress) {
