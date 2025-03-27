@@ -872,10 +872,8 @@ contract MiddlewareTest is Test {
     function testCollateralsWithDifferentDecimals() public {
         vm.startPrank(owner);
 
-        Token usdc = Token(deployCollateral.deployCollateral("usdc"));
-        Token usdt = Token(deployCollateral.deployCollateral("usdt"));
-        vm.mockCall(address(usdc), abi.encodeWithSelector(ERC20.decimals.selector), abi.encode(USDC_TOKEN_DECIMALS));
-        vm.mockCall(address(usdt), abi.encodeWithSelector(ERC20.decimals.selector), abi.encode(USDT_TOKEN_DECIMALS));
+        Token usdc = Token(deployCollateral.deployCollateral("usdc", USDC_TOKEN_DECIMALS));
+        Token usdt = Token(deployCollateral.deployCollateral("usdt", USDT_TOKEN_DECIMALS));
 
         usdc.mint(operator4, 1000 * 10 ** USDC_TOKEN_DECIMALS);
         usdc.mint(operator5, 1000 * 10 ** USDC_TOKEN_DECIMALS);

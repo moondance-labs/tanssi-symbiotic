@@ -154,7 +154,7 @@ contract RewardsTest is Test {
             0
         );
 
-        token = new Token("Token");
+        token = new Token("Token", 18);
         MockV3Aggregator collateralOracle = new MockV3Aggregator(ORACLE_DECIMALS, ORACLE_CONVERSION_TOKEN);
 
         vault = new VaultMock(delegatorFactory, slasherFactory, address(vaultFactory), address(token));
@@ -867,7 +867,7 @@ contract RewardsTest is Test {
     function testClaimableButWithFakeTokenAddressButMultipleRewards() public {
         uint48 epoch = 0;
         uint48 epochTs = middleware.getEpochStart(epoch);
-        Token newToken = new Token("NewToken");
+        Token newToken = new Token("NewToken", 18);
 
         _setRewardsMapping(epoch, true, address(newToken));
 
@@ -1099,7 +1099,7 @@ contract RewardsTest is Test {
     function testClaimStakerRewardsButMultipleRewards() public {
         uint48 epoch = 0;
         uint48 epochTs = middleware.getEpochStart(epoch);
-        Token newToken = new Token("NewToken");
+        Token newToken = new Token("NewToken", 18);
         newToken.transfer(address(middleware), AMOUNT_TO_DISTRIBUTE);
 
         _setRewardsMapping(epoch, true, address(newToken));

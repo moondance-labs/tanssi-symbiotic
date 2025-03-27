@@ -49,6 +49,8 @@ import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 //**************************************************************************************************
 //                                      SNOWBRIDGE
@@ -57,7 +59,6 @@ import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfa
 
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
-import {IOERC20} from "src/interfaces/extensions/IOERC20.sol";
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
@@ -1271,7 +1272,7 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function testDistributeRewards() public {
-        Token token = new Token("Test");
+        Token token = new Token("Test", 18);
         token.transfer(address(middleware), 1000);
 
         uint256 epoch = 0;
@@ -1309,7 +1310,7 @@ contract MiddlewareTest is Test {
         uint256 tokensInflatedToken = 1000;
         bytes32 rewardsRoot = 0x4b0ddd8b9b8ec6aec84bcd2003c973254c41d976f6f29a163054eec4e7947810;
 
-        Token token = new Token("Test");
+        Token token = new Token("Test", 18);
         token.transfer(address(middleware), 800);
 
         vm.startPrank(gateway);
@@ -1723,7 +1724,9 @@ contract MiddlewareTest is Test {
         vm.mockCall(
             _oracle, abi.encodeWithSelector(AggregatorV3Interface.decimals.selector), abi.encode(uint8(oracleDecimals))
         );
-        vm.mockCall(_collateral, abi.encodeWithSelector(IOERC20.decimals.selector), abi.encode(uint8(tokenDecimals)));
+        vm.mockCall(
+            _collateral, abi.encodeWithSelector(IERC20Metadata.decimals.selector), abi.encode(uint8(tokenDecimals))
+        );
 
         uint256 power = middleware.stakeToPower(_vault, stake);
         uint256 expectedPower = (stake * uint256(multiplier)) / (10 ** uint256(oracleDecimals));

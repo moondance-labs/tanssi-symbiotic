@@ -22,6 +22,8 @@ import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3
 //**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -49,7 +51,6 @@ import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfa
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
-import {IOERC20} from "src/interfaces/extensions/IOERC20.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {OSharedVaults} from "src/contracts/extensions/OSharedVaults.sol";
 import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
@@ -164,7 +165,7 @@ contract Middleware is
         uint8 priceDecimals = AggregatorV3Interface(oracle).decimals();
         power = stake.mulDiv(uint256(price), 10 ** priceDecimals);
         // Normalize power to 18 decimals
-        uint8 collateralDecimals = IOERC20(collateral).decimals();
+        uint8 collateralDecimals = IERC20Metadata(collateral).decimals();
         if (collateralDecimals != uint8(18)) {
             power = power.mulDiv(10 ** 18, 10 ** collateralDecimals);
         }
@@ -214,11 +215,11 @@ contract Middleware is
         bytes32 rewardsRoot,
         address tokenAddress
     ) external checkAccess {
-        if (IOERC20(tokenAddress).balanceOf(address(this)) < tokensInflatedToken) {
+        if (IERC20(tokenAddress).balanceOf(address(this)) < tokensInflatedToken) {
             revert Middleware__InsufficientBalance();
         }
 
-        IOERC20(tokenAddress).approve(i_operatorRewards, tokensInflatedToken);
+        IERC20(tokenAddress).approve(i_operatorRewards, tokensInflatedToken);
 
         IODefaultOperatorRewards(i_operatorRewards).distributeRewards(
             uint48(epoch), uint48(eraIndex), tokensInflatedToken, totalPointsToken, rewardsRoot, tokenAddress
