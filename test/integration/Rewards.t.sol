@@ -33,7 +33,6 @@ import {VaultConfigurator} from "@symbiotic/contracts/VaultConfigurator.sol";
 import {Vault} from "@symbiotic/contracts/vault/Vault.sol";
 import {VetoSlasher} from "@symbiotic/contracts/slasher/VetoSlasher.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
-import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlewareReader.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 import {IOzAccessControl} from "@symbiotic-middleware/interfaces/extensions/managers/access/IOzAccessControl.sol";
 import {PauseableEnumerableSet} from "@symbiotic-middleware/libraries/PauseableEnumerableSet.sol";
@@ -65,6 +64,7 @@ import {Gateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Gateway.s
 
 import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
+import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {Token} from "test/mocks/Token.sol";
@@ -325,7 +325,7 @@ contract RewardsTest is Test {
             owner: _owner,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
-            reader: address(new BaseMiddlewareReader())
+            reader: address(new OBaseMiddlewareReader())
         });
         _middleware.initialize(params);
 
@@ -516,12 +516,12 @@ contract RewardsTest is Test {
     // ************************************************************************************************
 
     function testInitialState() public view {
-        assertEq(BaseMiddlewareReader(address(middleware)).NETWORK(), tanssi);
-        assertEq(BaseMiddlewareReader(address(middleware)).OPERATOR_REGISTRY(), address(operatorRegistry));
-        assertEq(BaseMiddlewareReader(address(middleware)).VAULT_REGISTRY(), address(vaultFactory));
+        assertEq(OBaseMiddlewareReader(address(middleware)).NETWORK(), tanssi);
+        assertEq(OBaseMiddlewareReader(address(middleware)).OPERATOR_REGISTRY(), address(operatorRegistry));
+        assertEq(OBaseMiddlewareReader(address(middleware)).VAULT_REGISTRY(), address(vaultFactory));
         assertEq(EpochCapture(address(middleware)).getEpochDuration(), NETWORK_EPOCH_DURATION);
-        assertEq(BaseMiddlewareReader(address(middleware)).SLASHING_WINDOW(), SLASHING_WINDOW);
-        assertEq(BaseMiddlewareReader(address(middleware)).subnetworksLength(), 1);
+        assertEq(OBaseMiddlewareReader(address(middleware)).SLASHING_WINDOW(), SLASHING_WINDOW);
+        assertEq(OBaseMiddlewareReader(address(middleware)).subnetworksLength(), 1);
     }
 
     function testSubmitRewards() public {

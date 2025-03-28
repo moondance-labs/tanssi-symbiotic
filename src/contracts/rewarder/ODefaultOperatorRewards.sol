@@ -36,6 +36,7 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 import {ScaleCodec} from "@tanssi-bridge-relayer/snowbridge/contracts/src/utils/ScaleCodec.sol";
 
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
+import {IOBaseMiddlewareReader} from "src/interfaces/middleware/OBaseMiddlewareReader.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 
@@ -204,7 +205,8 @@ contract ODefaultOperatorRewards is
         uint48 epochStartTs = EpochCapture(middlewareAddress).getEpochStart(epoch);
 
         //TODO: For now this is expected to be a single vault. Change it to be able to handle multiple vaults.
-        (, address[] memory operatorVaults) = Middleware(middlewareAddress).getOperatorVaults(recipient, epochStartTs);
+        (, address[] memory operatorVaults) =
+            IOBaseMiddlewareReader(middlewareAddress).getOperatorVaults(recipient, epochStartTs);
 
         // TODO: Currently it's only for a specific vault. We don't care now about making it able to send rewards for multiple vaults. It's hardcoded to the first vault of the operator.
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
@@ -216,7 +218,6 @@ contract ODefaultOperatorRewards is
         }
     }
 
-    //TODO Probably this function should become a function triggered by middleware that create a new staker contract (calling the create on factory contract) and then set the staker contract address here. Probably this can be called during registration of the vault? `registerSharedVault`
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
