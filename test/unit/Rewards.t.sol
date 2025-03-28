@@ -86,6 +86,8 @@ contract RewardsTest is Test {
     bytes32 public constant REWARDS_ROOT = 0x4b0ddd8b9b8ec6aec84bcd2003c973254c41d976f6f29a163054eec4e7947810;
     bytes32 public constant STAKER_REWARDS_STORAGE_LOCATION =
         0xe07cde22a6017f26eee680b6867ce6727151fb6097c75742cbe379265c377400;
+    bytes32 public constant MIDDLEWARE_STORAGE_LOCATION =
+        0xca64b196a0d05040904d062f739ed1d1e1d3cc5de78f7001fb9039595fce9100;
 
     // Operator keys with which the operator is registered
     bytes32 public ALICE_KEY;
@@ -201,6 +203,8 @@ contract RewardsTest is Test {
         networkRegistry.registerNetwork();
         networkMiddlewareService.setMiddleware(address(middleware));
 
+        _setVaultToCollateral(address(vault), address(token));
+
         vm.startPrank(alice);
         operatorRegistry.registerOperator();
         operatorNetworkOptIn.optIn(tanssi);
@@ -313,6 +317,15 @@ contract RewardsTest is Test {
             arrayLoc = keccak256(abi.encode(tokenSlot));
             vm.store(address(stakerRewards), arrayLoc, bytes32(uint256(10 ether)));
         }
+    }
+
+    function _setVaultToCollateral(address vault_, address collateral_) internal {
+        bytes32 slot = bytes32(uint256(MIDDLEWARE_STORAGE_LOCATION) + uint256(5)); // 5 is mapping slot number for the vault to collateral
+        // Get slot for mapping with vault_
+        slot = keccak256(abi.encode(vault_, slot));
+
+        // Store array length
+        vm.store(address(middleware), slot, bytes32(uint256(uint160(collateral_))));
     }
 
     function _setActiveSharesCache(uint48 epoch, address _stakerRewards) private {
@@ -1168,7 +1181,7 @@ contract RewardsTest is Test {
     //                                      claimAdminFee
     //**************************************************************************************************
 
-    function testClaimAdminFeeX() public {
+    function testClaimAdminFee() public {
         uint48 epoch = 0;
         _setClaimableAdminFee(epoch, address(token));
 
