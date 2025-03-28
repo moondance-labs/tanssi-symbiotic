@@ -15,11 +15,6 @@
 pragma solidity 0.8.25;
 
 //**************************************************************************************************
-//                                      CHAINLINK
-//**************************************************************************************************
-import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3Interface.sol";
-
-//**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -474,13 +469,13 @@ contract OBaseMiddlewareReader is MiddlewareStorage, EpochCapture, VaultManager,
     /**
      * @notice Gets how many operators were active at a specific epoch
      * @param epoch The epoch at which to check how many operators were active
-     * @return activeOperators The array of active operators
+     * @return activeOperators_ The array of active operators
      */
     function getOperatorsByEpoch(
         uint48 epoch
-    ) external view returns (address[] memory activeOperators) {
+    ) external view returns (address[] memory activeOperators_) {
         uint48 epochStartTs = getEpochStart(epoch);
-        activeOperators = _activeOperatorsAt(epochStartTs);
+        activeOperators_ = _activeOperatorsAt(epochStartTs);
     }
 
     /**
