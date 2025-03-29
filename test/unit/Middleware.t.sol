@@ -898,23 +898,6 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
     }
 
-    // function testGetTotalStakeEpochInvalid() public {
-    //     _registerOperatorToNetwork(operator, address(vault), false, false);
-    //     _registerVaultToNetwork(address(vault), false, 0);
-
-    //     vm.startPrank(owner);
-    //     middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
-    //     vault.setSlasher(address(slasher));
-    //     vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-    //     middleware.registerSharedVault(address(vault), stakerRewardsParams);
-    //     vm.warp(START_TIME + SLASHING_WINDOW + 1);
-    //     uint48 currentEpoch = middleware.getCurrentEpoch();
-    //     vm.warp(START_TIME + SLASHING_WINDOW - 1);
-    //     vm.expectRevert(IMiddleware.Middleware__InvalidEpoch.selector);
-    //     OBaseMiddlewareReader(address(middleware)).getTotalStake(currentEpoch + 1);
-    //     vm.stopPrank();
-    // }
-
     function testGetTotalStakeButOperatorNotActive() public {
         _registerOperatorToNetwork(operator, address(vault), false, false);
         _registerVaultToNetwork(address(vault), false, 0);
