@@ -28,6 +28,7 @@ import {Slasher} from "@symbiotic/contracts/slasher/Slasher.sol";
 import {IRegistry} from "@symbiotic/interfaces/common/IRegistry.sol";
 import {IVaultStorage} from "@symbiotic/interfaces/vault/IVaultStorage.sol";
 import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlewareReader.sol";
+import {IBaseMiddlewareReader} from "@symbiotic-middleware/interfaces/IBaseMiddlewareReader.sol";
 
 //**************************************************************************************************
 //                                      CHAINLINK
@@ -255,21 +256,21 @@ contract RewardsTest is Test {
         return proof;
     }
 
-    function _mockVaultActiveSharesStakeAt(uint48 epoch, bool mockShares, bool mockStake) private {
+    function _mockVaultActiveSharesStakeAt(address vault_, uint48 epoch, bool mockShares, bool mockStake) private {
         uint48 epochTs = middleware.getEpochStart(epoch);
         (, bytes memory activeSharesHint, bytes memory activeStakeHint) =
             abi.decode(REWARDS_ADDITIONAL_DATA, (uint256, bytes, bytes));
 
         if (mockShares) {
             vm.mockCall(
-                address(vault),
+                vault_,
                 abi.encodeWithSelector(IVaultStorage.activeSharesAt.selector, epochTs, activeSharesHint),
                 abi.encode(AMOUNT_TO_DISTRIBUTE)
             );
         }
         if (mockStake) {
             vm.mockCall(
-                address(vault),
+                vault_,
                 abi.encodeWithSelector(IVaultStorage.activeStakeAt.selector, epochTs, activeStakeHint),
                 abi.encode(AMOUNT_TO_DISTRIBUTE)
             );
@@ -440,7 +441,7 @@ contract RewardsTest is Test {
         uint48 eraIndex = 0;
 
         vm.warp(NETWORK_EPOCH_DURATION);
-        _mockVaultActiveSharesStakeAt(epoch, true, true);
+        _mockVaultActiveSharesStakeAt(address(vault), epoch, true, true);
         _mockGetOperatorVaults(epoch);
         _distributeRewards(epoch, eraIndex, AMOUNT_TO_DISTRIBUTE, address(token));
 
@@ -459,6 +460,79 @@ contract RewardsTest is Test {
         emit IODefaultStakerRewards.DistributeRewards(
             tanssi, address(token), eraIndex, epoch, (EXPECTED_CLAIMABLE * 80) / 100, REWARDS_ADDITIONAL_DATA
         );
+        vm.expectEmit(true, true, false, true);
+        emit IODefaultOperatorRewards.ClaimRewards(
+            recipient, address(token), eraIndex, epoch, address(this), EXPECTED_CLAIMABLE
+        );
+        operatorRewards.claimRewards(claimRewardsData);
+
+        uint256 amountClaimed_ = operatorRewards.claimed(eraIndex, alice);
+        assertEq(amountClaimed_, EXPECTED_CLAIMABLE);
+    }
+
+    function testClaimRewardsWithMultipleVaults() public {
+        uint48 epoch = 0;
+        uint48 eraIndex = 0;
+        uint48 epochStartTs = middleware.getEpochStart(epoch);
+        address[] memory vaults = new address[](2);
+        vaults[0] = address(vault);
+        vaults[1] = makeAddr("vault2");
+
+        vm.warp(NETWORK_EPOCH_DURATION);
+        _mockVaultActiveSharesStakeAt(vaults[0], epoch, true, true);
+        _mockVaultActiveSharesStakeAt(vaults[1], epoch, true, true);
+
+        vm.mockCall(
+            address(middleware),
+            abi.encodeWithSelector(IMiddleware.getOperatorVaults.selector, alice, epochStartTs),
+            abi.encode(2, vaults)
+        );
+
+        // Selector is for IBaseMiddlewareReader.getOperatorPowerAt(uint48,address,address,uint96) returns (uint256). The method has 3 implementations
+        vm.mockCall(
+            address(middleware), abi.encodeWithSelector(0xbcdc52be, epochStartTs, alice, vaults[0], 0), abi.encode(40)
+        );
+        vm.mockCall(
+            address(middleware), abi.encodeWithSelector(0xbcdc52be, epochStartTs, alice, vaults[1], 0), abi.encode(60)
+        );
+
+        address stakerRewards2 = makeAddr("newStakerRewards");
+        vm.startPrank(address(middleware));
+        operatorRewards.setStakerRewardContract(stakerRewards2, vaults[1]);
+        vm.mockCall(
+            stakerRewards2,
+            abi.encodeWithSelector(
+                IODefaultStakerRewards.distributeRewards.selector,
+                epoch,
+                eraIndex,
+                1000,
+                address(token),
+                REWARDS_ADDITIONAL_DATA
+            ),
+            abi.encode()
+        );
+
+        _distributeRewards(epoch, eraIndex, AMOUNT_TO_DISTRIBUTE, address(token));
+
+        address recipient = Middleware(middleware).operatorByKey(abi.encode(ALICE_KEY));
+        bytes32[] memory proof = _generateValidProof();
+
+        IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
+            operatorKey: ALICE_KEY,
+            eraIndex: eraIndex,
+            totalPointsClaimable: AMOUNT_TO_CLAIM,
+            proof: proof,
+            data: REWARDS_ADDITIONAL_DATA
+        });
+
+        // 40% of the staker rewards are distributed to the first vault. Order is important due to rounding.
+        uint256 expectedAmountStakers = (EXPECTED_CLAIMABLE * 80) / 100;
+        uint256 expectedAmountVault1 = (expectedAmountStakers * 40) / 100; // 100 here is total power of operator: 40 + 60
+        vm.expectEmit(true, true, false, true);
+        emit IODefaultStakerRewards.DistributeRewards(
+            tanssi, address(token), eraIndex, epoch, expectedAmountVault1, REWARDS_ADDITIONAL_DATA
+        );
+
         vm.expectEmit(true, true, false, true);
         emit IODefaultOperatorRewards.ClaimRewards(
             recipient, address(token), eraIndex, epoch, address(this), EXPECTED_CLAIMABLE
@@ -510,7 +584,7 @@ contract RewardsTest is Test {
         uint48 eraIndex = 0;
 
         vm.warp(NETWORK_EPOCH_DURATION);
-        _mockVaultActiveSharesStakeAt(epoch, true, true);
+        _mockVaultActiveSharesStakeAt(address(vault), epoch, true, true);
         _mockGetOperatorVaults(epoch);
         _distributeRewards(epoch, eraIndex, AMOUNT_TO_DISTRIBUTE, address(token));
 
@@ -532,7 +606,7 @@ contract RewardsTest is Test {
         uint48 epoch = 0;
         uint48 eraIndex = 0;
 
-        _mockVaultActiveSharesStakeAt(epoch, true, true);
+        _mockVaultActiveSharesStakeAt(address(vault), epoch, true, true);
         _mockGetOperatorVaults(epoch);
         _distributeRewards(epoch, eraIndex, AMOUNT_TO_DISTRIBUTE, address(token));
 
@@ -553,7 +627,7 @@ contract RewardsTest is Test {
         uint48 eraIndex = 0;
 
         vm.warp(NETWORK_EPOCH_DURATION);
-        _mockVaultActiveSharesStakeAt(epoch, true, true);
+        _mockVaultActiveSharesStakeAt(address(vault), epoch, true, true);
         _mockGetOperatorVaults(epoch);
         _distributeRewards(epoch, eraIndex, AMOUNT_TO_DISTRIBUTE, address(token));
         bytes memory rewardsDataWithHighAdminFee =
@@ -598,7 +672,7 @@ contract RewardsTest is Test {
         vm.warp(NETWORK_EPOCH_DURATION);
         _distributeRewards(epoch, eraIndex, AMOUNT_TO_DISTRIBUTE, address(token));
         _mockGetOperatorVaults(epoch);
-        _mockVaultActiveSharesStakeAt(epoch, true, false);
+        _mockVaultActiveSharesStakeAt(address(vault), epoch, true, false);
 
         bytes32[] memory proof = _generateValidProof();
 

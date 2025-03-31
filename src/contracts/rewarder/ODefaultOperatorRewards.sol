@@ -216,10 +216,7 @@ contract ODefaultOperatorRewards is
             _getOperatorPowerPerVault(operatorVaults, totalVaults, epochStartTs, operator, middlewareAddress);
 
         uint256[] memory amountPerVault = _getRewardsAmountPerVault(stakerAmount, totalVaults, vaultPowers, totalPower);
-
-        _distributeRewardsPerVault(
-            epoch, eraIndex, operator, tokenAddress, totalVaults, operatorVaults, amountPerVault, data
-        );
+        _distributeRewardsPerVault(epoch, eraIndex, tokenAddress, totalVaults, operatorVaults, amountPerVault, data);
     }
 
     function _getOperatorPowerPerVault(
@@ -248,7 +245,7 @@ contract ODefaultOperatorRewards is
         uint256 totalVaults,
         uint256[] memory vaultPowers,
         uint256 totalPower
-    ) private view returns (uint256[] memory amountPerVault) {
+    ) private pure returns (uint256[] memory amountPerVault) {
         uint256 distributedAmount;
         amountPerVault = new uint256[](totalVaults);
         for (uint256 i; i < totalVaults;) {
@@ -259,7 +256,7 @@ contract ODefaultOperatorRewards is
             } else {
                 amountForVault = vaultPowers[i].mulDiv(stakerAmount, totalPower);
             }
-
+            amountPerVault[i] = amountForVault;
             unchecked {
                 distributedAmount += amountForVault;
                 ++i;
@@ -270,7 +267,6 @@ contract ODefaultOperatorRewards is
     function _distributeRewardsPerVault(
         uint48 epoch,
         uint48 eraIndex,
-        address operator,
         address tokenAddress,
         uint256 totalVaults,
         address[] memory operatorVaults,
