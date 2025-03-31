@@ -101,8 +101,8 @@ contract ODefaultStakerRewards is
     constructor(address networkMiddlewareService, address vault, address network) {
         _disableInitializers();
 
-        if (network == address(0)) {
-            revert ODefaultStakerRewards__NotNetwork();
+        if (network == address(0) || networkMiddlewareService == address(0) || vault == address(0)) {
+            revert ODefaultStakerRewards__InvalidAddress();
         }
         i_networkMiddlewareService = networkMiddlewareService;
         i_vault = vault;
@@ -110,6 +110,10 @@ contract ODefaultStakerRewards is
     }
 
     function initialize(address operatorRewards, InitParams calldata params) external initializer {
+        if (operatorRewards == address(0)) {
+            revert ODefaultStakerRewards__InvalidAddress();
+        }
+
         if (params.defaultAdminRoleHolder == address(0)) {
             if (params.adminFee == 0) {
                 if (params.adminFeeClaimRoleHolder == address(0)) {

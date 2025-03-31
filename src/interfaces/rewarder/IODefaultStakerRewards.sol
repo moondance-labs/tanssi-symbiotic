@@ -19,13 +19,13 @@ interface IODefaultStakerRewards {
     error ODefaultStakerRewards__HighAdminFee();
     error ODefaultStakerRewards__InsufficientAdminFee();
     error ODefaultStakerRewards__InsufficientReward();
+    error ODefaultStakerRewards__InvalidAddress();
     error ODefaultStakerRewards__InvalidAdminFee();
     error ODefaultStakerRewards__InvalidHintsLength();
     error ODefaultStakerRewards__InvalidRecipient();
     error ODefaultStakerRewards__InvalidRewardTimestamp();
     error ODefaultStakerRewards__MissingRoles();
     error ODefaultStakerRewards__NoRewardsToClaim();
-    error ODefaultStakerRewards__NotNetwork();
 
     /**
      * @notice Emitted when a reward is distributed.
