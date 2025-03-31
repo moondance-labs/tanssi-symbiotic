@@ -937,7 +937,7 @@ contract MiddlewareTest is Test {
         assertEq(validators.length, 1);
         assertEq(validators[0].key, OPERATOR_KEY);
         uint256 expectedStake = OPERATOR_STAKE * uint256(ORACLE_CONVERSION_TOKEN) / 10 ** ORACLE_DECIMALS;
-        assertEq(validators[0].stake, expectedStake);
+        assertEq(validators[0].power, expectedStake);
         vm.stopPrank();
     }
 
@@ -1645,7 +1645,7 @@ contract MiddlewareTest is Test {
         IMiddleware.ValidatorData[] memory sortedValidators = validators.quickSort(0, int256(validators.length - 1));
 
         for (uint256 i = 0; i < validators.length - 1; i++) {
-            assertGe(sortedValidators[i].stake, sortedValidators[i + 1].stake);
+            assertGe(sortedValidators[i].power, sortedValidators[i + 1].power);
         }
     }
 

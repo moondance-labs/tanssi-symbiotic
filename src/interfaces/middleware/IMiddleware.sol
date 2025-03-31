@@ -39,11 +39,11 @@ interface IMiddleware {
 
     /**
      * @notice Validator data structure containing stake and key
-     * @param stake The validator's stake amount
+     * @param power The validator's power, based on staked tokens and their price
      * @param key The validator's key
      */
     struct ValidatorData {
-        uint256 stake;
+        uint256 power;
         bytes32 key;
     }
 
