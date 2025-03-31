@@ -216,7 +216,6 @@ contract ODefaultOperatorRewards is
         }
     }
 
-    //TODO Probably this function should become a function triggered by middleware that create a new staker contract (calling the create on factory contract) and then set the staker contract address here. Probably this can be called during registration of the vault? `registerSharedVault`
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
