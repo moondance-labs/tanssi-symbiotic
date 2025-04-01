@@ -380,6 +380,7 @@ contract Middleware is
      * @param params Struct containing slashing parameters
      */
     function _processVaultSlashing(address vault, SlashParams memory params) private {
+        // Tanssi will use only one subnetwork so we only check the first
         bytes32 subnetwork = _NETWORK().subnetwork(0);
 
         uint256 vaultStake = IBaseDelegator(IVault(vault).delegator()).stakeAt(

@@ -983,7 +983,7 @@ contract MiddlewareTest is Test {
     // *                                      Slashes
     // ************************************************************************************************
 
-    function testSlashX() public {
+    function testSlash() public {
         _registerOperatorToNetwork(operator, address(vault), false, false);
         _registerVaultToNetwork(address(vault), false, 0);
 

@@ -24,7 +24,7 @@ interface IMiddleware {
     event CollateralToOracleSet(address indexed collateral, address indexed oracle);
 
     /**
-     * @notice Emitted when the interval for which the `performUpkeep` should be performed.
+     * @notice Emitted when the interval for which the `performUpkeep` should be performed is set.
      * @param interval The interval in seconds
      */
     event IntervalSet(uint256 indexed interval);
