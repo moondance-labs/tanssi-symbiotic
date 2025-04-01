@@ -34,7 +34,6 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 //**************************************************************************************************
 import {IEntity} from "@symbiotic/interfaces/common/IEntity.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
-import {IVaultStorage} from "@symbiotic/interfaces/vault/IVaultStorage.sol";
 import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
 import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
@@ -43,6 +42,7 @@ import {Operators} from "@symbiotic-middleware/extensions/operators/Operators.so
 import {KeyManager256} from "@symbiotic-middleware/extensions/managers/keys/KeyManager256.sol";
 import {OzAccessControl} from "@symbiotic-middleware/extensions/managers/access/OzAccessControl.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
+import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
 import {PauseableEnumerableSet} from "@symbiotic-middleware/libraries/PauseableEnumerableSet.sol";
 
 //**************************************************************************************************
@@ -55,7 +55,8 @@ import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultSt
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {OSharedVaults} from "src/contracts/extensions/OSharedVaults.sol";
 import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
-import {QuickSort} from "../libraries/QuickSort.sol";
+
+import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 
 contract Middleware is
     UUPSUpgradeable,
@@ -68,7 +69,6 @@ contract Middleware is
     MiddlewareStorage,
     IMiddleware
 {
-    using QuickSort for ValidatorData[];
     using PauseableEnumerableSet for PauseableEnumerableSet.AddressSet;
     using PauseableEnumerableSet for PauseableEnumerableSet.Status;
     using Subnetwork for address;
@@ -210,6 +210,8 @@ contract Middleware is
         $.gateway = newGateway;
         _revokeRole(GATEWAY_ROLE, oldGateway);
         _grantRole(GATEWAY_ROLE, newGateway);
+
+        emit GatewaySet(newGateway);
     }
 
     /**
@@ -228,6 +230,7 @@ contract Middleware is
         }
 
         $.interval = interval;
+        emit IntervalSet(interval);
     }
 
     /**
@@ -237,13 +240,16 @@ contract Middleware is
         address forwarder
     ) external checkAccess notZeroAddress(forwarder) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
-
-        if (forwarder == $.forwarderAddress) {
+        address currentForwarderAddress = $.forwarderAddress;
+        if (forwarder == currentForwarderAddress) {
             revert Middleware__AlreadySet();
         }
 
         $.forwarderAddress = forwarder;
+        _revokeRole(FORWARDER_ROLE, currentForwarderAddress);
         _grantRole(FORWARDER_ROLE, forwarder);
+
+        emit ForwarderSet(forwarder);
     }
 
     function setCollateralToOracle(
@@ -299,7 +305,7 @@ contract Middleware is
         }
 
         uint48 epoch = getCurrentEpoch();
-        sortedKeys = sortOperatorsByVaults(epoch);
+        sortedKeys = IOBaseMiddlewareReader(address(this)).sortOperatorsByVaults(epoch);
         IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);
     }
 
@@ -313,7 +319,7 @@ contract Middleware is
         bytes calldata /* checkData */
     ) external view override returns (bool upkeepNeeded, bytes memory performData) {
         uint48 epoch = getCurrentEpoch();
-        bytes32[] memory sortedKeys = sortOperatorsByVaults(epoch);
+        bytes32[] memory sortedKeys = IOBaseMiddlewareReader(address(this)).sortOperatorsByVaults(epoch);
         StorageMiddleware storage $ = _getMiddlewareStorage();
 
         //TODO Should it be epochDuration? Because we wanna send it once per network epoch
@@ -350,7 +356,7 @@ contract Middleware is
      * @inheritdoc IMiddleware
      */
     function slash(uint48 epoch, bytes32 operatorKey, uint256 percentage) external checkAccess {
-        uint48 epochStartTs = getEpochStart(epoch);
+        uint48 epochStartTs = IOBaseMiddlewareReader(address(this)).getEpochStart(epoch);
         address operator = operatorByKey(abi.encode(operatorKey));
 
         // for epoch older than SLASHING_WINDOW total stake can be invalidated (use cache)
@@ -393,12 +399,9 @@ contract Middleware is
      * @param params Struct containing slashing parameters
      */
     function _processVaultSlashing(address vault, SlashParams memory params) private {
-        //? Tanssi will use probably only one subnetwork, so we can skip this loop
-
-        // for (uint96 j = 0; j < _subnetworksLength(); ++j) {
-        //! This can be manipulated. I get slashed for 100 ETH, but if I participate to multiple vaults without any slashing, I can get slashed for far lower amount of ETH
+        // Tanssi will use only one subnetwork so we only check the first
         bytes32 subnetwork = _NETWORK().subnetwork(0);
-        //? Probably we should check only for his slashable stake and not for the whole stake?
+
         uint256 vaultStake = IBaseDelegator(IVault(vault).delegator()).stakeAt(
             subnetwork, params.operator, params.epochStartTs, new bytes(0)
         );
@@ -430,13 +433,16 @@ contract Middleware is
             return;
         }
         uint256 slasherType = IEntity(slasher).TYPE();
-        //? Shall we add event for each slash?
+
+        uint256 response;
         if (slasherType == uint256(SlasherType.INSTANT)) {
-            ISlasher(slasher).slash(subnetwork, operator, amount, timestamp, new bytes(0));
+            response = ISlasher(slasher).slash(subnetwork, operator, amount, timestamp, new bytes(0));
+            emit VaultManager.InstantSlash(vault, subnetwork, response);
         } else if (slasherType == uint256(SlasherType.VETO)) {
-            IVetoSlasher(slasher).requestSlash(subnetwork, operator, amount, timestamp, new bytes(0));
+            response = IVetoSlasher(slasher).requestSlash(subnetwork, operator, amount, timestamp, new bytes(0));
+            emit VaultManager.VetoSlash(vault, subnetwork, response);
         } else {
-            revert Middleware__UnknownSlasherType();
+            revert VaultManager.UnknownSlasherType();
         }
     }
 
@@ -444,191 +450,6 @@ contract Middleware is
         address operator
     ) internal override {
         _updateKey(operator, abi.encode(bytes32(0)));
-    }
-
-    // **************************************************************************************************
-    //                                      VIEW FUNCTIONS
-    // **************************************************************************************************
-
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function getOperatorsByEpoch(
-        uint48 epoch
-    ) external view returns (address[] memory activeOperators) {
-        uint48 epochStartTs = getEpochStart(epoch);
-        activeOperators = _activeOperatorsAt(epochStartTs);
-    }
-
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function getOperatorVaultPairs(
-        uint48 epoch
-    ) external view returns (OperatorVaultPair[] memory operatorVaultPairs) {
-        uint48 epochStartTs = getEpochStart(epoch);
-        address[] memory operators = _activeOperatorsAt(epochStartTs);
-
-        operatorVaultPairs = new OperatorVaultPair[](operators.length);
-
-        uint256 valIdx = 0;
-        uint256 operatorsLength = operators.length;
-        for (uint256 i; i < operatorsLength;) {
-            address operator = operators[i];
-            (uint256 vaultIdx, address[] memory _vaults) = getOperatorVaults(operator, epochStartTs);
-
-            if (vaultIdx > 0) {
-                operatorVaultPairs[valIdx++] = OperatorVaultPair(operator, _vaults);
-            }
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function isVaultRegistered(
-        address vault
-    ) external view returns (bool) {
-        VaultManagerStorage storage $ = _getVaultManagerStorage();
-        return $._sharedVaults.contains(vault);
-    }
-
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function sortOperatorsByVaults(
-        uint48 epoch
-    ) public view returns (bytes32[] memory sortedKeys) {
-        ValidatorData[] memory validatorSet = getValidatorSet(epoch);
-        if (validatorSet.length == 0) {
-            return sortedKeys;
-        }
-        validatorSet = validatorSet.quickSort(0, int256(validatorSet.length - 1));
-
-        sortedKeys = new bytes32[](validatorSet.length);
-        uint256 validatorSetLength = validatorSet.length;
-        for (uint256 i; i < validatorSetLength;) {
-            sortedKeys[i] = validatorSet[i].key;
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function getOperatorVaults(
-        address operator,
-        uint48 epochStartTs
-    ) public view returns (uint256 vaultIdx, address[] memory vaults) {
-        address[] memory operatorVaults = _activeVaultsAt(epochStartTs, operator);
-        vaults = new address[](operatorVaults.length);
-        vaultIdx = 0;
-        uint256 operatorVaultsLength = operatorVaults.length;
-        for (uint256 j; j < operatorVaultsLength;) {
-            address _vault = operatorVaults[j];
-            // Tanssi will use probably only one subnetwork, so we can skip this loop
-            // for (uint96 k = 0; k < _subnetworksLength(); ++k) {
-            uint256 operatorStake = IBaseDelegator(IVault(_vault).delegator()).stakeAt(
-                _NETWORK().subnetwork(0), operator, epochStartTs, new bytes(0)
-            );
-            // }
-
-            if (operatorStake > 0) {
-                vaults[vaultIdx++] = _vault;
-            }
-            unchecked {
-                ++j;
-            }
-        }
-        assembly ("memory-safe") {
-            mstore(vaults, vaultIdx)
-        }
-    }
-
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function getTotalStake(
-        uint48 epoch
-    ) public view returns (uint256 totalStake) {
-        uint48 epochStartTs = getEpochStart(epoch);
-
-        if (epochStartTs > Time.timestamp()) {
-            revert Middleware__InvalidEpoch();
-        }
-        address[] memory operators = _activeOperatorsAt(epochStartTs);
-        uint256 operatorsLength = operators.length;
-        for (uint256 i; i < operatorsLength;) {
-            uint256 operatorStake = _getOperatorPowerAt(epochStartTs, operators[i]);
-            totalStake += operatorStake;
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function getOperatorKeyAt(address operator, uint48 timestamp) public view returns (bytes memory) {
-        KeyManager256Storage storage $ = _getKeyManager256Storage();
-        bytes32 key = $._key[operator];
-        if (key != bytes32(0) && $._keyData[key].status.wasActiveAt(timestamp)) {
-            return abi.encode(key);
-        }
-        key = $._prevKey[operator];
-        if (key != bytes32(0) && $._keyData[key].status.wasActiveAt(timestamp)) {
-            return abi.encode(key);
-        }
-        return abi.encode(bytes32(0));
-    }
-
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function getValidatorSet(
-        uint48 epoch
-    ) public view returns (ValidatorData[] memory validatorSet) {
-        uint48 epochStartTs = getEpochStart(epoch);
-        address[] memory operators = _activeOperatorsAt(epochStartTs);
-        validatorSet = new ValidatorData[](operators.length);
-
-        uint256 len = 0;
-        uint256 operatorsLength = operators.length;
-        for (uint256 i; i < operatorsLength;) {
-            address operator = operators[i];
-            unchecked {
-                ++i;
-            }
-            bytes32 key = abi.decode(getOperatorKeyAt(operator, epochStartTs), (bytes32));
-
-            if (key == bytes32(0)) {
-                continue;
-            }
-
-            uint256 power = _getOperatorPowerAt(epochStartTs, operator);
-            validatorSet[len++] = ValidatorData(power, key);
-        }
-
-        // shrink array to skip unused slots
-        assembly ("memory-safe") {
-            mstore(validatorSet, len)
-        }
-    }
-
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function getEpochAtTs(
-        uint48 timestamp
-    ) public view returns (uint48 epoch) {
-        EpochCaptureStorage storage $ = _getEpochCaptureStorage();
-        return (timestamp - $.startTimestamp) / $.epochDuration;
     }
 
     function _setVaultToCollateral(address vault, address collateral) private notZeroAddress(collateral) {
