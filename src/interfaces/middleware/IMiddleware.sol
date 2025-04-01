@@ -23,6 +23,24 @@ interface IMiddleware {
      */
     event CollateralToOracleSet(address indexed collateral, address indexed oracle);
 
+    /**
+     * @notice Emitted when the interval for which the `performUpkeep` should be performed is set.
+     * @param interval The interval in seconds
+     */
+    event IntervalSet(uint256 indexed interval);
+
+    /**
+     * @notice Emitted when the forwarder is set.
+     * @param forwarder The forwarder address
+     */
+    event ForwarderSet(address indexed forwarder);
+
+    /**
+     * @notice Emitted when a new gateway address is set.
+     * @param gateway The new gateway address
+     */
+    event GatewaySet(address indexed gateway);
+
     // Errors
     error Middleware__GatewayNotSet();
     error Middleware__AlreadySet();
@@ -33,17 +51,16 @@ interface IMiddleware {
     error Middleware__InsufficientBalance();
     error Middleware__NotSupportedCollateral(address collateral);
     error Middleware__SlashingWindowTooShort();
-    error Middleware__UnknownSlasherType();
     error Middleware__OperatorNotFound(bytes32 operatorKey, uint48 epoch);
     error Middleware__SlashPercentageTooBig(uint48 epoch, address operator, uint256 percentage);
 
     /**
      * @notice Validator data structure containing stake and key
-     * @param stake The validator's stake amount
+     * @param power The validator's power, based on staked tokens and their price
      * @param key The validator's key
      */
     struct ValidatorData {
-        uint256 stake;
+        uint256 power;
         bytes32 key;
     }
 
@@ -161,90 +178,4 @@ interface IMiddleware {
      * @param percentage Percentage to slash, represented as parts per billion.
      */
     function slash(uint48 epoch, bytes32 operatorKey, uint256 percentage) external;
-
-    // **************************************************************************************************
-    //                                      VIEW FUNCTIONS
-    // **************************************************************************************************
-
-    /**
-     * @notice Gets how many operators were active at a specific epoch
-     * @param epoch The epoch at which to check how many operators were active
-     * @return activeOperators The array of active operators
-     */
-    function getOperatorsByEpoch(
-        uint48 epoch
-    ) external view returns (address[] memory activeOperators);
-
-    /**
-     * @notice Gets operator-vault pairs for an epoch
-     * @param epoch The epoch number
-     * @return operatorVaultPairs Array of operator-vault pairs
-     */
-    function getOperatorVaultPairs(
-        uint48 epoch
-    ) external view returns (OperatorVaultPair[] memory operatorVaultPairs);
-
-    /**
-     * @notice Checks if a vault is registered
-     * @param vault The vault address to check
-     * @return bool True if vault is registered
-     */
-    function isVaultRegistered(
-        address vault
-    ) external view returns (bool);
-
-    /**
-     * @dev Sorts operators by their total stake in descending order, after 500 it will be almost impossible to be used on-chain since 500 ≈ 36M gas
-     * @param epoch The epoch number
-     * @return sortedKeys Array of sorted operators keys based on their stake
-     */
-    function sortOperatorsByVaults(
-        uint48 epoch
-    ) external view returns (bytes32[] memory sortedKeys);
-
-    /**
-     * @notice Gets operator-vault pairs for an operator
-     * @param operator the operator address
-     * @param epochStartTs the epoch start timestamp
-     * @return vaultIdx the index of the vault
-     * @return _vaults the array of vaults
-     */
-    function getOperatorVaults(
-        address operator,
-        uint48 epochStartTs
-    ) external view returns (uint256 vaultIdx, address[] memory _vaults);
-
-    /**
-     * @notice Gets total stake for an epoch
-     * @param epoch The epoch number
-     * @return Total stake amount
-     */
-    function getTotalStake(
-        uint48 epoch
-    ) external view returns (uint256);
-
-    /**
-     * @notice Gets an operator's active key at the current capture timestamp
-     * @param operator The operator address to lookup
-     * @return The operator's active key encoded as bytes, or encoded zero bytes if none
-     */
-    function getOperatorKeyAt(address operator, uint48 timestamp) external view returns (bytes memory);
-
-    /**
-     * @notice Gets validator set for an epoch
-     * @param epoch The epoch number
-     * @return validatorsData Array of validator data
-     */
-    function getValidatorSet(
-        uint48 epoch
-    ) external view returns (ValidatorData[] memory validatorsData);
-
-    /**
-     * @notice Determines which epoch a timestamp belongs to
-     * @param timestamp The timestamp to check
-     * @return epoch The corresponding epoch number
-     */
-    function getEpochAtTs(
-        uint48 timestamp
-    ) external view returns (uint48 epoch);
 }

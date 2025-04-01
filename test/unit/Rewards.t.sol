@@ -27,8 +27,6 @@ import {Slasher} from "@symbiotic/contracts/slasher/Slasher.sol";
 
 import {IRegistry} from "@symbiotic/interfaces/common/IRegistry.sol";
 import {IVaultStorage} from "@symbiotic/interfaces/vault/IVaultStorage.sol";
-import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlewareReader.sol";
-import {IBaseMiddlewareReader} from "@symbiotic-middleware/interfaces/IBaseMiddlewareReader.sol";
 
 //**************************************************************************************************
 //                                      CHAINLINK
@@ -57,8 +55,11 @@ import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStake
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
+import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
+import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
+import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 
 import {DelegatorMock} from "../mocks/symbiotic/DelegatorMock.sol";
@@ -139,7 +140,7 @@ contract RewardsTest is Test {
             new OptInService(address(operatorRegistry), address(networkRegistry), "OperatorVaultOptInService");
 
         networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
-        address readHelper = address(new BaseMiddlewareReader());
+        address readHelper = address(new OBaseMiddlewareReader());
 
         deployRewards = new DeployRewards(true);
         deployCollateral = new DeployCollateral();
@@ -286,7 +287,7 @@ contract RewardsTest is Test {
         vaults[0] = address(vault);
         vm.mockCall(
             address(middleware),
-            abi.encodeWithSelector(IMiddleware.getOperatorVaults.selector, alice, epochStartTs),
+            abi.encodeWithSelector(OBaseMiddlewareReader.getOperatorVaults.selector, alice, epochStartTs),
             abi.encode(1, vaults)
         );
     }
@@ -484,7 +485,7 @@ contract RewardsTest is Test {
 
         vm.mockCall(
             address(middleware),
-            abi.encodeWithSelector(IMiddleware.getOperatorVaults.selector, alice, epochStartTs),
+            abi.encodeWithSelector(IOBaseMiddlewareReader.getOperatorVaults.selector, alice, epochStartTs),
             abi.encode(2, vaults)
         );
 

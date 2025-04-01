@@ -21,7 +21,6 @@ pragma solidity 0.8.25;
 import {INetworkMiddlewareService} from "@symbiotic/interfaces/service/INetworkMiddlewareService.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
-import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlewareReader.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN
@@ -37,7 +36,10 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 //**************************************************************************************************
 import {ScaleCodec} from "@tanssi-bridge-relayer/snowbridge/contracts/src/utils/ScaleCodec.sol";
 
-import {Middleware} from "src/contracts/middleware/Middleware.sol";
+//**************************************************************************************************
+//                                      TANSSI
+//**************************************************************************************************
+import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 
@@ -166,7 +168,7 @@ contract ODefaultOperatorRewards is
 
         address middlewareAddress = INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network);
         // Starlight sends back only the operator key, thus we need to get back the operator address
-        address recipient = Middleware(middlewareAddress).operatorByKey(abi.encode(input.operatorKey));
+        address recipient = IOBaseMiddlewareReader(middlewareAddress).operatorByKey(abi.encode(input.operatorKey));
 
         // Calculate the total amount of tokens that can be claimed which is:
         // total amount of tokens = total points claimable * tokens per point
@@ -207,7 +209,8 @@ contract ODefaultOperatorRewards is
     ) private {
         uint48 epochStartTs = EpochCapture(middlewareAddress).getEpochStart(epoch);
 
-        (, address[] memory operatorVaults) = Middleware(middlewareAddress).getOperatorVaults(operator, epochStartTs);
+        (, address[] memory operatorVaults) =
+            IOBaseMiddlewareReader(middlewareAddress).getOperatorVaults(operator, epochStartTs);
 
         // The operation is divided into 3 steps which repeat the for loop over each vault.
         // It was necessary to avoid stack too deep errors due to the high number of variables
@@ -227,7 +230,7 @@ contract ODefaultOperatorRewards is
         address middlewareAddress
     ) private view returns (uint256[] memory vaultPowers, uint256 totalPower) {
         uint96 subnetwork = i_network.subnetwork(0).identifier();
-        BaseMiddlewareReader reader = BaseMiddlewareReader(middlewareAddress);
+        IOBaseMiddlewareReader reader = IOBaseMiddlewareReader(middlewareAddress);
 
         vaultPowers = new uint256[](totalVaults);
         totalPower = 0;
