@@ -215,10 +215,12 @@ contract ODefaultOperatorRewards is
         // The operation is divided into 3 steps which repeat the for loop over each vault.
         // It was necessary to avoid stack too deep errors due to the high number of variables
         uint256 totalVaults = operatorVaults.length;
+
         (uint256[] memory vaultPowers, uint256 totalPower) =
             _getOperatorPowerPerVault(operatorVaults, totalVaults, epochStartTs, operator, middlewareAddress);
 
         uint256[] memory amountPerVault = _getRewardsAmountPerVault(stakerAmount, totalVaults, vaultPowers, totalPower);
+
         _distributeRewardsPerVault(epoch, eraIndex, tokenAddress, totalVaults, operatorVaults, amountPerVault, data);
     }
 

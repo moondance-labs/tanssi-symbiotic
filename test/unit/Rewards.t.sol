@@ -530,6 +530,7 @@ contract RewardsTest is Test {
         // 40% of the staker rewards are distributed to the first vault. Order is important due to rounding.
         uint256 expectedAmountStakers = (EXPECTED_CLAIMABLE * 80) / 100;
         uint256 expectedAmountVault1 = (expectedAmountStakers * 40) / 100; // 100 here is total power of operator: 40 + 60
+        uint256 expectedAmountVault2 = expectedAmountStakers - expectedAmountVault1;
         vm.expectEmit(true, true, false, true);
         emit IODefaultStakerRewards.DistributeRewards(
             tanssi, address(token), eraIndex, epoch, expectedAmountVault1, REWARDS_ADDITIONAL_DATA
@@ -543,6 +544,13 @@ contract RewardsTest is Test {
 
         uint256 amountClaimed_ = operatorRewards.claimed(eraIndex, alice);
         assertEq(amountClaimed_, EXPECTED_CLAIMABLE);
+
+        uint256 stakerRewardsVault1Balance = token.balanceOf(address(stakerRewards));
+        assertEq(stakerRewardsVault1Balance, expectedAmountVault1);
+
+        // StakerRewards2 is a mock so it would not take the balance, but it should have the right allowance
+        uint256 stakerRewardsVault2Allowance = token.allowance(address(operatorRewards), address(stakerRewards2));
+        assertEq(stakerRewardsVault2Allowance, expectedAmountVault2);
     }
 
     function testClaimRewardsRootNotSet() public {
