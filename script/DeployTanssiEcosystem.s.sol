@@ -30,12 +30,12 @@ import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestak
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {IDefaultCollateralFactory} from
     "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateralFactory.sol";
-import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlewareReader.sol";
 import {VaultFactory} from "@symbiotic/contracts/VaultFactory.sol";
 
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
+import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {Token} from "test/mocks/Token.sol";
@@ -352,7 +352,7 @@ contract DeployTanssiEcosystem is Script {
         _middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
 
         if (params.reader == address(0)) {
-            params.reader = address(new BaseMiddlewareReader());
+            params.reader = address(new OBaseMiddlewareReader());
         }
         _middleware.initialize(params);
     }

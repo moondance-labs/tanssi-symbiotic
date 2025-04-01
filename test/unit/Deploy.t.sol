@@ -34,11 +34,11 @@ import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 import {IDefaultCollateralFactory} from
     "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateralFactory.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
-import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlewareReader.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {Token} from "test/mocks/Token.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
+import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
@@ -539,9 +539,9 @@ contract DeployTest is Test {
         (address vault,,, address vaultSlashable,,, address vaultVetoed,,) = deployTanssiEcosystem.vaultAddresses();
 
         // Verify vault registrations
-        assertTrue(middleware.isVaultRegistered(vault));
-        assertTrue(middleware.isVaultRegistered(vaultSlashable));
-        assertTrue(middleware.isVaultRegistered(vaultVetoed));
+        assertTrue(OBaseMiddlewareReader(address(middleware)).isVaultRegistered(vault));
+        assertTrue(OBaseMiddlewareReader(address(middleware)).isVaultRegistered(vaultSlashable));
+        assertTrue(OBaseMiddlewareReader(address(middleware)).isVaultRegistered(vaultVetoed));
         vm.stopPrank();
     }
 
@@ -554,9 +554,9 @@ contract DeployTest is Test {
         assertTrue(address(middleware) != address(0));
         assertTrue(address(vaultConfigurator) != address(0));
 
-        assertEq(BaseMiddlewareReader(address(middleware)).NETWORK(), tanssi);
+        assertEq(OBaseMiddlewareReader(address(middleware)).NETWORK(), tanssi);
         assertEq(EpochCapture(address(middleware)).getEpochDuration(), deployTanssiEcosystem.NETWORK_EPOCH_DURATION());
-        assertEq(BaseMiddlewareReader(address(middleware)).SLASHING_WINDOW(), deployTanssiEcosystem.SLASHING_WINDOW());
+        assertEq(OBaseMiddlewareReader(address(middleware)).SLASHING_WINDOW(), deployTanssiEcosystem.SLASHING_WINDOW());
         vm.stopPrank();
     }
 
@@ -632,7 +632,7 @@ contract DeployTest is Test {
         vm.recordLogs();
         (Middleware middleware, IVaultConfigurator vaultConfigurator,) = deployTanssiEcosystem.ecosystemEntities();
 
-        IRegistry operatorRegistry = IRegistry(BaseMiddlewareReader(address(middleware)).OPERATOR_REGISTRY());
+        IRegistry operatorRegistry = IRegistry(OBaseMiddlewareReader(address(middleware)).OPERATOR_REGISTRY());
         vm.mockCall(
             address(operatorRegistry), abi.encodeWithSelector(operatorRegistry.isEntity.selector), abi.encode(true)
         );
