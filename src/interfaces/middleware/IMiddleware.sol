@@ -23,6 +23,24 @@ interface IMiddleware {
      */
     event CollateralToOracleSet(address indexed collateral, address indexed oracle);
 
+    /**
+     * @notice Emitted when the interval for which the `performUpkeep` should be performed is set.
+     * @param interval The interval in seconds
+     */
+    event IntervalSet(uint256 indexed interval);
+
+    /**
+     * @notice Emitted when the forwarder is set.
+     * @param forwarder The forwarder address
+     */
+    event ForwarderSet(address indexed forwarder);
+
+    /**
+     * @notice Emitted when a new gateway address is set.
+     * @param gateway The new gateway address
+     */
+    event GatewaySet(address indexed gateway);
+
     // Errors
     error Middleware__GatewayNotSet();
     error Middleware__AlreadySet();
@@ -33,7 +51,6 @@ interface IMiddleware {
     error Middleware__InsufficientBalance();
     error Middleware__NotSupportedCollateral(address collateral);
     error Middleware__SlashingWindowTooShort();
-    error Middleware__UnknownSlasherType();
     error Middleware__OperatorNotFound(bytes32 operatorKey, uint48 epoch);
     error Middleware__SlashPercentageTooBig(uint48 epoch, address operator, uint256 percentage);
 

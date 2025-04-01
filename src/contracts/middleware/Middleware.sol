@@ -34,7 +34,6 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 //**************************************************************************************************
 import {IEntity} from "@symbiotic/interfaces/common/IEntity.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
-import {IVaultStorage} from "@symbiotic/interfaces/vault/IVaultStorage.sol";
 import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
 import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
@@ -43,6 +42,7 @@ import {Operators} from "@symbiotic-middleware/extensions/operators/Operators.so
 import {KeyManager256} from "@symbiotic-middleware/extensions/managers/keys/KeyManager256.sol";
 import {OzAccessControl} from "@symbiotic-middleware/extensions/managers/access/OzAccessControl.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
+import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
 import {PauseableEnumerableSet} from "@symbiotic-middleware/libraries/PauseableEnumerableSet.sol";
 
 //**************************************************************************************************
@@ -191,6 +191,8 @@ contract Middleware is
         $.gateway = newGateway;
         _revokeRole(GATEWAY_ROLE, oldGateway);
         _grantRole(GATEWAY_ROLE, newGateway);
+
+        emit GatewaySet(newGateway);
     }
 
     /**
@@ -209,6 +211,7 @@ contract Middleware is
         }
 
         $.interval = interval;
+        emit IntervalSet(interval);
     }
 
     /**
@@ -218,13 +221,16 @@ contract Middleware is
         address forwarder
     ) external checkAccess notZeroAddress(forwarder) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
-
-        if (forwarder == $.forwarderAddress) {
+        address currentForwarderAddress = $.forwarderAddress;
+        if (forwarder == currentForwarderAddress) {
             revert Middleware__AlreadySet();
         }
 
         $.forwarderAddress = forwarder;
+        _revokeRole(FORWARDER_ROLE, currentForwarderAddress);
         _grantRole(FORWARDER_ROLE, forwarder);
+
+        emit ForwarderSet(forwarder);
     }
 
     function setCollateralToOracle(
@@ -374,12 +380,9 @@ contract Middleware is
      * @param params Struct containing slashing parameters
      */
     function _processVaultSlashing(address vault, SlashParams memory params) private {
-        //? Tanssi will use probably only one subnetwork, so we can skip this loop
-
-        // for (uint96 j = 0; j < _subnetworksLength(); ++j) {
-        //! This can be manipulated. I get slashed for 100 ETH, but if I participate to multiple vaults without any slashing, I can get slashed for far lower amount of ETH
+        // Tanssi will use only one subnetwork so we only check the first
         bytes32 subnetwork = _NETWORK().subnetwork(0);
-        //? Probably we should check only for his slashable stake and not for the whole stake?
+
         uint256 vaultStake = IBaseDelegator(IVault(vault).delegator()).stakeAt(
             subnetwork, params.operator, params.epochStartTs, new bytes(0)
         );
@@ -411,13 +414,16 @@ contract Middleware is
             return;
         }
         uint256 slasherType = IEntity(slasher).TYPE();
-        //TODO? Shall we add event for each slash?
+
+        uint256 response;
         if (slasherType == uint256(SlasherType.INSTANT)) {
-            ISlasher(slasher).slash(subnetwork, operator, amount, timestamp, new bytes(0));
+            response = ISlasher(slasher).slash(subnetwork, operator, amount, timestamp, new bytes(0));
+            emit VaultManager.InstantSlash(vault, subnetwork, response);
         } else if (slasherType == uint256(SlasherType.VETO)) {
-            IVetoSlasher(slasher).requestSlash(subnetwork, operator, amount, timestamp, new bytes(0));
+            response = IVetoSlasher(slasher).requestSlash(subnetwork, operator, amount, timestamp, new bytes(0));
+            emit VaultManager.VetoSlash(vault, subnetwork, response);
         } else {
-            revert Middleware__UnknownSlasherType();
+            revert VaultManager.UnknownSlasherType();
         }
     }
 
@@ -426,10 +432,6 @@ contract Middleware is
     ) internal override {
         _updateKey(operator, abi.encode(bytes32(0)));
     }
-
-    // **************************************************************************************************
-    //                                      VIEW FUNCTIONS
-    // **************************************************************************************************
 
     function _setVaultToCollateral(address vault, address collateral) private notZeroAddress(collateral) {
         StorageMiddleware storage $ = _getMiddlewareStorage();

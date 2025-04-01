@@ -25,9 +25,12 @@ import {DelegatorFactory} from "@symbiotic/contracts/DelegatorFactory.sol";
 import {SlasherFactory} from "@symbiotic/contracts/SlasherFactory.sol";
 import {VaultFactory} from "@symbiotic/contracts/VaultFactory.sol";
 import {IEntity} from "@symbiotic/interfaces/common/IEntity.sol";
+import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
 import {IOperatorSpecificDelegator} from "@symbiotic/interfaces/delegator/IOperatorSpecificDelegator.sol";
 import {Slasher} from "@symbiotic/contracts/slasher/Slasher.sol";
+import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
 import {VetoSlasher} from "@symbiotic/contracts/slasher/VetoSlasher.sol";
+import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {NetworkMiddlewareService} from "@symbiotic/contracts/service/NetworkMiddlewareService.sol";
 import {IRegistry} from "@symbiotic/interfaces/common/IRegistry.sol";
@@ -1009,6 +1012,16 @@ contract MiddlewareTest is Test {
         uint256 slashAmount = OPERATOR_STAKE / 2;
 
         vm.startPrank(gateway);
+
+        // 2 events are emitted before the actual slash event in the middleware.
+        vm.expectEmit(false, false, false, false);
+        emit IBaseDelegator.OnSlash(tanssi.subnetwork(0), operator, slashAmount, 0);
+
+        vm.expectEmit(false, false, false, false);
+        emit ISlasher.Slash(tanssi.subnetwork(0), operator, slashAmount, 0);
+
+        vm.expectEmit(true, true, true, true);
+        emit VaultManager.InstantSlash(address(vault), tanssi.subnetwork(0), slashAmount);
         middleware.slash(currentEpoch, OPERATOR_KEY, slashPercentage);
 
         vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
@@ -1161,8 +1174,14 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 slashPercentage = PARTS_PER_BILLION / 2;
+        uint256 slashAmount = OPERATOR_STAKE / 2;
 
         vm.startPrank(gateway);
+        vm.expectEmit(false, false, false, false);
+        emit IVetoSlasher.RequestSlash(0, tanssi.subnetwork(0), operator, slashAmount, 0, 0);
+
+        vm.expectEmit(true, true, true, true);
+        emit VaultManager.VetoSlash(address(vault), tanssi.subnetwork(0), 0);
         middleware.slash(currentEpoch, OPERATOR_KEY, slashPercentage);
 
         vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
@@ -1255,7 +1274,7 @@ contract MiddlewareTest is Test {
             address(vaultFactory), abi.encodeWithSelector(IRegistry.isEntity.selector, address(vault)), abi.encode(true)
         );
         vm.startPrank(gateway);
-        vm.expectRevert(IMiddleware.Middleware__UnknownSlasherType.selector);
+        vm.expectRevert(VaultManager.UnknownSlasherType.selector);
         middleware.slash(currentEpoch, OPERATOR_KEY, slashPercentage);
     }
 
