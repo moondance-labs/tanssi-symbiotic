@@ -109,10 +109,8 @@ contract Middleware is
      */
     function initialize(
         InitParams memory params
-    ) public initializer notZeroAddress(params.owner) notZeroAddress(params.reader) {
-        if (params.slashingWindow < params.epochDuration) {
-            revert Middleware__SlashingWindowTooShort();
-        }
+    ) public initializer {
+        _validateInitParams(params);
 
         {
             StorageMiddleware storage $ = _getMiddlewareStorage();
@@ -136,6 +134,27 @@ contract Middleware is
         _setSelectorRole(this.distributeRewards.selector, GATEWAY_ROLE);
         _setSelectorRole(this.slash.selector, GATEWAY_ROLE);
         _setSelectorRole(this.performUpkeep.selector, FORWARDER_ROLE);
+    }
+
+    function _validateInitParams(
+        InitParams memory params
+    )
+        private
+        pure
+        notZeroAddress(params.network)
+        notZeroAddress(params.operatorRegistry)
+        notZeroAddress(params.vaultRegistry)
+        notZeroAddress(params.operatorNetworkOptIn)
+        notZeroAddress(params.owner)
+        notZeroAddress(params.reader)
+    {
+        if (params.epochDuration == 0 || params.slashingWindow == 0) {
+            revert Middleware__InvalidEpochDuration();
+        }
+
+        if (params.slashingWindow < params.epochDuration) {
+            revert Middleware__SlashingWindowTooShort();
+        }
     }
 
     function _authorizeUpgrade(

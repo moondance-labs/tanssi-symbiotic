@@ -233,31 +233,6 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
     }
 
-    function testInitializeFailsWithInvalidSlashingWindow() public {
-        uint48 EPOCH_DURATION_ = 100;
-        uint48 SHORT_SLASHING_WINDOW_ = 99;
-
-        vm.startPrank(owner);
-
-        address readHelper = address(new OBaseMiddlewareReader());
-        Middleware _middleware = new Middleware(address(operatorRewards), address(stakerRewardsFactory));
-        Middleware middlewareProxy = Middleware(address(new MiddlewareProxy(address(_middleware), "")));
-        vm.expectRevert(IMiddleware.Middleware__SlashingWindowTooShort.selector);
-        IMiddleware.InitParams memory params = IMiddleware.InitParams({
-            network: tanssi,
-            operatorRegistry: address(registry),
-            vaultRegistry: address(registry),
-            operatorNetworkOptIn: address(operatorNetworkOptInServiceMock),
-            owner: owner,
-            epochDuration: EPOCH_DURATION_,
-            slashingWindow: SHORT_SLASHING_WINDOW_,
-            reader: readHelper
-        });
-        Middleware(address(middlewareProxy)).initialize(params);
-
-        vm.stopPrank();
-    }
-
     function testDeployWithNoOperatorRewards() public {
         vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
         new Middleware(address(0), address(stakerRewardsFactory));
@@ -2445,27 +2420,10 @@ contract MiddlewareTest is Test {
     // *                                        INITIALIZE
     // ************************************************************************************************
 
-    function testInitializeWithNoOwner() public {
-        Middleware middleware2 = Middleware(address(new MiddlewareProxy(address(middlewareImpl), "")));
+    function _prepareInitializeTest() private returns (Middleware middleware2, IMiddleware.InitParams memory params) {
+        middleware2 = Middleware(address(new MiddlewareProxy(address(middlewareImpl), "")));
         address readHelper = address(new OBaseMiddlewareReader());
-        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
-        IMiddleware.InitParams memory params = IMiddleware.InitParams({
-            network: tanssi,
-            operatorRegistry: address(registry),
-            vaultRegistry: address(registry),
-            operatorNetworkOptIn: address(operatorNetworkOptInServiceMock),
-            owner: address(0),
-            epochDuration: NETWORK_EPOCH_DURATION,
-            slashingWindow: SLASHING_WINDOW,
-            reader: readHelper
-        });
-        middleware2.initialize(params);
-    }
-
-    function testInitializeWithNoReader() public {
-        Middleware middleware2 = Middleware(address(new MiddlewareProxy(address(middlewareImpl), "")));
-        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
-        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+        params = IMiddleware.InitParams({
             network: tanssi,
             operatorRegistry: address(registry),
             vaultRegistry: address(registry),
@@ -2473,8 +2431,75 @@ contract MiddlewareTest is Test {
             owner: owner,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
-            reader: address(0)
+            reader: readHelper
         });
+    }
+
+    function testInitializeWithNoOwner() public {
+        (Middleware middleware2, IMiddleware.InitParams memory params) = _prepareInitializeTest();
+        params.owner = address(0);
+
+        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
+        middleware2.initialize(params);
+    }
+
+    function testInitializeWithNoReader() public {
+        (Middleware middleware2, IMiddleware.InitParams memory params) = _prepareInitializeTest();
+        params.reader = address(0);
+
+        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
+        middleware2.initialize(params);
+    }
+
+    function testInitializeWithNoNetwork() public {
+        (Middleware middleware2, IMiddleware.InitParams memory params) = _prepareInitializeTest();
+        params.network = address(0);
+
+        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
+        middleware2.initialize(params);
+    }
+
+    function testInitializeWithNoOperatorRegistry() public {
+        (Middleware middleware2, IMiddleware.InitParams memory params) = _prepareInitializeTest();
+        params.operatorRegistry = address(0);
+
+        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
+        middleware2.initialize(params);
+    }
+
+    function testInitializeWithNoVaultRegistry() public {
+        (Middleware middleware2, IMiddleware.InitParams memory params) = _prepareInitializeTest();
+        params.vaultRegistry = address(0);
+
+        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
+        middleware2.initialize(params);
+    }
+
+    function testInitializeWithNoOperatorNetworkOptIn() public {
+        (Middleware middleware2, IMiddleware.InitParams memory params) = _prepareInitializeTest();
+        params.operatorNetworkOptIn = address(0);
+
+        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
+        middleware2.initialize(params);
+    }
+
+    function testInitializeWithInvalidEpochDuration() public {
+        (Middleware middleware2, IMiddleware.InitParams memory params) = _prepareInitializeTest();
+        params.epochDuration = 0;
+
+        vm.expectRevert(IMiddleware.Middleware__InvalidEpochDuration.selector);
+        middleware2.initialize(params);
+    }
+
+    function testInitializeWithInvalidSlashingWindow() public {
+        uint48 EPOCH_DURATION_ = 100;
+        uint48 SHORT_SLASHING_WINDOW_ = 99;
+
+        (Middleware middleware2, IMiddleware.InitParams memory params) = _prepareInitializeTest();
+        params.epochDuration = EPOCH_DURATION_;
+        params.slashingWindow = SHORT_SLASHING_WINDOW_;
+
+        vm.expectRevert(IMiddleware.Middleware__SlashingWindowTooShort.selector);
         middleware2.initialize(params);
     }
 

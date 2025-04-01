@@ -81,12 +81,22 @@ contract ODefaultOperatorRewards is
         _;
     }
 
-    constructor(address network, address networkMiddlewareService) {
+    modifier notZeroAddress(
+        address address_
+    ) {
+        _checkNotZeroAddress(address_);
+        _;
+    }
+
+    constructor(
+        address network,
+        address networkMiddlewareService
+    ) notZeroAddress(network) notZeroAddress(networkMiddlewareService) {
         i_network = network;
         i_networkMiddlewareService = networkMiddlewareService;
     }
 
-    function initialize(uint48 operatorShare_, address owner_) public initializer {
+    function initialize(uint48 operatorShare_, address owner_) public initializer notZeroAddress(owner_) {
         __Ownable_init(owner_);
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
@@ -221,10 +231,10 @@ contract ODefaultOperatorRewards is
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
-    function setStakerRewardContract(address stakerRewards, address vault) external onlyMiddleware {
-        if (stakerRewards == address(0) || vault == address(0)) {
-            revert ODefaultOperatorRewards__InvalidAddress();
-        }
+    function setStakerRewardContract(
+        address stakerRewards,
+        address vault
+    ) external onlyMiddleware notZeroAddress(stakerRewards) notZeroAddress(vault) {
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
 
         if ($.vaultToStakerRewardsContract[vault] == stakerRewards) {
@@ -308,6 +318,14 @@ contract ODefaultOperatorRewards is
         bytes32 position = OPERATOR_REWARDS_STORAGE_LOCATION;
         assembly {
             $.slot := position
+        }
+    }
+
+    function _checkNotZeroAddress(
+        address address_
+    ) private pure {
+        if (address_ == address(0)) {
+            revert ODefaultOperatorRewards__InvalidAddress();
         }
     }
 }

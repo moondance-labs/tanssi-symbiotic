@@ -39,6 +39,7 @@ import {MockV3Aggregator} from "@chainlink/tests/MockV3Aggregator.sol";
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 //**************************************************************************************************
 //                                      SNOWBRIDGE
@@ -335,13 +336,81 @@ contract RewardsTest is Test {
     //                                      ODefaultStakerRewards
     //**************************************************************************************************
 
-    function testCreateWithNoNetwork() public {
-        vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__NotNetwork.selector);
+    function testCreateStakerRewardsWithNoNetwork() public {
+        vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__InvalidAddress.selector);
         stakerRewards = new ODefaultStakerRewards(
             address(networkMiddlewareService), // networkMiddlewareService
             address(vault), // vault
             address(0) // network
         );
+    }
+
+    function testCreateStakerRewardsWithNoNetworkMiddlewareService() public {
+        vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__InvalidAddress.selector);
+        stakerRewards = new ODefaultStakerRewards(
+            address(0), // networkMiddlewareService
+            address(vault), // vault
+            tanssi // network
+        );
+    }
+
+    function testCreateStakerRewardsWithNoVault() public {
+        vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__InvalidAddress.selector);
+        stakerRewards = new ODefaultStakerRewards(
+            address(networkMiddlewareService), // networkMiddlewareService
+            address(0), // vault
+            tanssi // network
+        );
+    }
+
+    function testInitializeStakerRewardsWithNoOperatorRewards() public {
+        stakerRewards = new ODefaultStakerRewards(
+            address(networkMiddlewareService), // networkMiddlewareService
+            address(vault), // vault
+            tanssi // network
+        );
+
+        IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
+            adminFee: 0,
+            defaultAdminRoleHolder: address(middleware),
+            adminFeeClaimRoleHolder: address(middleware),
+            adminFeeSetRoleHolder: address(middleware)
+        });
+        address proxy = address(new ERC1967Proxy((address(stakerRewards)), ""));
+
+        vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__InvalidAddress.selector);
+        ODefaultStakerRewards(proxy).initialize(address(0), params);
+    }
+
+    //**************************************************************************************************
+    //                                      ODefaultOperatorRewards
+    //**************************************************************************************************
+
+    function testCreateOperatorRewardsWithNoNetwork() public {
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidAddress.selector);
+        operatorRewards = new ODefaultOperatorRewards(
+            address(0), // network
+            address(networkMiddlewareService) // networkMiddlewareService
+        );
+    }
+
+    function testCreateOperatorRewardsWithNoNetworkMiddleware() public {
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidAddress.selector);
+        operatorRewards = new ODefaultOperatorRewards(
+            tanssi, // network
+            address(0) // networkMiddlewareService
+        );
+    }
+
+    function testInitializeOperatorRewardsWithNoOwner() public {
+        operatorRewards = new ODefaultOperatorRewards(
+            tanssi, // network
+            address(networkMiddlewareService) // networkMiddlewareService
+        );
+        address proxy = address(new ERC1967Proxy((address(operatorRewards)), ""));
+
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidAddress.selector);
+        ODefaultOperatorRewards(proxy).initialize(0, address(0));
     }
 
     //**************************************************************************************************
