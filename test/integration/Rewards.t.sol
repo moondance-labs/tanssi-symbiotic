@@ -90,15 +90,8 @@ contract RewardsTest is Test {
     uint48 public constant VAULT_EPOCH_DURATION = 8 days;
     uint48 public constant NETWORK_EPOCH_DURATION = 6 days;
     uint48 public constant SLASHING_WINDOW = 7 days;
-    uint48 public constant VETO_DURATION = 1 days;
-    uint256 public constant SLASH_AMOUNT = 30 ether;
-    uint256 public constant OPERATOR_STAKE = 100 ether;
-    uint256 public constant DEFAULT_WITHDRAW_AMOUNT = 30 ether;
     uint256 public constant OPERATOR_INITIAL_BALANCE = 1000 ether;
-    uint256 public constant MIN_SLASHING_WINDOW = 1 days;
-    uint48 public constant OPERATOR_SHARE = 2000;
-    uint256 public constant TOTAL_NETWORK_SHARES = 3;
-    uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
+    uint48 public constant OPERATOR_SHARE = 2000; // 20%
     uint256 public constant ONE_DAY = 86_400;
 
     // We use pregenerated keys and proofs for the operators, alice becomes operator 3
@@ -118,9 +111,9 @@ contract RewardsTest is Test {
 
     uint256 public constant OPERATOR_STAKE_ST_ETH = 90 ether;
     uint256 public constant OPERATOR_STAKE_R_ETH = 90 ether;
-    uint256 public constant OPERATOR_STAKE_BTC = 9 ether;
+    uint256 public constant OPERATOR_STAKE_BTC = 2 ether;
 
-    uint8 public constant ORACLE_DECIMALS = 0;
+    uint8 public constant ORACLE_DECIMALS = 16;
     int256 public constant ORACLE_CONVERSION_ST_ETH = 3000 ether;
     int256 public constant ORACLE_CONVERSION_R_ETH = 3000 ether;
     int256 public constant ORACLE_CONVERSION_W_BTC = 90_000 ether;
@@ -333,12 +326,15 @@ contract RewardsTest is Test {
         vm.startPrank(operator2);
         _depositToVault(vaultSlashable, operator2, OPERATOR_STAKE_R_ETH, rETH);
         _depositToVault(vaultVetoed, operator2, OPERATOR_STAKE_BTC, wBTC);
+        operatorVaultOptInService.optIn(address(vaultSlashable));
         vm.stopPrank();
 
         vm.startPrank(operator3);
         _depositToVault(vault, operator3, OPERATOR_STAKE_ST_ETH, stETH);
         _depositToVault(vaultSlashable, operator3, OPERATOR_STAKE_R_ETH, rETH);
         _depositToVault(vaultVetoed, operator3, OPERATOR_STAKE_BTC, wBTC);
+        operatorVaultOptInService.optIn(address(vault));
+        operatorVaultOptInService.optIn(address(vaultVetoed));
 
         vm.stopPrank();
 
@@ -401,7 +397,7 @@ contract RewardsTest is Test {
     }
 
     function _depositToVault(Vault _vault, address _operator, uint256 _amount, Token collateral) public {
-        collateral.approve(address(_vault), _amount * 10);
+        collateral.approve(address(_vault), _amount);
         _vault.deposit(_operator, _amount);
     }
 
@@ -466,6 +462,7 @@ contract RewardsTest is Test {
         INetworkRestakeDelegator(vaultAddresses.delegator).setMaxNetworkLimit(0, 1000 ether);
         INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setMaxNetworkLimit(0, 1000 ether);
         INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setMaxNetworkLimit(0, 1000 ether);
+
         INetworkRestakeDelegator(vaultAddresses.delegator).setNetworkLimit(tanssi.subnetwork(0), 1000 ether);
         INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setNetworkLimit(tanssi.subnetwork(0), 1000 ether);
         INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setNetworkLimit(tanssi.subnetwork(0), 1000 ether);
@@ -632,22 +629,18 @@ contract RewardsTest is Test {
         );
     }
 
-    function testClaimRewardsWithMultipleVaultsX() public {
-        uint48 epoch = 0;
+    function testClaimRewardsWithMultipleVaults() public {
+        uint48 epoch = 1;
         uint48 eraIndex = 0;
         uint48 epochStartTs = middleware.getEpochStart(epoch);
 
-        vm.warp(NETWORK_EPOCH_DURATION);
+        vm.warp(NETWORK_EPOCH_DURATION * 2 + 1);
 
         Token rewardsToken = new Token("Rewards", 18);
         rewardsToken.mint(address(middleware), AMOUNT_TO_DISTRIBUTE);
 
-        // The method has 3 implementations so we need to get the selector manually
-        vm.startPrank(address(middleware));
-        rewardsToken.approve(address(operatorRewards), AMOUNT_TO_DISTRIBUTE);
-        // TODO Steven: Could be called from middleware instead, and skip approval
-
-        operatorRewards.distributeRewards(
+        vm.startPrank(address(gateway));
+        middleware.distributeRewards(
             epoch, eraIndex, AMOUNT_TO_DISTRIBUTE, AMOUNT_TO_DISTRIBUTE, REWARDS_ROOT, address(rewardsToken)
         );
         vm.stopPrank();
@@ -665,7 +658,7 @@ contract RewardsTest is Test {
         });
 
         // 40% of the staker rewards are distributed to the first vault. Order is important due to rounding.
-        uint256 expectedAmountStakers = (EXPECTED_CLAIMABLE * 80) / 100; // TODO Steven: Take out admin fee too
+        uint256 expectedAmountStakers = (EXPECTED_CLAIMABLE * 80) / 100;
         uint256[] memory expectedRewardsPerVault =
             _getExpectedRewardsPerVault(operator3, epochStartTs, expectedAmountStakers);
 
@@ -698,26 +691,25 @@ contract RewardsTest is Test {
 
     function _getExpectedRewardsPerVault(
         address operator_,
-        uint256 epochStartTs,
+        uint48 epochStartTs,
         uint256 expectedAmountStakers
     ) private view returns (uint256[] memory rewards) {
         uint256 powerVault1 = IOBaseMiddlewareReader(address(middleware)).getOperatorPowerAt(
-            uint48(epochStartTs), operator_, address(vault), uint96(0)
+            epochStartTs, operator_, address(vault), uint96(0)
         );
         uint256 powerVault2 = IOBaseMiddlewareReader(address(middleware)).getOperatorPowerAt(
-            uint48(epochStartTs), operator_, address(vaultSlashable), uint96(0)
+            epochStartTs, operator_, address(vaultSlashable), uint96(0)
         );
         uint256 powerVault3 = IOBaseMiddlewareReader(address(middleware)).getOperatorPowerAt(
-            uint48(epochStartTs), operator_, address(vaultVetoed), uint96(0)
+            epochStartTs, operator_, address(vaultVetoed), uint96(0)
         );
 
         uint256 totalPower = powerVault1 + powerVault2 + powerVault3;
-
         rewards = new uint256[](3);
 
         rewards[0] = (expectedAmountStakers * powerVault1) / totalPower;
         rewards[1] = (expectedAmountStakers * powerVault2) / totalPower;
-        rewards[2] = totalPower - rewards[0] - rewards[1];
+        rewards[2] = expectedAmountStakers - rewards[0] - rewards[1];
     }
 
     function _checkStakerRewardsBalanceForVault(Token token, address vault_, uint256 expectedAmount) private view {
