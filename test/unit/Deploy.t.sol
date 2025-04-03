@@ -583,7 +583,6 @@ contract DeployTest is Test {
     //**************************************************************************************************
     function testDeployVaultWithCollateralEmpty() public {
         (, IVaultConfigurator vaultConfigurator,) = deployTanssiEcosystem.ecosystemEntities();
-        (Token stETHToken,,) = deployTanssiEcosystem.tokensAddresses();
 
         DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
             epochDuration: VAULT_EPOCH_DURATION,

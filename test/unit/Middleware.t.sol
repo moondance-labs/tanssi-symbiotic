@@ -233,6 +233,31 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
     }
 
+    function testInitializeFailsWithInvalidSlashingWindow() public {
+        uint48 EPOCH_DURATION_ = 100;
+        uint48 SHORT_SLASHING_WINDOW_ = 99;
+
+        vm.startPrank(owner);
+
+        readHelper = address(new OBaseMiddlewareReader());
+        Middleware _middleware = new Middleware(address(operatorRewards), address(stakerRewardsFactory));
+        Middleware middlewareProxy = Middleware(address(new MiddlewareProxy(address(_middleware), "")));
+        vm.expectRevert(IMiddleware.Middleware__SlashingWindowTooShort.selector);
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: tanssi,
+            operatorRegistry: address(registry),
+            vaultRegistry: address(registry),
+            operatorNetworkOptIn: address(operatorNetworkOptInServiceMock),
+            owner: owner,
+            epochDuration: EPOCH_DURATION_,
+            slashingWindow: SHORT_SLASHING_WINDOW_,
+            reader: readHelper
+        });
+        Middleware(address(middlewareProxy)).initialize(params);
+
+        vm.stopPrank();
+    }
+
     function testDeployWithNoOperatorRewards() public {
         vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
         new Middleware(address(0), address(stakerRewardsFactory));
@@ -1731,7 +1756,6 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vm.warp(NETWORK_EPOCH_DURATION + 2);
-        uint48 currentEpoch = middleware.getCurrentEpoch();
         uint256 operatorsLength = OBaseMiddlewareReader(address(middleware)).operatorsLength();
 
         assertEq(operatorsLength, 1);
@@ -1827,7 +1851,6 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vm.warp(NETWORK_EPOCH_DURATION + 2);
-        uint48 currentEpoch = middleware.getCurrentEpoch();
         bool isRegistered = OBaseMiddlewareReader(address(middleware)).isOperatorRegistered(operator);
 
         assertEq(isRegistered, true);
@@ -1845,7 +1868,6 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vm.warp(NETWORK_EPOCH_DURATION + 2);
-        uint48 currentEpoch = middleware.getCurrentEpoch();
         (uint160 subnetworkAddress, uint48 startTime, uint48 endTime) =
             OBaseMiddlewareReader(address(middleware)).subnetworkWithTimesAt(0);
 
@@ -1866,7 +1888,6 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vm.warp(NETWORK_EPOCH_DURATION + 2);
-        uint48 currentEpoch = middleware.getCurrentEpoch();
         uint160[] memory activeSubnetwork = OBaseMiddlewareReader(address(middleware)).activeSubnetworks();
 
         assertEq(activeSubnetwork.length, 1);
@@ -1945,7 +1966,6 @@ contract MiddlewareTest is Test {
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         middleware.registerSharedVault(address(vault), stakerRewardsParams);
         vm.warp(NETWORK_EPOCH_DURATION + 2);
-        uint48 currentEpoch = middleware.getCurrentEpoch();
         (address vault_, uint48 startTime, uint48 endTime) =
             OBaseMiddlewareReader(address(middleware)).sharedVaultWithTimesAt(0);
 
@@ -2025,7 +2045,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(vault));
         vm.warp(NETWORK_EPOCH_DURATION + 2);
-        uint48 currentEpoch = middleware.getCurrentEpoch();
+
         (address vault_, uint48 startTime, uint48 endTime) =
             OBaseMiddlewareReader(address(middleware)).operatorVaultWithTimesAt(operator, 0);
 
@@ -2377,8 +2397,7 @@ contract MiddlewareTest is Test {
     function testStakeToPowerOBaseMiddlewareReader() public {
         uint256 stake = 1000 ether;
         address _vault = makeAddr("vault");
-        (address _collateral, address _oracle, int256 multiplier, uint8 oracleDecimals, uint8 tokenDecimals) =
-            _setVaultCollateral(_vault);
+        (,, int256 multiplier, uint8 oracleDecimals,) = _setVaultCollateral(_vault);
 
         // Need to do this otherwise it calls directly middleware stakeToPower and can't reach OBaseMiddlewareReader
         bytes memory baseCallData = abi.encodeWithSelector(OBaseMiddlewareReader.stakeToPower.selector, _vault, stake);
@@ -2396,8 +2415,7 @@ contract MiddlewareTest is Test {
     function testStakeToPower() public {
         uint256 stake = 1000 ether;
         address _vault = makeAddr("vault");
-        (address _collateral, address _oracle, int256 multiplier, uint8 oracleDecimals, uint8 tokenDecimals) =
-            _setVaultCollateral(_vault);
+        (,, int256 multiplier, uint8 oracleDecimals,) = _setVaultCollateral(_vault);
 
         uint256 power = middleware.stakeToPower(_vault, stake);
         uint256 expectedPower = (stake * uint256(multiplier)) / (10 ** uint256(oracleDecimals));
