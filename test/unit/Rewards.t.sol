@@ -15,6 +15,7 @@
 pragma solidity 0.8.25;
 
 import {Test} from "forge-std/Test.sol";
+import {console2} from "forge-std/console2.sol";
 
 //**************************************************************************************************
 //                                      SYMBIOTIC
@@ -540,7 +541,15 @@ contract RewardsTest is Test {
         emit IODefaultOperatorRewards.ClaimRewards(
             recipient, address(token), eraIndex, epoch, address(this), EXPECTED_CLAIMABLE
         );
-        operatorRewards.claimRewards(claimRewardsData);
+
+        {
+            uint256 gasBefore = gasleft();
+            operatorRewards.claimRewards(claimRewardsData);
+            uint256 gasAfter = gasleft();
+
+            uint256 gasClaiming = gasBefore - gasAfter;
+            console2.log("Total gas used: ", gasClaiming);
+        }
 
         uint256 amountClaimed_ = operatorRewards.claimed(eraIndex, alice);
         assertEq(amountClaimed_, EXPECTED_CLAIMABLE);

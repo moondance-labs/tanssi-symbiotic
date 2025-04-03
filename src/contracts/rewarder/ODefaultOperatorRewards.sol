@@ -212,30 +212,28 @@ contract ODefaultOperatorRewards is
         (, address[] memory operatorVaults) =
             IOBaseMiddlewareReader(middlewareAddress).getOperatorVaults(operator, epochStartTs);
 
-        // The operation is divided into 3 steps which repeat the for loop over each vault.
-        // It was necessary to avoid stack too deep errors due to the high number of variables
         uint256 totalVaults = operatorVaults.length;
-
-        (uint256[] memory vaultPowers, uint256 totalPower) =
-            _getOperatorPowerPerVault(operatorVaults, totalVaults, epochStartTs, operator, middlewareAddress);
-
-        uint256[] memory amountPerVault = _getRewardsAmountPerVault(stakerAmount, totalVaults, vaultPowers, totalPower);
+        uint256[] memory amountPerVault = _getRewardsAmountPerVault(
+            operatorVaults, totalVaults, epochStartTs, operator, middlewareAddress, stakerAmount
+        );
 
         _distributeRewardsPerVault(epoch, eraIndex, tokenAddress, totalVaults, operatorVaults, amountPerVault, data);
     }
 
-    function _getOperatorPowerPerVault(
+    function _getRewardsAmountPerVault(
         address[] memory operatorVaults,
         uint256 totalVaults,
         uint48 epochStartTs,
         address operator,
-        address middlewareAddress
-    ) private view returns (uint256[] memory vaultPowers, uint256 totalPower) {
+        address middlewareAddress,
+        uint256 stakerAmount
+    ) private view returns (uint256[] memory amountPerVault) {
+        // First we get the operator power per vault
         uint96 subnetwork = i_network.subnetwork(0).identifier();
         IOBaseMiddlewareReader reader = IOBaseMiddlewareReader(middlewareAddress);
 
-        vaultPowers = new uint256[](totalVaults);
-        totalPower = 0;
+        uint256[] memory vaultPowers = new uint256[](totalVaults);
+        uint256 totalPower;
         for (uint256 i; i < totalVaults;) {
             vaultPowers[i] = reader.getOperatorPowerAt(epochStartTs, operator, operatorVaults[i], subnetwork);
             totalPower += vaultPowers[i];
@@ -243,14 +241,8 @@ contract ODefaultOperatorRewards is
                 ++i;
             }
         }
-    }
 
-    function _getRewardsAmountPerVault(
-        uint256 stakerAmount,
-        uint256 totalVaults,
-        uint256[] memory vaultPowers,
-        uint256 totalPower
-    ) private pure returns (uint256[] memory amountPerVault) {
+        // Then we calculate the rewards according to the operator power on each vault
         uint256 distributedAmount;
         amountPerVault = new uint256[](totalVaults);
         for (uint256 i; i < totalVaults;) {
