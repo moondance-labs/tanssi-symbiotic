@@ -245,7 +245,7 @@ contract MiddlewareTest is Test {
         }
 
         {
-            totalFullRestakePower = ((OPERATOR_STAKE * 2) * uint256(ORACLE_CONVERSION_TOKEN)) / 10 ** ORACLE_DECIMALS;
+            totalFullRestakePower = (OPERATOR_STAKE * uint256(ORACLE_CONVERSION_TOKEN)) / 10 ** ORACLE_DECIMALS;
 
             totalPowerVault = (OPERATOR_STAKE * 2 * uint256(ORACLE_CONVERSION_TOKEN)) / 10 ** ORACLE_DECIMALS;
             totalPowerVaultSlashable = (OPERATOR_STAKE * 2 * uint256(ORACLE_CONVERSION_TOKEN)) / 10 ** ORACLE_DECIMALS;
@@ -303,15 +303,9 @@ contract MiddlewareTest is Test {
             tanssi.subnetwork(0), operator, OPERATOR_SHARE
         );
         INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator2, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares(
             tanssi.subnetwork(0), operator3, OPERATOR_SHARE
         );
 
-        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator, OPERATOR_SHARE
-        );
         INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setOperatorNetworkShares(
             tanssi.subnetwork(0), operator2, OPERATOR_SHARE
         );
@@ -336,13 +330,10 @@ contract MiddlewareTest is Test {
     ) public {
         vm.startPrank(_owner);
         IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
-            tanssi.subnetwork(0), operator, OPERATOR_NETWORK_LIMIT
+            tanssi.subnetwork(0), operator2, OPERATOR_STAKE
         );
         IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
-            tanssi.subnetwork(0), operator2, OPERATOR_NETWORK_LIMIT
-        );
-        IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
-            tanssi.subnetwork(0), operator3, OPERATOR_NETWORK_LIMIT
+            tanssi.subnetwork(0), operator3, OPERATOR_STAKE
         );
         vm.stopPrank();
     }
@@ -569,9 +560,9 @@ contract MiddlewareTest is Test {
         uint256 activeStakeInVetoed = ecosystemEntities.vaultVetoed.activeStake();
         uint256 activePowerInVetoed = (activeStakeInVetoed * uint256(ORACLE_CONVERSION_TOKEN)) / 10 ** ORACLE_DECIMALS;
 
-        (uint256 totalOperator2PowerAfter, uint256 powerFromSharesOperator2After) =
+        (uint256 totalOperator2PowerAfter,) =
             _calculateOperatorPower(totalPowerVaultSlashable, activePowerInVetoed, slashingPower);
-        (uint256 totalOperator3PowerAfter, uint256 powerFromSharesOperator3After) =
+        (uint256 totalOperator3PowerAfter,) =
             _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, activePowerInVetoed, slashingPower);
 
         assertEq(validators[1].power, totalOperator2PowerAfter);
@@ -609,7 +600,6 @@ contract MiddlewareTest is Test {
         uint256 slashingPower = (SLASHING_FRACTION * powerFromSharesOperator2) / PARTS_PER_BILLION;
 
         vm.prank(gateway);
-        //! Why this slash should anyway go through if operator was paused? Shouldn't it revert?
         ecosystemEntities.middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);

@@ -116,7 +116,7 @@ contract MiddlewareTest is Test {
     bytes32 public constant OPERATOR5_KEY = bytes32(uint256(5));
 
     uint256 public constant OPERATOR_SHARE = 1;
-    uint256 public constant TOTAL_NETWORK_SHARES = 3;
+    uint256 public constant TOTAL_NETWORK_SHARES = 2;
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
     uint256 public constant SLASHING_FRACTION = PARTS_PER_BILLION / 10; // 10%
 
@@ -321,7 +321,7 @@ contract MiddlewareTest is Test {
         _depositToVault(vaultSlashable, operator3, OPERATOR_STAKE_R_ETH, rETH);
         _depositToVault(vaultVetoed, operator3, OPERATOR_STAKE_BTC, wBTC);
 
-        totalFullRestakePower = ((OPERATOR_STAKE_BTC * 2) * uint256(ORACLE_CONVERSION_W_BTC)) / 10 ** ORACLE_DECIMALS;
+        totalFullRestakePower = (OPERATOR_STAKE_BTC * uint256(ORACLE_CONVERSION_W_BTC)) / 10 ** ORACLE_DECIMALS;
 
         totalPowerVault = (OPERATOR_STAKE_ST_ETH * 2 * uint256(ORACLE_CONVERSION_ST_ETH)) / 10 ** ORACLE_DECIMALS;
         totalPowerVaultSlashable = (OPERATOR_STAKE_R_ETH * 2 * uint256(ORACLE_CONVERSION_R_ETH)) / 10 ** ORACLE_DECIMALS;
@@ -427,15 +427,9 @@ contract MiddlewareTest is Test {
             tanssi.subnetwork(0), operator, OPERATOR_SHARE
         );
         INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator2, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares(
             tanssi.subnetwork(0), operator3, OPERATOR_SHARE
         );
 
-        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator, OPERATOR_SHARE
-        );
         INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setOperatorNetworkShares(
             tanssi.subnetwork(0), operator2, OPERATOR_SHARE
         );
@@ -458,13 +452,10 @@ contract MiddlewareTest is Test {
         INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setNetworkLimit(tanssi.subnetwork(0), 1000 ether);
 
         IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
-            tanssi.subnetwork(0), operator, 300 ether
+            tanssi.subnetwork(0), operator2, OPERATOR_STAKE_BTC
         );
         IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
-            tanssi.subnetwork(0), operator2, 300 ether
-        );
-        IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
-            tanssi.subnetwork(0), operator3, 300 ether
+            tanssi.subnetwork(0), operator3, OPERATOR_STAKE_BTC
         );
         vm.stopPrank();
     }
@@ -574,9 +565,6 @@ contract MiddlewareTest is Test {
             _prepareSlashingTest();
 
         //Since vaultVetoed is full restake, it exactly gets the amount deposited, so no need to calculations
-        uint256 activeStakeInVetoed = vaultVetoed.activeStake();
-        uint256 activePowerInVetoed = (activeStakeInVetoed * uint256(ORACLE_CONVERSION_W_BTC)) / 10 ** ORACLE_DECIMALS;
-        assertEq(activePowerInVetoed, totalFullRestakePower);
 
         assertEq(validators[1].power, totalOperator2Power);
         assertEq(validators[2].power, totalOperator3Power);
@@ -657,13 +645,10 @@ contract MiddlewareTest is Test {
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
 
-        uint256 activeStakeInVetoed = vaultVetoed.activeStake();
-        uint256 activePowerInVetoed = (activeStakeInVetoed * uint256(ORACLE_CONVERSION_W_BTC)) / 10 ** ORACLE_DECIMALS;
-
         (uint256 totalOperator2PowerAfter,) =
-            _calculateOperatorPower(totalPowerVaultSlashable, activePowerInVetoed, slashingPower);
+            _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
         (uint256 totalOperator3PowerAfter,) =
-            _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, activePowerInVetoed, slashingPower);
+            _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
 
         assertEq(validators[1].power, totalOperator2PowerAfter);
         assertEq(validators[2].power, totalOperator3PowerAfter);
@@ -713,13 +698,10 @@ contract MiddlewareTest is Test {
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
 
-        uint256 activeStakeInVetoed = vaultVetoed.activeStake();
-        uint256 activePowerInVetoed = (activeStakeInVetoed * uint256(ORACLE_CONVERSION_W_BTC)) / 10 ** ORACLE_DECIMALS;
-
-        (uint256 totalOperator2PowerAfter, uint256 powerFromSharesOperator2After) =
-            _calculateOperatorPower(totalPowerVaultSlashable, activePowerInVetoed, slashingPower);
-        (uint256 totalOperator3PowerAfter, uint256 powerFromSharesOperator3After) =
-            _calculateOperatorPower(totalPowerVaultSlashable, activePowerInVetoed, slashingPower);
+        (uint256 totalOperator2PowerAfter,) =
+            _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
+        (uint256 totalOperator3PowerAfter,) =
+            _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
         // The first vault is not Slashable, so we calculate the power with no slashing
         (uint256 totalOperator3PowerFirstVault,) = _calculateOperatorPower(totalPowerVault, 0, 0);
 

@@ -161,22 +161,6 @@ contract Middleware is
         address newImplementation
     ) internal override checkAccess {}
 
-    /**
-     * @inheritdoc OSharedVaults
-     */
-    function _afterRegisterSharedVault(
-        address sharedVault,
-        IODefaultStakerRewards.InitParams memory stakerRewardsParams
-    ) internal override {
-        address stakerRewards =
-            IODefaultStakerRewardsFactory(i_stakerRewardsFactory).create(sharedVault, stakerRewardsParams);
-
-        IODefaultOperatorRewards(i_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
-
-        address collateral = IVault(sharedVault).collateral();
-        _setVaultToCollateral(sharedVault, collateral);
-    }
-
     function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
         address collateral = vaultToCollateral(vault);
         address oracle = collateralToOracle(collateral);
@@ -189,8 +173,8 @@ contract Middleware is
         power = stake.mulDiv(uint256(price), 10 ** priceDecimals);
         // Normalize power to 18 decimals
         uint8 collateralDecimals = IERC20Metadata(collateral).decimals();
-        if (collateralDecimals != uint8(18)) {
-            power = power.mulDiv(10 ** 18, 10 ** collateralDecimals);
+        if (collateralDecimals != DEFAULT_DECIMALS) {
+            power = power.mulDiv(10 ** DEFAULT_DECIMALS, 10 ** collateralDecimals);
         }
     }
 
@@ -322,7 +306,7 @@ contract Middleware is
         bytes32[] memory sortedKeys = IOBaseMiddlewareReader(address(this)).sortOperatorsByVaults(epoch);
         StorageMiddleware storage $ = _getMiddlewareStorage();
 
-        //TODO Should it be epochDuration? Because we wanna send it once per network epoch
+        //Should be at least once per epoch
         upkeepNeeded = (Time.timestamp() - $.lastTimestamp) > $.interval;
 
         performData = abi.encode(sortedKeys, epoch);
@@ -444,6 +428,19 @@ contract Middleware is
         } else {
             revert VaultManager.UnknownSlasherType();
         }
+    }
+
+    function _afterRegisterSharedVault(
+        address sharedVault,
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams
+    ) internal override {
+        address stakerRewards =
+            IODefaultStakerRewardsFactory(i_stakerRewardsFactory).create(sharedVault, stakerRewardsParams);
+
+        IODefaultOperatorRewards(i_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
+
+        address collateral = IVault(sharedVault).collateral();
+        _setVaultToCollateral(sharedVault, collateral);
     }
 
     function _beforeUnregisterOperator(
