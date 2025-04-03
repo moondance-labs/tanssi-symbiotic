@@ -71,7 +71,7 @@ contract MiddlewareTest is Test {
     uint48 public constant OPERATOR_SHARE = 1;
     uint128 public constant MAX_NETWORK_LIMIT = 1000 ether;
     uint128 public constant OPERATOR_NETWORK_LIMIT = 300 ether;
-    uint256 public constant TOTAL_NETWORK_SHARES = 3;
+    uint256 public constant TOTAL_NETWORK_SHARES = 2;
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
     uint256 public constant SLASHING_FRACTION = PARTS_PER_BILLION / 10; // 10%
     uint8 public constant ORACLE_DECIMALS = 3;
@@ -452,9 +452,6 @@ contract MiddlewareTest is Test {
             _prepareSlashingTest();
 
         //Since vaultVetoed is full restake, it exactly gets the amount deposited, so no need to calculations
-        uint256 activeStakeInVetoed = ecosystemEntities.vaultVetoed.activeStake();
-        uint256 activePowerInVetoed = (activeStakeInVetoed * uint256(ORACLE_CONVERSION_TOKEN)) / 10 ** ORACLE_DECIMALS;
-        assertEq(activePowerInVetoed, totalFullRestakePower);
 
         assertEq(validators[1].power, totalOperator2Power);
         assertEq(validators[2].power, totalOperator3Power);
@@ -501,13 +498,10 @@ contract MiddlewareTest is Test {
         uint48 newEpoch = ecosystemEntities.middleware.getCurrentEpoch();
         validators = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(newEpoch);
 
-        uint256 activeStakeInVetoed = ecosystemEntities.vaultVetoed.activeStake();
-        uint256 activePowerInVetoed = (activeStakeInVetoed * uint256(ORACLE_CONVERSION_TOKEN)) / 10 ** ORACLE_DECIMALS;
-
         (uint256 totalOperator2PowerAfter,) =
-            _calculateOperatorPower(totalPowerVaultSlashable, activePowerInVetoed, slashingPower);
+            _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
         (uint256 totalOperator3PowerAfter,) =
-            _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, activePowerInVetoed, slashingPower);
+            _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
 
         assertEq(validators[1].power, totalOperator2PowerAfter);
         assertEq(validators[2].power, totalOperator3PowerAfter);
@@ -557,13 +551,10 @@ contract MiddlewareTest is Test {
         uint48 newEpoch = ecosystemEntities.middleware.getCurrentEpoch();
         validators = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(newEpoch);
 
-        uint256 activeStakeInVetoed = ecosystemEntities.vaultVetoed.activeStake();
-        uint256 activePowerInVetoed = (activeStakeInVetoed * uint256(ORACLE_CONVERSION_TOKEN)) / 10 ** ORACLE_DECIMALS;
-
         (uint256 totalOperator2PowerAfter,) =
-            _calculateOperatorPower(totalPowerVaultSlashable, activePowerInVetoed, slashingPower);
+            _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
         (uint256 totalOperator3PowerAfter,) =
-            _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, activePowerInVetoed, slashingPower);
+            _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
 
         assertEq(validators[1].power, totalOperator2PowerAfter);
         assertEq(validators[2].power, totalOperator3PowerAfter);
