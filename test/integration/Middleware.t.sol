@@ -1094,7 +1094,7 @@ contract MiddlewareTest is Test {
 
         uint256 gasBefore = gasleft();
         bytes32[] memory sortedValidators =
-            OBaseMiddlewareReader(address(middleware)).sortOperatorsByVaults(currentEpoch);
+            OBaseMiddlewareReader(address(middleware)).sortOperatorsByPower(currentEpoch);
         uint256 gasAfter = gasleft();
 
         uint256 gasSorted = gasBefore - gasAfter;
@@ -1132,7 +1132,7 @@ contract MiddlewareTest is Test {
 
         uint256 gasBefore = gasleft();
         bytes32[] memory sortedValidators =
-            OBaseMiddlewareReader(address(middleware)).sortOperatorsByVaults(currentEpoch);
+            OBaseMiddlewareReader(address(middleware)).sortOperatorsByPower(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasSorted = gasBefore - gasAfter;
         console2.log("Total gas used: ", gasSorted);
@@ -1170,7 +1170,7 @@ contract MiddlewareTest is Test {
 
         uint256 gasBefore = gasleft();
         bytes32[] memory sortedValidators =
-            OBaseMiddlewareReader(address(middleware)).sortOperatorsByVaults(currentEpoch);
+            OBaseMiddlewareReader(address(middleware)).sortOperatorsByPower(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasSorted = gasBefore - gasAfter;
         console2.log("Total gas used: ", gasSorted);
@@ -1227,7 +1227,7 @@ contract MiddlewareTest is Test {
 
         uint256 gasBefore = gasleft();
         bytes32[] memory sortedValidators =
-            OBaseMiddlewareReader(address(middleware)).sortOperatorsByVaults(currentEpoch);
+            OBaseMiddlewareReader(address(middleware)).sortOperatorsByPower(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasSorted = gasBefore - gasAfter;
         console2.log("Total gas used: ", gasSorted);
