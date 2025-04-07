@@ -283,7 +283,6 @@ contract Middleware is
      * @inheritdoc IMiddleware
      */
     function sendCurrentOperatorsKeys() external returns (bytes32[] memory sortedKeys) {
-        // TODO: How come this is not gated?
         address gateway = getGateway();
         if (gateway == address(0)) {
             revert Middleware__GatewayNotSet();
