@@ -268,22 +268,6 @@ contract ODefaultStakerRewards is
             revert ODefaultStakerRewards__InvalidRecipient();
         }
 
-        uint256 amount = _getRewardsAndClaim(epoch, recipient, tokenAddress, activeSharesOfHints);
-
-        // if the amount is greater than 0, transfer the tokens to the recipient
-        if (amount > 0) {
-            IERC20(tokenAddress).safeTransfer(recipient, amount);
-        }
-
-        emit ClaimRewards(i_network, tokenAddress, msg.sender, epoch, recipient, amount);
-    }
-
-    function _getRewardsAndClaim(
-        uint48 epoch,
-        address recipient,
-        address tokenAddress,
-        bytes memory activeSharesOfHints
-    ) private returns (uint256 amount) {
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
 
         uint256 rewardsPerEpoch = $.rewards[epoch][tokenAddress];
@@ -298,7 +282,7 @@ contract ODefaultStakerRewards is
             revert ODefaultStakerRewards__NoRewardsToClaim();
         }
 
-        amount = IVault(i_vault).activeSharesOfAt(recipient, epochTs, activeSharesOfHints).mulDiv(
+        uint256 amount = IVault(i_vault).activeSharesOfAt(recipient, epochTs, activeSharesOfHints).mulDiv(
             rewardsPerEpoch, activeSharesCache_
         );
 
@@ -311,6 +295,13 @@ contract ODefaultStakerRewards is
         }
 
         $.stakerClaimedRewardPerEpoch[recipient][epoch][tokenAddress] += amount;
+
+        // if the amount is greater than 0, transfer the tokens to the recipient
+        if (amount > 0) {
+            IERC20(tokenAddress).safeTransfer(recipient, amount);
+        }
+
+        emit ClaimRewards(i_network, tokenAddress, msg.sender, epoch, recipient, amount);
     }
 
     /**
