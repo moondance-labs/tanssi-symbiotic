@@ -48,9 +48,9 @@ contract ODefaultStakerRewards is
     /// @custom:storage-location erc7201:tanssi.rewards.ODefaultStakerRewards.v1
     struct StakerRewardsStorage {
         uint256 adminFee;
-        mapping(uint48 epoch => mapping(address tokenAddress => uint256[] rewards_)) rewards;
-        mapping(address account => mapping(uint48 epoch => mapping(address tokenAddress => uint256 rewardIndex)))
-            lastUnclaimedReward;
+        mapping(uint48 epoch => mapping(address tokenAddress => uint256 rewards_)) rewards;
+        mapping(address account => mapping(uint48 epoch => mapping(address tokenAddress => uint256 claimed)))
+            stakerClaimedRewardPerEpoch;
         mapping(uint48 epoch => mapping(address tokenAddress => uint256 amount)) claimableAdminFee;
         mapping(uint48 epoch => uint256 amount) activeSharesCache;
     }
@@ -149,42 +149,24 @@ contract ODefaultStakerRewards is
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    function rewardsLength(uint48 epoch, address tokenAddress) external view returns (uint256) {
-        StakerRewardsStorage storage $ = _getStakerRewardsStorage();
-        return $.rewards[epoch][tokenAddress].length;
-    }
-
-    /**
-     * @inheritdoc IODefaultStakerRewards
-     */
     function claimable(
         uint48 epoch,
         address account,
-        uint256 maxRewards,
         address tokenAddress
     ) external view override returns (uint256 amount) {
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
-        uint256[] memory rewardsPerEpoch = $.rewards[epoch][tokenAddress];
-        uint256 rewardIndex = $.lastUnclaimedReward[account][epoch][tokenAddress];
-
-        // Get the min between how many the user wants to claim and how many rewards are available
-        uint256 rewardsToClaim = Math.min(maxRewards, rewardsPerEpoch.length - rewardIndex);
+        uint256 rewardsPerEpoch = $.rewards[epoch][tokenAddress];
+        uint256 claimedPerEpoch = $.stakerClaimedRewardPerEpoch[account][epoch][tokenAddress];
 
         uint48 epochTs = EpochCapture(INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network))
             .getEpochStart(epoch);
 
-        for (uint256 i; i < rewardsToClaim;) {
-            uint256 rewardAmount = rewardsPerEpoch[rewardIndex];
+        amount = IVault(i_vault).activeSharesOfAt(account, epochTs, new bytes(0)).mulDiv(
+            rewardsPerEpoch, $.activeSharesCache[epoch]
+        );
 
-            amount += IVault(i_vault).activeSharesOfAt(account, epochTs, new bytes(0)).mulDiv(
-                rewardAmount, $.activeSharesCache[epoch]
-            );
-
-            unchecked {
-                ++i;
-                ++rewardIndex;
-            }
-        }
+        // Get the amount that is still unclaimed
+        amount -= claimedPerEpoch;
     }
 
     /**
@@ -269,7 +251,7 @@ contract ODefaultStakerRewards is
         $.claimableAdminFee[epoch][tokenAddress] += adminFeeAmount;
 
         if (distributeAmount > 0) {
-            $.rewards[epoch][tokenAddress].push(distributeAmount);
+            $.rewards[epoch][tokenAddress] = distributeAmount;
         }
     }
 
@@ -280,88 +262,55 @@ contract ODefaultStakerRewards is
         address recipient,
         uint48 epoch,
         address tokenAddress,
-        bytes calldata data
+        bytes calldata activeSharesOfHints
     ) external override nonReentrant {
-        // maxRewards - the maximum amount of rewards to process
-        // activeSharesOfHints - hint indexes to optimize `activeSharesOf()` processing
-        (uint256 maxRewards, bytes[] memory activeSharesOfHints) = abi.decode(data, (uint256, bytes[]));
-
         if (recipient == address(0)) {
             revert ODefaultStakerRewards__InvalidRecipient();
         }
 
-        (uint256 rewardsToClaim, uint256 amount, uint256 lastUnclaimedReward_) =
-            _getRewardsAndClaim(epoch, tokenAddress, maxRewards, activeSharesOfHints);
+        uint256 amount = _getRewardsAndClaim(epoch, recipient, tokenAddress, activeSharesOfHints);
 
         // if the amount is greater than 0, transfer the tokens to the recipient
         if (amount > 0) {
             IERC20(tokenAddress).safeTransfer(recipient, amount);
         }
 
-        emit ClaimRewards(
-            i_network, tokenAddress, msg.sender, epoch, recipient, lastUnclaimedReward_, rewardsToClaim, amount
-        );
+        emit ClaimRewards(i_network, tokenAddress, msg.sender, epoch, recipient, amount);
     }
 
     function _getRewardsAndClaim(
         uint48 epoch,
+        address recipient,
         address tokenAddress,
-        uint256 maxRewards,
-        bytes[] memory activeSharesOfHints
-    ) private returns (uint256 rewardsToClaim, uint256 amount, uint256 lastUnclaimedReward_) {
+        bytes memory activeSharesOfHints
+    ) private returns (uint256 amount) {
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
 
-        uint256[] memory rewardsPerEpoch = $.rewards[epoch][tokenAddress];
+        uint256 rewardsPerEpoch = $.rewards[epoch][tokenAddress];
+        uint256 claimedPerEpoch = $.stakerClaimedRewardPerEpoch[recipient][epoch][tokenAddress];
 
-        // Get the last unclaimed reward index
-        lastUnclaimedReward_ = $.lastUnclaimedReward[msg.sender][epoch][tokenAddress];
-
-        // Get the min between how many the user wants to claim and how many rewards are available
-        rewardsToClaim = Math.min(maxRewards, rewardsPerEpoch.length - lastUnclaimedReward_);
-
-        // If there are no rewards to claim, revert
-        if (rewardsToClaim == 0) {
-            revert ODefaultStakerRewards__NoRewardsToClaim();
-        }
-
-        if (activeSharesOfHints.length == 0) {
-            activeSharesOfHints = new bytes[](rewardsToClaim);
-        } else if (activeSharesOfHints.length != rewardsToClaim) {
-            revert ODefaultStakerRewards__InvalidHintsLength();
-        }
-
-        // Check the total amount for the user based on his shares in the vault and update the lastUnclaimedReward_
-        amount =
-            _claimRewardsPerEpoch($, rewardsToClaim, rewardsPerEpoch, lastUnclaimedReward_, epoch, activeSharesOfHints);
-
-        lastUnclaimedReward_ += rewardsToClaim;
-
-        $.lastUnclaimedReward[msg.sender][epoch][tokenAddress] = lastUnclaimedReward_;
-    }
-
-    function _claimRewardsPerEpoch(
-        StakerRewardsStorage storage $,
-        uint256 rewardsToClaim,
-        uint256[] memory rewardsPerEpoch,
-        uint256 rewardIndex,
-        uint48 epoch,
-        bytes[] memory activeSharesOfHints
-    ) private view returns (uint256 amount) {
         uint48 epochTs = EpochCapture(INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network))
             .getEpochStart(epoch);
 
-        for (uint256 i; i < rewardsToClaim;) {
-            uint256 rewardAmount = rewardsPerEpoch[rewardIndex];
+        uint256 activeSharesCache_ = $.activeSharesCache[epoch];
 
-            amount += IVault(i_vault).activeSharesOfAt(msg.sender, epochTs, activeSharesOfHints[i]).mulDiv(
-                rewardAmount, $.activeSharesCache[epoch]
-            );
-
-            unchecked {
-                ++i;
-                ++rewardIndex;
-            }
+        if (rewardsPerEpoch == 0 || activeSharesCache_ == 0) {
+            revert ODefaultStakerRewards__NoRewardsToClaim();
         }
+
+        amount = IVault(i_vault).activeSharesOfAt(recipient, epochTs, activeSharesOfHints).mulDiv(
+            rewardsPerEpoch, activeSharesCache_
+        );
+
+        // Get the amount that is still unclaimed
+        amount -= claimedPerEpoch;
+
+        // If there are no rewards to claim, revert
+        if (amount == 0) {
+            revert ODefaultStakerRewards__NoRewardsToClaim();
+        }
+
+        $.stakerClaimedRewardPerEpoch[recipient][epoch][tokenAddress] += amount;
     }
 
     /**
@@ -413,17 +362,21 @@ contract ODefaultStakerRewards is
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    function rewards(uint48 epoch, address tokenAddress, uint256 index) external view returns (uint256) {
+    function rewards(uint48 epoch, address tokenAddress) external view returns (uint256) {
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
-        return $.rewards[epoch][tokenAddress][index];
+        return $.rewards[epoch][tokenAddress];
     }
 
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    function lastUnclaimedReward(address account, uint48 epoch, address tokenAddress) external view returns (uint256) {
+    function stakerClaimedRewardPerEpoch(
+        address account,
+        uint48 epoch,
+        address tokenAddress
+    ) external view returns (uint256) {
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
-        return $.lastUnclaimedReward[account][epoch][tokenAddress];
+        return $.stakerClaimedRewardPerEpoch[account][epoch][tokenAddress];
     }
 
     /**
