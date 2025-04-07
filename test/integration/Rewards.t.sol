@@ -95,7 +95,7 @@ contract RewardsTest is Test {
     uint256 public constant ONE_DAY = 86_400;
 
     // We use pregenerated keys and proofs for the operators, alice becomes operator 3
-    bytes32 public OPERATOR_KEY = bytes32(uint256(1));
+    bytes32 public constant OPERATOR_KEY = bytes32(uint256(1));
     bytes32 public OPERATOR2_KEY;
     bytes32 public OPERATOR3_KEY;
     bytes32 public OPERATOR3_PROOF;
@@ -714,8 +714,8 @@ contract RewardsTest is Test {
         uint256 totalPower = powerVault1 + powerVault2 + powerVault3;
         rewards = new uint256[](3);
 
-        rewards[0] = (expectedAmountStakers * powerVault1) / totalPower;
-        rewards[1] = (expectedAmountStakers * powerVault2) / totalPower;
+        rewards[0] = expectedAmountStakers.mulDiv(powerVault1, totalPower);
+        rewards[1] = expectedAmountStakers.mulDiv(powerVault2, totalPower);
         rewards[2] = expectedAmountStakers - rewards[0] - rewards[1];
     }
 

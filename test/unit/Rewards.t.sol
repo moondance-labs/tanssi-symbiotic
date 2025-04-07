@@ -562,6 +562,33 @@ contract RewardsTest is Test {
         assertEq(stakerRewardsVault2Allowance, expectedAmountVault2);
     }
 
+    function testClaimRewardsWithNoVaults() public {
+        uint48 epoch = 0;
+        uint48 eraIndex = 0;
+        uint48 epochStartTs = middleware.getEpochStart(epoch);
+        vm.mockCall(
+            address(middleware),
+            abi.encodeWithSelector(IOBaseMiddlewareReader.getOperatorVaults.selector, alice, epochStartTs),
+            abi.encode(0, new address[](0))
+        );
+
+        _distributeRewards(epoch, eraIndex, AMOUNT_TO_DISTRIBUTE, address(token));
+
+        address recipient = Middleware(middleware).operatorByKey(abi.encode(ALICE_KEY));
+        bytes32[] memory proof = _generateValidProof();
+
+        IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
+            operatorKey: ALICE_KEY,
+            eraIndex: eraIndex,
+            totalPointsClaimable: AMOUNT_TO_CLAIM,
+            proof: proof,
+            data: REWARDS_ADDITIONAL_DATA
+        });
+
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__NoVaults.selector);
+        operatorRewards.claimRewards(claimRewardsData);
+    }
+
     function testClaimRewardsRootNotSet() public {
         uint48 eraIndex = 0;
         bytes32[] memory proof = _generateValidProof();

@@ -213,6 +213,9 @@ contract ODefaultOperatorRewards is
             IOBaseMiddlewareReader(middlewareAddress).getOperatorVaults(operator, epochStartTs);
 
         uint256 totalVaults = operatorVaults.length;
+        if (totalVaults == 0) {
+            revert ODefaultOperatorRewards__NoVaults();
+        }
         uint256[] memory amountPerVault = _getRewardsAmountPerVault(
             operatorVaults, totalVaults, epochStartTs, operator, middlewareAddress, stakerAmount
         );
