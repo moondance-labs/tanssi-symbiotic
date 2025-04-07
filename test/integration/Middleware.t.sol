@@ -58,7 +58,6 @@ import {MockV3Aggregator} from "@chainlink/tests/MockV3Aggregator.sol";
 //**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -1094,7 +1093,7 @@ contract MiddlewareTest is Test {
 
         uint256 gasBefore = gasleft();
         bytes32[] memory sortedValidators =
-            OBaseMiddlewareReader(address(middleware)).sortOperatorsByVaults(currentEpoch);
+            OBaseMiddlewareReader(address(middleware)).sortOperatorsByPower(currentEpoch);
         uint256 gasAfter = gasleft();
 
         uint256 gasSorted = gasBefore - gasAfter;
@@ -1132,7 +1131,7 @@ contract MiddlewareTest is Test {
 
         uint256 gasBefore = gasleft();
         bytes32[] memory sortedValidators =
-            OBaseMiddlewareReader(address(middleware)).sortOperatorsByVaults(currentEpoch);
+            OBaseMiddlewareReader(address(middleware)).sortOperatorsByPower(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasSorted = gasBefore - gasAfter;
         console2.log("Total gas used: ", gasSorted);
@@ -1170,7 +1169,7 @@ contract MiddlewareTest is Test {
 
         uint256 gasBefore = gasleft();
         bytes32[] memory sortedValidators =
-            OBaseMiddlewareReader(address(middleware)).sortOperatorsByVaults(currentEpoch);
+            OBaseMiddlewareReader(address(middleware)).sortOperatorsByPower(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasSorted = gasBefore - gasAfter;
         console2.log("Total gas used: ", gasSorted);
@@ -1227,7 +1226,7 @@ contract MiddlewareTest is Test {
 
         uint256 gasBefore = gasleft();
         bytes32[] memory sortedValidators =
-            OBaseMiddlewareReader(address(middleware)).sortOperatorsByVaults(currentEpoch);
+            OBaseMiddlewareReader(address(middleware)).sortOperatorsByPower(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasSorted = gasBefore - gasAfter;
         console2.log("Total gas used: ", gasSorted);
@@ -1342,5 +1341,39 @@ contract MiddlewareTest is Test {
     function _deployOracle(uint8 decimals, int256 answer) public returns (address) {
         MockV3Aggregator oracle = new MockV3Aggregator(decimals, answer);
         return address(oracle);
+    }
+
+    // ************************************************************************************************
+    // *                                  SEND CURRENT OPERATORS KEYS
+    // ************************************************************************************************
+
+    function testSendCurrentOperatorKeysOrderChangesIfPowerChanges() public {
+        vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
+
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
+        bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
+        assertEq(keys.length, 3);
+
+        // OP3 > OP2 > OP1 (In terms of power)
+        assertEq(keys[0], OPERATOR3_KEY);
+        assertEq(keys[1], OPERATOR2_KEY);
+        assertEq(keys[2], OPERATOR_KEY);
+
+        vm.startPrank(owner);
+        // This doesn't remove operator3's stake, but turns his power to zero, so it is not only the top operator.
+        // Withdrawing would not change the order since this vault is full restake giving both OP3 and OP2 the same power.
+        IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
+            tanssi.subnetwork(0), operator3, 0
+        );
+
+        vm.warp(block.timestamp + VAULT_EPOCH_DURATION + 1);
+
+        keys = middleware.sendCurrentOperatorsKeys();
+        assertEq(keys.length, 3);
+
+        // Now OP2 > OP3 > OP1 (In terms of power)
+        assertEq(keys[0], OPERATOR2_KEY);
+        assertEq(keys[1], OPERATOR3_KEY);
+        assertEq(keys[2], OPERATOR_KEY);
     }
 }

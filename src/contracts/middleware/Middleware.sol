@@ -289,7 +289,7 @@ contract Middleware is
         }
 
         uint48 epoch = getCurrentEpoch();
-        sortedKeys = IOBaseMiddlewareReader(address(this)).sortOperatorsByVaults(epoch);
+        sortedKeys = IOBaseMiddlewareReader(address(this)).sortOperatorsByPower(epoch);
         IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);
     }
 
@@ -297,13 +297,13 @@ contract Middleware is
      * @inheritdoc AutomationCompatibleInterface
      * @dev Called by chainlink nodes off-chain to check if the upkeep is needed
      * @return upkeepNeeded boolean to indicate whether the keeper should call performUpkeep or not.
-     * @return performData bytes of the sorted operators' keys and the epoch that will be used by the keeper when calling performUpkeep, if upkeep is needed.
+     * @return performData bytes of the sorted (by power) operators' keys and the epoch that will be used by the keeper when calling performUpkeep, if upkeep is needed.
      */
     function checkUpkeep(
         bytes calldata /* checkData */
     ) external view override returns (bool upkeepNeeded, bytes memory performData) {
         uint48 epoch = getCurrentEpoch();
-        bytes32[] memory sortedKeys = IOBaseMiddlewareReader(address(this)).sortOperatorsByVaults(epoch);
+        bytes32[] memory sortedKeys = IOBaseMiddlewareReader(address(this)).sortOperatorsByPower(epoch);
         StorageMiddleware storage $ = _getMiddlewareStorage();
 
         //Should be at least once per epoch

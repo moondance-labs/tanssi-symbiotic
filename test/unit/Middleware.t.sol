@@ -53,7 +53,6 @@ import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3
 //**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
@@ -2440,7 +2439,7 @@ contract MiddlewareTest is Test {
 
     function _prepareInitializeTest() private returns (Middleware middleware2, IMiddleware.InitParams memory params) {
         middleware2 = Middleware(address(new MiddlewareProxy(address(middlewareImpl), "")));
-        address readHelper = address(new OBaseMiddlewareReader());
+        address readHelper_ = address(new OBaseMiddlewareReader());
         params = IMiddleware.InitParams({
             network: tanssi,
             operatorRegistry: address(registry),
@@ -2449,7 +2448,7 @@ contract MiddlewareTest is Test {
             owner: owner,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
-            reader: readHelper
+            reader: readHelper_
         });
     }
 
