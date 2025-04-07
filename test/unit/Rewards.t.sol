@@ -86,7 +86,7 @@ contract RewardsTest is Test {
     // Root hash of the rewards merkle tree. It represents the rewards for the epoch 0 for alice and bob with 20 points each
     bytes32 public constant REWARDS_ROOT = 0x4b0ddd8b9b8ec6aec84bcd2003c973254c41d976f6f29a163054eec4e7947810;
     bytes32 public constant STAKER_REWARDS_STORAGE_LOCATION =
-        0xe07cde22a6017f26eee680b6867ce6727151fb6097c75742cbe379265c377400;
+        0xef473712465551821e7a51c85c06a1bf76bdf2a3508e28184170ac7eb0322c00;
 
     // Operator keys with which the operator is registered
     bytes32 public ALICE_KEY;
@@ -1224,7 +1224,7 @@ contract RewardsTest is Test {
     //                                      claimAdminFee
     //**************************************************************************************************
 
-    function testClaimAdminFeeX() public {
+    function testClaimAdminFee() public {
         uint48 epoch = 0;
         _setClaimableAdminFee(epoch, address(token));
 
