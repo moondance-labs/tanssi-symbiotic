@@ -55,9 +55,9 @@ contract ODefaultStakerRewards is
         mapping(uint48 epoch => uint256 amount) activeSharesCache;
     }
 
-    // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultStakerRewards.v1")) - 1)) & ~bytes32(uint256(0xff))
+    // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultStakerRewards.v1.1")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant STAKER_REWARDS_STORAGE_LOCATION =
-        0xe07cde22a6017f26eee680b6867ce6727151fb6097c75742cbe379265c377400;
+        0xef473712465551821e7a51c85c06a1bf76bdf2a3508e28184170ac7eb0322c00;
 
     /**
      * @inheritdoc IODefaultStakerRewards
