@@ -45,7 +45,7 @@ contract ODefaultStakerRewards is
     using SafeERC20 for IERC20;
     using Math for uint256;
 
-    /// @custom:storage-location erc7201:tanssi.rewards.ODefaultStakerRewards.v1
+    /// @custom:storage-location erc7201:tanssi.rewards.ODefaultStakerRewards.v1.1
     struct StakerRewardsStorage {
         uint256 adminFee;
         mapping(uint48 epoch => mapping(address tokenAddress => uint256 rewards_)) rewards;
@@ -54,6 +54,82 @@ contract ODefaultStakerRewards is
         mapping(uint48 epoch => mapping(address tokenAddress => uint256 amount)) claimableAdminFee;
         mapping(uint48 epoch => uint256 amount) activeSharesCache;
     }
+
+    struct PreviousStakerRewardsStorage {
+        uint256 adminFee;
+        mapping(uint48 epoch => mapping(address tokenAddress => uint256[] rewards_)) rewards;
+        mapping(address account => mapping(uint48 epoch => mapping(address tokenAddress => uint256 rewardIndex)))
+            lastUnclaimedReward;
+        mapping(uint48 epoch => mapping(address tokenAddress => uint256 amount)) claimableAdminFee;
+        mapping(uint48 epoch => uint256 amount) activeSharesCache;
+    }
+
+    function migrate(uint48 startEpoch, uint48 endEpoch, address tokenAddress) external {
+        PreviousStakerRewardsStorage storage $$ = _getOldStakerRewardsStorage();
+        StakerRewardsStorage storage $ = _getStakerRewardsStorage();
+
+        // all on chain => so we read from the previous storage location and we migrate
+        for (uint48 epoch = startEpoch; epoch < endEpoch;) {
+            uint256[] memory previousRewards = $$.rewards[epoch][tokenAddress];
+            if ($.activeSharesCache[epoch] != 0) {
+                continue;
+            }
+            for (uint256 j; j < previousRewards.length;) {
+                $.rewards[epoch][tokenAddress] += previousRewards[j];
+                unchecked {
+                    ++j;
+                }
+            }
+            $.activeSharesCache[epoch] = $$.activeSharesCache[epoch];
+            $.claimableAdminFee[epoch][tokenAddress] = $$.claimableAdminFee[epoch][tokenAddress];
+            unchecked {
+                ++epoch;
+            }
+        }
+    }
+
+    function migrateOperatorClaimed(
+        uint48 startEpoch,
+        uint48 endEpoch,
+        address[] calldata operators,
+        address tokenAddress
+    ) external {
+        PreviousStakerRewardsStorage storage $$ = _getOldStakerRewardsStorage();
+        StakerRewardsStorage storage $ = _getStakerRewardsStorage();
+
+        // all on chain => so we read from the previous storage location and we migrate
+        for (uint48 epoch = startEpoch; epoch < endEpoch; epoch++) {
+            uint256[] memory previousRewards = $$.rewards[epoch][tokenAddress];
+            uint48 epochTs = EpochCapture(INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network))
+                .getEpochStart(epoch);
+            for (uint256 k; k < operators.length;) {
+                address account = operators[k];
+                uint256 lastUnclaimedIndex = $$.lastUnclaimedReward[account][epoch][tokenAddress];
+
+                if ($.stakerClaimedRewardPerEpoch[account][epoch][tokenAddress] != 0) {
+                    continue;
+                }
+
+                for (uint256 j; j < lastUnclaimedIndex;) {
+                    uint256 amount = IVault(i_vault).activeSharesOfAt(account, epochTs, new bytes(0)).mulDiv(
+                        previousRewards[j], $$.activeSharesCache[epoch]
+                    );
+
+                    $.stakerClaimedRewardPerEpoch[account][epoch][tokenAddress] += amount;
+                    unchecked {
+                        ++j;
+                    }
+                }
+                unchecked {
+                    ++k;
+                }
+            }
+        }
+    }
+
+    // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultStakerRewards.v1")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION =
+        0xe07cde22a6017f26eee680b6867ce6727151fb6097c75742cbe379265c377400;
 
     // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultStakerRewards.v1.1")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant STAKER_REWARDS_STORAGE_LOCATION =
@@ -392,6 +468,13 @@ contract ODefaultStakerRewards is
         }
 
         $.adminFee = adminFee_;
+    }
+
+    function _getOldStakerRewardsStorage() private pure returns (PreviousStakerRewardsStorage storage $) {
+        bytes32 position = PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION;
+        assembly {
+            $.slot := position
+        }
     }
 
     function _getStakerRewardsStorage() private pure returns (StakerRewardsStorage storage $) {
