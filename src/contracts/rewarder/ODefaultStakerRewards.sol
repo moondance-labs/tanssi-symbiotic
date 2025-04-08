@@ -327,7 +327,7 @@ contract ODefaultStakerRewards is
         $.claimableAdminFee[epoch][tokenAddress] += adminFeeAmount;
 
         if (distributeAmount > 0) {
-            $.rewards[epoch][tokenAddress] = distributeAmount;
+            $.rewards[epoch][tokenAddress] += distributeAmount;
         }
     }
 
@@ -373,9 +373,7 @@ contract ODefaultStakerRewards is
         $.stakerClaimedRewardPerEpoch[recipient][epoch][tokenAddress] += amount;
 
         // if the amount is greater than 0, transfer the tokens to the recipient
-        if (amount > 0) {
-            IERC20(tokenAddress).safeTransfer(recipient, amount);
-        }
+        IERC20(tokenAddress).safeTransfer(recipient, amount);
 
         emit ClaimRewards(i_network, tokenAddress, msg.sender, epoch, recipient, amount);
     }

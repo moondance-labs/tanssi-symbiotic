@@ -1088,9 +1088,9 @@ contract RewardsTest is Test {
 
         uint256 pendingRewards = stakerRewards.rewards(epoch, address(token));
         assertEq(pendingRewards, 10 ether);
-        // TODO
-        // uint256 lastClaimedReward = stakerRewards.lastUnclaimedReward(alice, epoch, address(token));
-        // assertEq(lastClaimedReward, 0);
+
+        uint256 claimed = stakerRewards.stakerClaimedRewardPerEpoch(alice, epoch, address(token));
+        assertEq(claimed, 0);
 
         vm.prank(address(middleware));
         token.transfer(address(stakerRewards), AMOUNT_TO_DISTRIBUTE / 10);
@@ -1108,8 +1108,8 @@ contract RewardsTest is Test {
         emit IODefaultStakerRewards.ClaimRewards(tanssi, address(token), alice, epoch, alice, AMOUNT_TO_DISTRIBUTE / 10);
         stakerRewards.claimRewards(alice, epoch, address(token), CLAIM_REWARDS_ADDITIONAL_DATA);
 
-        // lastClaimedReward = stakerRewards.lastUnclaimedReward(alice, epoch, address(token));
-        // assertEq(lastClaimedReward, 1);
+        claimed = stakerRewards.stakerClaimedRewardPerEpoch(alice, epoch, address(token));
+        assertEq(claimed, AMOUNT_TO_DISTRIBUTE / 10);
     }
 
     function testClaimStakerRewardsWithZeroHints() public {
@@ -1157,7 +1157,6 @@ contract RewardsTest is Test {
     }
 
     function testClaimStakerRewardsNoRewardsToClaim() public {
-        //TODO this hangs with -vvv
         uint48 epoch = 0;
 
         vm.prank(alice);
