@@ -20,6 +20,7 @@ pragma solidity 0.8.25;
 
 import {INetworkMiddlewareService} from "@symbiotic/interfaces/service/INetworkMiddlewareService.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
+import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN
@@ -35,7 +36,9 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 //**************************************************************************************************
 import {ScaleCodec} from "@tanssi-bridge-relayer/snowbridge/contracts/src/utils/ScaleCodec.sol";
 
-import {Middleware} from "src/contracts/middleware/Middleware.sol";
+//**************************************************************************************************
+//                                      TANSSI
+//**************************************************************************************************
 import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
@@ -48,6 +51,8 @@ contract ODefaultOperatorRewards is
 {
     using SafeERC20 for IERC20;
     using Math for uint256;
+    using Subnetwork for address;
+    using Subnetwork for bytes32;
 
     /// @custom:storage-location erc7201:tanssi.rewards.ODefaultOperatorRewards.v1
     struct OperatorRewardsStorage {
@@ -173,7 +178,7 @@ contract ODefaultOperatorRewards is
 
         address middlewareAddress = INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network);
         // Starlight sends back only the operator key, thus we need to get back the operator address
-        address recipient = Middleware(middlewareAddress).operatorByKey(abi.encode(input.operatorKey));
+        address recipient = IOBaseMiddlewareReader(middlewareAddress).operatorByKey(abi.encode(input.operatorKey));
 
         // Calculate the total amount of tokens that can be claimed which is:
         // total amount of tokens = total points claimable * tokens per point
@@ -207,24 +212,88 @@ contract ODefaultOperatorRewards is
         uint48 epoch,
         uint48 eraIndex,
         uint256 stakerAmount,
-        address recipient,
+        address operator,
         address middlewareAddress,
         address tokenAddress,
         bytes calldata data
     ) private {
         uint48 epochStartTs = EpochCapture(middlewareAddress).getEpochStart(epoch);
 
-        //TODO: For now this is expected to be a single vault. Change it to be able to handle multiple vaults.
         (, address[] memory operatorVaults) =
-            IOBaseMiddlewareReader(middlewareAddress).getOperatorVaults(recipient, epochStartTs);
+            IOBaseMiddlewareReader(middlewareAddress).getOperatorVaults(operator, epochStartTs);
 
-        // TODO: Currently it's only for a specific vault. We don't care now about making it able to send rewards for multiple vaults. It's hardcoded to the first vault of the operator.
+        uint256 totalVaults = operatorVaults.length;
+        if (totalVaults == 0) {
+            revert ODefaultOperatorRewards__NoVaults();
+        }
+        uint256[] memory amountPerVault = _getRewardsAmountPerVault(
+            operatorVaults, totalVaults, epochStartTs, operator, middlewareAddress, stakerAmount
+        );
+
+        _distributeRewardsPerVault(epoch, eraIndex, tokenAddress, totalVaults, operatorVaults, amountPerVault, data);
+    }
+
+    function _getRewardsAmountPerVault(
+        address[] memory operatorVaults,
+        uint256 totalVaults,
+        uint48 epochStartTs,
+        address operator,
+        address middlewareAddress,
+        uint256 stakerAmount
+    ) private view returns (uint256[] memory amountPerVault) {
+        // First we get the operator power per vault
+        uint96 subnetwork = i_network.subnetwork(0).identifier();
+        IOBaseMiddlewareReader reader = IOBaseMiddlewareReader(middlewareAddress);
+
+        uint256[] memory vaultPowers = new uint256[](totalVaults);
+        uint256 totalPower;
+        for (uint256 i; i < totalVaults;) {
+            vaultPowers[i] = reader.getOperatorPowerAt(epochStartTs, operator, operatorVaults[i], subnetwork);
+            totalPower += vaultPowers[i];
+            unchecked {
+                ++i;
+            }
+        }
+
+        // Then we calculate the rewards according to the operator power on each vault
+        uint256 distributedAmount;
+        amountPerVault = new uint256[](totalVaults);
+        for (uint256 i; i < totalVaults;) {
+            uint256 amountForVault;
+            // Last vault gets the remaining amount
+            if (i == totalVaults - 1) {
+                amountForVault = stakerAmount - distributedAmount;
+            } else {
+                amountForVault = vaultPowers[i].mulDiv(stakerAmount, totalPower);
+            }
+            amountPerVault[i] = amountForVault;
+            unchecked {
+                distributedAmount += amountForVault;
+                ++i;
+            }
+        }
+    }
+
+    function _distributeRewardsPerVault(
+        uint48 epoch,
+        uint48 eraIndex,
+        address tokenAddress,
+        uint256 totalVaults,
+        address[] memory operatorVaults,
+        uint256[] memory amountPerVault,
+        bytes calldata data
+    ) private {
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
-        if (operatorVaults.length > 0) {
-            IERC20(tokenAddress).approve($.vaultToStakerRewardsContract[operatorVaults[0]], stakerAmount);
-            IODefaultStakerRewards($.vaultToStakerRewardsContract[operatorVaults[0]]).distributeRewards(
-                epoch, eraIndex, stakerAmount, tokenAddress, data
+        for (uint256 i; i < totalVaults;) {
+            address stakerRewardsForVault = $.vaultToStakerRewardsContract[operatorVaults[i]];
+            IERC20(tokenAddress).approve(stakerRewardsForVault, amountPerVault[i]);
+            IODefaultStakerRewards(stakerRewardsForVault).distributeRewards(
+                epoch, eraIndex, amountPerVault[i], tokenAddress, data
             );
+
+            unchecked {
+                ++i;
+            }
         }
     }
 
