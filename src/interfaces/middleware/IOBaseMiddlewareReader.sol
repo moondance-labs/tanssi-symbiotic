@@ -167,7 +167,7 @@ interface IOBaseMiddlewareReader {
         address vault
     ) external view returns (bool);
 
-    function sortOperatorsByVaults(
+    function sortOperatorsByPower(
         uint48 epoch
     ) external view returns (bytes32[] memory sortedKeys);
 

@@ -519,11 +519,11 @@ contract OBaseMiddlewareReader is MiddlewareStorage, EpochCapture, VaultManager,
     }
 
     /**
-     * @dev Sorts operators by their total stake in descending order, after 500 it will be almost impossible to be used on-chain since 500 ≈ 36M gas
+     * @dev Sorts operators by their total power in descending order, after 500 it will be almost impossible to be used on-chain since 500 ≈ 36M gas
      * @param epoch The epoch number
-     * @return sortedKeys Array of sorted operators keys based on their stake
+     * @return sortedKeys Array of sorted operators keys based on their power
      */
-    function sortOperatorsByVaults(
+    function sortOperatorsByPower(
         uint48 epoch
     ) public view returns (bytes32[] memory sortedKeys) {
         IMiddleware.ValidatorData[] memory validatorSet = getValidatorSet(epoch);
