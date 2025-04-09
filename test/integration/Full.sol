@@ -1,0 +1,582 @@
+//SPDX-License-Identifier: GPL-3.0-or-later
+
+// Copyright (C) Moondance Labs Ltd.
+// This file is part of Tanssi.
+// Tanssi is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// Tanssi is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+// You should have received a copy of the GNU General Public License
+// along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
+pragma solidity 0.8.25;
+
+import {Test, console2} from "forge-std/Test.sol";
+
+//**************************************************************************************************
+//                                      SYMBIOTIC
+//**************************************************************************************************
+import {IVaultConfigurator} from "@symbiotic/interfaces/IVaultConfigurator.sol";
+import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
+import {INetworkRestakeDelegator} from "@symbiotic/interfaces/delegator/INetworkRestakeDelegator.sol";
+import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestakeDelegator.sol";
+import {IOperatorSpecificDelegator} from "@symbiotic/interfaces/delegator/IOperatorSpecificDelegator.sol";
+import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
+import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
+import {IBaseSlasher} from "@symbiotic/interfaces/slasher/IBaseSlasher.sol";
+import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
+import {OperatorRegistry} from "@symbiotic/contracts/OperatorRegistry.sol";
+import {NetworkRegistry} from "@symbiotic/contracts/NetworkRegistry.sol";
+import {OptInService} from "@symbiotic/contracts/service/OptInService.sol";
+import {NetworkMiddlewareService} from "@symbiotic/contracts/service/NetworkMiddlewareService.sol";
+import {MetadataService} from "@symbiotic/contracts/service/MetadataService.sol";
+import {DelegatorFactory} from "@symbiotic/contracts/DelegatorFactory.sol";
+import {SlasherFactory} from "@symbiotic/contracts/SlasherFactory.sol";
+import {VaultFactory} from "@symbiotic/contracts/VaultFactory.sol";
+import {VaultConfigurator} from "@symbiotic/contracts/VaultConfigurator.sol";
+import {Vault} from "@symbiotic/contracts/vault/Vault.sol";
+import {VaultTokenized} from "@symbiotic/contracts/vault/VaultTokenized.sol";
+import {NetworkRestakeDelegator} from "@symbiotic/contracts/delegator/NetworkRestakeDelegator.sol";
+import {FullRestakeDelegator} from "@symbiotic/contracts/delegator/FullRestakeDelegator.sol";
+import {OperatorSpecificDelegator} from "@symbiotic/contracts/delegator/OperatorSpecificDelegator.sol";
+import {Slasher} from "@symbiotic/contracts/slasher/Slasher.sol";
+import {VetoSlasher} from "@symbiotic/contracts/slasher/VetoSlasher.sol";
+import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
+import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
+import {IOzAccessControl} from "@symbiotic-middleware/interfaces/extensions/managers/access/IOzAccessControl.sol";
+import {PauseableEnumerableSet} from "@symbiotic-middleware/libraries/PauseableEnumerableSet.sol";
+import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
+import {OperatorManager} from "@symbiotic-middleware/managers/OperatorManager.sol";
+
+//**************************************************************************************************
+//                                      CHAINLINK
+//**************************************************************************************************
+import {MockV3Aggregator} from "@chainlink/tests/MockV3Aggregator.sol";
+
+//**************************************************************************************************
+//                                      OPENZEPPELIN
+//**************************************************************************************************
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+//**************************************************************************************************
+//                                      SNOWBRIDGE
+//**************************************************************************************************
+import {CreateAgentParams, CreateChannelParams} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Params.sol";
+import {OperatingMode, ParaID} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Types.sol";
+import {MockGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/test/mocks/MockGateway.sol";
+import {GatewayProxy} from "@tanssi-bridge-relayer/snowbridge/contracts/src/GatewayProxy.sol";
+import {AgentExecutor} from "@tanssi-bridge-relayer/snowbridge/contracts/src/AgentExecutor.sol";
+import {SetOperatingModeParams} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Params.sol";
+import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfaces/IOGateway.sol";
+import {Gateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Gateway.sol";
+import {MockOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/test/mocks/MockOGateway.sol";
+
+import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
+
+import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
+import {Middleware} from "src/contracts/middleware/Middleware.sol";
+import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
+import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
+import {Token} from "test/mocks/Token.sol";
+import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
+import {DeployCollateral} from "script/DeployCollateral.s.sol";
+import {DeployVault} from "script/DeployVault.s.sol";
+import {DeployRewards} from "script/DeployRewards.s.sol";
+import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
+import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
+import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
+import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
+import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
+import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
+
+contract MiddlewareTest is Test {
+    using Subnetwork for address;
+    using Subnetwork for bytes32;
+    using Math for uint256;
+
+    uint48 public constant VAULT_EPOCH_DURATION = 7 days;
+    uint48 public constant NETWORK_EPOCH_DURATION = 2 days;
+    uint48 public constant SLASHING_WINDOW = 7 days;
+    uint48 public constant VETO_DURATION = 1 days;
+
+    // Token and Oracle decimals + conversion rates
+    uint8 public constant TOKEN_DECIMALS_BTC = 18;
+    uint8 public constant TOKEN_DECIMALS_ETH = 18;
+    uint8 public constant TOKEN_DECIMALS_USDC = 6;
+
+    uint8 public constant ORACLE_DECIMALS_ETH = 2;
+    uint8 public constant ORACLE_DECIMALS_BTC = 2;
+    uint8 public constant ORACLE_DECIMALS_USDC = 8;
+
+    int256 public constant ORACLE_CONVERSION_ST_ETH = int256(3000 * 10 ** ORACLE_DECIMALS_ETH);
+    int256 public constant ORACLE_CONVERSION_W_BTC = int256(90_000 * 10 ** ORACLE_DECIMALS_BTC);
+    int256 public constant ORACLE_CONVERSION_USDC = int256(1 * 10 ** ORACLE_DECIMALS_USDC);
+
+    uint48 public constant OPERATOR_SHARE = 1000; // 10%
+    uint48 public constant ADMIN_FEE = 100; // 1%
+
+    // Operator keys
+    bytes32 public constant OPERATOR1_KEY = 0x0101010101010101010101010101010101010101010101010101010101010101;
+    bytes32 public constant OPERATOR2_KEY = 0x0202020202020202020202020202020202020202020202020202020202020202;
+    bytes32 public constant OPERATOR3_KEY = 0x0303030303030303030303030303030303030303030303030303030303030303;
+    bytes32 public constant OPERATOR4_KEY = 0x0404040404040404040404040404040404040404040404040404040404040404;
+    bytes32 public constant OPERATOR5_KEY = 0x0505050505050505050505050505050505050505050505050505050505050505;
+    bytes32 public constant OPERATOR6_KEY = 0x0606060606060606060606060606060606060606060606060606060606060606;
+    bytes32 public constant OPERATOR7_KEY = 0x0707070707070707070707070707070707070707070707070707070707070707;
+
+    // Vault 1 - Single Operator
+    uint256 public constant VAULT1_NETWORK_LIMIT = 500_000 * 10 ** TOKEN_DECIMALS_USDC; // 500k power
+    uint256 public constant OPERATOR1_STAKE_V1_USDC = 100_000 * 10 ** TOKEN_DECIMALS_USDC; // 100k power
+
+    // Vault 2 - 3 Operators, Full Restake
+    uint256 public constant VAULT2_NETWORK_LIMIT = 10 * 10 ** TOKEN_DECIMALS_BTC; // 900k power
+    uint256 public constant OPERATOR1_STAKE_V2_WBTC = 2 * 10 ** TOKEN_DECIMALS_BTC; // 180k power
+    uint256 public constant OPERATOR2_STAKE_V2_WBTC = 1 * 10 ** TOKEN_DECIMALS_BTC; // 90k power
+    uint256 public constant OPERATOR3_STAKE_V2_WBTC = 3 * 10 ** TOKEN_DECIMALS_BTC; // 270k power
+
+    // Limits are set by stake, not power
+    uint256 public constant OPERATOR1_LIMIT_V2 = 2 * 10 ** TOKEN_DECIMALS_BTC; // Limited to 2 BTC
+    uint256 public constant OPERATOR2_LIMIT_V2 = 2 * 10 ** TOKEN_DECIMALS_BTC; // Limited to 2 BTC
+    uint256 public constant OPERATOR3_LIMIT_V2 = 2 * 10 ** TOKEN_DECIMALS_BTC; // Limited to 2 BTC
+
+    // Vault 3 - 3 Operators, Network Restake (by Shares)
+    uint256 public constant VAULT3_NETWORK_LIMIT = 10 * 10 ** TOKEN_DECIMALS_BTC; // 900k power
+    uint256 public constant OPERATOR3_STAKE_V3_WBTC = 1 * 10 ** TOKEN_DECIMALS_BTC; // 90k power
+    uint256 public constant OPERATOR4_STAKE_V3_WBTC = 2 * 10 ** TOKEN_DECIMALS_BTC; // 180k power
+    uint256 public constant OPERATOR5_STAKE_V3_WBTC = 2 * 10 ** TOKEN_DECIMALS_BTC; // 180k power
+
+    uint256 public constant OPERATOR3_SHARES_V3 = 1; // Operator 3 will get 20% of the total power
+    uint256 public constant OPERATOR4_SHARES_V3 = 2; // Operator 4 will get 40% of the total power
+    uint256 public constant OPERATOR5_SHARES_V3 = 2; // Operator 5 will get 40% of the total power
+
+    // Vault 4 - 2 Operators, Network Restake (by Shares)
+    uint256 public constant VAULT4_NETWORK_LIMIT = 100 * 10 ** TOKEN_DECIMALS_ETH; // 300k power
+    uint256 public constant OPERATOR5_STAKE_V4_STETH = 50 * 10 ** TOKEN_DECIMALS_ETH; // 150k power
+    uint256 public constant OPERATOR6_STAKE_V4_STETH = 30 * 10 ** TOKEN_DECIMALS_ETH; // 90k power
+
+    uint256 public constant OPERATOR5_SHARES_V4 = 2; // Operator 5 will get 2/3 of the total power
+    uint256 public constant OPERATOR6_SHARES_V4 = 1; // Operator 6 will get 1/3 of the total power
+
+    // Vault 5 - Single Operator
+    uint256 public constant VAULT5_NETWORK_LIMIT = 200 * 10 ** TOKEN_DECIMALS_ETH; // 200k power
+    uint256 public constant OPERATOR7_STAKE_V5_STETH = 100 * 10 ** TOKEN_DECIMALS_ETH; // 100k power
+
+    uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
+
+    struct VaultsData {
+        VaultData v1;
+        VaultData v2;
+        VaultData v3;
+        VaultData v4;
+        VaultData v5;
+    }
+
+    struct VaultData {
+        IVault vault;
+        address delegator;
+        address slasher;
+    }
+
+    struct GatewayParams {
+        OperatingMode operatingMode;
+        ParaID assetHubParaID;
+        bytes32 assetHubAgentID;
+        uint128 outboundFee;
+        uint128 registerTokenFee;
+        uint128 sendTokenFee;
+        uint128 createTokenFee;
+        uint128 maxDestinationFee;
+        uint8 foreignTokenDecimals;
+        UD60x18 exchangeRate;
+        UD60x18 multiplier;
+    }
+
+    Middleware public middleware;
+    DelegatorFactory public delegatorFactory;
+    SlasherFactory public slasherFactory;
+    VaultFactory public vaultFactory;
+    OperatorRegistry public operatorRegistry;
+    NetworkRegistry public networkRegistry;
+    OptInService public operatorVaultOptInService;
+    OptInService public operatorNetworkOptInService;
+
+    MetadataService public operatorMetadataService;
+    MetadataService public networkMetadataService;
+    NetworkMiddlewareService public networkMiddlewareService;
+    Token public usdc;
+    Token public wBTC;
+    Token public stETH;
+    VaultConfigurator public vaultConfigurator;
+
+    uint256 ownerPrivateKey =
+        vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
+    address public owner = vm.addr(ownerPrivateKey);
+
+    address public operator1 = makeAddr("operator1");
+    address public operator2 = makeAddr("operator2");
+    address public operator3 = makeAddr("operator3");
+    address public operator4 = makeAddr("operator4");
+    address public operator5 = makeAddr("operator5");
+    address public operator6 = makeAddr("operator6");
+    address public operator7 = makeAddr("operator7");
+
+    address public resolver1 = makeAddr("resolver1"); // For Vault 4
+    address public resolver2 = makeAddr("resolver2"); // For Vault 5
+    address public forwarder = makeAddr("forwarder");
+
+    address tanssi;
+    address gateway;
+
+    VaultsData public vaultsData;
+
+    // // Scripts
+    DeployVault deployVault;
+    DeployRewards deployRewards;
+    ODefaultOperatorRewards operatorRewards;
+    ODefaultStakerRewardsFactory stakerRewardsFactory;
+
+    // ************************************************************************************************
+    // *                                        SETUP
+    // ************************************************************************************************
+
+    function setUp() public {
+        _deployAndMintCollaterals();
+
+        address usdcOracle = _deployOracle(ORACLE_DECIMALS_USDC, ORACLE_CONVERSION_USDC);
+        address wBtcOracle = _deployOracle(ORACLE_DECIMALS_BTC, ORACLE_CONVERSION_W_BTC);
+        address stEthOracle = _deployOracle(ORACLE_DECIMALS_ETH, ORACLE_CONVERSION_ST_ETH);
+
+        deployVault = new DeployVault();
+        deployRewards = new DeployRewards(true);
+        DeploySymbiotic deploySymbiotic = new DeploySymbiotic();
+
+        owner = tanssi = deploySymbiotic.owner();
+        DeploySymbiotic.SymbioticAddresses memory symbioticAddresses = deploySymbiotic.deploy(owner);
+        vaultFactory = VaultFactory(symbioticAddresses.vaultFactory);
+        delegatorFactory = DelegatorFactory(symbioticAddresses.delegatorFactory);
+        slasherFactory = SlasherFactory(symbioticAddresses.slasherFactory);
+        networkRegistry = NetworkRegistry(symbioticAddresses.networkRegistry);
+        operatorRegistry = OperatorRegistry(symbioticAddresses.operatorRegistry);
+        operatorVaultOptInService = OptInService(symbioticAddresses.operatorVaultOptInService);
+        operatorNetworkOptInService = OptInService(symbioticAddresses.operatorNetworkOptInService);
+        operatorMetadataService = MetadataService(symbioticAddresses.operatorMetadataService);
+        networkMetadataService = MetadataService(symbioticAddresses.networkMetadataService);
+        networkMiddlewareService = NetworkMiddlewareService(symbioticAddresses.networkMiddlewareService);
+        vaultConfigurator = VaultConfigurator(symbioticAddresses.vaultConfigurator);
+
+        vm.startPrank(tanssi);
+        _deployVaults(tanssi);
+
+        address operatorRewardsAddress = deployRewards.deployOperatorRewardsContract(
+            tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
+        );
+        operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
+
+        address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
+            address(vaultFactory), address(networkMiddlewareService), operatorRewardsAddress, tanssi
+        );
+        stakerRewardsFactory = ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress);
+
+        middleware = _deployMiddlewareWithProxy(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        _deployGateway();
+
+        middleware.setGateway(address(gateway));
+        middleware.setCollateralToOracle(address(usdc), usdcOracle);
+        middleware.setCollateralToOracle(address(wBTC), wBtcOracle);
+        middleware.setCollateralToOracle(address(stETH), stEthOracle);
+
+        vm.stopPrank();
+
+        _registerOperatorAndOptIn(operator1, tanssi, address(vaultsData.v1.vault), true);
+        _registerOperatorAndOptIn(operator1, tanssi, address(vaultsData.v2.vault), false);
+        _registerOperatorAndOptIn(operator2, tanssi, address(vaultsData.v2.vault), true);
+        _registerOperatorAndOptIn(operator3, tanssi, address(vaultsData.v2.vault), true);
+        _registerOperatorAndOptIn(operator3, tanssi, address(vaultsData.v3.vault), false);
+        _registerOperatorAndOptIn(operator4, tanssi, address(vaultsData.v3.vault), true);
+        _registerOperatorAndOptIn(operator5, tanssi, address(vaultsData.v3.vault), true);
+        _registerOperatorAndOptIn(operator5, tanssi, address(vaultsData.v4.vault), false);
+        _registerOperatorAndOptIn(operator6, tanssi, address(vaultsData.v4.vault), true);
+        _registerOperatorAndOptIn(operator7, tanssi, address(vaultsData.v5.vault), true);
+
+        _registerEntitiesToMiddleware(owner);
+        _setOperatorsNetworkShares(tanssi);
+        _setLimitForNetworkAndOperators(tanssi);
+        _depositToVaults();
+
+        vm.stopPrank();
+    }
+
+    function _deployAndMintCollaterals() internal {
+        DeployCollateral deployCollateral = new DeployCollateral();
+        address usdcAddress = deployCollateral.deployCollateral("usdc");
+        usdc = Token(usdcAddress);
+        address wBTCAddress = deployCollateral.deployCollateral("wBTC");
+        wBTC = Token(wBTCAddress);
+        address stETHAddress = deployCollateral.deployCollateral("stETH");
+        stETH = Token(stETHAddress);
+
+        usdc.mint(operator1, OPERATOR1_STAKE_V1_USDC);
+        wBTC.mint(operator1, OPERATOR1_STAKE_V2_WBTC);
+        wBTC.mint(operator2, OPERATOR2_STAKE_V2_WBTC);
+        wBTC.mint(operator3, OPERATOR3_STAKE_V2_WBTC);
+        wBTC.mint(operator4, OPERATOR4_STAKE_V3_WBTC);
+        wBTC.mint(operator5, OPERATOR5_STAKE_V3_WBTC);
+        stETH.mint(operator5, OPERATOR5_STAKE_V4_STETH);
+        stETH.mint(operator6, OPERATOR6_STAKE_V4_STETH);
+        stETH.mint(operator7, OPERATOR7_STAKE_V5_STETH);
+    }
+
+    function _deployMiddlewareWithProxy(
+        address operatorRewardsAddress,
+        address stakerRewardsFactoryAddress
+    ) public returns (Middleware _middleware) {
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: tanssi,
+            operatorRegistry: address(operatorRegistry),
+            vaultRegistry: address(vaultFactory),
+            operatorNetworkOptIn: address(operatorNetworkOptInService),
+            owner: owner,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: SLASHING_WINDOW,
+            reader: address(0)
+        });
+        DeployTanssiEcosystem deployTanssi = new DeployTanssiEcosystem();
+        middleware = deployTanssi.deployMiddlewareWithProxy(params, operatorRewardsAddress, stakerRewardsFactoryAddress);
+
+        networkMiddlewareService.setMiddleware(address(middleware));
+    }
+
+    function _deployVaults(
+        address _owner
+    ) public {
+        address vault;
+        address delegator;
+        address slasher;
+
+        DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
+            epochDuration: VAULT_EPOCH_DURATION,
+            depositWhitelist: false,
+            depositLimit: 0,
+            delegatorIndex: DeployVault.DelegatorIndex.OPERATOR_SPECIFIC,
+            shouldBroadcast: false,
+            vaultConfigurator: address(vaultConfigurator),
+            collateral: address(usdc),
+            owner: _owner
+        });
+        (vault, delegator,) = deployVault.createBaseVault(params);
+        vaultsData.v1.vault = IVault(vault);
+        vaultsData.v1.delegator = delegator;
+
+        params.delegatorIndex = DeployVault.DelegatorIndex.FULL_RESTAKE;
+        params.collateral = address(wBTC);
+        (vault, delegator,) = deployVault.createBaseVault(params);
+        vaultsData.v2.vault = IVault(vault);
+        vaultsData.v2.delegator = delegator;
+
+        params.delegatorIndex = DeployVault.DelegatorIndex.NETWORK_RESTAKE;
+        params.collateral = address(wBTC);
+        (vault, delegator, slasher) = deployVault.createSlashableVault(params);
+        vaultsData.v3.vault = IVault(vault);
+        vaultsData.v3.delegator = delegator;
+        vaultsData.v3.slasher = slasher;
+
+        params.delegatorIndex = DeployVault.DelegatorIndex.NETWORK_RESTAKE;
+        params.collateral = address(stETH);
+        (vault, delegator, slasher) = deployVault.createVaultVetoed(params, VETO_DURATION);
+        vaultsData.v4.vault = IVault(vault);
+        vaultsData.v4.delegator = delegator;
+        vaultsData.v4.slasher = slasher;
+
+        params.delegatorIndex = DeployVault.DelegatorIndex.OPERATOR_SPECIFIC;
+        params.collateral = address(stETH);
+        (vault, delegator, slasher) = deployVault.createVaultVetoed(params, VETO_DURATION);
+        vaultsData.v5.vault = IVault(vault);
+        vaultsData.v5.delegator = delegator;
+        vaultsData.v5.slasher = slasher;
+
+        IVetoSlasher(vaultsData.v4.slasher).setResolver(0, resolver1, hex"");
+        IVetoSlasher(vaultsData.v5.slasher).setResolver(0, resolver2, hex"");
+    }
+
+    function _deployOracle(uint8 decimals, int256 answer) public returns (address) {
+        MockV3Aggregator oracle = new MockV3Aggregator(decimals, answer);
+        return address(oracle);
+    }
+
+    function _deployGateway() internal returns (address) {
+        ParaID bridgeHubParaID = ParaID.wrap(1013);
+        bytes32 bridgeHubAgentID = 0x03170a2e7597b7b7e3d84c05391d139a62b157e78786d8c082f29dcf4c111314;
+
+        ParaID assetHubParaID = ParaID.wrap(1000);
+        bytes32 assetHubAgentID = 0x81c5ab2571199e3188135178f3c2c8e2d268be1313d029b30f534fa579b69b79;
+
+        GatewayParams memory params = GatewayParams({
+            operatingMode: OperatingMode.Normal,
+            outboundFee: 1e10,
+            registerTokenFee: 0,
+            sendTokenFee: 1e10,
+            createTokenFee: 1e10,
+            maxDestinationFee: 1e11,
+            foreignTokenDecimals: 10,
+            exchangeRate: ud60x18(0.0025e18),
+            multiplier: ud60x18(1e18),
+            assetHubParaID: assetHubParaID,
+            assetHubAgentID: assetHubAgentID
+        });
+
+        AgentExecutor executor = new AgentExecutor();
+        MockOGateway gatewayLogic = new MockOGateway(
+            address(0),
+            address(executor),
+            bridgeHubParaID,
+            bridgeHubAgentID,
+            params.foreignTokenDecimals,
+            params.maxDestinationFee
+        );
+        Gateway.Config memory config = Gateway.Config({
+            mode: OperatingMode.Normal,
+            deliveryCost: params.outboundFee,
+            registerTokenFee: params.registerTokenFee,
+            assetHubParaID: params.assetHubParaID,
+            assetHubAgentID: params.assetHubAgentID,
+            assetHubCreateAssetFee: params.createTokenFee,
+            assetHubReserveTransferFee: params.sendTokenFee,
+            exchangeRate: params.exchangeRate,
+            multiplier: params.multiplier,
+            rescueOperator: 0x4B8a782D4F03ffcB7CE1e95C5cfe5BFCb2C8e967
+        });
+        gateway = address(new GatewayProxy(address(gatewayLogic), abi.encode(config)));
+        MockGateway(address(gateway)).setCommitmentsAreVerified(true);
+
+        SetOperatingModeParams memory operatingModeParams = SetOperatingModeParams({mode: OperatingMode.Normal});
+        MockGateway(address(gateway)).setOperatingModePublic(abi.encode(operatingModeParams));
+        IOGateway(address(gateway)).setMiddleware(address(middleware));
+        return address(gateway);
+    }
+
+    function _registerEntitiesToMiddleware(
+        address _owner
+    ) public {
+        vm.startPrank(_owner);
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            adminFee: ADMIN_FEE,
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: tanssi,
+            adminFeeSetRoleHolder: tanssi
+        });
+        middleware.registerSharedVault(address(vaultsData.v1.vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vaultsData.v2.vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vaultsData.v3.vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vaultsData.v4.vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vaultsData.v5.vault), stakerRewardsParams);
+
+        // TODO Steven: Shall we set vaults at least for operators with a single vault? (Last param)
+        middleware.registerOperator(operator1, abi.encode(OPERATOR1_KEY), address(0));
+        middleware.registerOperator(operator2, abi.encode(OPERATOR2_KEY), address(0));
+        middleware.registerOperator(operator3, abi.encode(OPERATOR3_KEY), address(0));
+        middleware.registerOperator(operator4, abi.encode(OPERATOR4_KEY), address(0));
+        middleware.registerOperator(operator5, abi.encode(OPERATOR5_KEY), address(0));
+        middleware.registerOperator(operator6, abi.encode(OPERATOR6_KEY), address(0));
+        middleware.registerOperator(operator7, abi.encode(OPERATOR7_KEY), address(0));
+        vm.stopPrank();
+    }
+
+    function _registerOperatorAndOptIn(address _operator, address _network, address _vault, bool firstTime) public {
+        vm.startPrank(_operator);
+        if (firstTime) {
+            operatorRegistry.registerOperator();
+            operatorNetworkOptInService.optIn(_network);
+        }
+        operatorVaultOptInService.optIn(address(_vault));
+        vm.stopPrank();
+    }
+
+    function _setOperatorsNetworkShares(
+        address _owner
+    ) public {
+        vm.startPrank(_owner);
+        INetworkRestakeDelegator(vaultsData.v3.delegator).setOperatorNetworkShares(
+            tanssi.subnetwork(0), operator3, OPERATOR3_SHARES_V3
+        );
+        INetworkRestakeDelegator(vaultsData.v3.delegator).setOperatorNetworkShares(
+            tanssi.subnetwork(0), operator4, OPERATOR4_SHARES_V3
+        );
+        INetworkRestakeDelegator(vaultsData.v3.delegator).setOperatorNetworkShares(
+            tanssi.subnetwork(0), operator5, OPERATOR5_SHARES_V3
+        );
+
+        INetworkRestakeDelegator(vaultsData.v4.delegator).setOperatorNetworkShares(
+            tanssi.subnetwork(0), operator5, OPERATOR5_SHARES_V4
+        );
+        INetworkRestakeDelegator(vaultsData.v4.delegator).setOperatorNetworkShares(
+            tanssi.subnetwork(0), operator6, OPERATOR6_SHARES_V4
+        );
+        vm.stopPrank();
+    }
+
+    function _setLimitForNetworkAndOperators(
+        address _owner
+    ) public {
+        vm.startPrank(_owner);
+        INetworkRestakeDelegator(vaultsData.v1.delegator).setMaxNetworkLimit(0, VAULT1_NETWORK_LIMIT);
+        INetworkRestakeDelegator(vaultsData.v2.delegator).setMaxNetworkLimit(0, VAULT2_NETWORK_LIMIT);
+        INetworkRestakeDelegator(vaultsData.v3.delegator).setMaxNetworkLimit(0, VAULT3_NETWORK_LIMIT);
+        INetworkRestakeDelegator(vaultsData.v4.delegator).setMaxNetworkLimit(0, VAULT4_NETWORK_LIMIT);
+        INetworkRestakeDelegator(vaultsData.v5.delegator).setMaxNetworkLimit(0, VAULT5_NETWORK_LIMIT);
+
+        INetworkRestakeDelegator(vaultsData.v1.delegator).setNetworkLimit(tanssi.subnetwork(0), VAULT1_NETWORK_LIMIT);
+        INetworkRestakeDelegator(vaultsData.v2.delegator).setNetworkLimit(tanssi.subnetwork(0), VAULT2_NETWORK_LIMIT);
+        INetworkRestakeDelegator(vaultsData.v3.delegator).setNetworkLimit(tanssi.subnetwork(0), VAULT3_NETWORK_LIMIT);
+        INetworkRestakeDelegator(vaultsData.v4.delegator).setNetworkLimit(tanssi.subnetwork(0), VAULT4_NETWORK_LIMIT);
+        INetworkRestakeDelegator(vaultsData.v5.delegator).setNetworkLimit(tanssi.subnetwork(0), VAULT5_NETWORK_LIMIT);
+
+        // Only Vault2 is Full Restake
+        IFullRestakeDelegator(vaultsData.v2.delegator).setOperatorNetworkLimit(
+            tanssi.subnetwork(0), operator1, OPERATOR1_LIMIT_V2
+        );
+        IFullRestakeDelegator(vaultsData.v2.delegator).setOperatorNetworkLimit(
+            tanssi.subnetwork(0), operator2, OPERATOR2_LIMIT_V2
+        );
+        IFullRestakeDelegator(vaultsData.v2.delegator).setOperatorNetworkLimit(
+            tanssi.subnetwork(0), operator3, OPERATOR3_LIMIT_V2
+        );
+        vm.stopPrank();
+    }
+
+    function _depositToVaults() public {
+        vm.startPrank(operator1);
+        _depositToVault(vaultsData.v1.vault, operator1, OPERATOR1_STAKE_V1_USDC, usdc);
+        _depositToVault(vaultsData.v2.vault, operator1, OPERATOR1_STAKE_V2_WBTC, wBTC);
+
+        vm.startPrank(operator2);
+        _depositToVault(vaultsData.v2.vault, operator2, OPERATOR2_STAKE_V2_WBTC, wBTC);
+
+        vm.startPrank(operator3);
+        _depositToVault(vaultsData.v2.vault, operator3, OPERATOR3_STAKE_V2_WBTC, wBTC);
+        _depositToVault(vaultsData.v3.vault, operator3, OPERATOR3_STAKE_V3_WBTC, wBTC);
+
+        vm.startPrank(operator4);
+        _depositToVault(vaultsData.v3.vault, operator4, OPERATOR4_STAKE_V3_WBTC, wBTC);
+
+        vm.startPrank(operator5);
+        _depositToVault(vaultsData.v3.vault, operator5, OPERATOR5_STAKE_V3_WBTC, wBTC);
+        _depositToVault(vaultsData.v4.vault, operator5, OPERATOR5_STAKE_V4_STETH, stETH);
+
+        vm.startPrank(operator6);
+        _depositToVault(vaultsData.v4.vault, operator6, OPERATOR6_STAKE_V4_STETH, stETH);
+
+        vm.startPrank(operator7);
+        _depositToVault(vaultsData.v5.vault, operator7, OPERATOR7_STAKE_V5_STETH, stETH);
+        vm.stopPrank();
+    }
+
+    function _depositToVault(IVault _vault, address _operator, uint256 _amount, Token collateral) public {
+        collateral.approve(address(_vault), _amount * 10);
+        _vault.deposit(_operator, _amount);
+    }
+}
