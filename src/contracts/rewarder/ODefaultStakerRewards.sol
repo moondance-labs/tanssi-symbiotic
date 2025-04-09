@@ -55,6 +55,7 @@ contract ODefaultStakerRewards is
         mapping(uint48 epoch => uint256 amount) activeSharesCache;
     }
 
+    /// @custom:storage-location erc7201:tanssi.rewards.ODefaultStakerRewards.v1
     struct PreviousStakerRewardsStorage {
         uint256 adminFee;
         mapping(uint48 epoch => mapping(address tokenAddress => uint256[] rewards_)) rewards;
@@ -72,6 +73,7 @@ contract ODefaultStakerRewards is
         for (uint48 epoch = startEpoch; epoch < endEpoch;) {
             uint256[] memory previousRewards = $$.rewards[epoch][tokenAddress];
             if ($.activeSharesCache[epoch] != 0) {
+                ++epoch;
                 continue;
             }
             for (uint256 j; j < previousRewards.length;) {
@@ -102,17 +104,19 @@ contract ODefaultStakerRewards is
             uint256[] memory previousRewards = $$.rewards[epoch][tokenAddress];
             uint48 epochTs = EpochCapture(INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network))
                 .getEpochStart(epoch);
+            uint256 activeSharesCache = $$.activeSharesCache[epoch];
             for (uint256 k; k < operators.length;) {
                 address account = operators[k];
                 uint256 lastUnclaimedIndex = $$.lastUnclaimedReward[account][epoch][tokenAddress];
 
                 if ($.stakerClaimedRewardPerEpoch[account][epoch][tokenAddress] != 0) {
+                    ++k;
                     continue;
                 }
 
                 for (uint256 j; j < lastUnclaimedIndex;) {
                     uint256 amount = IVault(i_vault).activeSharesOfAt(account, epochTs, new bytes(0)).mulDiv(
-                        previousRewards[j], $$.activeSharesCache[epoch]
+                        previousRewards[j], activeSharesCache
                     );
 
                     $.stakerClaimedRewardPerEpoch[account][epoch][tokenAddress] += amount;
