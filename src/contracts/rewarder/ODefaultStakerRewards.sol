@@ -33,7 +33,8 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
-import {IODefaultStakerRewards} from "../../interfaces/rewarder/IODefaultStakerRewards.sol";
+import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
+import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 
 contract ODefaultStakerRewards is
     AccessControlUpgradeable,
@@ -90,40 +91,59 @@ contract ODefaultStakerRewards is
         }
     }
 
-    function migrateOperatorClaimed(
-        uint48 startEpoch,
-        uint48 endEpoch,
-        address[] calldata operators,
-        address tokenAddress
-    ) external {
+    // function migrateOperatorClaimed(uint48 startEpoch, uint48 endEpoch, address tokenAddress) external {
+    //     PreviousStakerRewardsStorage storage $$ = _getOldStakerRewardsStorage();
+    //     StakerRewardsStorage storage $ = _getStakerRewardsStorage();
+    //     address middleware = INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network);
+    //     // all on chain => so we read from the previous storage location and we migrate
+    //     for (uint48 epoch = startEpoch; epoch < endEpoch; epoch++) {
+    //         uint256[] memory previousRewards = $$.rewards[epoch][tokenAddress];
+    //         uint48 epochTs = EpochCapture(middleware).getEpochStart(epoch);
+    //         uint256 activeSharesCache = $$.activeSharesCache[epoch];
+    //         address[] memory operators = IOBaseMiddlewareReader(middleware).activeOperatorsAt(epochTs);
+    //         for (uint256 k; k < operators.length;) {
+    //             address account = operators[k];
+
+    //             if ($.stakerClaimedRewardPerEpoch[account][epoch][tokenAddress] != 0) {
+    //                 ++k;
+    //                 continue;
+    //             }
+
+    //             for (uint256 j; j < $$.lastUnclaimedReward[account][epoch][tokenAddress];) {
+    //                 uint256 amount = IVault(i_vault).activeSharesOfAt(account, epochTs, new bytes(0)).mulDiv(
+    //                     previousRewards[j], activeSharesCache
+    //                 );
+
+    //                 $.stakerClaimedRewardPerEpoch[account][epoch][tokenAddress] += amount;
+    //                 unchecked {
+    //                     ++j;
+    //                 }
+    //             }
+    //             unchecked {
+    //                 ++k;
+    //             }
+    //         }
+    //     }
+    // }
+
+    function migrateOperatorClaimed(uint48 startEpoch, uint48 endEpoch, address tokenAddress) external {
         PreviousStakerRewardsStorage storage $$ = _getOldStakerRewardsStorage();
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
-
+        address middleware = INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network);
         // all on chain => so we read from the previous storage location and we migrate
         for (uint48 epoch = startEpoch; epoch < endEpoch; epoch++) {
             uint256[] memory previousRewards = $$.rewards[epoch][tokenAddress];
-            uint48 epochTs = EpochCapture(INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network))
-                .getEpochStart(epoch);
+            uint48 epochTs = EpochCapture(middleware).getEpochStart(epoch);
             uint256 activeSharesCache = $$.activeSharesCache[epoch];
+            address[] memory operators = IOBaseMiddlewareReader(middleware).activeOperatorsAt(epochTs);
             for (uint256 k; k < operators.length;) {
                 address account = operators[k];
-                uint256 lastUnclaimedIndex = $$.lastUnclaimedReward[account][epoch][tokenAddress];
 
                 if ($.stakerClaimedRewardPerEpoch[account][epoch][tokenAddress] != 0) {
                     ++k;
                     continue;
                 }
-
-                for (uint256 j; j < lastUnclaimedIndex;) {
-                    uint256 amount = IVault(i_vault).activeSharesOfAt(account, epochTs, new bytes(0)).mulDiv(
-                        previousRewards[j], activeSharesCache
-                    );
-
-                    $.stakerClaimedRewardPerEpoch[account][epoch][tokenAddress] += amount;
-                    unchecked {
-                        ++j;
-                    }
-                }
+                _setStakerClaimed($, $$, account, epoch, tokenAddress, activeSharesCache, previousRewards, epochTs);
                 unchecked {
                     ++k;
                 }
@@ -131,7 +151,30 @@ contract ODefaultStakerRewards is
         }
     }
 
+    function _setStakerClaimed(
+        StakerRewardsStorage storage $,
+        PreviousStakerRewardsStorage storage $$,
+        address account,
+        uint48 epoch,
+        address tokenAddress,
+        uint256 activeSharesCache,
+        uint256[] memory previousRewards,
+        uint48 epochTs
+    ) private {
+        uint256 lastUnclaimedIndex = $$.lastUnclaimedReward[account][epoch][tokenAddress];
+        for (uint256 j; j < lastUnclaimedIndex;) {
+            uint256 amount = IVault(i_vault).activeSharesOfAt(account, epochTs, new bytes(0)).mulDiv(
+                previousRewards[j], activeSharesCache
+            );
+
+            $.stakerClaimedRewardPerEpoch[account][epoch][tokenAddress] += amount;
+            unchecked {
+                ++j;
+            }
+        }
+    }
     // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultStakerRewards.v1")) - 1)) & ~bytes32(uint256(0xff))
+
     bytes32 private constant PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION =
         0xe07cde22a6017f26eee680b6867ce6727151fb6097c75742cbe379265c377400;
 

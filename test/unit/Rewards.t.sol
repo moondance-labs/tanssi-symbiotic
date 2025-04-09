@@ -1389,6 +1389,8 @@ contract RewardsTest is Test {
     //**************************************************************************************************
     //                                      MIGRATE
     //**************************************************************************************************
+
+    // We start from epoch 1, because at epoch 0 no operators can be active!
     function testMigrateStakerRewards()
         // uint48 maxEpoch_
         public
@@ -1397,7 +1399,7 @@ contract RewardsTest is Test {
         Token newToken = new Token("NewToken", 18);
         uint48 maxEpoch = 1000;
 
-        for (uint48 epoch = 0; epoch < maxEpoch; ++epoch) {
+        for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
             uint256 BASE_AMOUNT = DEFAULT_AMOUNT + epoch.mulDiv(1 ether, maxEpoch);
             _setClaimableAdminFee(epoch, address(token), PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION, BASE_AMOUNT);
 
@@ -1419,7 +1421,7 @@ contract RewardsTest is Test {
 
         address[] memory operators = new address[](1);
         operators[0] = alice;
-        for (uint48 epoch = 0; epoch < maxEpoch; ++epoch) {
+        for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
             uint48 epochStartTs = middleware.getEpochStart(epoch);
             vm.mockCall(
                 address(vault),
@@ -1427,9 +1429,9 @@ contract RewardsTest is Test {
                 abi.encode(AMOUNT_TO_DISTRIBUTE / 10)
             );
         }
-        stakerRewards.migrateOperatorClaimed(0, maxEpoch, operators, address(token));
+        stakerRewards.migrateOperatorClaimed(0, maxEpoch, address(token));
 
-        for (uint48 epoch; epoch < maxEpoch; ++epoch) {
+        for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
             uint256 BASE_AMOUNT = DEFAULT_AMOUNT + epoch.mulDiv(1 ether, maxEpoch);
             uint256 claimableFee = stakerRewards.claimableAdminFee(epoch, address(token));
             assertEq(claimableFee, BASE_AMOUNT);
@@ -1446,7 +1448,7 @@ contract RewardsTest is Test {
         Token newToken = new Token("NewToken", 18);
         uint48 maxEpoch = 1000;
 
-        for (uint48 epoch = 0; epoch < maxEpoch; ++epoch) {
+        for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
             uint256 BASE_AMOUNT = DEFAULT_AMOUNT + epoch.mulDiv(1 ether, maxEpoch);
             _setClaimableAdminFee(epoch, address(token), PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION, BASE_AMOUNT);
 
@@ -1464,10 +1466,10 @@ contract RewardsTest is Test {
         ODefaultStakerRewards newStakerRewards =
             new ODefaultStakerRewards(address(networkMiddlewareService), address(vault), tanssi);
 
-        stakerRewards.migrate(0, maxEpoch, address(token));
-        stakerRewards.migrate(0, maxEpoch, address(token));
+        stakerRewards.migrate(1, maxEpoch, address(token));
+        stakerRewards.migrate(1, maxEpoch, address(token));
 
-        for (uint48 epoch; epoch < maxEpoch; ++epoch) {
+        for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
             uint256 BASE_AMOUNT = DEFAULT_AMOUNT + epoch.mulDiv(1 ether, maxEpoch);
             uint256 claimableFee = stakerRewards.claimableAdminFee(epoch, address(token));
             assertEq(claimableFee, BASE_AMOUNT);
@@ -1481,7 +1483,7 @@ contract RewardsTest is Test {
         Token newToken = new Token("NewToken", 18);
         uint48 maxEpoch = 50;
 
-        for (uint48 epoch = 0; epoch < maxEpoch; ++epoch) {
+        for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
             uint256 BASE_AMOUNT = DEFAULT_AMOUNT + epoch.mulDiv(1 ether, maxEpoch);
             _setClaimableAdminFee(epoch, address(token), PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION, BASE_AMOUNT);
 
@@ -1493,26 +1495,33 @@ contract RewardsTest is Test {
                 epoch, address(stakerRewards), PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT
             );
             _setLastUnclaimedReward(epoch, alice, address(stakerRewards), epoch % 2 == 0 ? 1 : 0);
+            _setLastUnclaimedReward(epoch, bob, address(stakerRewards), epoch % 2 == 0 ? 1 : 0);
         }
 
         vm.startPrank(address(tanssi));
         ODefaultStakerRewards newStakerRewards =
             new ODefaultStakerRewards(address(networkMiddlewareService), address(vault), tanssi);
 
-        address[] memory operators = new address[](1);
+        address[] memory operators = new address[](2);
         operators[0] = alice;
-        for (uint48 epoch = 0; epoch < maxEpoch; ++epoch) {
+        operators[1] = bob;
+        for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
             uint48 epochStartTs = middleware.getEpochStart(epoch);
             vm.mockCall(
                 address(vault),
                 abi.encodeWithSelector(IVaultStorage.activeSharesOfAt.selector, alice, epochStartTs, hex""),
                 abi.encode(AMOUNT_TO_DISTRIBUTE / 10)
             );
+            vm.mockCall(
+                address(vault),
+                abi.encodeWithSelector(IVaultStorage.activeSharesOfAt.selector, bob, epochStartTs, hex""),
+                abi.encode(AMOUNT_TO_DISTRIBUTE / 10)
+            );
         }
-        stakerRewards.migrateOperatorClaimed(0, maxEpoch, operators, address(token));
-        stakerRewards.migrateOperatorClaimed(0, maxEpoch, operators, address(token));
+        stakerRewards.migrateOperatorClaimed(1, maxEpoch, address(token));
+        stakerRewards.migrateOperatorClaimed(1, maxEpoch, address(token));
 
-        for (uint48 epoch; epoch < maxEpoch; ++epoch) {
+        for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
             uint256 BASE_AMOUNT = DEFAULT_AMOUNT + epoch.mulDiv(1 ether, maxEpoch);
 
             uint256 claimed = stakerRewards.stakerClaimedRewardPerEpoch(alice, epoch, address(token));
