@@ -43,6 +43,7 @@ contract DeployVault is Script {
         bool withSlasher;
         uint64 slasherIndex;
         uint48 vetoDuration;
+        address operator;
     }
 
     struct CreateVaultBaseParams {
@@ -54,6 +55,7 @@ contract DeployVault is Script {
         address vaultConfigurator;
         address collateral;
         address owner;
+        address operator;
     }
 
     enum DelegatorIndex {
@@ -114,7 +116,8 @@ contract DeployVault is Script {
             delegatorIndex: uint64(params.delegatorIndex),
             withSlasher: withSlasher,
             slasherIndex: slasherIndex,
-            vetoDuration: vetoDuration
+            vetoDuration: vetoDuration,
+            operator: params.operator
         });
 
         if (params.shouldBroadcast) {
@@ -187,7 +190,7 @@ contract DeployVault is Script {
                         hookSetRoleHolder: params.owner
                     }),
                     networkLimitSetRoleHolders: networkLimitSetRoleHolders,
-                    operator: params.owner
+                    operator: params.operator
                 })
             );
         }
@@ -234,7 +237,8 @@ contract DeployVault is Script {
             shouldBroadcast: true,
             vaultConfigurator: vaultConfigurator,
             collateral: collateral,
-            owner: owner
+            owner: owner,
+            operator: address(0)
         });
 
         (address vault, address delegator, address slasher) = createBaseVault(params);
@@ -280,7 +284,8 @@ contract DeployVault is Script {
             delegatorIndex: delegatorIndex,
             withSlasher: withSlasher,
             slasherIndex: slasherIndex,
-            vetoDuration: vetoDuration
+            vetoDuration: vetoDuration,
+            operator: address(0)
         });
         (address vault_, address delegator_, address slasher_) = deployVault(params);
 

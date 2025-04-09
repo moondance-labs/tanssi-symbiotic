@@ -380,7 +380,8 @@ contract RewardsTest is Test {
             shouldBroadcast: false,
             vaultConfigurator: address(vaultConfigurator),
             collateral: address(stETH),
-            owner: _owner
+            owner: _owner,
+            operator: address(0)
         });
 
         (vaultAddresses.vault, vaultAddresses.delegator, vaultAddresses.slasher) = deployVault.createBaseVault(params);

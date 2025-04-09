@@ -19,14 +19,9 @@ import {Test, console2} from "forge-std/Test.sol";
 //**************************************************************************************************
 //                                      SYMBIOTIC
 //**************************************************************************************************
-import {IVaultConfigurator} from "@symbiotic/interfaces/IVaultConfigurator.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {INetworkRestakeDelegator} from "@symbiotic/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestakeDelegator.sol";
-import {IOperatorSpecificDelegator} from "@symbiotic/interfaces/delegator/IOperatorSpecificDelegator.sol";
-import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
-import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
-import {IBaseSlasher} from "@symbiotic/interfaces/slasher/IBaseSlasher.sol";
 import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 import {OperatorRegistry} from "@symbiotic/contracts/OperatorRegistry.sol";
 import {NetworkRegistry} from "@symbiotic/contracts/NetworkRegistry.sol";
@@ -37,19 +32,10 @@ import {DelegatorFactory} from "@symbiotic/contracts/DelegatorFactory.sol";
 import {SlasherFactory} from "@symbiotic/contracts/SlasherFactory.sol";
 import {VaultFactory} from "@symbiotic/contracts/VaultFactory.sol";
 import {VaultConfigurator} from "@symbiotic/contracts/VaultConfigurator.sol";
-import {Vault} from "@symbiotic/contracts/vault/Vault.sol";
 import {VaultTokenized} from "@symbiotic/contracts/vault/VaultTokenized.sol";
 import {NetworkRestakeDelegator} from "@symbiotic/contracts/delegator/NetworkRestakeDelegator.sol";
 import {FullRestakeDelegator} from "@symbiotic/contracts/delegator/FullRestakeDelegator.sol";
-import {OperatorSpecificDelegator} from "@symbiotic/contracts/delegator/OperatorSpecificDelegator.sol";
-import {Slasher} from "@symbiotic/contracts/slasher/Slasher.sol";
-import {VetoSlasher} from "@symbiotic/contracts/slasher/VetoSlasher.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
-import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
-import {IOzAccessControl} from "@symbiotic-middleware/interfaces/extensions/managers/access/IOzAccessControl.sol";
-import {PauseableEnumerableSet} from "@symbiotic-middleware/libraries/PauseableEnumerableSet.sol";
-import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
-import {OperatorManager} from "@symbiotic-middleware/managers/OperatorManager.sol";
 
 //**************************************************************************************************
 //                                      CHAINLINK
@@ -66,7 +52,6 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 //**************************************************************************************************
 //                                      SNOWBRIDGE
 //**************************************************************************************************
-import {CreateAgentParams, CreateChannelParams} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Params.sol";
 import {OperatingMode, ParaID} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Types.sol";
 import {MockGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/test/mocks/MockGateway.sol";
 import {GatewayProxy} from "@tanssi-bridge-relayer/snowbridge/contracts/src/GatewayProxy.sol";
@@ -78,7 +63,6 @@ import {MockOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/test/moc
 
 import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
 
-import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
@@ -91,8 +75,6 @@ import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
-import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
-import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 
 contract MiddlewareTest is Test {
     using Subnetwork for address;
@@ -101,7 +83,7 @@ contract MiddlewareTest is Test {
 
     uint48 public constant VAULT_EPOCH_DURATION = 7 days;
     uint48 public constant NETWORK_EPOCH_DURATION = 2 days;
-    uint48 public constant SLASHING_WINDOW = 7 days;
+    uint48 public constant SLASHING_WINDOW = 5 days;
     uint48 public constant VETO_DURATION = 1 days;
 
     // Token and Oracle decimals + conversion rates
@@ -149,18 +131,23 @@ contract MiddlewareTest is Test {
     uint256 public constant OPERATOR3_STAKE_V3_WBTC = 1 * 10 ** TOKEN_DECIMALS_BTC; // 90k power
     uint256 public constant OPERATOR4_STAKE_V3_WBTC = 2 * 10 ** TOKEN_DECIMALS_BTC; // 180k power
     uint256 public constant OPERATOR5_STAKE_V3_WBTC = 2 * 10 ** TOKEN_DECIMALS_BTC; // 180k power
+    uint256 public constant VAULT3_TOTAL_STAKE =
+        OPERATOR3_STAKE_V3_WBTC + OPERATOR4_STAKE_V3_WBTC + OPERATOR5_STAKE_V3_WBTC;
 
     uint256 public constant OPERATOR3_SHARES_V3 = 1; // Operator 3 will get 20% of the total power
     uint256 public constant OPERATOR4_SHARES_V3 = 2; // Operator 4 will get 40% of the total power
     uint256 public constant OPERATOR5_SHARES_V3 = 2; // Operator 5 will get 40% of the total power
+    uint256 public constant VAULT3_TOTAL_SHARES = OPERATOR3_SHARES_V3 + OPERATOR4_SHARES_V3 + OPERATOR5_SHARES_V3;
 
     // Vault 4 - 2 Operators, Network Restake (by Shares)
     uint256 public constant VAULT4_NETWORK_LIMIT = 100 * 10 ** TOKEN_DECIMALS_ETH; // 300k power
     uint256 public constant OPERATOR5_STAKE_V4_STETH = 50 * 10 ** TOKEN_DECIMALS_ETH; // 150k power
     uint256 public constant OPERATOR6_STAKE_V4_STETH = 30 * 10 ** TOKEN_DECIMALS_ETH; // 90k power
+    uint256 public constant VAULT4_TOTAL_STAKE = OPERATOR5_STAKE_V4_STETH + OPERATOR6_STAKE_V4_STETH;
 
     uint256 public constant OPERATOR5_SHARES_V4 = 2; // Operator 5 will get 2/3 of the total power
     uint256 public constant OPERATOR6_SHARES_V4 = 1; // Operator 6 will get 1/3 of the total power
+    uint256 public constant VAULT4_TOTAL_SHARES = OPERATOR5_SHARES_V4 + OPERATOR6_SHARES_V4;
 
     // Vault 5 - Single Operator
     uint256 public constant VAULT5_NETWORK_LIMIT = 200 * 10 ** TOKEN_DECIMALS_ETH; // 200k power
@@ -197,6 +184,7 @@ contract MiddlewareTest is Test {
     }
 
     Middleware public middleware;
+    OBaseMiddlewareReader public middlewareReader;
     DelegatorFactory public delegatorFactory;
     SlasherFactory public slasherFactory;
     VaultFactory public vaultFactory;
@@ -269,9 +257,9 @@ contract MiddlewareTest is Test {
         networkMiddlewareService = NetworkMiddlewareService(symbioticAddresses.networkMiddlewareService);
         vaultConfigurator = VaultConfigurator(symbioticAddresses.vaultConfigurator);
 
-        vm.startPrank(tanssi);
         _deployVaults(tanssi);
 
+        vm.startPrank(tanssi);
         address operatorRewardsAddress = deployRewards.deployOperatorRewardsContract(
             tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
         );
@@ -282,17 +270,18 @@ contract MiddlewareTest is Test {
         );
         stakerRewardsFactory = ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress);
 
-        middleware = _deployMiddlewareWithProxy(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        _deployMiddlewareWithProxy(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        middlewareReader = OBaseMiddlewareReader(address(middleware));
+
         _deployGateway();
 
         middleware.setGateway(address(gateway));
         middleware.setCollateralToOracle(address(usdc), usdcOracle);
         middleware.setCollateralToOracle(address(wBTC), wBtcOracle);
         middleware.setCollateralToOracle(address(stETH), stEthOracle);
-
         vm.stopPrank();
 
-        _registerOperatorAndOptIn(operator1, tanssi, address(vaultsData.v1.vault), true);
+        _registerOperatorAndOptIn(operator1, tanssi, address(vaultsData.v1.vault), false);
         _registerOperatorAndOptIn(operator1, tanssi, address(vaultsData.v2.vault), false);
         _registerOperatorAndOptIn(operator2, tanssi, address(vaultsData.v2.vault), true);
         _registerOperatorAndOptIn(operator3, tanssi, address(vaultsData.v2.vault), true);
@@ -301,7 +290,7 @@ contract MiddlewareTest is Test {
         _registerOperatorAndOptIn(operator5, tanssi, address(vaultsData.v3.vault), true);
         _registerOperatorAndOptIn(operator5, tanssi, address(vaultsData.v4.vault), false);
         _registerOperatorAndOptIn(operator6, tanssi, address(vaultsData.v4.vault), true);
-        _registerOperatorAndOptIn(operator7, tanssi, address(vaultsData.v5.vault), true);
+        _registerOperatorAndOptIn(operator7, tanssi, address(vaultsData.v5.vault), false);
 
         _registerEntitiesToMiddleware(owner);
         _setOperatorsNetworkShares(tanssi);
@@ -313,17 +302,17 @@ contract MiddlewareTest is Test {
 
     function _deployAndMintCollaterals() internal {
         DeployCollateral deployCollateral = new DeployCollateral();
-        address usdcAddress = deployCollateral.deployCollateral("usdc");
+        address usdcAddress = deployCollateral.deployCollateral("usdc", TOKEN_DECIMALS_USDC);
         usdc = Token(usdcAddress);
-        address wBTCAddress = deployCollateral.deployCollateral("wBTC");
+        address wBTCAddress = deployCollateral.deployCollateral("wBTC", TOKEN_DECIMALS_BTC);
         wBTC = Token(wBTCAddress);
-        address stETHAddress = deployCollateral.deployCollateral("stETH");
+        address stETHAddress = deployCollateral.deployCollateral("stETH", TOKEN_DECIMALS_ETH);
         stETH = Token(stETHAddress);
 
         usdc.mint(operator1, OPERATOR1_STAKE_V1_USDC);
         wBTC.mint(operator1, OPERATOR1_STAKE_V2_WBTC);
         wBTC.mint(operator2, OPERATOR2_STAKE_V2_WBTC);
-        wBTC.mint(operator3, OPERATOR3_STAKE_V2_WBTC);
+        wBTC.mint(operator3, OPERATOR3_STAKE_V2_WBTC + OPERATOR4_STAKE_V3_WBTC);
         wBTC.mint(operator4, OPERATOR4_STAKE_V3_WBTC);
         wBTC.mint(operator5, OPERATOR5_STAKE_V3_WBTC);
         stETH.mint(operator5, OPERATOR5_STAKE_V4_STETH);
@@ -331,10 +320,7 @@ contract MiddlewareTest is Test {
         stETH.mint(operator7, OPERATOR7_STAKE_V5_STETH);
     }
 
-    function _deployMiddlewareWithProxy(
-        address operatorRewardsAddress,
-        address stakerRewardsFactoryAddress
-    ) public returns (Middleware _middleware) {
+    function _deployMiddlewareWithProxy(address operatorRewardsAddress, address stakerRewardsFactoryAddress) public {
         IMiddleware.InitParams memory params = IMiddleware.InitParams({
             network: tanssi,
             operatorRegistry: address(operatorRegistry),
@@ -358,6 +344,15 @@ contract MiddlewareTest is Test {
         address delegator;
         address slasher;
 
+        // Operators 1 and 7 will use Specific Operator Vaults, so they need to be registered before deploying the vaults
+        vm.startPrank(operator1);
+        operatorRegistry.registerOperator();
+        operatorNetworkOptInService.optIn(tanssi);
+        vm.startPrank(operator7);
+        operatorRegistry.registerOperator();
+        operatorNetworkOptInService.optIn(tanssi);
+
+        vm.startPrank(tanssi);
         DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
@@ -366,7 +361,8 @@ contract MiddlewareTest is Test {
             shouldBroadcast: false,
             vaultConfigurator: address(vaultConfigurator),
             collateral: address(usdc),
-            owner: _owner
+            owner: _owner,
+            operator: operator1
         });
         (vault, delegator,) = deployVault.createBaseVault(params);
         vaultsData.v1.vault = IVault(vault);
@@ -374,6 +370,7 @@ contract MiddlewareTest is Test {
 
         params.delegatorIndex = DeployVault.DelegatorIndex.FULL_RESTAKE;
         params.collateral = address(wBTC);
+        params.operator = address(0);
         (vault, delegator,) = deployVault.createBaseVault(params);
         vaultsData.v2.vault = IVault(vault);
         vaultsData.v2.delegator = delegator;
@@ -394,6 +391,7 @@ contract MiddlewareTest is Test {
 
         params.delegatorIndex = DeployVault.DelegatorIndex.OPERATOR_SPECIFIC;
         params.collateral = address(stETH);
+        params.operator = operator7;
         (vault, delegator, slasher) = deployVault.createVaultVetoed(params, VETO_DURATION);
         vaultsData.v5.vault = IVault(vault);
         vaultsData.v5.delegator = delegator;
@@ -401,6 +399,8 @@ contract MiddlewareTest is Test {
 
         IVetoSlasher(vaultsData.v4.slasher).setResolver(0, resolver1, hex"");
         IVetoSlasher(vaultsData.v5.slasher).setResolver(0, resolver2, hex"");
+
+        vm.stopPrank();
     }
 
     function _deployOracle(uint8 decimals, int256 answer) public returns (address) {
@@ -549,34 +549,84 @@ contract MiddlewareTest is Test {
     }
 
     function _depositToVaults() public {
-        vm.startPrank(operator1);
+        // Operator 1
         _depositToVault(vaultsData.v1.vault, operator1, OPERATOR1_STAKE_V1_USDC, usdc);
         _depositToVault(vaultsData.v2.vault, operator1, OPERATOR1_STAKE_V2_WBTC, wBTC);
-
-        vm.startPrank(operator2);
+        // Operator 2
         _depositToVault(vaultsData.v2.vault, operator2, OPERATOR2_STAKE_V2_WBTC, wBTC);
-
-        vm.startPrank(operator3);
+        // Operator 3
         _depositToVault(vaultsData.v2.vault, operator3, OPERATOR3_STAKE_V2_WBTC, wBTC);
         _depositToVault(vaultsData.v3.vault, operator3, OPERATOR3_STAKE_V3_WBTC, wBTC);
-
-        vm.startPrank(operator4);
+        // Operator 4
         _depositToVault(vaultsData.v3.vault, operator4, OPERATOR4_STAKE_V3_WBTC, wBTC);
-
-        vm.startPrank(operator5);
+        // Operator 5
         _depositToVault(vaultsData.v3.vault, operator5, OPERATOR5_STAKE_V3_WBTC, wBTC);
         _depositToVault(vaultsData.v4.vault, operator5, OPERATOR5_STAKE_V4_STETH, stETH);
-
-        vm.startPrank(operator6);
+        // Operator
         _depositToVault(vaultsData.v4.vault, operator6, OPERATOR6_STAKE_V4_STETH, stETH);
-
-        vm.startPrank(operator7);
+        // Operator
         _depositToVault(vaultsData.v5.vault, operator7, OPERATOR7_STAKE_V5_STETH, stETH);
-        vm.stopPrank();
     }
 
     function _depositToVault(IVault _vault, address _operator, uint256 _amount, Token collateral) public {
+        vm.startPrank(_operator);
         collateral.approve(address(_vault), _amount * 10);
         _vault.deposit(_operator, _amount);
+        vm.stopPrank();
+    }
+
+    // ************************************************************************************************
+    // *                                        TESTS
+    // ************************************************************************************************
+
+    function testOperatorPower() public {
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
+        Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+
+        uint256 expectedOperatorPower1 = OPERATOR1_STAKE_V1_USDC.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC) // Normalized to 18 decimals
+            + OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+        assertEq(validators[0].power, expectedOperatorPower1);
+
+        // OOn Vault 2: perator 2 has just 1 BTC staked, but delegator is full restake and their limit is 2 BTC. Since vault has more than the limit, the operator stake taken into account is their limit.
+        uint256 expectedOperatorPower2 =
+            OPERATOR2_LIMIT_V2.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+        assertEq(validators[1].power, expectedOperatorPower2);
+
+        // On Vault 2: Operator 3 has 3 BTC staked, but delegator is full restake and their is 2 BTC. So only 2 BTC are taken into account.
+        // On Vault 3: delegator is network restake and OP3 is assigned 1/5 shares
+        uint256 expectedOperatorPower3 = OPERATOR3_LIMIT_V2.mulDiv(
+            uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC
+        )
+            + VAULT3_TOTAL_STAKE.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC).mulDiv(
+                OPERATOR3_SHARES_V3, VAULT3_TOTAL_SHARES
+            );
+        assertEq(validators[2].power, expectedOperatorPower3);
+
+        // On Vault 3: delegator is network restake and OP4 is assigned 1/5 shares
+        uint256 expectedOperatorPower4 = VAULT3_TOTAL_STAKE.mulDiv(
+            uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC
+        ).mulDiv(OPERATOR4_SHARES_V3, VAULT3_TOTAL_SHARES);
+        assertEq(validators[3].power, expectedOperatorPower4);
+
+        // On Vault 3: delegator is network restake and OP5 is assigned 2/5 shares
+        // On Vault 4: delegator is network restake and OP5 is assigned 2/3 shares
+        uint256 expectedOperatorPower5 = VAULT3_TOTAL_STAKE.mulDiv(OPERATOR5_SHARES_V3, VAULT3_TOTAL_SHARES).mulDiv(
+            uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC
+        )
+            + VAULT4_TOTAL_STAKE.mulDiv(OPERATOR5_SHARES_V4, VAULT4_TOTAL_SHARES).mulDiv(
+                uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS_ETH
+            );
+        assertEq(validators[4].power, expectedOperatorPower5);
+
+        // On Vault 4: delegator is operator specific and OP6 is assigned 1/3 shares
+        uint256 expectedOperatorPower6 = VAULT4_TOTAL_STAKE.mulDiv(OPERATOR6_SHARES_V4, VAULT4_TOTAL_SHARES).mulDiv(
+            uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS_ETH
+        );
+        assertEq(validators[5].power, expectedOperatorPower6);
+
+        // On Vault 5: delegator is operator specific so all the stake is taken into account
+        uint256 expectedOperatorPower7 =
+            OPERATOR7_STAKE_V5_STETH.mulDiv(uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS_ETH);
+        assertEq(validators[6].power, expectedOperatorPower7);
     }
 }

@@ -165,7 +165,8 @@ contract DeployTanssiEcosystem is Script {
             collateral: ecosystemEntities.defaultCollateralAddress != address(0)
                 ? ecosystemEntities.defaultCollateralAddress
                 : address(tokensAddresses.stETHToken),
-            owner: tanssi
+            owner: tanssi,
+            operator: address(0)
         });
 
         if (!isTest) {

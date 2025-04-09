@@ -119,7 +119,8 @@ contract Demo is Script {
             shouldBroadcast: true,
             vaultConfigurator: address(vaultConfigurator),
             collateral: address(stETHToken),
-            owner: tanssi
+            owner: tanssi,
+            operator: address(0)
         });
 
         (vaultAddresses.vault, vaultAddresses.delegator, vaultAddresses.slasher) = deployVault.createBaseVault(params);
