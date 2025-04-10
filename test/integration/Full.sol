@@ -73,6 +73,7 @@ import {DeployVault} from "script/DeployVault.s.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
 import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
+import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 
@@ -199,6 +200,7 @@ contract MiddlewareTest is Test {
     Token public usdc;
     Token public wBTC;
     Token public stETH;
+    Token public STAR;
     VaultConfigurator public vaultConfigurator;
 
     uint256 ownerPrivateKey =
@@ -233,7 +235,7 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function setUp() public {
-        _deployAndMintCollaterals();
+        _deployTokens();
 
         address usdcOracle = _deployOracle(ORACLE_DECIMALS_USDC, ORACLE_CONVERSION_USDC);
         address wBtcOracle = _deployOracle(ORACLE_DECIMALS_BTC, ORACLE_CONVERSION_W_BTC);
@@ -300,7 +302,7 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
     }
 
-    function _deployAndMintCollaterals() internal {
+    function _deployTokens() internal {
         DeployCollateral deployCollateral = new DeployCollateral();
         address usdcAddress = deployCollateral.deployCollateral("usdc", TOKEN_DECIMALS_USDC);
         usdc = Token(usdcAddress);
@@ -308,16 +310,8 @@ contract MiddlewareTest is Test {
         wBTC = Token(wBTCAddress);
         address stETHAddress = deployCollateral.deployCollateral("stETH", TOKEN_DECIMALS_ETH);
         stETH = Token(stETHAddress);
-
-        usdc.mint(operator1, OPERATOR1_STAKE_V1_USDC);
-        wBTC.mint(operator1, OPERATOR1_STAKE_V2_WBTC);
-        wBTC.mint(operator2, OPERATOR2_STAKE_V2_WBTC);
-        wBTC.mint(operator3, OPERATOR3_STAKE_V2_WBTC + OPERATOR4_STAKE_V3_WBTC);
-        wBTC.mint(operator4, OPERATOR4_STAKE_V3_WBTC);
-        wBTC.mint(operator5, OPERATOR5_STAKE_V3_WBTC);
-        stETH.mint(operator5, OPERATOR5_STAKE_V4_STETH);
-        stETH.mint(operator6, OPERATOR6_STAKE_V4_STETH);
-        stETH.mint(operator7, OPERATOR7_STAKE_V5_STETH);
+        address starAddress = deployCollateral.deployCollateral("STAR", TOKEN_DECIMALS_USDC);
+        STAR = Token(starAddress);
     }
 
     function _deployMiddlewareWithProxy(address operatorRewardsAddress, address stakerRewardsFactoryAddress) public {
@@ -550,33 +544,48 @@ contract MiddlewareTest is Test {
 
     function _depositToVaults() public {
         // Operator 1
-        _depositToVault(vaultsData.v1.vault, operator1, OPERATOR1_STAKE_V1_USDC, usdc);
-        _depositToVault(vaultsData.v2.vault, operator1, OPERATOR1_STAKE_V2_WBTC, wBTC);
+        _depositToVault(vaultsData.v1.vault, operator1, OPERATOR1_STAKE_V1_USDC, usdc, true);
+        _depositToVault(vaultsData.v2.vault, operator1, OPERATOR1_STAKE_V2_WBTC, wBTC, true);
         // Operator 2
-        _depositToVault(vaultsData.v2.vault, operator2, OPERATOR2_STAKE_V2_WBTC, wBTC);
+        _depositToVault(vaultsData.v2.vault, operator2, OPERATOR2_STAKE_V2_WBTC, wBTC, true);
         // Operator 3
-        _depositToVault(vaultsData.v2.vault, operator3, OPERATOR3_STAKE_V2_WBTC, wBTC);
-        _depositToVault(vaultsData.v3.vault, operator3, OPERATOR3_STAKE_V3_WBTC, wBTC);
+        _depositToVault(vaultsData.v2.vault, operator3, OPERATOR3_STAKE_V2_WBTC, wBTC, true);
+        _depositToVault(vaultsData.v3.vault, operator3, OPERATOR3_STAKE_V3_WBTC, wBTC, true);
         // Operator 4
-        _depositToVault(vaultsData.v3.vault, operator4, OPERATOR4_STAKE_V3_WBTC, wBTC);
+        _depositToVault(vaultsData.v3.vault, operator4, OPERATOR4_STAKE_V3_WBTC, wBTC, true);
         // Operator 5
-        _depositToVault(vaultsData.v3.vault, operator5, OPERATOR5_STAKE_V3_WBTC, wBTC);
-        _depositToVault(vaultsData.v4.vault, operator5, OPERATOR5_STAKE_V4_STETH, stETH);
+        _depositToVault(vaultsData.v3.vault, operator5, OPERATOR5_STAKE_V3_WBTC, wBTC, true);
+        _depositToVault(vaultsData.v4.vault, operator5, OPERATOR5_STAKE_V4_STETH, stETH, true);
         // Operator
-        _depositToVault(vaultsData.v4.vault, operator6, OPERATOR6_STAKE_V4_STETH, stETH);
+        _depositToVault(vaultsData.v4.vault, operator6, OPERATOR6_STAKE_V4_STETH, stETH, true);
         // Operator
-        _depositToVault(vaultsData.v5.vault, operator7, OPERATOR7_STAKE_V5_STETH, stETH);
+        _depositToVault(vaultsData.v5.vault, operator7, OPERATOR7_STAKE_V5_STETH, stETH, true);
     }
 
-    function _depositToVault(IVault _vault, address _operator, uint256 _amount, Token collateral) public {
-        vm.startPrank(_operator);
-        collateral.approve(address(_vault), _amount * 10);
-        _vault.deposit(_operator, _amount);
+    function _depositToVault(
+        IVault vault,
+        address depositor,
+        uint256 amount,
+        Token collateral,
+        bool mintFirst
+    ) public {
+        if (mintFirst) {
+            collateral.mint(depositor, amount);
+        }
+        vm.startPrank(depositor);
+        collateral.approve(address(vault), amount * 10);
+        vault.deposit(depositor, amount);
+        vm.stopPrank();
+    }
+
+    function _withdrawFromVault(IVault vault, address withdrawer, uint256 amount, Token collateral) public {
+        vm.startPrank(withdrawer);
+        vault.withdraw(withdrawer, amount);
         vm.stopPrank();
     }
 
     // ************************************************************************************************
-    // *                                        TESTS
+    // *                                        POWER
     // ************************************************************************************************
 
     function testOperatorPower() public {
@@ -628,5 +637,141 @@ contract MiddlewareTest is Test {
         uint256 expectedOperatorPower7 =
             OPERATOR7_STAKE_V5_STETH.mulDiv(uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS_ETH);
         assertEq(validators[6].power, expectedOperatorPower7);
+    }
+
+    function testOperatorPowerWithAdditionalStake() public {
+        address staker1 = makeAddr("staker1");
+        address staker2 = makeAddr("staker2");
+
+        uint256 staker1Stake = 20_000 * 10 ** TOKEN_DECIMALS_USDC;
+        uint256 staker2Stake = 30_000 * 10 ** TOKEN_DECIMALS_USDC;
+
+        _depositToVault(vaultsData.v1.vault, staker1, staker1Stake, usdc, true);
+        _depositToVault(vaultsData.v1.vault, staker2, staker2Stake, usdc, true);
+
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
+        Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+
+        uint256 expectedOperatorPower1 = (OPERATOR1_STAKE_V1_USDC + staker1Stake + staker2Stake).mulDiv(
+            10 ** 18, 10 ** TOKEN_DECIMALS_USDC
+        ) // Normalized to 18 decimals
+            + OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+        assertEq(validators[0].power, expectedOperatorPower1);
+    }
+
+    function testOperatorPowerUpdatesAfterNetworkEpochOnDeposit() public {
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
+        Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+
+        uint256 expectedOperatorPower1 = OPERATOR1_STAKE_V1_USDC.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC) // Normalized to 18 decimals
+            + OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+        assertEq(validators[0].power, expectedOperatorPower1);
+
+        uint256 operator1_additional_stake = 100_000 * 10 ** TOKEN_DECIMALS_USDC;
+
+        _depositToVault(vaultsData.v1.vault, operator1, operator1_additional_stake, usdc, true);
+
+        // Power should not change until the network epoch ends
+        validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+        assertEq(validators[0].power, expectedOperatorPower1);
+
+        // Power should not change until the network epoch ends
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION / 2);
+        validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+        assertEq(validators[0].power, expectedOperatorPower1);
+
+        // Power changes even before the vault epoch ends, only network epoch needs to
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION);
+        expectedOperatorPower1 += operator1_additional_stake.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC); // Normalized to 18 decimals
+        validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+        assertEq(validators[0].power, expectedOperatorPower1);
+    }
+
+    function testOperatorPowerUpdatesAfterNetworkEpochOnWithdraw() public {
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
+        Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+
+        uint256 expectedOperatorPower1 = OPERATOR1_STAKE_V1_USDC.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC) // Normalized to 18 decimals
+            + OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+        assertEq(validators[0].power, expectedOperatorPower1);
+
+        uint256 operator1_withdraw_stake = 50_000 * 10 ** TOKEN_DECIMALS_USDC;
+
+        _withdrawFromVault(vaultsData.v1.vault, operator1, operator1_withdraw_stake, usdc);
+
+        // Power should not change until the network epoch ends
+        validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+        assertEq(validators[0].power, expectedOperatorPower1);
+
+        // Power should not change until the network epoch ends
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION / 2);
+        validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+        assertEq(validators[0].power, expectedOperatorPower1);
+
+        // Power changes even before the vault epoch ends, only network epoch needs to
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION);
+        expectedOperatorPower1 -= operator1_withdraw_stake.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC); // Normalized to 18 decimals
+        validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+        assertEq(validators[0].power, expectedOperatorPower1);
+    }
+
+    // ************************************************************************************************
+    // *                                       REWARDS DISTRIBUTION
+    // ************************************************************************************************
+
+    function _loadRewardsRootAndProof(
+        uint48 eraIndex,
+        uint48 operator
+    ) internal returns (uint48 epoch, bytes32 rewardsRoot, bytes32[] memory proof, uint32 points, uint32 totalPoints) {
+        string memory project_root = vm.projectRoot();
+        string memory path = string.concat(project_root, "/test/integration/rewards_data.json");
+        string memory json = vm.readFile(path);
+
+        string memory key = string.concat("$.", vm.toString(eraIndex), ".root");
+        rewardsRoot = vm.parseJsonBytes32(json, key);
+
+        key = string.concat("$.", vm.toString(eraIndex), ".epoch");
+        epoch = uint48(vm.parseJsonUint(json, key));
+
+        key = string.concat("$.", vm.toString(eraIndex), ".operator", vm.toString(operator), "_proof");
+        proof = vm.parseJsonBytes32Array(json, key);
+
+        key = string.concat("$.", vm.toString(eraIndex), ".operator", vm.toString(operator), "_points");
+        points = uint32(vm.parseJsonUint(json, key));
+
+        key = string.concat("$.", vm.toString(eraIndex), ".total_points");
+        totalPoints = uint32(vm.parseJsonUint(json, key));
+    }
+
+    function testRewardsAreDistributedAccordingToPowerForOperators() public {
+        uint48 eraIndex = 1;
+        (uint48 epoch, bytes32 rewardsRoot, bytes32[] memory proof, uint32 points, uint32 totalPoints) =
+            _loadRewardsRootAndProof(eraIndex, 1);
+
+        uint48 epochStartTs = middleware.getEpochStart(epoch);
+
+        uint256 amountToDistribute = 100 ether;
+        vm.warp(epochStartTs + 1);
+
+        STAR.mint(address(middleware), amountToDistribute);
+
+        vm.startPrank(address(gateway));
+        middleware.distributeRewards(epoch, eraIndex, totalPoints, amountToDistribute, rewardsRoot, address(STAR));
+        vm.stopPrank();
+
+        // uint256 maxAdminFee, bytes memory activeSharesHint, bytes memory activeStakeHint
+        bytes memory additionalData = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
+
+        IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
+            operatorKey: OPERATOR1_KEY,
+            eraIndex: eraIndex,
+            totalPointsClaimable: points,
+            proof: proof,
+            data: additionalData
+        });
+
+        operatorRewards.claimRewards(claimRewardsData);
+
+        // TODO Steven: Check op1 received the right rewards
     }
 }

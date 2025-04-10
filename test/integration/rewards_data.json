@@ -1,0 +1,43 @@
+{
+  "1": {
+    "epoch": 1,
+    "total_points": 100,
+    "root": "0x8222cf14c50a00eaec88527ee1e99ec9953337b1709902c145ba45e3834993c4",
+    "operator1_proof": [
+      "0x5da769f6c710dcb58c76228f12605b09fb93bed9039bc66d3c7dfb60f6fc3c10",
+      "0xaea19daf934c7f6074fe8bf0b72a032aac449cc37a846e859bdf5dcab9019a15",
+      "0xebce1cb676606b3320691dfdc4a6827befeb57c4b048d0578179ee8301eadadf"
+    ],
+    "operator1_points": 10,
+    "operator2_proof": [
+      "0x871cebb878e7cd82c6e67870790d9c39b176f160297dc3ba7082ab8deb4c8b00",
+      "0xaea19daf934c7f6074fe8bf0b72a032aac449cc37a846e859bdf5dcab9019a15",
+      "0xebce1cb676606b3320691dfdc4a6827befeb57c4b048d0578179ee8301eadadf"
+    ],
+    "operator2_points": 20,
+    "operator3_proof": [
+      "0x7aa72ad48826fe03d6a4bbf2598e1753fb7641efbbad5daacea9bd6a0bf7a507",
+      "0xe0d31d378b04fb8cab52397fefd821ad68da3b2f63c0c62eae5bc980fb5c8cc8",
+      "0xebce1cb676606b3320691dfdc4a6827befeb57c4b048d0578179ee8301eadadf"
+    ],
+    "operator3_points": 20,
+    "operator4_proof": [
+      "0x7516d2a8a5528eb8e716579e0a6a7440d66309c43ac5fdd94ca2ebe474e4b500",
+      "0xe0d31d378b04fb8cab52397fefd821ad68da3b2f63c0c62eae5bc980fb5c8cc8",
+      "0xebce1cb676606b3320691dfdc4a6827befeb57c4b048d0578179ee8301eadadf"
+    ],
+    "operator4_points": 20,
+    "operator5_proof": [
+      "0x83c12d12d582435240381e5fc8a4ffa411c42911996ed848790319f7f5d4c63b",
+      "0xecedcc5e8af6af22765a0037841db9ea4a1e98ed4e6a7064712bb6e3bb3851e3"
+    ],
+    "operator5_points": 20,
+    "operator6_proof": [],
+    "operator6_points": 0,
+    "operator7_proof": [
+      "0x27e610a11a547f210646001377ae223bc6bce387931f8153624d21f6478512d2",
+      "0xecedcc5e8af6af22765a0037841db9ea4a1e98ed4e6a7064712bb6e3bb3851e3"
+    ],
+    "operator7_points": 10
+  }
+}
