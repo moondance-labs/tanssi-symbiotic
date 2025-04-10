@@ -263,19 +263,19 @@ contract Middleware is
     function distributeRewards(
         uint256 epoch,
         uint256 eraIndex,
-        uint256 totalPointsToken,
-        uint256 tokensInflatedToken,
+        uint256 totalPoints,
+        uint256 tokenAmount,
         bytes32 rewardsRoot,
         address tokenAddress
     ) external checkAccess {
-        if (IERC20(tokenAddress).balanceOf(address(this)) < tokensInflatedToken) {
+        if (IERC20(tokenAddress).balanceOf(address(this)) < tokenAmount) {
             revert Middleware__InsufficientBalance();
         }
 
-        IERC20(tokenAddress).approve(i_operatorRewards, tokensInflatedToken);
+        IERC20(tokenAddress).approve(i_operatorRewards, tokenAmount);
 
         IODefaultOperatorRewards(i_operatorRewards).distributeRewards(
-            uint48(epoch), uint48(eraIndex), tokensInflatedToken, totalPointsToken, rewardsRoot, tokenAddress
+            uint48(epoch), uint48(eraIndex), tokenAmount, totalPoints, rewardsRoot, tokenAddress
         );
     }
 
