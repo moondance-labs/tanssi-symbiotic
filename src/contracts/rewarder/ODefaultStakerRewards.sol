@@ -77,54 +77,21 @@ contract ODefaultStakerRewards is
                 ++epoch;
                 continue;
             }
-            for (uint256 j; j < previousRewards.length;) {
-                $.rewards[epoch][tokenAddress] += previousRewards[j];
+            for (uint256 i; i < previousRewards.length;) {
+                $.rewards[epoch][tokenAddress] += previousRewards[i];
                 unchecked {
-                    ++j;
+                    ++i;
                 }
             }
+
             $.activeSharesCache[epoch] = $$.activeSharesCache[epoch];
             $.claimableAdminFee[epoch][tokenAddress] = $$.claimableAdminFee[epoch][tokenAddress];
+
             unchecked {
                 ++epoch;
             }
         }
     }
-
-    // function migrateOperatorClaimed(uint48 startEpoch, uint48 endEpoch, address tokenAddress) external {
-    //     PreviousStakerRewardsStorage storage $$ = _getOldStakerRewardsStorage();
-    //     StakerRewardsStorage storage $ = _getStakerRewardsStorage();
-    //     address middleware = INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network);
-    //     // all on chain => so we read from the previous storage location and we migrate
-    //     for (uint48 epoch = startEpoch; epoch < endEpoch; epoch++) {
-    //         uint256[] memory previousRewards = $$.rewards[epoch][tokenAddress];
-    //         uint48 epochTs = EpochCapture(middleware).getEpochStart(epoch);
-    //         uint256 activeSharesCache = $$.activeSharesCache[epoch];
-    //         address[] memory operators = IOBaseMiddlewareReader(middleware).activeOperatorsAt(epochTs);
-    //         for (uint256 k; k < operators.length;) {
-    //             address account = operators[k];
-
-    //             if ($.stakerClaimedRewardPerEpoch[account][epoch][tokenAddress] != 0) {
-    //                 ++k;
-    //                 continue;
-    //             }
-
-    //             for (uint256 j; j < $$.lastUnclaimedReward[account][epoch][tokenAddress];) {
-    //                 uint256 amount = IVault(i_vault).activeSharesOfAt(account, epochTs, new bytes(0)).mulDiv(
-    //                     previousRewards[j], activeSharesCache
-    //                 );
-
-    //                 $.stakerClaimedRewardPerEpoch[account][epoch][tokenAddress] += amount;
-    //                 unchecked {
-    //                     ++j;
-    //                 }
-    //             }
-    //             unchecked {
-    //                 ++k;
-    //             }
-    //         }
-    //     }
-    // }
 
     function migrateOperatorClaimed(uint48 startEpoch, uint48 endEpoch, address tokenAddress) external {
         PreviousStakerRewardsStorage storage $$ = _getOldStakerRewardsStorage();
@@ -136,16 +103,15 @@ contract ODefaultStakerRewards is
             uint48 epochTs = EpochCapture(middleware).getEpochStart(epoch);
             uint256 activeSharesCache = $$.activeSharesCache[epoch];
             address[] memory operators = IOBaseMiddlewareReader(middleware).activeOperatorsAt(epochTs);
-            for (uint256 k; k < operators.length;) {
-                address account = operators[k];
+            for (uint256 i; i < operators.length;) {
+                address account = operators[i];
 
-                if ($.stakerClaimedRewardPerEpoch[account][epoch][tokenAddress] != 0) {
-                    ++k;
-                    continue;
+                if ($.stakerClaimedRewardPerEpoch[account][epoch][tokenAddress] == 0) {
+                    _setStakerClaimed($, $$, account, epoch, tokenAddress, activeSharesCache, previousRewards, epochTs);
                 }
-                _setStakerClaimed($, $$, account, epoch, tokenAddress, activeSharesCache, previousRewards, epochTs);
+
                 unchecked {
-                    ++k;
+                    ++i;
                 }
             }
         }
@@ -162,14 +128,14 @@ contract ODefaultStakerRewards is
         uint48 epochTs
     ) private {
         uint256 lastUnclaimedIndex = $$.lastUnclaimedReward[account][epoch][tokenAddress];
-        for (uint256 j; j < lastUnclaimedIndex;) {
+        for (uint256 i; i < lastUnclaimedIndex;) {
             uint256 amount = IVault(i_vault).activeSharesOfAt(account, epochTs, new bytes(0)).mulDiv(
-                previousRewards[j], activeSharesCache
+                previousRewards[i], activeSharesCache
             );
 
             $.stakerClaimedRewardPerEpoch[account][epoch][tokenAddress] += amount;
             unchecked {
-                ++j;
+                ++i;
             }
         }
     }
