@@ -688,7 +688,6 @@ contract RewardsTest is Test {
 
         _distributeRewards(epoch, eraIndex, AMOUNT_TO_DISTRIBUTE, address(token));
 
-        address recipient = Middleware(middleware).operatorByKey(abi.encode(ALICE_KEY));
         bytes32[] memory proof = _generateValidProof();
 
         IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
@@ -1546,8 +1545,6 @@ contract RewardsTest is Test {
         }
 
         vm.startPrank(address(tanssi));
-        ODefaultStakerRewards newStakerRewards =
-            new ODefaultStakerRewards(address(networkMiddlewareService), address(vault), tanssi);
 
         stakerRewards.migrate(0, maxEpoch, address(token));
 
@@ -1573,6 +1570,38 @@ contract RewardsTest is Test {
 
             uint256 claimed = stakerRewards.stakerClaimedRewardPerEpoch(alice, epoch, address(token));
             assertEq(claimed, epoch % 2 == 0 ? BASE_AMOUNT : 0);
+
+            // Check slot has been cleared for alice
+            bytes32 lastUnclaimedSlot = bytes32(uint256(PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION) + uint256(2)); // 2 is mapping slot number for the variable lastUnclaimedReward
+            lastUnclaimedSlot = keccak256(abi.encode(alice, lastUnclaimedSlot));
+            lastUnclaimedSlot = keccak256(abi.encode(epoch, lastUnclaimedSlot));
+            lastUnclaimedSlot = keccak256(abi.encode(address(token), lastUnclaimedSlot));
+            bytes32 aliceLastUnclaimed = vm.load(address(stakerRewards), lastUnclaimedSlot);
+            assertEq(uint256(aliceLastUnclaimed), 0);
+
+            // Check data has been cleared
+            bytes32 oldRewardLengthSlot = bytes32(uint256(PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION) + uint256(1)); // 1 is mapping slot number for the variable rewards
+            oldRewardLengthSlot = keccak256(abi.encode(epoch, oldRewardLengthSlot));
+            // Get slot for second mapping with tokenAddress
+            bytes32 tokenSlot = keccak256(abi.encode(address(token), oldRewardLengthSlot));
+            bytes32 arrayLoc = keccak256(abi.encode(tokenSlot));
+
+            bytes32 oldRewardLength = vm.load(address(stakerRewards), tokenSlot);
+            bytes32 firstValueInRewardsArray = vm.load(address(stakerRewards), arrayLoc);
+
+            assertEq(uint256(firstValueInRewardsArray), 0);
+            assertEq(uint256(oldRewardLength), 0);
+
+            bytes32 oldCacheSlot =
+                keccak256(abi.encode(epoch, bytes32(uint256(PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION) + 4)));
+            bytes32 oldCacheValue = vm.load(address(stakerRewards), oldCacheSlot);
+            assertEq(uint256(oldCacheValue), 0);
+
+            bytes32 claimableAdminFeeSlot = bytes32(uint256(PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION) + uint256(3)); // 3 is slot number for the variable claimableAdminFee
+            claimableAdminFeeSlot = keccak256(abi.encode(epoch, claimableAdminFeeSlot));
+            claimableAdminFeeSlot = keccak256(abi.encode(address(token), claimableAdminFeeSlot));
+            bytes32 oldClaimableAdminFee = vm.load(address(stakerRewards), claimableAdminFeeSlot);
+            assertEq(uint256(oldClaimableAdminFee), 0);
         }
     }
 
@@ -1595,8 +1624,6 @@ contract RewardsTest is Test {
         }
 
         vm.startPrank(address(tanssi));
-        ODefaultStakerRewards newStakerRewards =
-            new ODefaultStakerRewards(address(networkMiddlewareService), address(vault), tanssi);
 
         stakerRewards.migrate(1, maxEpoch, address(token));
         stakerRewards.migrate(1, maxEpoch, address(token));
@@ -1631,8 +1658,6 @@ contract RewardsTest is Test {
         }
 
         vm.startPrank(address(tanssi));
-        ODefaultStakerRewards newStakerRewards =
-            new ODefaultStakerRewards(address(networkMiddlewareService), address(vault), tanssi);
 
         address[] memory operators = new address[](2);
         operators[0] = alice;
