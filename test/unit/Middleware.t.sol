@@ -2439,7 +2439,7 @@ contract MiddlewareTest is Test {
 
     function _prepareInitializeTest() private returns (Middleware middleware2, IMiddleware.InitParams memory params) {
         middleware2 = Middleware(address(new MiddlewareProxy(address(middlewareImpl), "")));
-        address readHelper_ = address(new OBaseMiddlewareReader());
+        readHelper = address(new OBaseMiddlewareReader());
         params = IMiddleware.InitParams({
             network: tanssi,
             operatorRegistry: address(registry),
@@ -2448,7 +2448,7 @@ contract MiddlewareTest is Test {
             owner: owner,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
-            reader: readHelper_
+            reader: readHelper
         });
     }
 

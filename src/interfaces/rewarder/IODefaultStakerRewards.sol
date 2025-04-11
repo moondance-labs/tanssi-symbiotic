@@ -52,8 +52,6 @@ interface IODefaultStakerRewards {
      * @param claimer account that claimed the reward
      * @param epoch epoch of the reward
      * @param recipient account that received the reward
-     * @param lastUnclaimedReward index of the last unclaimed reward
-     * @param numRewards number of rewards claimed
      * @param amount amount of tokens claimed
      */
     event ClaimRewards(
@@ -62,8 +60,6 @@ interface IODefaultStakerRewards {
         address indexed claimer,
         uint48 indexed epoch,
         address recipient,
-        uint256 lastUnclaimedReward,
-        uint256 numRewards,
         uint256 amount
     );
 
@@ -156,23 +152,22 @@ interface IODefaultStakerRewards {
      * @notice Get a specific reward for a given epoch.
      * @param epoch The epoch of the reward.
      * @param tokenAddress The address of the token for the specified reward.
-     * @param index The index of the reward for the epoch.
      * @return amount The amount of tokens for the specified reward.
      */
-    function rewards(uint48 epoch, address tokenAddress, uint256 index) external view returns (uint256 amount);
+    function rewards(uint48 epoch, address tokenAddress) external view returns (uint256 amount);
 
     /**
-     * @notice Get the first index of the unclaimed rewards using a given epoch for a given account.
+     * @notice Get the amount already claimed by the staker
      * @param account address of the account
      * @param epoch epoch to check for unclaimed rewards
      * @param tokenAddress address of the token for the rewards
-     * @return rewardIndex first index of the unclaimed rewards
+     * @return claimed amount that has been already claimed
      */
-    function lastUnclaimedReward(
+    function stakerClaimedRewardPerEpoch(
         address account,
         uint48 epoch,
         address tokenAddress
-    ) external view returns (uint256 rewardIndex);
+    ) external view returns (uint256 claimed);
 
     /**
      * @notice Get a claimable admin fee amount for a given epoch.
@@ -183,27 +178,13 @@ interface IODefaultStakerRewards {
     function claimableAdminFee(uint48 epoch, address tokenAddress) external view returns (uint256 amount);
 
     /**
-     * @notice Get a total number of rewards for a given epoch.
-     * @param epoch epoch of the rewards
-     * @param tokenAddress address of the reward token
-     * @return total number of the rewards for a given epoch
-     */
-    function rewardsLength(uint48 epoch, address tokenAddress) external view returns (uint256);
-
-    /**
      * @notice Get an amount of rewards claimable by a particular account for a given epoch.
      * @param epoch epoch for which the rewards can be claimed
      * @param account address of the claimer
-     * @param maxRewards maximum number of rewards to claim
      * @param tokenAddress address of the reward token
      * @return amount of claimable tokens
      */
-    function claimable(
-        uint48 epoch,
-        address account,
-        uint256 maxRewards,
-        address tokenAddress
-    ) external view returns (uint256);
+    function claimable(uint48 epoch, address account, address tokenAddress) external view returns (uint256);
 
     /**
      * @notice Distribute rewards for a particular epoch
@@ -226,9 +207,14 @@ interface IODefaultStakerRewards {
      * @param recipient address of the tokens' recipient
      * @param epoch epoch for which the rewards are being claimed.
      * @param tokenAddress address of the reward token
-     * @param data some data to use
+     * @param activeSharesOfHints hint indexes to optimize `activeSharesOf()` processing
      */
-    function claimRewards(address recipient, uint48 epoch, address tokenAddress, bytes calldata data) external;
+    function claimRewards(
+        address recipient,
+        uint48 epoch,
+        address tokenAddress,
+        bytes calldata activeSharesOfHints
+    ) external;
 
     /**
      * @notice Claim an admin fee.
