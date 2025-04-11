@@ -76,7 +76,8 @@ contract ODefaultStakerRewards is
         for (uint48 epoch = startEpoch; epoch < endEpoch;) {
             if (!$$.epochMigrated[epoch]) {
                 uint256[] memory previousRewards = $$.rewards[epoch][tokenAddress];
-                for (uint256 i = 0; i < previousRewards.length;) {
+                uint256 rewardsLength = previousRewards.length;
+                for (uint256 i = 0; i < rewardsLength;) {
                     $.rewards[epoch][tokenAddress] += previousRewards[i];
                     unchecked {
                         ++i;
