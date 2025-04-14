@@ -98,10 +98,21 @@ async function checkOldStorageCleared() {
     );
 
     // Determine the base slots for each mapping within the PreviousStakerRewardsStorage struct
+    //   struct PreviousStakerRewardsStorage {
+    //     uint256 adminFee; --- 0
+    //     mapping(uint48 epoch => mapping(address tokenAddress => uint256[] rewards_)) rewards; --- 1
+    //     mapping(address account => mapping(uint48 epoch => mapping(address tokenAddress => uint256 rewardIndex)))
+    //         lastUnclaimedReward; --- 2
+    //     mapping(uint48 epoch => mapping(address tokenAddress => uint256 amount)) claimableAdminFee; --- 3
+    //     mapping(uint48 epoch => uint256 amount) activeSharesCache; --- 4
+    //     mapping(uint48 epoch => bool) epochMigrated; --- 5
+    // }
+
     const rewardsMappingBaseSlot = getMappingStorageSlot(1); // 1 is the mapping slot number for rewards
     const lastUnclaimedMappingBaseSlot = getMappingStorageSlot(2); // 2 is the mapping slot number for lastUnclaimedReward
     const claimableAdminFeeMappingBaseSlot = getMappingStorageSlot(3); // 3 is the mapping slot number for claimableAdminFee
     const activeSharesCacheMappingBaseSlot = getMappingStorageSlot(4); // 4 is the mapping slot number for activeSharesCache
+    const epochMigratedMappingBaseSlot = getMappingStorageSlot(5); // 5 is the mapping slot number for epochMigrated
 
     // $$.rewards[epoch][tokenAddress]
     try {
@@ -184,6 +195,23 @@ async function checkOldStorageCleared() {
           throw error;
         }
       }
+    }
+
+    // $$.epochMigrated[epoch]
+    try {
+      const dataForEpochMigrated = [EPOCH_TO_CHECK];
+      const typesForEpochMigrated = ["uint48"];
+      const value = await getLocationData(
+        STAKER_CONTRACT,
+        dataForEpochMigrated,
+        typesForEpochMigrated,
+        epochMigratedMappingBaseSlot,
+        provider
+      );
+      console.log("Storage value for epochMigrated:", value.toString());
+    } catch (error) {
+      console.error("Error reading storage for epochMigrated:", error);
+      throw error;
     }
   } catch (error) {
     console.error("\n--- ERROR ---");
