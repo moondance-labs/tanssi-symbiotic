@@ -1,0 +1,11 @@
+{
+  "name": "utils",
+  "version": "1.0.0",
+  "description": "",
+  "main": "checkStorage.js",
+  "author": "Beniamino Daniele",
+  "dependencies": {
+    "dotenv": "^16.5.0",
+    "ethers": "5.7"
+  }
+}
