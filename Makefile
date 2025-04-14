@@ -41,7 +41,7 @@ test :; forge test
 
 testv :; forge test -vvvv
 
-coverage :; forge coverage --nmp test/fork/* 
+coverage :; forge coverage --nmp test/fork/*
 
 coverage-fork :; forge coverage --mp test/fork/* --fork-url ${FORK_RPC_URL}
 

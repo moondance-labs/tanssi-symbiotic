@@ -157,10 +157,6 @@ contract Middleware is
         }
     }
 
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override checkAccess {}
-
     function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
         address collateral = vaultToCollateral(vault);
         address oracle = collateralToOracle(collateral);
@@ -461,4 +457,8 @@ contract Middleware is
             revert Middleware__InvalidAddress();
         }
     }
+
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override checkAccess {}
 }
