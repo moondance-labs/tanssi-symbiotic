@@ -7,7 +7,16 @@ const { hexValue } = ethers.utils;
 const STAKER_CONTRACT = process.env.STAKER_CONTRACT;
 const RPC_URL = process.env.RPC_URL;
 const TOKEN_ADDRESS_TO_CHECK = process.env.TOKEN_ADDRESS_TO_CHECK;
-const OPERATOR_ADDRESS_TO_CHECK = process.env.OPERATOR_ADDRESS_TO_CHECK;
+
+let operatorAddresses = [];
+if (process.env.OPERATOR_ADDRESSES) {
+  operatorAddresses = process.env.OPERATOR_ADDRESSES.split(",").map((op) =>
+    op.trim()
+  );
+} else if (process.env.OPERATOR_ADDRESS_TO_CHECK) {
+  operatorAddresses = [process.env.OPERATOR_ADDRESS_TO_CHECK];
+}
+
 const PREVIOUS_STORAGE_LOCATION =
   "0xe07cde22a6017f26eee680b6867ce6727151fb6097c75742cbe379265c377400";
 
@@ -28,7 +37,7 @@ if (!epochArg) {
   process.exit(1);
 }
 
-const EPOCH_TO_CHECK = parseInt(epochArg, 10);
+const EPOCH_TO_CHECK = parseInt(epochArg);
 if (isNaN(EPOCH_TO_CHECK) || EPOCH_TO_CHECK < 0) {
   console.error(
     `Error: Invalid epoch number provided: "${epochArg}". Please provide a non-negative integer.`
@@ -70,6 +79,12 @@ async function getLocationData(
   return ethers.BigNumber.from(value);
 }
 
+function getMappingStorageSlot(position) {
+  return hexValue(
+    ethers.BigNumber.from(PREVIOUS_STORAGE_LOCATION).add(position)
+  );
+}
+
 async function checkOldStorageCleared() {
   const provider = new JsonRpcProvider(RPC_URL);
   console.log(
@@ -83,18 +98,10 @@ async function checkOldStorageCleared() {
     );
 
     // Determine the base slots for each mapping within the PreviousStakerRewardsStorage struct
-    const rewardsMappingBaseSlot = hexValue(
-      ethers.BigNumber.from(PREVIOUS_STORAGE_LOCATION).add(1) // 1 is the mapping slot number for rewards
-    );
-    const lastUnclaimedMappingBaseSlot = hexValue(
-      ethers.BigNumber.from(PREVIOUS_STORAGE_LOCATION).add(2) // 2 is the mapping slot number for lastUnclaimedRewardsIndex
-    );
-    const claimableAdminFeeMappingBaseSlot = hexValue(
-      ethers.BigNumber.from(PREVIOUS_STORAGE_LOCATION).add(3) // 3 is the mapping slot number for claimableAdminFee
-    );
-    const activeSharesCacheMappingBaseSlot = hexValue(
-      ethers.BigNumber.from(PREVIOUS_STORAGE_LOCATION).add(4) // 4 is the mapping slot number for activeSharesCache
-    );
+    const rewardsMappingBaseSlot = getMappingStorageSlot(1); // 1 is the mapping slot number for rewards
+    const lastUnclaimedMappingBaseSlot = getMappingStorageSlot(2); // 2 is the mapping slot number for lastUnclaimedReward
+    const claimableAdminFeeMappingBaseSlot = getMappingStorageSlot(3); // 3 is the mapping slot number for claimableAdminFee
+    const activeSharesCacheMappingBaseSlot = getMappingStorageSlot(4); // 4 is the mapping slot number for activeSharesCache
 
     // $$.rewards[epoch][tokenAddress]
     try {
@@ -148,25 +155,34 @@ async function checkOldStorageCleared() {
     }
 
     // $$.lastUnclaimedReward[account][epoch][tokenAddress]
-    if (OPERATOR_ADDRESS_TO_CHECK) {
-      try {
-        const dataForLastUnclaimedReward = [
-          OPERATOR_ADDRESS_TO_CHECK,
-          EPOCH_TO_CHECK,
-          TOKEN_ADDRESS_TO_CHECK,
-        ];
-        const typesForLastUnclaimedReward = ["address", "uint48", "address"];
-        const value = await getLocationData(
-          STAKER_CONTRACT,
-          dataForLastUnclaimedReward,
-          typesForLastUnclaimedReward,
-          claimableAdminFeeMappingBaseSlot,
-          provider
-        );
-        console.log("Storage value for lastUnclaimedReward:", value.toString());
-      } catch (error) {
-        console.error("Error reading storage for lastUnclaimedReward:", error);
-        throw error;
+    if (operatorAddresses.length > 0) {
+      for (const operator of operatorAddresses) {
+        try {
+          const dataForLastUnclaimedReward = [
+            operator,
+            EPOCH_TO_CHECK,
+            TOKEN_ADDRESS_TO_CHECK,
+          ];
+          const typesForLastUnclaimedReward = ["address", "uint48", "address"];
+
+          const value = await getLocationData(
+            STAKER_CONTRACT,
+            dataForLastUnclaimedReward,
+            typesForLastUnclaimedReward,
+            lastUnclaimedMappingBaseSlot,
+            provider
+          );
+          console.log(
+            `Storage value for lastUnclaimedReward for operator ${operator}:`,
+            value.toString()
+          );
+        } catch (error) {
+          console.error(
+            `Error reading storage for lastUnclaimedReward for operator ${operator}:`,
+            error
+          );
+          throw error;
+        }
       }
     }
   } catch (error) {
