@@ -781,7 +781,7 @@ contract MiddlewareTest is Test {
 
         assertEq(STAR.balanceOf(operator1), expectedRewardsForOperator);
 
-        _checkStakerRewardsForOperator1(epoch, expectedRewardsForStakers);
+        _checkStakerRewardsForVault1AndVault2(epoch, expectedRewardsForStakers);
     }
 
     function _checkStakerRewardsForVault1AndVault2(uint48 epoch, uint256 expectedRewardsForStakers) private {
@@ -804,9 +804,8 @@ contract MiddlewareTest is Test {
             // Operator 1 is the only staker on the vault, so they get all the rewards minus the admin fee
             uint256 expectedRewardsStakerOperator1Vault1 =
                 expectedRewardsStakerVault1.mulDiv(MAX_PERCENTAGE - ADMIN_FEE, MAX_PERCENTAGE);
-            uint256 stakerRewardsOperator1Vault1 = IODefaultStakerRewards(stakerRewardsContractVault1).claimable(
-                epoch, operator1, expectedRewardsStakerOperator1Vault1, address(STAR)
-            );
+            uint256 stakerRewardsOperator1Vault1 =
+                IODefaultStakerRewards(stakerRewardsContractVault1).claimable(epoch, operator1, address(STAR));
             assertApproxEqAbs(expectedRewardsStakerOperator1Vault1, stakerRewardsOperator1Vault1, 1);
         }
 
@@ -818,23 +817,20 @@ contract MiddlewareTest is Test {
         {
             // Operator 1 in Vault 2
             uint256 expectedRewards = expectedRewardsStakerVault2.mulDiv(OPERATOR1_STAKE_V2_WBTC, totalStakeVault2);
-            uint256 actualRewards = IODefaultStakerRewards(stakerRewardsContractVault2).claimable(
-                epoch, operator1, expectedRewards, address(STAR)
-            );
+            uint256 actualRewards =
+                IODefaultStakerRewards(stakerRewardsContractVault2).claimable(epoch, operator1, address(STAR));
             assertApproxEqAbs(expectedRewards, actualRewards, 1);
 
             // Operator 2 in Vault 2
             expectedRewards = expectedRewardsStakerVault2.mulDiv(OPERATOR2_STAKE_V2_WBTC, totalStakeVault2);
-            actualRewards = IODefaultStakerRewards(stakerRewardsContractVault2).claimable(
-                epoch, operator2, expectedRewards, address(STAR)
-            );
+            actualRewards =
+                IODefaultStakerRewards(stakerRewardsContractVault2).claimable(epoch, operator2, address(STAR));
             assertApproxEqAbs(expectedRewards, actualRewards, 1);
 
             // Operator 3 in Vault 2
             expectedRewards = expectedRewardsStakerVault2.mulDiv(OPERATOR3_STAKE_V2_WBTC, totalStakeVault2);
-            actualRewards = IODefaultStakerRewards(stakerRewardsContractVault2).claimable(
-                epoch, operator3, expectedRewards, address(STAR)
-            );
+            actualRewards =
+                IODefaultStakerRewards(stakerRewardsContractVault2).claimable(epoch, operator3, address(STAR));
             assertApproxEqAbs(expectedRewards, actualRewards, 1);
         }
     }
