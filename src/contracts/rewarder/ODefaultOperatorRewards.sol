@@ -20,6 +20,7 @@ pragma solidity 0.8.25;
 
 import {INetworkMiddlewareService} from "@symbiotic/interfaces/service/INetworkMiddlewareService.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
+import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN
@@ -35,7 +36,10 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 //**************************************************************************************************
 import {ScaleCodec} from "@tanssi-bridge-relayer/snowbridge/contracts/src/utils/ScaleCodec.sol";
 
-import {Middleware} from "src/contracts/middleware/Middleware.sol";
+//**************************************************************************************************
+//                                      TANSSI
+//**************************************************************************************************
+import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 
@@ -47,9 +51,8 @@ contract ODefaultOperatorRewards is
 {
     using SafeERC20 for IERC20;
     using Math for uint256;
-
-    // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultOperatorRewards.v1")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 constant MAIN_STORAGE_LOCATION = 0x57cf781f364664df22ab0472e35114435fb4a6881ab5a1b47ed6d1a7d4605400;
+    using Subnetwork for address;
+    using Subnetwork for bytes32;
 
     /// @custom:storage-location erc7201:tanssi.rewards.ODefaultOperatorRewards.v1
     struct OperatorRewardsStorage {
@@ -60,7 +63,12 @@ contract ODefaultOperatorRewards is
         mapping(address vault => address stakerRewardsAddress) vaultToStakerRewardsContract;
     }
 
+    // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultOperatorRewards.v1")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 constant OPERATOR_REWARDS_STORAGE_LOCATION =
+        0x57cf781f364664df22ab0472e35114435fb4a6881ab5a1b47ed6d1a7d4605400;
+
     uint48 public constant MAX_PERCENTAGE = 10_000;
+
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
@@ -78,12 +86,22 @@ contract ODefaultOperatorRewards is
         _;
     }
 
-    constructor(address network, address networkMiddlewareService) {
+    modifier notZeroAddress(
+        address address_
+    ) {
+        _checkNotZeroAddress(address_);
+        _;
+    }
+
+    constructor(
+        address network,
+        address networkMiddlewareService
+    ) notZeroAddress(network) notZeroAddress(networkMiddlewareService) {
         i_network = network;
         i_networkMiddlewareService = networkMiddlewareService;
     }
 
-    function initialize(uint48 operatorShare_, address owner_) public initializer {
+    function initialize(uint48 operatorShare_, address owner_) public initializer notZeroAddress(owner_) {
         __Ownable_init(owner_);
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
@@ -160,7 +178,7 @@ contract ODefaultOperatorRewards is
 
         address middlewareAddress = INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network);
         // Starlight sends back only the operator key, thus we need to get back the operator address
-        address recipient = Middleware(middlewareAddress).operatorByKey(abi.encode(input.operatorKey));
+        address recipient = IOBaseMiddlewareReader(middlewareAddress).operatorByKey(abi.encode(input.operatorKey));
 
         // Calculate the total amount of tokens that can be claimed which is:
         // total amount of tokens = total points claimable * tokens per point
@@ -194,33 +212,98 @@ contract ODefaultOperatorRewards is
         uint48 epoch,
         uint48 eraIndex,
         uint256 stakerAmount,
-        address recipient,
+        address operator,
         address middlewareAddress,
         address tokenAddress,
         bytes calldata data
     ) private {
         uint48 epochStartTs = EpochCapture(middlewareAddress).getEpochStart(epoch);
 
-        //TODO: For now this is expected to be a single vault. Change it to be able to handle multiple vaults.
-        (, address[] memory operatorVaults) = Middleware(middlewareAddress).getOperatorVaults(recipient, epochStartTs);
+        (, address[] memory operatorVaults) =
+            IOBaseMiddlewareReader(middlewareAddress).getOperatorVaults(operator, epochStartTs);
 
-        // TODO: Currently it's only for a specific vault. We don't care now about making it able to send rewards for multiple vaults. It's hardcoded to the first vault of the operator.
-        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
-        if (operatorVaults.length > 0) {
-            IODefaultStakerRewards($.vaultToStakerRewardsContract[operatorVaults[0]]).distributeRewards(
-                epoch, eraIndex, stakerAmount, tokenAddress, data
-            );
+        uint256 totalVaults = operatorVaults.length;
+        if (totalVaults == 0) {
+            revert ODefaultOperatorRewards__NoVaults();
+        }
+        uint256[] memory amountPerVault = _getRewardsAmountPerVault(
+            operatorVaults, totalVaults, epochStartTs, operator, middlewareAddress, stakerAmount
+        );
+
+        _distributeRewardsPerVault(epoch, eraIndex, tokenAddress, totalVaults, operatorVaults, amountPerVault, data);
+    }
+
+    function _getRewardsAmountPerVault(
+        address[] memory operatorVaults,
+        uint256 totalVaults,
+        uint48 epochStartTs,
+        address operator,
+        address middlewareAddress,
+        uint256 stakerAmount
+    ) private view returns (uint256[] memory amountPerVault) {
+        // First we get the operator power per vault
+        uint96 subnetwork = i_network.subnetwork(0).identifier();
+        IOBaseMiddlewareReader reader = IOBaseMiddlewareReader(middlewareAddress);
+
+        uint256[] memory vaultPowers = new uint256[](totalVaults);
+        uint256 totalPower;
+        for (uint256 i; i < totalVaults;) {
+            vaultPowers[i] = reader.getOperatorPowerAt(epochStartTs, operator, operatorVaults[i], subnetwork);
+            totalPower += vaultPowers[i];
+            unchecked {
+                ++i;
+            }
+        }
+
+        // Then we calculate the rewards according to the operator power on each vault
+        uint256 distributedAmount;
+        amountPerVault = new uint256[](totalVaults);
+        for (uint256 i; i < totalVaults;) {
+            uint256 amountForVault;
+            // Last vault gets the remaining amount
+            if (i == totalVaults - 1) {
+                amountForVault = stakerAmount - distributedAmount;
+            } else {
+                amountForVault = vaultPowers[i].mulDiv(stakerAmount, totalPower);
+            }
+            amountPerVault[i] = amountForVault;
+            unchecked {
+                distributedAmount += amountForVault;
+                ++i;
+            }
         }
     }
 
-    //TODO Probably this function should become a function triggered by middleware that create a new staker contract (calling the create on factory contract) and then set the staker contract address here. Probably this can be called during registration of the vault? `registerSharedVault`
+    function _distributeRewardsPerVault(
+        uint48 epoch,
+        uint48 eraIndex,
+        address tokenAddress,
+        uint256 totalVaults,
+        address[] memory operatorVaults,
+        uint256[] memory amountPerVault,
+        bytes calldata data
+    ) private {
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        for (uint256 i; i < totalVaults;) {
+            address stakerRewardsForVault = $.vaultToStakerRewardsContract[operatorVaults[i]];
+            IERC20(tokenAddress).approve(stakerRewardsForVault, amountPerVault[i]);
+            IODefaultStakerRewards(stakerRewardsForVault).distributeRewards(
+                epoch, eraIndex, amountPerVault[i], tokenAddress, data
+            );
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
-    function setStakerRewardContract(address stakerRewards, address vault) external onlyMiddleware {
-        if (stakerRewards == address(0) || vault == address(0)) {
-            revert ODefaultOperatorRewards__InvalidAddress();
-        }
+    function setStakerRewardContract(
+        address stakerRewards,
+        address vault
+    ) external onlyMiddleware notZeroAddress(stakerRewards) notZeroAddress(vault) {
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
 
         if ($.vaultToStakerRewardsContract[vault] == stakerRewards) {
@@ -301,9 +384,17 @@ contract ODefaultOperatorRewards is
     ) internal override onlyOwner {}
 
     function _getOperatorRewardsStorage() private pure returns (OperatorRewardsStorage storage $) {
-        bytes32 position = MAIN_STORAGE_LOCATION;
+        bytes32 position = OPERATOR_REWARDS_STORAGE_LOCATION;
         assembly {
             $.slot := position
+        }
+    }
+
+    function _checkNotZeroAddress(
+        address address_
+    ) private pure {
+        if (address_ == address(0)) {
+            revert ODefaultOperatorRewards__InvalidAddress();
         }
     }
 }

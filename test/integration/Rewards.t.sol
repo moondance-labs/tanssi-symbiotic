@@ -15,7 +15,7 @@
 pragma solidity 0.8.25;
 
 import {Test} from "forge-std/Test.sol";
-
+import {console2} from "forge-std/console2.sol";
 //**************************************************************************************************
 //                                      SYMBIOTIC
 //**************************************************************************************************
@@ -33,12 +33,16 @@ import {VaultConfigurator} from "@symbiotic/contracts/VaultConfigurator.sol";
 import {Vault} from "@symbiotic/contracts/vault/Vault.sol";
 import {VetoSlasher} from "@symbiotic/contracts/slasher/VetoSlasher.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
-import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlewareReader.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 import {IOzAccessControl} from "@symbiotic-middleware/interfaces/extensions/managers/access/IOzAccessControl.sol";
 import {PauseableEnumerableSet} from "@symbiotic-middleware/libraries/PauseableEnumerableSet.sol";
 import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
 import {OperatorManager} from "@symbiotic-middleware/managers/OperatorManager.sol";
+
+//**************************************************************************************************
+//                                      CHAINLINK
+//**************************************************************************************************
+import {MockV3Aggregator} from "@chainlink/tests/MockV3Aggregator.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN
@@ -65,6 +69,7 @@ import {Gateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Gateway.s
 
 import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
+import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {Token} from "test/mocks/Token.sol";
@@ -75,6 +80,7 @@ import {DeployRewards} from "script/DeployRewards.s.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
+import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 
 contract RewardsTest is Test {
     using Subnetwork for address;
@@ -84,19 +90,32 @@ contract RewardsTest is Test {
     uint48 public constant VAULT_EPOCH_DURATION = 8 days;
     uint48 public constant NETWORK_EPOCH_DURATION = 6 days;
     uint48 public constant SLASHING_WINDOW = 7 days;
-    uint48 public constant VETO_DURATION = 1 days;
-    uint256 public constant SLASH_AMOUNT = 30 ether;
-    uint256 public constant OPERATOR_STAKE = 100 ether;
-    uint256 public constant DEFAULT_WITHDRAW_AMOUNT = 30 ether;
     uint256 public constant OPERATOR_INITIAL_BALANCE = 1000 ether;
-    uint256 public constant MIN_SLASHING_WINDOW = 1 days;
-    bytes32 public constant OPERATOR_KEY = bytes32(uint256(1));
-    bytes32 public constant OPERATOR2_KEY = bytes32(uint256(2));
-    bytes32 public constant OPERATOR3_KEY = bytes32(uint256(3));
-    uint48 public constant OPERATOR_SHARE = 2000;
-    uint256 public constant TOTAL_NETWORK_SHARES = 3;
-    uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
+    uint48 public constant OPERATOR_SHARE = 2000; // 20%
     uint256 public constant ONE_DAY = 86_400;
+
+    // We use pregenerated keys and proofs for the operators, alice becomes operator 3
+    bytes32 public constant OPERATOR_KEY = bytes32(uint256(1));
+    bytes32 public OPERATOR2_KEY;
+    bytes32 public OPERATOR3_KEY;
+    bytes32 public OPERATOR3_PROOF;
+    bytes32 public REWARDS_ROOT;
+    bytes public REWARDS_ADDITIONAL_DATA;
+    bytes public CLAIM_REWARDS_ADDITIONAL_DATA;
+
+    uint256 public constant AMOUNT_TO_DISTRIBUTE = 100 ether;
+    uint32 public constant AMOUNT_TO_CLAIM = 20;
+    uint256 public constant TOKENS_PER_POINT = 1;
+    uint256 public constant EXPECTED_CLAIMABLE = uint256(AMOUNT_TO_CLAIM) * TOKENS_PER_POINT;
+
+    uint256 public constant OPERATOR_STAKE_ST_ETH = 90 ether;
+    uint256 public constant OPERATOR_STAKE_R_ETH = 90 ether;
+    uint256 public constant OPERATOR_STAKE_BTC = 2 ether;
+
+    uint8 public constant ORACLE_DECIMALS = 16;
+    int256 public constant ORACLE_CONVERSION_ST_ETH = 3000 ether;
+    int256 public constant ORACLE_CONVERSION_R_ETH = 3000 ether;
+    int256 public constant ORACLE_CONVERSION_W_BTC = 90_000 ether;
 
     struct VaultAddresses {
         address vault;
@@ -147,9 +166,7 @@ contract RewardsTest is Test {
     address public owner = vm.addr(ownerPrivateKey);
 
     address public operator = makeAddr("operator");
-
     address public operator2 = makeAddr("operator2");
-
     address public operator3 = makeAddr("operator3");
 
     address public resolver1 = makeAddr("resolver1");
@@ -205,6 +222,18 @@ contract RewardsTest is Test {
     DeployVault deployVault;
 
     function setUp() public {
+        string memory root = vm.projectRoot();
+        string memory path = string.concat(root, "/test/unit/rewards_data.json");
+        string memory json = vm.readFile(path);
+
+        // Get payload
+        OPERATOR3_KEY = vm.parseJsonBytes32(json, "$.alice_key");
+        OPERATOR2_KEY = vm.parseJsonBytes32(json, "$.bob_key");
+        REWARDS_ROOT = vm.parseJsonBytes32(json, "$.root");
+        OPERATOR3_PROOF = vm.parseJsonBytes32(json, "$.alice_rewards_proof");
+        REWARDS_ADDITIONAL_DATA = vm.parseJsonBytes(json, "$.rewards_additional_data");
+        CLAIM_REWARDS_ADDITIONAL_DATA = vm.parseJsonBytes(json, "$.claim_rewards_additional_data");
+
         DeployCollateral deployCollateral = new DeployCollateral();
 
         vm.startPrank(owner);
@@ -218,6 +247,10 @@ contract RewardsTest is Test {
         wBTC = Token(wBTCAddress);
         wBTC.mint(owner, 1_000_000 ether);
         vm.stopPrank();
+
+        address stEthOracle = _deployOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_ST_ETH);
+        address rEthOracle = _deployOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_R_ETH);
+        address wBtcOracle = _deployOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_W_BTC);
 
         deployVault = new DeployVault();
         DeploySymbiotic deploySymbiotic = new DeploySymbiotic();
@@ -256,9 +289,13 @@ contract RewardsTest is Test {
         );
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
         address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
-            address(vaultFactory), address(networkMiddlewareService), uint48(block.timestamp), NETWORK_EPOCH_DURATION
+            address(vaultFactory), address(networkMiddlewareService), operatorRewardsAddress, tanssi
         );
         middleware = _deployMiddlewareWithProxy(tanssi, owner, address(operatorRewards), stakerRewardsFactoryAddress);
+
+        middleware.setCollateralToOracle(address(stETH), stEthOracle);
+        middleware.setCollateralToOracle(address(rETH), rEthOracle);
+        middleware.setCollateralToOracle(address(wBTC), wBtcOracle);
 
         vetoSlasher = VetoSlasher(vaultAddresses.slasherVetoed);
 
@@ -283,20 +320,20 @@ contract RewardsTest is Test {
         _setLimitForNetworkAndOperators(tanssi);
 
         vm.startPrank(operator);
-        _depositToVault(vault, operator, 100 ether, stETH);
+        _depositToVault(vault, operator, OPERATOR_STAKE_ST_ETH, stETH);
 
         vm.startPrank(operator2);
+        _depositToVault(vaultSlashable, operator2, OPERATOR_STAKE_R_ETH, rETH);
+        _depositToVault(vaultVetoed, operator2, OPERATOR_STAKE_BTC, wBTC);
         operatorVaultOptInService.optIn(address(vaultSlashable));
-        _depositToVault(vaultSlashable, operator2, 100 ether, rETH);
-        _depositToVault(vaultVetoed, operator2, 100 ether, wBTC);
         vm.stopPrank();
 
         vm.startPrank(operator3);
+        _depositToVault(vault, operator3, OPERATOR_STAKE_ST_ETH, stETH);
+        _depositToVault(vaultSlashable, operator3, OPERATOR_STAKE_R_ETH, rETH);
+        _depositToVault(vaultVetoed, operator3, OPERATOR_STAKE_BTC, wBTC);
         operatorVaultOptInService.optIn(address(vault));
         operatorVaultOptInService.optIn(address(vaultVetoed));
-        _depositToVault(vault, operator3, 100 ether, stETH);
-        _depositToVault(vaultSlashable, operator3, 100 ether, rETH);
-        _depositToVault(vaultVetoed, operator3, 100 ether, wBTC);
 
         vm.stopPrank();
 
@@ -317,16 +354,17 @@ contract RewardsTest is Test {
     ) public returns (Middleware _middleware) {
         Middleware _middlewareImpl = new Middleware(_operatorRewardsAddress, _stakerRewardsFactoryAddress);
         _middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
-        _middleware.initialize(
-            _network,
-            address(operatorRegistry),
-            address(vaultFactory),
-            address(operatorNetworkOptInService),
-            _owner,
-            NETWORK_EPOCH_DURATION,
-            SLASHING_WINDOW,
-            address(new BaseMiddlewareReader())
-        );
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: _network,
+            operatorRegistry: address(operatorRegistry),
+            vaultRegistry: address(vaultFactory),
+            operatorNetworkOptIn: address(operatorNetworkOptInService),
+            owner: _owner,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: SLASHING_WINDOW,
+            reader: address(new OBaseMiddlewareReader())
+        });
+        _middleware.initialize(params);
 
         networkMiddlewareService.setMiddleware(address(_middleware));
     }
@@ -358,7 +396,7 @@ contract RewardsTest is Test {
     }
 
     function _depositToVault(Vault _vault, address _operator, uint256 _amount, Token collateral) public {
-        collateral.approve(address(_vault), _amount * 10);
+        collateral.approve(address(_vault), _amount);
         _vault.deposit(_operator, _amount);
     }
 
@@ -367,13 +405,10 @@ contract RewardsTest is Test {
     ) public {
         vm.startPrank(_owner);
         IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
-            vault: address(0),
             adminFee: 0,
             defaultAdminRoleHolder: _owner,
             adminFeeClaimRoleHolder: _owner,
-            adminFeeSetRoleHolder: _owner,
-            operatorRewardsRoleHolder: _owner,
-            network: tanssi
+            adminFeeSetRoleHolder: _owner
         });
         middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
         middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsParams);
@@ -426,6 +461,7 @@ contract RewardsTest is Test {
         INetworkRestakeDelegator(vaultAddresses.delegator).setMaxNetworkLimit(0, 1000 ether);
         INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setMaxNetworkLimit(0, 1000 ether);
         INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setMaxNetworkLimit(0, 1000 ether);
+
         INetworkRestakeDelegator(vaultAddresses.delegator).setNetworkLimit(tanssi.subnetwork(0), 1000 ether);
         INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setNetworkLimit(tanssi.subnetwork(0), 1000 ether);
         INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setNetworkLimit(tanssi.subnetwork(0), 1000 ether);
@@ -518,12 +554,12 @@ contract RewardsTest is Test {
     // ************************************************************************************************
 
     function testInitialState() public view {
-        assertEq(BaseMiddlewareReader(address(middleware)).NETWORK(), tanssi);
-        assertEq(BaseMiddlewareReader(address(middleware)).OPERATOR_REGISTRY(), address(operatorRegistry));
-        assertEq(BaseMiddlewareReader(address(middleware)).VAULT_REGISTRY(), address(vaultFactory));
+        assertEq(OBaseMiddlewareReader(address(middleware)).NETWORK(), tanssi);
+        assertEq(OBaseMiddlewareReader(address(middleware)).OPERATOR_REGISTRY(), address(operatorRegistry));
+        assertEq(OBaseMiddlewareReader(address(middleware)).VAULT_REGISTRY(), address(vaultFactory));
         assertEq(EpochCapture(address(middleware)).getEpochDuration(), NETWORK_EPOCH_DURATION);
-        assertEq(BaseMiddlewareReader(address(middleware)).SLASHING_WINDOW(), SLASHING_WINDOW);
-        assertEq(BaseMiddlewareReader(address(middleware)).subnetworksLength(), 1);
+        assertEq(OBaseMiddlewareReader(address(middleware)).SLASHING_WINDOW(), SLASHING_WINDOW);
+        assertEq(OBaseMiddlewareReader(address(middleware)).subnetworksLength(), 1);
     }
 
     function testSubmitRewards() public {
@@ -590,5 +626,107 @@ contract RewardsTest is Test {
             proof,
             makeMockProof()
         );
+    }
+
+    function testClaimRewardsWithMultipleVaults() public {
+        uint48 epoch = 1;
+        uint48 eraIndex = 0;
+        uint48 epochStartTs = middleware.getEpochStart(epoch);
+
+        vm.warp(NETWORK_EPOCH_DURATION * 2 + 1);
+
+        Token rewardsToken = new Token("Rewards", 18);
+        rewardsToken.mint(address(middleware), AMOUNT_TO_DISTRIBUTE);
+
+        vm.startPrank(address(gateway));
+        middleware.distributeRewards(
+            epoch, eraIndex, AMOUNT_TO_DISTRIBUTE, AMOUNT_TO_DISTRIBUTE, REWARDS_ROOT, address(rewardsToken)
+        );
+        vm.stopPrank();
+
+        bytes32[] memory operatator3Proof = new bytes32[](1);
+        // Create a valid proof that matches the root we set
+        operatator3Proof[0] = OPERATOR3_PROOF;
+
+        IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
+            operatorKey: OPERATOR3_KEY,
+            eraIndex: eraIndex,
+            totalPointsClaimable: AMOUNT_TO_CLAIM,
+            proof: operatator3Proof,
+            data: REWARDS_ADDITIONAL_DATA
+        });
+
+        // 40% of the staker rewards are distributed to the first vault. Order is important due to rounding.
+        uint256 expectedAmountStakers = (EXPECTED_CLAIMABLE * 80) / 100;
+        uint256[] memory expectedRewardsPerVault =
+            _getExpectedRewardsPerVault(operator3, epochStartTs, expectedAmountStakers);
+
+        vm.expectEmit(true, true, false, true);
+        emit IODefaultStakerRewards.DistributeRewards(
+            tanssi, address(rewardsToken), eraIndex, epoch, expectedRewardsPerVault[0], REWARDS_ADDITIONAL_DATA
+        );
+        vm.expectEmit(true, true, false, true);
+        emit IODefaultStakerRewards.DistributeRewards(
+            tanssi, address(rewardsToken), eraIndex, epoch, expectedRewardsPerVault[1], REWARDS_ADDITIONAL_DATA
+        );
+        vm.expectEmit(true, true, false, true);
+        emit IODefaultStakerRewards.DistributeRewards(
+            tanssi, address(rewardsToken), eraIndex, epoch, expectedRewardsPerVault[2], REWARDS_ADDITIONAL_DATA
+        );
+
+        vm.expectEmit(true, true, false, true);
+        emit IODefaultOperatorRewards.ClaimRewards(
+            operator3, address(rewardsToken), eraIndex, epoch, address(this), EXPECTED_CLAIMABLE
+        );
+
+        {
+            uint256 gasBefore = gasleft();
+            operatorRewards.claimRewards(claimRewardsData);
+            uint256 gasAfter = gasleft();
+
+            uint256 gasClaiming = gasBefore - gasAfter;
+            console2.log("Total gas used: ", gasClaiming);
+        }
+
+        uint256 amountClaimed_ = operatorRewards.claimed(eraIndex, operator3);
+        assertEq(amountClaimed_, EXPECTED_CLAIMABLE);
+
+        _checkStakerRewardsBalanceForVault(rewardsToken, address(vault), expectedRewardsPerVault[0]);
+        _checkStakerRewardsBalanceForVault(rewardsToken, address(vaultSlashable), expectedRewardsPerVault[1]);
+        _checkStakerRewardsBalanceForVault(rewardsToken, address(vaultVetoed), expectedRewardsPerVault[2]);
+    }
+
+    function _getExpectedRewardsPerVault(
+        address operator_,
+        uint48 epochStartTs,
+        uint256 expectedAmountStakers
+    ) private view returns (uint256[] memory rewards) {
+        uint256 powerVault1 = IOBaseMiddlewareReader(address(middleware)).getOperatorPowerAt(
+            epochStartTs, operator_, address(vault), uint96(0)
+        );
+        uint256 powerVault2 = IOBaseMiddlewareReader(address(middleware)).getOperatorPowerAt(
+            epochStartTs, operator_, address(vaultSlashable), uint96(0)
+        );
+        uint256 powerVault3 = IOBaseMiddlewareReader(address(middleware)).getOperatorPowerAt(
+            epochStartTs, operator_, address(vaultVetoed), uint96(0)
+        );
+
+        uint256 totalPower = powerVault1 + powerVault2 + powerVault3;
+        rewards = new uint256[](3);
+
+        rewards[0] = expectedAmountStakers.mulDiv(powerVault1, totalPower);
+        rewards[1] = expectedAmountStakers.mulDiv(powerVault2, totalPower);
+        rewards[2] = expectedAmountStakers - rewards[0] - rewards[1];
+    }
+
+    function _checkStakerRewardsBalanceForVault(Token token, address vault_, uint256 expectedAmount) private view {
+        address stakerRewards = operatorRewards.vaultToStakerRewardsContract(vault_);
+        uint256 stakerRewardsVault1Balance = token.balanceOf(stakerRewards);
+        assertEq(stakerRewardsVault1Balance, expectedAmount);
+    }
+
+    function _deployOracle(uint8 decimals, int256 answer) public returns (address) {
+        MockV3Aggregator oracle = new MockV3Aggregator(decimals, answer);
+        return address(oracle);
     }
 }

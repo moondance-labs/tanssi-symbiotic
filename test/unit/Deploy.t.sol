@@ -34,11 +34,12 @@ import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 import {IDefaultCollateralFactory} from
     "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateralFactory.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
-import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlewareReader.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {Token} from "test/mocks/Token.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
+import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
+import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
 import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
@@ -214,18 +215,20 @@ contract DeployTest is Test {
         address operatorRegistry = addresses.operatorRegistry;
         address vaultFactory = addresses.vaultFactory;
         address operatorNetworkOptIn = addresses.operatorNetworkOptInService;
+        address networkMiddlewareService = addresses.networkMiddlewareService;
 
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: tanssi,
+            operatorRegistry: operatorRegistry,
+            vaultRegistry: vaultFactory,
+            operatorNetworkOptIn: operatorNetworkOptIn,
+            owner: tanssi,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: 8 days,
+            reader: address(0)
+        });
         address middleware = deployTanssiEcosystem.deployMiddleware(
-            tanssi,
-            operatorRegistry,
-            vaultFactory,
-            operatorNetworkOptIn,
-            tanssi,
-            NETWORK_EPOCH_DURATION,
-            8 days,
-            operatorRewardsAddress,
-            stakerRewardsFactoryAddress,
-            address(0)
+            params, operatorRewardsAddress, stakerRewardsFactoryAddress, networkMiddlewareService
         );
         assertNotEq(middleware, ZERO_ADDRESS);
     }
@@ -244,13 +247,10 @@ contract DeployTest is Test {
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
 
         IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
-            vault: _vault,
             adminFee: 0,
             defaultAdminRoleHolder: tanssi,
             adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi,
-            operatorRewardsRoleHolder: tanssi,
-            network: tanssi
+            adminFeeSetRoleHolder: tanssi
         });
         deployTanssiEcosystem.registerSharedVault(address(middleware), _vault, stakerRewardsParams);
     }
@@ -264,18 +264,18 @@ contract DeployTest is Test {
         uint256 ownerPrivateKey =
             vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
         address _tanssi = vm.addr(ownerPrivateKey);
-
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: _tanssi,
+            operatorRegistry: operatorRegistry,
+            vaultRegistry: vaultFactory,
+            operatorNetworkOptIn: operatorNetworkOptIn,
+            owner: _tanssi,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: 9 days,
+            reader: address(0)
+        });
         address middleware = deployTanssiEcosystem.deployMiddleware(
-            _tanssi,
-            operatorRegistry,
-            vaultFactory,
-            operatorNetworkOptIn,
-            _tanssi,
-            NETWORK_EPOCH_DURATION,
-            9 days,
-            operatorRewardsAddress,
-            stakerRewardsFactoryAddress,
-            address(0)
+            params, operatorRewardsAddress, stakerRewardsFactoryAddress, address(0)
         );
 
         vm.expectEmit(true, true, false, false);
@@ -504,46 +504,6 @@ contract DeployTest is Test {
         vm.stopPrank();
     }
 
-    function testSetDelegatorConfigsWithSepoliaChain() public {
-        vm.chainId(11_155_111);
-        helperConfig = new HelperConfig();
-
-        deployTanssiEcosystem.deployTanssiEcosystem(helperConfig);
-        vm.startPrank(tanssi);
-
-        (, address delegator,,, address delegatorSlashable,,, address delegatorVetoed,) =
-            deployTanssiEcosystem.vaultAddresses();
-
-        assertEq(
-            INetworkRestakeDelegator(delegator).maxNetworkLimit(tanssi.subnetwork(0)),
-            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
-        );
-        assertEq(
-            INetworkRestakeDelegator(delegatorSlashable).maxNetworkLimit(tanssi.subnetwork(0)),
-            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
-        );
-        assertEq(
-            INetworkRestakeDelegator(delegatorVetoed).maxNetworkLimit(tanssi.subnetwork(0)),
-            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
-        );
-
-        // Verify subnet network limits
-        assertEq(
-            INetworkRestakeDelegator(delegator).networkLimit(tanssi.subnetwork(0)),
-            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
-        );
-        assertEq(
-            INetworkRestakeDelegator(delegatorSlashable).networkLimit(tanssi.subnetwork(0)),
-            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
-        );
-
-        assertEq(
-            INetworkRestakeDelegator(delegatorVetoed).networkLimit(tanssi.subnetwork(0)),
-            deployTanssiEcosystem.MAX_NETWORK_LIMIT()
-        );
-        vm.stopPrank();
-    }
-
     function testDefaultCollateralBeingDeployedIfHolesky() public {
         vm.createSelectFork(HOLESKY_RPC);
 
@@ -570,18 +530,6 @@ contract DeployTest is Test {
         vm.stopPrank();
     }
 
-    function testDefaultCollateralNotBeingDeployedIfSepolia() public {
-        vm.chainId(11_155_111);
-        vm.startPrank(tanssi);
-        deployTanssiEcosystem.deployTanssiEcosystem(helperConfig);
-
-        (,, address defaultCollateralAddress) = deployTanssiEcosystem.ecosystemEntities();
-
-        // Verify default collateral was deployed
-        assertTrue(defaultCollateralAddress == address(0));
-        vm.stopPrank();
-    }
-
     function testRegisterEntitiesToMiddleware() public {
         vm.startPrank(tanssi);
         // Deploy full ecosystem
@@ -591,9 +539,9 @@ contract DeployTest is Test {
         (address vault,,, address vaultSlashable,,, address vaultVetoed,,) = deployTanssiEcosystem.vaultAddresses();
 
         // Verify vault registrations
-        assertTrue(middleware.isVaultRegistered(vault));
-        assertTrue(middleware.isVaultRegistered(vaultSlashable));
-        assertTrue(middleware.isVaultRegistered(vaultVetoed));
+        assertTrue(OBaseMiddlewareReader(address(middleware)).isVaultRegistered(vault));
+        assertTrue(OBaseMiddlewareReader(address(middleware)).isVaultRegistered(vaultSlashable));
+        assertTrue(OBaseMiddlewareReader(address(middleware)).isVaultRegistered(vaultVetoed));
         vm.stopPrank();
     }
 
@@ -606,13 +554,15 @@ contract DeployTest is Test {
         assertTrue(address(middleware) != address(0));
         assertTrue(address(vaultConfigurator) != address(0));
 
-        assertEq(BaseMiddlewareReader(address(middleware)).NETWORK(), tanssi);
+        assertEq(OBaseMiddlewareReader(address(middleware)).NETWORK(), tanssi);
         assertEq(EpochCapture(address(middleware)).getEpochDuration(), deployTanssiEcosystem.NETWORK_EPOCH_DURATION());
-        assertEq(BaseMiddlewareReader(address(middleware)).SLASHING_WINDOW(), deployTanssiEcosystem.SLASHING_WINDOW());
+        assertEq(OBaseMiddlewareReader(address(middleware)).SLASHING_WINDOW(), deployTanssiEcosystem.SLASHING_WINDOW());
         vm.stopPrank();
     }
 
     function testDeployVaultWithVaultConfiguratorEmpty() public {
+        address stEth = makeAddr("stETH");
+
         DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
@@ -620,7 +570,7 @@ contract DeployTest is Test {
             delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
             shouldBroadcast: false,
             vaultConfigurator: address(0),
-            collateral: address(1),
+            collateral: stEth,
             owner: tanssi
         });
 
@@ -681,7 +631,7 @@ contract DeployTest is Test {
         vm.recordLogs();
         (Middleware middleware, IVaultConfigurator vaultConfigurator,) = deployTanssiEcosystem.ecosystemEntities();
 
-        IRegistry operatorRegistry = IRegistry(BaseMiddlewareReader(address(middleware)).OPERATOR_REGISTRY());
+        IRegistry operatorRegistry = IRegistry(OBaseMiddlewareReader(address(middleware)).OPERATOR_REGISTRY());
         vm.mockCall(
             address(operatorRegistry), abi.encodeWithSelector(operatorRegistry.isEntity.selector), abi.encode(true)
         );
@@ -699,11 +649,12 @@ contract DeployTest is Test {
         vm.recordLogs();
 
         (, IVaultConfigurator vaultConfigurator,) = deployTanssiEcosystem.ecosystemEntities();
+        (Token stETHToken,,) = deployTanssiEcosystem.tokensAddresses();
 
         DeployVault.VaultDeployParams memory deployParams = DeployVault.VaultDeployParams({
             vaultConfigurator: address(vaultConfigurator),
             owner: tanssi,
-            collateral: address(1),
+            collateral: address(stETHToken),
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
             depositLimit: 0,
@@ -762,9 +713,11 @@ contract DeployTest is Test {
 
     function testDeployRewardsStakerFactory() public {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
+        address operatorRewards =
+            deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20, tanssi);
 
         address stakerFactory = deployRewards.deployStakerRewardsFactoryContract(
-            addresses.vaultFactory, addresses.networkMiddlewareService, uint48(block.timestamp), NETWORK_EPOCH_DURATION
+            addresses.vaultFactory, addresses.networkMiddlewareService, operatorRewards, tanssi
         );
         assertNotEq(stakerFactory, ZERO_ADDRESS);
     }

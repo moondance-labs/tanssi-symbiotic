@@ -19,16 +19,13 @@ interface IODefaultStakerRewards {
     error ODefaultStakerRewards__HighAdminFee();
     error ODefaultStakerRewards__InsufficientAdminFee();
     error ODefaultStakerRewards__InsufficientReward();
+    error ODefaultStakerRewards__InvalidAddress();
     error ODefaultStakerRewards__InvalidAdminFee();
     error ODefaultStakerRewards__InvalidHintsLength();
     error ODefaultStakerRewards__InvalidRecipient();
     error ODefaultStakerRewards__InvalidRewardTimestamp();
     error ODefaultStakerRewards__MissingRoles();
     error ODefaultStakerRewards__NoRewardsToClaim();
-    error ODefaultStakerRewards__NotNetwork();
-    error ODefaultStakerRewards__NotNetworkMiddleware();
-    error ODefaultStakerRewards__NotVault();
-    error ODefaultStakerRewards__NotVaultFactory();
 
     /**
      * @notice Emitted when a reward is distributed.
@@ -55,8 +52,6 @@ interface IODefaultStakerRewards {
      * @param claimer account that claimed the reward
      * @param epoch epoch of the reward
      * @param recipient account that received the reward
-     * @param lastUnclaimedReward index of the last unclaimed reward
-     * @param numRewards number of rewards claimed
      * @param amount amount of tokens claimed
      */
     event ClaimRewards(
@@ -65,8 +60,6 @@ interface IODefaultStakerRewards {
         address indexed claimer,
         uint48 indexed epoch,
         address recipient,
-        uint256 lastUnclaimedReward,
-        uint256 numRewards,
         uint256 amount
     );
 
@@ -86,31 +79,16 @@ interface IODefaultStakerRewards {
 
     /**
      * @notice Initial parameters needed for a staker rewards contract deployment.
-     * @param vault address of the vault to get stakers' data from
      * @param adminFee admin fee (up to ADMIN_FEE_BASE inclusively)
      * @param defaultAdminRoleHolder address of the initial DEFAULT_ADMIN_ROLE holder
      * @param adminFeeClaimRoleHolder address of the initial ADMIN_FEE_CLAIM_ROLE holder
      * @param adminFeeSetRoleHolder address of the initial ADMIN_FEE_SET_ROLE holder
-     * @param network address of the network
      */
     struct InitParams {
-        address vault;
         uint256 adminFee;
         address defaultAdminRoleHolder;
         address adminFeeClaimRoleHolder;
         address adminFeeSetRoleHolder;
-        address operatorRewardsRoleHolder;
-        address network;
-    }
-    /**
-     * @notice Reward data structure.
-     * @param amount amount of tokens
-     * @param tokenAddress address of the reward token
-     */
-
-    struct Reward {
-        uint256 amount;
-        address tokenAddress;
     }
 
     /**
@@ -145,28 +123,10 @@ interface IODefaultStakerRewards {
     function OPERATOR_REWARDS_ROLE() external view returns (bytes32);
 
     /**
-     * @notice Get the vault factory's address.
-     * @return address of the vault factory
-     */
-    function i_vaultFactory() external view returns (address);
-
-    /**
      * @notice Get the network middleware service's address.
      * @return address of the network middleware service
      */
     function i_networkMiddlewareService() external view returns (address);
-
-    /**
-     * @notice Get the start time of network epoch.
-     * @return start time of the epoch
-     */
-    function i_startTime() external view returns (uint48);
-
-    /**
-     * @notice Get the duration of network epoch.
-     * @return duration of the epoch
-     */
-    function i_epochDuration() external view returns (uint48);
 
     /**
      * @notice Get the network's address.
@@ -192,23 +152,22 @@ interface IODefaultStakerRewards {
      * @notice Get a specific reward for a given epoch.
      * @param epoch The epoch of the reward.
      * @param tokenAddress The address of the token for the specified reward.
-     * @param index The index of the reward for the epoch.
      * @return amount The amount of tokens for the specified reward.
      */
-    function rewards(uint48 epoch, address tokenAddress, uint256 index) external view returns (uint256 amount);
+    function rewards(uint48 epoch, address tokenAddress) external view returns (uint256 amount);
 
     /**
-     * @notice Get the first index of the unclaimed rewards using a given epoch for a given account.
+     * @notice Get the amount already claimed by the staker
      * @param account address of the account
      * @param epoch epoch to check for unclaimed rewards
      * @param tokenAddress address of the token for the rewards
-     * @return rewardIndex first index of the unclaimed rewards
+     * @return claimed amount that has been already claimed
      */
-    function lastUnclaimedReward(
+    function stakerClaimedRewardPerEpoch(
         address account,
         uint48 epoch,
         address tokenAddress
-    ) external view returns (uint256 rewardIndex);
+    ) external view returns (uint256 claimed);
 
     /**
      * @notice Get a claimable admin fee amount for a given epoch.
@@ -219,37 +178,13 @@ interface IODefaultStakerRewards {
     function claimableAdminFee(uint48 epoch, address tokenAddress) external view returns (uint256 amount);
 
     /**
-     * @dev Added to allow to calculate timestamp in order to access activeSharesOfAt
-     * @notice Gets the timestamp when an epoch starts
-     * @param epoch The epoch number
-     * @return timestamp The start time of the epoch
-     */
-    function getEpochStartTs(
-        uint48 epoch
-    ) external view returns (uint48 timestamp);
-
-    /**
-     * @notice Get a total number of rewards for a given epoch.
-     * @param epoch epoch of the rewards
-     * @param tokenAddress address of the reward token
-     * @return total number of the rewards for a given epoch
-     */
-    function rewardsLength(uint48 epoch, address tokenAddress) external view returns (uint256);
-
-    /**
      * @notice Get an amount of rewards claimable by a particular account for a given epoch.
      * @param epoch epoch for which the rewards can be claimed
      * @param account address of the claimer
-     * @param maxRewards maximum number of rewards to claim
      * @param tokenAddress address of the reward token
      * @return amount of claimable tokens
      */
-    function claimable(
-        uint48 epoch,
-        address account,
-        uint256 maxRewards,
-        address tokenAddress
-    ) external view returns (uint256);
+    function claimable(uint48 epoch, address account, address tokenAddress) external view returns (uint256);
 
     /**
      * @notice Distribute rewards for a particular epoch
@@ -272,9 +207,14 @@ interface IODefaultStakerRewards {
      * @param recipient address of the tokens' recipient
      * @param epoch epoch for which the rewards are being claimed.
      * @param tokenAddress address of the reward token
-     * @param data some data to use
+     * @param activeSharesOfHints hint indexes to optimize `activeSharesOf()` processing
      */
-    function claimRewards(address recipient, uint48 epoch, address tokenAddress, bytes calldata data) external;
+    function claimRewards(
+        address recipient,
+        uint48 epoch,
+        address tokenAddress,
+        bytes calldata activeSharesOfHints
+    ) external;
 
     /**
      * @notice Claim an admin fee.

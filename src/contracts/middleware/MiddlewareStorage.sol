@@ -17,9 +17,25 @@ pragma solidity 0.8.25;
 import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfaces/IOGateway.sol";
 
 abstract contract MiddlewareStorage {
-    uint256 public constant VERSION = 1;
+    /// @custom:storage-location erc7201:tanssi.middleware.MiddlewareStorage.v1.1
+    struct StorageMiddleware {
+        address gateway;
+        uint256 lastTimestamp;
+        uint256 interval;
+        address forwarderAddress;
+        mapping(address collateral => address oracle) collateralToOracle;
+        mapping(address vault => address collateral) vaultToCollateral;
+    }
 
+    // keccak256(abi.encode(uint256(keccak256("tanssi.middleware.MiddlewareStorage.v1.1")) - 1)) & ~bytes32(uint256(0xff));
+    bytes32 private constant MIDDLEWARE_STORAGE_LOCATION =
+        0xca64b196a0d05040904d062f739ed1d1e1d3cc5de78f7001fb9039595fce9100;
+
+    uint8 public constant DEFAULT_DECIMALS = 18;
+    uint256 public constant VERSION = 1;
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
+    bytes32 internal constant GATEWAY_ROLE = keccak256("GATEWAY_ROLE");
+    bytes32 internal constant FORWARDER_ROLE = keccak256("FORWARDER_ROLE");
 
     /**
      * @notice Get the operator rewards contract address
@@ -33,18 +49,6 @@ abstract contract MiddlewareStorage {
      */
     address public immutable i_stakerRewardsFactory;
 
-    /// @custom:storage-location erc7201:tanssi.middleware.MiddlewareStorage.v1
-    struct StorageMiddleware {
-        IOGateway gateway;
-        mapping(uint48 epoch => uint256 amount) totalStakeCache;
-        mapping(uint48 epoch => bool) totalStakeIsCached;
-        mapping(uint48 epoch => mapping(address operator => uint256 amount)) operatorStakeCache;
-    }
-
-    // keccak256(abi.encode(uint256(keccak256("tanssi.middleware.MiddlewareStorage.v1")) - 1)) & ~bytes32(uint256(0xff));
-    bytes32 private constant MIDDLEWARE_STORAGE_LOCATION =
-        0x744f79b1118793e0a060dca4f01184704394f6e567161215b3d2c3126631e700;
-
     function _getMiddlewareStorage() internal pure returns (StorageMiddleware storage $v1) {
         assembly {
             $v1.slot := MIDDLEWARE_STORAGE_LOCATION
@@ -55,43 +59,68 @@ abstract contract MiddlewareStorage {
      * @notice Get the gateway contract
      * @return gateway contract
      */
-    function getGateway() public view returns (IOGateway) {
+    function getGateway() public view returns (address) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
         return $.gateway;
     }
 
     /**
-     * @notice Get the cached total stake amount for an epoch
-     * @param epoch epoch of which to get the total stake
-     * @return amount total stake amount
+     * @notice Get the last timestamp
+     * @return last timestamp
      */
-    function totalStakeCache(
-        uint48 epoch
-    ) public view returns (uint256) {
+    function getLastTimestamp() public view returns (uint256) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
-        return $.totalStakeCache[epoch];
+        return $.lastTimestamp;
     }
 
     /**
-     * @notice Get the total stake cache status for an epoch
-     * @param epoch epoch of which to get the cache status
-     * @return true if the total stake is cached, false otherwise
+     * @notice Get the forwarder address
+     * @return forwarder address
      */
-    function totalStakeIsCached(
-        uint48 epoch
-    ) public view returns (bool) {
+    function getForwarderAddress() public view returns (address) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
-        return $.totalStakeIsCached[epoch];
+        return $.forwarderAddress;
     }
 
     /**
-     * @notice Get the operator's stake amount cached for an epoch
-     * @param epoch epoch of the related operator's stake
-     * @param operator operator's address
-     * @return operator's stake amount
+     * @notice Get the interval
+     * @return interval
      */
-    function operatorStakeCache(uint48 epoch, address operator) public view returns (uint256) {
+    function getInterval() public view returns (uint256) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
-        return $.operatorStakeCache[epoch][operator];
+        return $.interval;
+    }
+
+    /**
+     * @notice Get the oracle address for a collateral
+     * @return oracle address
+     */
+    function collateralToOracle(
+        address collateral
+    ) public view returns (address) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        return $.collateralToOracle[collateral];
+    }
+
+    /**
+     * @notice Get the collateral address for a vault
+     * @return collateral address
+     */
+    function vaultToCollateral(
+        address vault
+    ) public view returns (address) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        return $.vaultToCollateral[vault];
+    }
+
+    /**
+     * @notice Get the oracle address for a vault
+     * @return oracle address
+     */
+    function vaultToOracle(
+        address vault
+    ) public view returns (address) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        return $.collateralToOracle[$.vaultToCollateral[vault]];
     }
 }

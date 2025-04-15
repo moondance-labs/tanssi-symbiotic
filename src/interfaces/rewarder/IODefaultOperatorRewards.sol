@@ -15,7 +15,6 @@
 pragma solidity ^0.8.0;
 
 interface IODefaultOperatorRewards {
-    error ODefaultOperatorRewards__InsufficientBalance();
     error ODefaultOperatorRewards__InsufficientTotalClaimable();
     error ODefaultOperatorRewards__InsufficientTransfer();
     error ODefaultOperatorRewards__NotNetworkMiddleware();
@@ -25,6 +24,7 @@ interface IODefaultOperatorRewards {
     error ODefaultOperatorRewards__InvalidOperatorShare();
     error ODefaultOperatorRewards__InvalidAddress();
     error ODefaultOperatorRewards__AlreadySet();
+    error ODefaultOperatorRewards__NoVaults();
 
     /**
      * @notice Emitted when rewards are distributed by providing a Merkle root.

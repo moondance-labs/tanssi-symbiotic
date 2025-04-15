@@ -19,9 +19,8 @@ pragma solidity 0.8.25;
 // *********************************************************************************************************************
 import {IStakerRewards} from "@symbiotic-rewards/interfaces/stakerRewards/IStakerRewards.sol";
 import {INetworkMiddlewareService} from "@symbiotic/interfaces/service/INetworkMiddlewareService.sol";
-import {IRegistry} from "@symbiotic/interfaces/common/IRegistry.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
-
+import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 // *********************************************************************************************************************
 //                                                  OPENZEPPELIN
 // *********************************************************************************************************************
@@ -34,7 +33,8 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
-import {IODefaultStakerRewards} from "../../interfaces/rewarder/IODefaultStakerRewards.sol";
+import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
+import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 
 contract ODefaultStakerRewards is
     AccessControlUpgradeable,
@@ -46,18 +46,117 @@ contract ODefaultStakerRewards is
     using SafeERC20 for IERC20;
     using Math for uint256;
 
-    // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultStakerRewards.v1")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 public constant MAIN_STORAGE_LOCATION = 0xe07cde22a6017f26eee680b6867ce6727151fb6097c75742cbe379265c377400;
+    /// @custom:storage-location erc7201:tanssi.rewards.ODefaultStakerRewards.v1.1
+    struct StakerRewardsStorage {
+        uint256 adminFee;
+        mapping(uint48 epoch => mapping(address tokenAddress => uint256 rewards_)) rewards;
+        mapping(address account => mapping(uint48 epoch => mapping(address tokenAddress => uint256 claimed)))
+            stakerClaimedRewardPerEpoch;
+        mapping(uint48 epoch => mapping(address tokenAddress => uint256 amount)) claimableAdminFee;
+        mapping(uint48 epoch => uint256 amount) activeSharesCache;
+    }
 
     /// @custom:storage-location erc7201:tanssi.rewards.ODefaultStakerRewards.v1
-    struct StakerRewardsStorage {
+    struct PreviousStakerRewardsStorage {
         uint256 adminFee;
         mapping(uint48 epoch => mapping(address tokenAddress => uint256[] rewards_)) rewards;
         mapping(address account => mapping(uint48 epoch => mapping(address tokenAddress => uint256 rewardIndex)))
             lastUnclaimedReward;
         mapping(uint48 epoch => mapping(address tokenAddress => uint256 amount)) claimableAdminFee;
         mapping(uint48 epoch => uint256 amount) activeSharesCache;
+        mapping(uint48 epoch => bool) epochMigrated;
     }
+
+    function migrate(uint48 startEpoch, uint48 endEpoch, address tokenAddress) external {
+        PreviousStakerRewardsStorage storage $$ = _getOldStakerRewardsStorage();
+        StakerRewardsStorage storage $ = _getStakerRewardsStorage();
+
+        // all on chain => so we read from the previous storage location and we migrate
+        for (uint48 epoch = startEpoch; epoch < endEpoch;) {
+            if (!$$.epochMigrated[epoch]) {
+                uint256[] memory previousRewards = $$.rewards[epoch][tokenAddress];
+                uint256 rewardsLength = previousRewards.length;
+                for (uint256 i = 0; i < rewardsLength;) {
+                    $.rewards[epoch][tokenAddress] += previousRewards[i];
+                    unchecked {
+                        ++i;
+                    }
+                }
+                uint256 activeSharesCache = $$.activeSharesCache[epoch];
+                _migrateOperators($, $$, epoch, tokenAddress, activeSharesCache, previousRewards);
+                $.activeSharesCache[epoch] = activeSharesCache;
+                $.claimableAdminFee[epoch][tokenAddress] = $$.claimableAdminFee[epoch][tokenAddress];
+                $$.epochMigrated[epoch] = true;
+
+                delete $$.rewards[epoch][tokenAddress];
+                delete $$.activeSharesCache[epoch];
+                delete $$.claimableAdminFee[epoch][tokenAddress];
+            }
+
+            unchecked {
+                ++epoch;
+            }
+        }
+    }
+
+    function _migrateOperators(
+        StakerRewardsStorage storage $,
+        PreviousStakerRewardsStorage storage $$,
+        uint48 epoch,
+        address tokenAddress,
+        uint256 activeSharesCache,
+        uint256[] memory previousRewards
+    ) internal {
+        address middleware = INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network);
+        uint48 epochTs = EpochCapture(middleware).getEpochStart(epoch);
+        address[] memory operators = IOBaseMiddlewareReader(middleware).activeOperatorsAt(epochTs);
+        uint256 operatorsLength = operators.length;
+        for (uint256 i = 0; i < operatorsLength;) {
+            address account = operators[i];
+
+            if ($.stakerClaimedRewardPerEpoch[account][epoch][tokenAddress] == 0) {
+                uint256 lastUnclaimedIndex = $$.lastUnclaimedReward[account][epoch][tokenAddress];
+                _setStakerClaimed(
+                    $, lastUnclaimedIndex, account, epoch, tokenAddress, activeSharesCache, previousRewards, epochTs
+                );
+                delete $$.lastUnclaimedReward[account][epoch][tokenAddress];
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function _setStakerClaimed(
+        StakerRewardsStorage storage $,
+        uint256 lastUnclaimedIndex,
+        address account,
+        uint48 epoch,
+        address tokenAddress,
+        uint256 activeSharesCache,
+        uint256[] memory previousRewards,
+        uint48 epochTs
+    ) private {
+        for (uint256 i; i < lastUnclaimedIndex;) {
+            uint256 amount = IVault(i_vault).activeSharesOfAt(account, epochTs, new bytes(0)).mulDiv(
+                previousRewards[i], activeSharesCache
+            );
+
+            $.stakerClaimedRewardPerEpoch[account][epoch][tokenAddress] += amount;
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultStakerRewards.v1")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION =
+        0xe07cde22a6017f26eee680b6867ce6727151fb6097c75742cbe379265c377400;
+
+    // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultStakerRewards.v1.1")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant STAKER_REWARDS_STORAGE_LOCATION =
+        0xef473712465551821e7a51c85c06a1bf76bdf2a3508e28184170ac7eb0322c00;
 
     /**
      * @inheritdoc IODefaultStakerRewards
@@ -83,12 +182,6 @@ contract ODefaultStakerRewards is
      * @inheritdoc IODefaultStakerRewards
      */
     bytes32 public constant OPERATOR_REWARDS_ROLE = keccak256("OPERATOR_REWARDS_ROLE");
-
-    /**
-     * @inheritdoc IODefaultStakerRewards
-     */
-    address public immutable i_vaultFactory;
-
     /**
      * @inheritdoc IODefaultStakerRewards
      */
@@ -104,57 +197,22 @@ contract ODefaultStakerRewards is
      */
     address public immutable i_network;
 
-    /**
-     * @inheritdoc IODefaultStakerRewards
-     */
-    uint48 public immutable i_startTime;
-
-    /**
-     * @inheritdoc IODefaultStakerRewards
-     */
-    uint48 public immutable i_epochDuration;
-
-    constructor(
-        address vaultFactory,
-        address networkMiddlewareService,
-        uint48 startTime,
-        uint48 epochDuration,
-        address vault,
-        address network
-    ) {
+    constructor(address networkMiddlewareService, address vault, address network) {
         _disableInitializers();
 
-        if (vaultFactory == address(0)) {
-            revert ODefaultStakerRewards__NotVaultFactory();
+        if (network == address(0) || networkMiddlewareService == address(0) || vault == address(0)) {
+            revert ODefaultStakerRewards__InvalidAddress();
         }
-
-        if (networkMiddlewareService == address(0)) {
-            revert ODefaultStakerRewards__NotNetworkMiddleware();
-        }
-
-        if (vault == address(0)) {
-            revert ODefaultStakerRewards__NotVault();
-        }
-
-        if (network == address(0)) {
-            revert ODefaultStakerRewards__NotNetwork();
-        }
-
-        if (!IRegistry(vaultFactory).isEntity(vault)) {
-            revert ODefaultStakerRewards__NotVault();
-        }
-
-        i_vaultFactory = vaultFactory;
         i_networkMiddlewareService = networkMiddlewareService;
-        i_startTime = startTime;
-        i_epochDuration = epochDuration;
         i_vault = vault;
         i_network = network;
     }
 
-    function initialize(
-        InitParams calldata params
-    ) external initializer {
+    function initialize(address operatorRewards, InitParams calldata params) external initializer {
+        if (operatorRewards == address(0)) {
+            revert ODefaultStakerRewards__InvalidAddress();
+        }
+
         if (params.defaultAdminRoleHolder == address(0)) {
             if (params.adminFee == 0) {
                 if (params.adminFeeClaimRoleHolder == address(0)) {
@@ -167,10 +225,6 @@ contract ODefaultStakerRewards is
             } else if (params.adminFeeClaimRoleHolder == address(0)) {
                 revert ODefaultStakerRewards__MissingRoles();
             }
-        }
-
-        if (params.operatorRewardsRoleHolder == address(0)) {
-            revert ODefaultStakerRewards__MissingRoles();
         }
 
         __AccessControl_init();
@@ -188,26 +242,7 @@ contract ODefaultStakerRewards is
         if (params.adminFeeSetRoleHolder != address(0)) {
             _grantRole(ADMIN_FEE_SET_ROLE, params.adminFeeSetRoleHolder);
         }
-        if (params.operatorRewardsRoleHolder != address(0)) {
-            _grantRole(OPERATOR_REWARDS_ROLE, params.operatorRewardsRoleHolder);
-        }
-    }
-
-    /**
-     * @inheritdoc IODefaultStakerRewards
-     */
-    function getEpochStartTs(
-        uint48 epoch
-    ) public view returns (uint48 timestamp) {
-        return i_startTime + epoch * i_epochDuration;
-    }
-
-    /**
-     * @inheritdoc IODefaultStakerRewards
-     */
-    function rewardsLength(uint48 epoch, address tokenAddress) external view returns (uint256) {
-        StakerRewardsStorage storage $ = _getStakerRewardsStorage();
-        return $.rewards[epoch][tokenAddress].length;
+        _grantRole(OPERATOR_REWARDS_ROLE, operatorRewards);
     }
 
     /**
@@ -216,29 +251,21 @@ contract ODefaultStakerRewards is
     function claimable(
         uint48 epoch,
         address account,
-        uint256 maxRewards,
         address tokenAddress
     ) external view override returns (uint256 amount) {
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
-        uint256[] memory rewardsPerEpoch = $.rewards[epoch][tokenAddress];
-        uint256 rewardIndex = $.lastUnclaimedReward[account][epoch][tokenAddress];
+        uint256 rewardsPerEpoch = $.rewards[epoch][tokenAddress];
+        uint256 claimedPerEpoch = $.stakerClaimedRewardPerEpoch[account][epoch][tokenAddress];
 
-        // Get the min between how many the user wants to claim and how many rewards are available
-        uint256 rewardsToClaim = Math.min(maxRewards, rewardsPerEpoch.length - rewardIndex);
+        uint48 epochTs = EpochCapture(INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network))
+            .getEpochStart(epoch);
 
-        uint48 epochTs = getEpochStartTs(epoch);
-        for (uint256 i; i < rewardsToClaim;) {
-            uint256 rewardAmount = rewardsPerEpoch[rewardIndex];
+        amount = IVault(i_vault).activeSharesOfAt(account, epochTs, new bytes(0)).mulDiv(
+            rewardsPerEpoch, $.activeSharesCache[epoch]
+        );
 
-            amount += IVault(i_vault).activeSharesOfAt(account, epochTs, new bytes(0)).mulDiv(
-                rewardAmount, $.activeSharesCache[epoch]
-            );
-
-            unchecked {
-                ++i;
-                ++rewardIndex;
-            }
-        }
+        // Get the amount that is still unclaimed
+        amount -= claimedPerEpoch;
     }
 
     /**
@@ -257,7 +284,8 @@ contract ODefaultStakerRewards is
         (uint256 maxAdminFee, bytes memory activeSharesHint, bytes memory activeStakeHint) =
             abi.decode(data, (uint256, bytes, bytes));
 
-        uint48 epochTs = getEpochStartTs(epoch);
+        uint48 epochTs = EpochCapture(INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network))
+            .getEpochStart(epoch);
         // If the epoch is in the future, revert
         if (epochTs >= Time.timestamp()) {
             revert ODefaultStakerRewards__InvalidRewardTimestamp();
@@ -322,98 +350,55 @@ contract ODefaultStakerRewards is
         $.claimableAdminFee[epoch][tokenAddress] += adminFeeAmount;
 
         if (distributeAmount > 0) {
-            $.rewards[epoch][tokenAddress].push(distributeAmount);
+            $.rewards[epoch][tokenAddress] += distributeAmount;
         }
     }
+
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-
     function claimRewards(
         address recipient,
         uint48 epoch,
         address tokenAddress,
-        bytes calldata data
+        bytes calldata activeSharesOfHints
     ) external override nonReentrant {
-        // maxRewards - the maximum amount of rewards to process
-        // activeSharesOfHints - hint indexes to optimize `activeSharesOf()` processing
-        (uint256 maxRewards, bytes[] memory activeSharesOfHints) = abi.decode(data, (uint256, bytes[]));
-
         if (recipient == address(0)) {
             revert ODefaultStakerRewards__InvalidRecipient();
         }
 
-        (uint256 rewardsToClaim, uint256 amount, uint256 lastUnclaimedReward_) =
-            _getRewardsAndClaim(epoch, tokenAddress, maxRewards, activeSharesOfHints);
-
-        // if the amount is greater than 0, transfer the tokens to the recipient
-        if (amount > 0) {
-            IERC20(tokenAddress).safeTransfer(recipient, amount);
-        }
-
-        emit ClaimRewards(
-            i_network, tokenAddress, msg.sender, epoch, recipient, lastUnclaimedReward_, rewardsToClaim, amount
-        );
-    }
-
-    function _getRewardsAndClaim(
-        uint48 epoch,
-        address tokenAddress,
-        uint256 maxRewards,
-        bytes[] memory activeSharesOfHints
-    ) private returns (uint256 rewardsToClaim, uint256 amount, uint256 lastUnclaimedReward_) {
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
 
-        uint256[] memory rewardsPerEpoch = $.rewards[epoch][tokenAddress];
+        uint256 rewardsPerEpoch = $.rewards[epoch][tokenAddress];
+        uint256 claimedPerEpoch = $.stakerClaimedRewardPerEpoch[recipient][epoch][tokenAddress];
 
-        // Get the last unclaimed reward index
-        lastUnclaimedReward_ = $.lastUnclaimedReward[msg.sender][epoch][tokenAddress];
+        uint48 epochTs = EpochCapture(INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network))
+            .getEpochStart(epoch);
 
-        // Get the min between how many the user wants to claim and how many rewards are available
-        rewardsToClaim = Math.min(maxRewards, rewardsPerEpoch.length - lastUnclaimedReward_);
+        uint256 activeSharesCache_ = $.activeSharesCache[epoch];
 
-        // If there are no rewards to claim, revert
-        if (rewardsToClaim == 0) {
+        if (rewardsPerEpoch == 0 || activeSharesCache_ == 0) {
             revert ODefaultStakerRewards__NoRewardsToClaim();
         }
 
-        if (activeSharesOfHints.length == 0) {
-            activeSharesOfHints = new bytes[](rewardsToClaim);
-        } else if (activeSharesOfHints.length != rewardsToClaim) {
-            revert ODefaultStakerRewards__InvalidHintsLength();
+        uint256 amount = IVault(i_vault).activeSharesOfAt(recipient, epochTs, activeSharesOfHints).mulDiv(
+            rewardsPerEpoch, activeSharesCache_
+        );
+
+        // Get the amount that is still unclaimed
+        amount -= claimedPerEpoch;
+
+        // If there are no rewards to claim, revert
+        if (amount == 0) {
+            revert ODefaultStakerRewards__NoRewardsToClaim();
         }
 
-        // Check the total amount for the user based on his shares in the vault and update the lastUnclaimedReward_
-        amount =
-            _claimRewardsPerEpoch($, rewardsToClaim, rewardsPerEpoch, lastUnclaimedReward_, epoch, activeSharesOfHints);
+        $.stakerClaimedRewardPerEpoch[recipient][epoch][tokenAddress] += amount;
 
-        lastUnclaimedReward_ += rewardsToClaim;
+        // if the amount is greater than 0, transfer the tokens to the recipient
+        IERC20(tokenAddress).safeTransfer(recipient, amount);
 
-        $.lastUnclaimedReward[msg.sender][epoch][tokenAddress] = lastUnclaimedReward_;
-    }
-
-    function _claimRewardsPerEpoch(
-        StakerRewardsStorage storage $,
-        uint256 rewardsToClaim,
-        uint256[] memory rewardsPerEpoch,
-        uint256 rewardIndex,
-        uint48 epoch,
-        bytes[] memory activeSharesOfHints
-    ) private view returns (uint256 amount) {
-        uint48 epochTs = getEpochStartTs(epoch);
-
-        for (uint256 i; i < rewardsToClaim;) {
-            uint256 rewardAmount = rewardsPerEpoch[rewardIndex];
-
-            amount += IVault(i_vault).activeSharesOfAt(msg.sender, epochTs, activeSharesOfHints[i]).mulDiv(
-                rewardAmount, $.activeSharesCache[epoch]
-            );
-
-            unchecked {
-                ++i;
-                ++rewardIndex;
-            }
-        }
+        emit ClaimRewards(i_network, tokenAddress, msg.sender, epoch, recipient, amount);
     }
 
     /**
@@ -465,17 +450,21 @@ contract ODefaultStakerRewards is
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    function rewards(uint48 epoch, address tokenAddress, uint256 index) external view returns (uint256) {
+    function rewards(uint48 epoch, address tokenAddress) external view returns (uint256) {
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
-        return $.rewards[epoch][tokenAddress][index];
+        return $.rewards[epoch][tokenAddress];
     }
 
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    function lastUnclaimedReward(address account, uint48 epoch, address tokenAddress) external view returns (uint256) {
+    function stakerClaimedRewardPerEpoch(
+        address account,
+        uint48 epoch,
+        address tokenAddress
+    ) external view returns (uint256) {
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
-        return $.lastUnclaimedReward[account][epoch][tokenAddress];
+        return $.stakerClaimedRewardPerEpoch[account][epoch][tokenAddress];
     }
 
     /**
@@ -502,8 +491,15 @@ contract ODefaultStakerRewards is
         $.adminFee = adminFee_;
     }
 
+    function _getOldStakerRewardsStorage() private pure returns (PreviousStakerRewardsStorage storage $) {
+        bytes32 position = PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION;
+        assembly {
+            $.slot := position
+        }
+    }
+
     function _getStakerRewardsStorage() private pure returns (StakerRewardsStorage storage $) {
-        bytes32 position = MAIN_STORAGE_LOCATION;
+        bytes32 position = STAKER_REWARDS_STORAGE_LOCATION;
         assembly {
             $.slot := position
         }

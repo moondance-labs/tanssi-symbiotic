@@ -15,12 +15,19 @@
 pragma solidity 0.8.25;
 
 //**************************************************************************************************
+//                                      CHAINLINK
+//**************************************************************************************************
+import {AutomationCompatibleInterface} from "@chainlink/automation/interfaces/AutomationCompatibleInterface.sol";
+import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3Interface.sol";
+
+//**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 //**************************************************************************************************
 //                                      SYMBIOTIC
@@ -35,7 +42,9 @@ import {Operators} from "@symbiotic-middleware/extensions/operators/Operators.so
 import {KeyManager256} from "@symbiotic-middleware/extensions/managers/keys/KeyManager256.sol";
 import {OzAccessControl} from "@symbiotic-middleware/extensions/managers/access/OzAccessControl.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
+import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
 import {PauseableEnumerableSet} from "@symbiotic-middleware/libraries/PauseableEnumerableSet.sol";
+
 //**************************************************************************************************
 //                                      SNOWBRIDGE
 //**************************************************************************************************
@@ -47,7 +56,7 @@ import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {OSharedVaults} from "src/contracts/extensions/OSharedVaults.sol";
 import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
 
-import {QuickSort} from "../libraries/QuickSort.sol";
+import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 
 contract Middleware is
     UUPSUpgradeable,
@@ -56,30 +65,19 @@ contract Middleware is
     KeyManager256,
     OzAccessControl,
     EpochCapture,
+    AutomationCompatibleInterface,
     MiddlewareStorage,
     IMiddleware
 {
-    using QuickSort for ValidatorData[];
     using PauseableEnumerableSet for PauseableEnumerableSet.AddressSet;
     using PauseableEnumerableSet for PauseableEnumerableSet.Status;
     using Subnetwork for address;
     using Math for uint256;
 
-    modifier updateStakeCache(
-        uint48 epoch
+    modifier notZeroAddress(
+        address address_
     ) {
-        if (!totalStakeIsCached(epoch)) {
-            calcAndCacheStakes(epoch);
-        }
-        _;
-    }
-
-    // TODO should use AccessControl instead of this modifier
-    // Add Gateway Role and use checkAccess modifier
-    modifier onlyGateway() {
-        if (msg.sender != address(getGateway())) {
-            revert Middleware__CallerNotGateway();
-        }
+        _checkNotZeroAddress(address_);
         _;
     }
 
@@ -88,12 +86,11 @@ contract Middleware is
      * @param operatorRewards The operator rewards address
      * @param stakerRewardsFactory The staker rewards factory address
      */
-    constructor(address operatorRewards, address stakerRewardsFactory) {
+    constructor(
+        address operatorRewards,
+        address stakerRewardsFactory
+    ) notZeroAddress(operatorRewards) notZeroAddress(stakerRewardsFactory) {
         _disableInitializers();
-
-        if (operatorRewards == address(0) || stakerRewardsFactory == address(0)) {
-            revert Middleware__InvalidAddress();
-        }
 
         i_operatorRewards = operatorRewards;
         i_stakerRewardsFactory = stakerRewardsFactory;
@@ -111,73 +108,154 @@ contract Middleware is
      * @param reader The reader address
      */
     function initialize(
-        address network,
-        address operatorRegistry,
-        address vaultRegistry,
-        address operatorNetOptin,
-        address owner,
-        uint48 epochDuration,
-        uint48 slashingWindow,
-        address reader
+        InitParams memory params
     ) public initializer {
-        if (owner == address(0) || reader == address(0)) {
-            revert Middleware__InvalidAddress();
-        }
-        if (slashingWindow < epochDuration) {
-            revert Middleware__SlashingWindowTooShort();
+        _validateInitParams(params);
+
+        {
+            StorageMiddleware storage $ = _getMiddlewareStorage();
+            $.lastTimestamp = Time.timestamp();
+            $.interval = params.epochDuration;
         }
 
-        __BaseMiddleware_init(network, slashingWindow, vaultRegistry, operatorRegistry, operatorNetOptin, reader);
-        __OzAccessControl_init(owner);
-        __EpochCapture_init(epochDuration);
+        __BaseMiddleware_init(
+            params.network,
+            params.slashingWindow,
+            params.vaultRegistry,
+            params.operatorRegistry,
+            params.operatorNetworkOptIn,
+            params.reader
+        );
+        __OzAccessControl_init(params.owner);
+        __EpochCapture_init(params.epochDuration);
         __UUPSUpgradeable_init();
 
-        _grantRole(DEFAULT_ADMIN_ROLE, owner);
+        _grantRole(DEFAULT_ADMIN_ROLE, params.owner);
+        _setSelectorRole(this.distributeRewards.selector, GATEWAY_ROLE);
+        _setSelectorRole(this.slash.selector, GATEWAY_ROLE);
+        _setSelectorRole(this.performUpkeep.selector, FORWARDER_ROLE);
     }
 
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override checkAccess {}
+    function _validateInitParams(
+        InitParams memory params
+    )
+        private
+        pure
+        notZeroAddress(params.network)
+        notZeroAddress(params.operatorRegistry)
+        notZeroAddress(params.vaultRegistry)
+        notZeroAddress(params.operatorNetworkOptIn)
+        notZeroAddress(params.owner)
+        notZeroAddress(params.reader)
+    {
+        if (params.epochDuration == 0 || params.slashingWindow == 0) {
+            revert Middleware__InvalidEpochDuration();
+        }
+
+        if (params.slashingWindow < params.epochDuration) {
+            revert Middleware__SlashingWindowTooShort();
+        }
+    }
+
+    function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
+        address collateral = vaultToCollateral(vault);
+        address oracle = collateralToOracle(collateral);
+
+        if (oracle == address(0)) {
+            revert Middleware__NotSupportedCollateral(collateral);
+        }
+        (, int256 price,,,) = AggregatorV3Interface(oracle).latestRoundData();
+        uint8 priceDecimals = AggregatorV3Interface(oracle).decimals();
+        power = stake.mulDiv(uint256(price), 10 ** priceDecimals);
+        // Normalize power to 18 decimals
+        uint8 collateralDecimals = IERC20Metadata(collateral).decimals();
+        if (collateralDecimals != DEFAULT_DECIMALS) {
+            power = power.mulDiv(10 ** DEFAULT_DECIMALS, 10 ** collateralDecimals);
+        }
+    }
 
     /**
-     * @inheritdoc OSharedVaults
+     * @inheritdoc IMiddleware
      */
-    function _beforeRegisterSharedVault(
-        address sharedVault,
-        IODefaultStakerRewards.InitParams memory stakerRewardsParams
-    ) internal virtual override {
-        stakerRewardsParams.vault = sharedVault;
-        address stakerRewards = IODefaultStakerRewardsFactory(i_stakerRewardsFactory).create(stakerRewardsParams);
-        IODefaultOperatorRewards(i_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
-    }
-
-    // TODO: this should probably take into account underlying asset price and return a power which could be either the total value of the stake in usd or a value that makes sense for us
-    function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
-        return stake;
-    }
-
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
     function setGateway(
-        address _gateway
-    ) external checkAccess {
+        address newGateway
+    ) external checkAccess notZeroAddress(newGateway) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
-        $.gateway = IOGateway(_gateway);
+        address oldGateway = $.gateway;
+
+        if (newGateway == oldGateway) {
+            revert Middleware__AlreadySet();
+        }
+
+        $.gateway = newGateway;
+        _revokeRole(GATEWAY_ROLE, oldGateway);
+        _grantRole(GATEWAY_ROLE, newGateway);
+
+        emit GatewaySet(newGateway);
     }
 
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
+    /**
+     * @inheritdoc IMiddleware
+     */
+    function setInterval(
+        uint256 interval
+    ) external checkAccess {
+        if (interval == 0) {
+            revert Middleware__InvalidInterval();
+        }
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+
+        if (interval == $.interval) {
+            revert Middleware__AlreadySet();
+        }
+
+        $.interval = interval;
+        emit IntervalSet(interval);
+    }
+
+    /**
+     * @inheritdoc IMiddleware
+     */
+    function setForwarder(
+        address forwarder
+    ) external checkAccess notZeroAddress(forwarder) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        address currentForwarderAddress = $.forwarderAddress;
+        if (forwarder == currentForwarderAddress) {
+            revert Middleware__AlreadySet();
+        }
+
+        $.forwarderAddress = forwarder;
+        _revokeRole(FORWARDER_ROLE, currentForwarderAddress);
+        _grantRole(FORWARDER_ROLE, forwarder);
+
+        emit ForwarderSet(forwarder);
+    }
+
+    function setCollateralToOracle(
+        address collateral,
+        address oracle
+    ) external checkAccess notZeroAddress(collateral) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+
+        // Oracle is not checked against zero so this can be used to remove the oracle from a collateral
+
+        $.collateralToOracle[collateral] = oracle;
+        emit CollateralToOracleSet(collateral, oracle);
+    }
+
+    /**
+     * @inheritdoc IMiddleware
+     */
     function setOperatorShareOnOperatorRewards(
         uint48 operatorShare
     ) external checkAccess {
         IODefaultOperatorRewards(i_operatorRewards).setOperatorShare(operatorShare);
     }
 
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
+    /**
+     * @inheritdoc IMiddleware
+     */
     function distributeRewards(
         uint256 epoch,
         uint256 eraIndex,
@@ -185,7 +263,7 @@ contract Middleware is
         uint256 tokensInflatedToken,
         bytes32 rewardsRoot,
         address tokenAddress
-    ) external onlyGateway {
+    ) external checkAccess {
         if (IERC20(tokenAddress).balanceOf(address(this)) < tokensInflatedToken) {
             revert Middleware__InsufficientBalance();
         }
@@ -197,26 +275,69 @@ contract Middleware is
         );
     }
 
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
-    //  TODO: this function should be split to allow to be called by chainlink in case
+    /**
+     * @inheritdoc IMiddleware
+     */
     function sendCurrentOperatorsKeys() external returns (bytes32[] memory sortedKeys) {
-        if (address(getGateway()) == address(0)) {
+        address gateway = getGateway();
+        if (gateway == address(0)) {
             revert Middleware__GatewayNotSet();
         }
 
         uint48 epoch = getCurrentEpoch();
-        sortedKeys = sortOperatorsByVaults(epoch);
-
-        getGateway().sendOperatorsData(sortedKeys, epoch);
+        sortedKeys = IOBaseMiddlewareReader(address(this)).sortOperatorsByPower(epoch);
+        IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);
     }
 
-    function calcAndCacheStakes(
-        uint48 epoch
-    ) public returns (uint256 totalStake) {
-        uint48 epochStartTs = getEpochStart(epoch);
+    /**
+     * @inheritdoc AutomationCompatibleInterface
+     * @dev Called by chainlink nodes off-chain to check if the upkeep is needed
+     * @return upkeepNeeded boolean to indicate whether the keeper should call performUpkeep or not.
+     * @return performData bytes of the sorted (by power) operators' keys and the epoch that will be used by the keeper when calling performUpkeep, if upkeep is needed.
+     */
+    function checkUpkeep(
+        bytes calldata /* checkData */
+    ) external view override returns (bool upkeepNeeded, bytes memory performData) {
+        uint48 epoch = getCurrentEpoch();
+        bytes32[] memory sortedKeys = IOBaseMiddlewareReader(address(this)).sortOperatorsByPower(epoch);
         StorageMiddleware storage $ = _getMiddlewareStorage();
+
+        //Should be at least once per epoch
+        upkeepNeeded = (Time.timestamp() - $.lastTimestamp) > $.interval;
+
+        performData = abi.encode(sortedKeys, epoch);
+    }
+
+    /**
+     * @inheritdoc AutomationCompatibleInterface
+     * @dev Called by chainlink nodes off-chain to perform the upkeep. It will send the sorted keys to the gateway
+     */
+    function performUpkeep(
+        bytes calldata performData
+    ) external override checkAccess {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        address gateway = $.gateway;
+        if (gateway == address(0)) {
+            revert Middleware__GatewayNotSet();
+        }
+
+        uint48 currentTimestamp = Time.timestamp();
+        if ((currentTimestamp - $.lastTimestamp) > $.interval) {
+            $.lastTimestamp = currentTimestamp;
+
+            // Decode the sorted keys and the epoch from performData
+            (bytes32[] memory sortedKeys, uint48 epoch) = abi.decode(performData, (bytes32[], uint48));
+
+            IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);
+        }
+    }
+
+    /**
+     * @inheritdoc IMiddleware
+     */
+    function slash(uint48 epoch, bytes32 operatorKey, uint256 percentage) external checkAccess {
+        uint48 epochStartTs = IOBaseMiddlewareReader(address(this)).getEpochStart(epoch);
+        address operator = operatorByKey(abi.encode(operatorKey));
 
         // for epoch older than SLASHING_WINDOW total stake can be invalidated (use cache)
         if (epochStartTs < Time.timestamp() - _SLASHING_WINDOW()) {
@@ -226,32 +347,6 @@ contract Middleware is
         if (epochStartTs > Time.timestamp()) {
             revert Middleware__InvalidEpoch();
         }
-        address[] memory _operators = _activeOperatorsAt(epochStartTs);
-
-        uint256 operatorLength = _operators.length;
-        for (uint256 i; i < operatorLength; ++i) {
-            address operator = _operators[i];
-
-            uint256 operatorStake = getOperatorStake(operator, epoch);
-            $.operatorStakeCache[epoch][operator] = operatorStake;
-            totalStake += operatorStake;
-        }
-
-        $.totalStakeIsCached[epoch] = true;
-        $.totalStakeCache[epoch] = totalStake;
-    }
-
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
-    //TODO use prebuilt function from SDK
-    function slash(
-        uint48 epoch,
-        bytes32 operatorKey,
-        uint256 percentage
-    ) external onlyGateway updateStakeCache(epoch) {
-        uint48 epochStartTs = getEpochStart(epoch);
-        address operator = operatorByKey(abi.encode(operatorKey));
 
         // If address is 0, then we should return
         if (operator == address(0)) {
@@ -270,8 +365,11 @@ contract Middleware is
         address[] memory vaults = _activeVaultsAt(epochStartTs, operator);
         // simple pro-rata slasher
         uint256 vaultsLength = vaults.length;
-        for (uint256 i; i < vaultsLength; ++i) {
+        for (uint256 i; i < vaultsLength;) {
             _processVaultSlashing(vaults[i], params);
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -281,22 +379,21 @@ contract Middleware is
      * @param params Struct containing slashing parameters
      */
     function _processVaultSlashing(address vault, SlashParams memory params) private {
-        for (uint96 j = 0; j < _subnetworksLength(); ++j) {
-            bytes32 subnetwork = _NETWORK().subnetwork(j);
-            //! This can be manipulated. I get slashed for 100 ETH, but if I participate to multiple vaults without any slashing, I can get slashed for far lower amount of ETH
-            uint256 vaultStake = IBaseDelegator(IVault(vault).delegator()).stakeAt(
-                subnetwork, params.operator, params.epochStartTs, new bytes(0)
-            );
-            // Slash percentage is already in parts per billion
-            // so we need to divide by a billion
-            uint256 slashAmount = params.slashPercentage.mulDiv(vaultStake, PARTS_PER_BILLION);
+        // Tanssi will use only one subnetwork so we only check the first
+        bytes32 subnetwork = _NETWORK().subnetwork(0);
 
-            _slashVault(params.epochStartTs, vault, subnetwork, params.operator, slashAmount);
-        }
+        uint256 vaultStake = IBaseDelegator(IVault(vault).delegator()).stakeAt(
+            subnetwork, params.operator, params.epochStartTs, new bytes(0)
+        );
+        // Slash percentage is already in parts per billion
+        // so we need to divide by a billion
+        uint256 slashAmount = params.slashPercentage.mulDiv(vaultStake, PARTS_PER_BILLION);
+
+        _slashVault(params.epochStartTs, vault, subnetwork, params.operator, slashAmount);
     }
 
     /**
-     * @dev Slashes a vault's stake for a specific operator
+     * @dev Slashes a vault's stake for a specific operator. Middleware SDK already provides _slashVault function but  custom version is needed to avoid revert in specific scenarios for the gateway message passing.
      * @param timestamp Time at which the epoch started
      * @param vault Address of the vault to slash
      * @param subnetwork Subnetwork identifier
@@ -316,13 +413,30 @@ contract Middleware is
             return;
         }
         uint256 slasherType = IEntity(slasher).TYPE();
+
+        uint256 response;
         if (slasherType == uint256(SlasherType.INSTANT)) {
-            ISlasher(slasher).slash(subnetwork, operator, amount, timestamp, new bytes(0));
+            response = ISlasher(slasher).slash(subnetwork, operator, amount, timestamp, new bytes(0));
+            emit VaultManager.InstantSlash(vault, subnetwork, response);
         } else if (slasherType == uint256(SlasherType.VETO)) {
-            IVetoSlasher(slasher).requestSlash(subnetwork, operator, amount, timestamp, new bytes(0));
+            response = IVetoSlasher(slasher).requestSlash(subnetwork, operator, amount, timestamp, new bytes(0));
+            emit VaultManager.VetoSlash(vault, subnetwork, response);
         } else {
-            revert Middleware__UnknownSlasherType();
+            revert VaultManager.UnknownSlasherType();
         }
+    }
+
+    function _afterRegisterSharedVault(
+        address sharedVault,
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams
+    ) internal override {
+        address stakerRewards =
+            IODefaultStakerRewardsFactory(i_stakerRewardsFactory).create(sharedVault, stakerRewardsParams);
+
+        IODefaultOperatorRewards(i_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
+
+        address collateral = IVault(sharedVault).collateral();
+        _setVaultToCollateral(sharedVault, collateral);
     }
 
     function _beforeUnregisterOperator(
@@ -331,207 +445,20 @@ contract Middleware is
         _updateKey(operator, abi.encode(bytes32(0)));
     }
 
-    // **************************************************************************************************
-    //                                      VIEW FUNCTIONS
-    // **************************************************************************************************
-
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
-    function getOperatorsByEpoch(
-        uint48 epoch
-    ) external view returns (address[] memory activeOperators) {
-        uint48 epochStartTs = getEpochStart(epoch);
-        activeOperators = _activeOperatorsAt(epochStartTs);
+    function _setVaultToCollateral(address vault, address collateral) private notZeroAddress(collateral) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        $.vaultToCollateral[vault] = collateral;
     }
 
-    /**
-     * @dev Sorts operators by their total stake in descending order, after 500 it will be almost impossible to be used on-chain since 500 ≈ 36M gas
-     * @param epoch The epoch number
-     * @return sortedKeys Array of sorted operators keys based on their stake
-     */
-    function sortOperatorsByVaults(
-        uint48 epoch
-    ) public view returns (bytes32[] memory sortedKeys) {
-        ValidatorData[] memory validatorSet = getValidatorSet(epoch);
-        if (validatorSet.length == 0) {
-            return sortedKeys;
-        }
-        validatorSet = validatorSet.quickSort(0, int256(validatorSet.length - 1));
-
-        sortedKeys = new bytes32[](validatorSet.length);
-        uint256 validatorSetLength = validatorSet.length;
-        for (uint256 i; i < validatorSetLength; ++i) {
-            sortedKeys[i] = validatorSet[i].key;
+    function _checkNotZeroAddress(
+        address address_
+    ) private pure {
+        if (address_ == address(0)) {
+            revert Middleware__InvalidAddress();
         }
     }
 
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
-    function getOperatorVaultPairs(
-        uint48 epoch
-    ) external view returns (OperatorVaultPair[] memory operatorVaultPairs) {
-        uint48 epochStartTs = getEpochStart(epoch);
-        address[] memory operators = _activeOperatorsAt(epochStartTs);
-
-        operatorVaultPairs = new OperatorVaultPair[](operators.length);
-
-        uint256 valIdx = 0;
-        uint256 operatorsLength = operators.length;
-        for (uint256 i; i < operatorsLength; ++i) {
-            address operator = operators[i];
-            (uint256 vaultIdx, address[] memory _vaults) = getOperatorVaults(operator, epochStartTs);
-            assembly {
-                mstore(_vaults, vaultIdx)
-            }
-            if (vaultIdx > 0) {
-                operatorVaultPairs[valIdx++] = OperatorVaultPair(operator, _vaults);
-            }
-        }
-    }
-
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
-    function getOperatorVaults(
-        address operator,
-        uint48 epochStartTs
-    ) public view returns (uint256 vaultIdx, address[] memory vaults) {
-        address[] memory operatorVaults = _activeVaultsAt(epochStartTs, operator);
-        vaults = new address[](operatorVaults.length);
-        vaultIdx = 0;
-        uint256 operatorVaultsLength = operatorVaults.length;
-        for (uint256 j; j < operatorVaultsLength; ++j) {
-            uint256 operatorStake = 0;
-            address _vault = operatorVaults[j];
-            for (uint96 k = 0; k < _subnetworksLength(); ++k) {
-                operatorStake += IBaseDelegator(IVault(_vault).delegator()).stakeAt(
-                    _NETWORK().subnetwork(k), operator, epochStartTs, new bytes(0)
-                );
-            }
-
-            if (operatorStake > 0) {
-                vaults[vaultIdx++] = _vault;
-            }
-        }
-    }
-
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
-    function isVaultRegistered(
-        address vault
-    ) external view returns (bool) {
-        VaultManagerStorage storage $ = _getVaultManagerStorage();
-        return $._sharedVaults.contains(vault);
-    }
-
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
-    function getOperatorStake(address operator, uint48 epoch) public view returns (uint256 power) {
-        if (totalStakeIsCached(epoch)) {
-            return operatorStakeCache(epoch, operator);
-        }
-        uint48 epochStartTs = getEpochStart(epoch);
-        power = _getOperatorPowerAt(epochStartTs, operator);
-    }
-
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
-    function getTotalStake(
-        uint48 epoch
-    ) public view returns (uint256) {
-        if (totalStakeIsCached(epoch)) {
-            return totalStakeCache(epoch);
-        }
-        return _calcTotalStake(epoch);
-    }
-
-    /**
-     * @notice Gets an operator's active key at the current capture timestamp
-     * @param operator The operator address to lookup
-     * @return The operator's active key encoded as bytes, or encoded zero bytes if none
-     */
-    // TODO use this function where it's needed
-    function getOperatorKeyAt(address operator, uint48 timestamp) public view returns (bytes memory) {
-        KeyManager256Storage storage $ = _getKeyManager256Storage();
-        bytes32 key = $._key[operator];
-        if (key != bytes32(0) && $._keyData[key].status.wasActiveAt(timestamp)) {
-            return abi.encode(key);
-        }
-        key = $._prevKey[operator];
-        if (key != bytes32(0) && $._keyData[key].status.wasActiveAt(timestamp)) {
-            return abi.encode(key);
-        }
-        return abi.encode(bytes32(0));
-    }
-
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
-    function getValidatorSet(
-        uint48 epoch
-    ) public view returns (ValidatorData[] memory validatorSet) {
-        uint48 epochStartTs = getEpochStart(epoch);
-        address[] memory operators = _activeOperatorsAt(epochStartTs);
-
-        validatorSet = new ValidatorData[](operators.length);
-        uint256 len = 0;
-        uint256 operatorsLength = operators.length;
-        for (uint256 i; i < operatorsLength; ++i) {
-            address operator = operators[i];
-
-            bytes32 key = abi.decode(operatorKey(operator), (bytes32));
-            if (key == bytes32(0) || !keyWasActiveAt(epochStartTs, abi.encode(key))) {
-                continue;
-            }
-
-            uint256 power = _getOperatorPowerAt(epochStartTs, operator);
-
-            validatorSet[len++] = ValidatorData(power, key);
-        }
-
-        // shrink array to skip unused slots
-        assembly ("memory-safe") {
-            mstore(validatorSet, len)
-        }
-    }
-
-    // /**
-    //  * @inheritdoc IMiddleware
-    //  */
-    function getEpochAtTs(
-        uint48 timestamp
-    ) public view returns (uint48 epoch) {
-        EpochCaptureStorage storage $ = _getEpochCaptureStorage();
-        return (timestamp - $.startTimestamp) / $.epochDuration;
-    }
-
-    /**
-     * @dev Calculates total stake for an epoch
-     * @param epoch The epoch to calculate stake for
-     * @return totalStake The total stake amount
-     */
-    function _calcTotalStake(
-        uint48 epoch
-    ) private view returns (uint256 totalStake) {
-        uint48 epochStartTs = getEpochStart(epoch);
-        // for epoch older than _SLASHING_WINDOW total stake can be invalidated (use cache)
-        if (epochStartTs < Time.timestamp() - _SLASHING_WINDOW()) {
-            revert Middleware__TooOldEpoch();
-        }
-
-        if (epochStartTs > Time.timestamp()) {
-            revert Middleware__InvalidEpoch();
-        }
-        address[] memory operators = _activeOperatorsAt(epochStartTs);
-        uint256 operatorsLength = operators.length;
-        for (uint256 i; i < operatorsLength; ++i) {
-            uint256 operatorStake = getOperatorStake(operators[i], epoch);
-            totalStake += operatorStake;
-        }
-    }
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override checkAccess {}
 }

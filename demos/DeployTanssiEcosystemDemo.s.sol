@@ -31,11 +31,11 @@ import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestak
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {IDefaultCollateralFactory} from
     "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateralFactory.sol";
-import {BaseMiddlewareReader} from "@symbiotic-middleware/middleware/BaseMiddlewareReader.sol";
 
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
+import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
 import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Token} from "test/mocks/Token.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
@@ -233,13 +233,10 @@ contract DeployTanssiEcosystem is Script {
 
     function _registerEntitiesToMiddleware() public {
         IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
-            vault: address(0),
             adminFee: 0,
             defaultAdminRoleHolder: tanssi,
             adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi,
-            operatorRewardsRoleHolder: tanssi,
-            network: tanssi
+            adminFeeSetRoleHolder: tanssi
         });
         ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
         ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsParams);
@@ -293,9 +290,16 @@ contract DeployTanssiEcosystem is Script {
         tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator, 1000 ether);
         tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator2, 1000 ether);
         tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator3, 1000 ether);
+        tokensAddresses.rETHToken.transfer{gas: 1_000_000}(operator2, 1000 ether);
+        tokensAddresses.rETHToken.transfer{gas: 1_000_000}(operator3, 1000 ether);
         vm.stopBroadcast();
 
         IVault _vault = IVault(vaultAddresses.vault);
+        IVault _vaultSlashable = IVault(vaultAddresses.vaultSlashable);
+
+        // Operator 1 goes to vault without slash
+        // Operator 2 goes to vault 1 and 2, the latter being instant slashable
+        // Operator 3 goes only to vault 2, being instant slashable
         vm.startBroadcast(operatorPrivateKey);
         operatorRegistry.registerOperator();
         operatorNetworkOptInService.optIn(tanssi);
@@ -307,22 +311,25 @@ contract DeployTanssiEcosystem is Script {
         operatorRegistry.registerOperator();
         operatorNetworkOptInService.optIn(tanssi);
         operatorVaultOptInService.optIn(vaultAddresses.vault);
+        operatorVaultOptInService.optIn(vaultAddresses.vaultSlashable);
         _depositToVault(_vault, operator2, 100 ether, tokensAddresses.stETHToken);
+        _depositToVault(_vaultSlashable, operator2, 100 ether, tokensAddresses.rETHToken);
+
         vm.stopBroadcast();
 
         vm.startBroadcast(operator3PrivateKey);
         operatorRegistry.registerOperator();
         operatorNetworkOptInService.optIn(tanssi);
-        operatorVaultOptInService.optIn(vaultAddresses.vault);
-        _depositToVault(_vault, operator3, 100 ether, tokensAddresses.stETHToken);
+        operatorVaultOptInService.optIn(vaultAddresses.vaultSlashable);
+        _depositToVault(_vaultSlashable, operator3, 100 ether, tokensAddresses.rETHToken);
         vm.stopBroadcast();
-
-        address stakerRewardsFactoryAddress = contractScripts.deployRewards.deployStakerRewardsFactoryContract(
-            vaultRegistryAddress, networkMiddlewareServiceAddress, uint48(block.timestamp), NETWORK_EPOCH_DURATION
-        );
 
         address operatorRewardsAddress = contractScripts.deployRewards.deployOperatorRewardsContract(
             tanssi, address(networkMiddlewareService), 2000, tanssi
+        );
+
+        address stakerRewardsFactoryAddress = contractScripts.deployRewards.deployStakerRewardsFactoryContract(
+            vaultRegistryAddress, networkMiddlewareServiceAddress, operatorRewardsAddress, tanssi
         );
 
         vm.startBroadcast(ownerPrivateKey);
@@ -337,15 +344,25 @@ contract DeployTanssiEcosystem is Script {
             operatorRewardsAddress,
             stakerRewardsFactoryAddress
         );
+
+        // Operator 1 goes to first vault
         INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares{gas: 10_000_000}(
             tanssi.subnetwork(0), operator, 1
         );
+
+        // Operator 2 goes to the first and second vault
         INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares{gas: 10_000_000}(
             tanssi.subnetwork(0), operator2, 1
         );
-        INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares{gas: 10_000_000}(
+        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setOperatorNetworkShares{gas: 10_000_000}(
+            tanssi.subnetwork(0), operator2, 1
+        );
+
+        // Operator 3 goes to the second vault
+        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setOperatorNetworkShares{gas: 10_000_000}(
             tanssi.subnetwork(0), operator3, 1
         );
+
         _setDelegatorConfigs();
         networkMiddlewareService.setMiddleware(address(ecosystemEntities.middleware));
         _registerEntitiesToMiddleware();
@@ -384,7 +401,7 @@ contract DeployTanssiEcosystem is Script {
         Middleware _middlewareImpl = new Middleware(_operatorRewards, _stakerRewardsFactory);
         _middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
         console2.log("Middleware Implementation: ", address(_middlewareImpl));
-        address readHelper = address(new BaseMiddlewareReader());
+        address readHelper = address(new OBaseMiddlewareReader());
         _middleware.initialize(
             _network, // network
             _operatorRegistry, // operatorRegistry
