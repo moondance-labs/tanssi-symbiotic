@@ -1114,8 +1114,7 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 gasBefore = gasleft();
-        Middleware.ValidatorData[] memory validatorsNotSorted =
-            OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
+        OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasNotSorted = gasBefore - gasAfter;
         console2.log("Total gas used for non sorted: ", gasNotSorted);
@@ -1152,8 +1151,7 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 gasBefore = gasleft();
-        Middleware.ValidatorData[] memory validatorsNotSorted =
-            OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
+        OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasNotSorted = gasBefore - gasAfter;
         console2.log("Total gas used for non sorted: ", gasNotSorted);
@@ -1191,8 +1189,7 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 gasBefore = gasleft();
-        Middleware.ValidatorData[] memory validatorsNotSorted =
-            OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
+        OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasNotSorted = gasBefore - gasAfter;
         console2.log("Total gas used for non sorted: ", gasNotSorted);
@@ -1209,8 +1206,7 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 gasBefore = gasleft();
-        Middleware.ValidatorData[] memory validatorsNotSorted =
-            OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
+        OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasNotSorted = gasBefore - gasAfter;
         console2.log("Total gas used for non sorted: ", gasNotSorted);
