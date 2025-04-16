@@ -6,6 +6,7 @@ type AlertEventData = {
   timestamp: number;
   blockNumber: number;
   txHash: string;
+  shouldSendTx?: boolean;
 };
 
 export async function sendSlackAlert(eventData: AlertEventData): Promise<void> {
@@ -27,6 +28,17 @@ export async function sendSlackAlert(eventData: AlertEventData): Promise<void> {
             text: `${eventData.message}`,
           },
         },
+        ...(eventData.shouldSendTx
+          ? [
+              {
+                type: "section",
+                text: {
+                  type: "mrkdwn",
+                  text: `*Etherscan Link:*\n<https://etherscan.io/tx/${eventData.txHash}|View Transaction on Etherscan>`,
+                },
+              },
+            ]
+          : []),
         {
           type: "section",
           text: {

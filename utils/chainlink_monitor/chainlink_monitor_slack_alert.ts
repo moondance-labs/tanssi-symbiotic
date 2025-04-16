@@ -9,6 +9,7 @@ const RPC_URL = process.env.RPC_URL;
 const GATEWAY_ADDRESS = process.env.GATEWAY_ADDRESS;
 const MIDDLEWARE_ADDRESS = process.env.MIDDLEWARE_ADDRESS;
 export const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
+export const PRIVATE_KEY = process.env.PRIVATE_KEY;
 
 // Gateway ABI - just the parts we need for the event
 const gatewayAbi = [
@@ -36,6 +37,19 @@ const middlewareAbi = [
     inputs: [{ name: "timestamp", type: "uint48", internalType: "uint48" }],
     outputs: [{ name: "epoch", type: "uint48", internalType: "uint48" }],
     stateMutability: "view",
+  },
+  {
+    inputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+    name: "sendCurrentOperatorsKeys",
+    outputs: [
+      {
+        internalType: "bytes32[]",
+        name: "sortedKeys",
+        type: "bytes32[]",
+      },
+    ],
   },
   // TODO take out. Should use sortOperatorsByPower once Middleware is upgraded to latest
   {
@@ -116,7 +130,9 @@ async function main(): Promise<void> {
         middlewareContract,
         payload,
         timestamp,
-        event
+        event,
+        provider,
+        true
       );
     }
   );
@@ -194,7 +210,9 @@ async function queryHistoricalEvents(
         middlewareContract,
         payload,
         timestamp,
-        event
+        event,
+        provider,
+        false
       );
     }
 

@@ -1,7 +1,7 @@
 import { ethers } from "ethers";
 
 export type OperatorsData = {
-  operatorsKeys: string[];
+  oracleOperatorKeys: string[];
   operatorsCount: number;
   epoch: number;
 };
@@ -69,16 +69,16 @@ export function decodeOperatorsData(payload: string): OperatorsData {
   const epochValue = ethers.BigNumber.from(epochHex).toNumber();
 
   // Convert flattened operators back to bytes32 array
-  const operatorsKeys: string[] = [];
+  const oracleOperatorKeys: string[] = [];
   for (let i = 0; i < operatorsCount; i++) {
     const key = ethers.utils.hexlify(
       operatorsFlattened.slice(i * 32, (i + 1) * 32)
     );
-    operatorsKeys.push(key);
+    oracleOperatorKeys.push(key);
   }
 
   return {
-    operatorsKeys,
+    oracleOperatorKeys,
     operatorsCount,
     epoch: epochValue,
   };

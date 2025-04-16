@@ -1,35 +1,37 @@
 import { ethers } from "ethers";
 import { sendSlackAlert } from "./send_slack";
 import { decodeOperatorsData } from "./decode_operators_data";
+import { PRIVATE_KEY } from "./chainlink_monitor_slack_alert";
 
 export async function compareWithMiddlewareData(
   middlewareContract: ethers.Contract,
   payload: string,
   timestamp: number,
-  event: ethers.Event
+  event: ethers.Event,
+  provider: ethers.providers.Provider,
+  shouldSendTx: boolean
 ): Promise<void> {
   const epoch = await middlewareContract.getEpochAtTs(timestamp);
   console.log("Epoch:", epoch.toString());
+
   try {
     // Get sorted operators from middleware
     // TODO Should use sortOperatorsByPower once Middleware is upgraded to latest
-    const sortedOperators = await middlewareContract.sortOperatorsByVaults(
+    const verifiedOperatorKeys = await middlewareContract.sortOperatorsByVaults(
       epoch
     );
 
     const {
-      operatorsKeys,
+      oracleOperatorKeys,
       operatorsCount,
       epoch: epochValue,
     } = decodeOperatorsData(payload);
 
-    const operatorsArray = [...sortedOperators];
-
     // Compare the data
     const comparisonResult = await compareOperatorsData(
-      operatorsArray,
+      verifiedOperatorKeys,
       epoch,
-      operatorsKeys,
+      oracleOperatorKeys,
       epochValue,
       operatorsCount
     );
@@ -44,6 +46,26 @@ export async function compareWithMiddlewareData(
         timestamp,
         txHash: event.transactionHash,
       });
+
+      // We only send the keys if its the latest epoch since we can't override the keys of past epochs
+      if (shouldSendTx && PRIVATE_KEY !== undefined) {
+        const wallet = new ethers.Wallet(PRIVATE_KEY, provider);
+        middlewareContract = middlewareContract.connect(wallet);
+        console.log("Sending transaction to override latest operator keys...");
+        const tx = await middlewareContract.sendCurrentOperatorsKeys();
+        const message = `Sent transaction to override latest operator keys after finding tampered data.`;
+        const receipt = await tx.wait();
+        const blockData = await provider.getBlock(receipt.blockNumber);
+        console.log("Transaction sent:", tx.hash);
+
+        await sendSlackAlert({
+          message: message,
+          blockNumber: receipt.blockNumber,
+          timestamp: blockData.timestamp,
+          txHash: tx.hash,
+          shouldSendTx,
+        });
+      }
     }
   } catch (error) {
     console.error("Error comparing operator data:", error);
@@ -67,20 +89,25 @@ export async function compareOperatorsData(
     }
 > {
   try {
+    let message = "";
     if (epoch !== epochPayload) {
-      return { match: false, error: "Epoch mismatch" };
+      message = `Epoch mismatch: Middleware epoch ${epoch} vs Payload epoch ${epochPayload}`;
+      return { match: false, message };
     }
 
     // Check length match
     if (sortedOperators.length !== operatorsKeysPayload.length) {
-      return { match: false, error: "Length mismatch" };
+      message = `Length mismatch: Middleware length ${sortedOperators.length} vs Payload length ${operatorsKeysPayload.length}`;
+      return { match: false, message };
     }
 
     if (
       sortedOperators.length !== operatorsCount ||
-      operatorsKeysPayload.length !== operatorsCount
+      operatorsKeysPayload.length !== operatorsCount ||
+      sortedOperators.length !== operatorsKeysPayload.length
     ) {
-      return { match: false, error: "Operators count mismatch" };
+      message = `Operators count mismatch: Middleware count ${sortedOperators.length} vs Payload count ${operatorsKeysPayload.length} vs Operators count ${operatorsCount}`;
+      return { match: false, message };
     }
 
     // Check each element
@@ -103,7 +130,7 @@ export async function compareOperatorsData(
       }
     }
 
-    let message = `:warning: *Mismatch in Operators for Epoch ${epoch}* :warning:\n\n`;
+    message = `:warning: *Mismatch in Operators for Epoch ${epoch}* :warning:\n\n`;
 
     message += `The following discrepancies were found:\n\n`;
     for (const [key, diff] of Object.entries(differences)) {
