@@ -635,11 +635,6 @@ contract OBaseMiddlewareReader is MiddlewareStorage, EpochCapture, VaultManager,
                 ++i;
             }
             bytes32 key = abi.decode(getOperatorKeyAt(operator, epochStartTs), (bytes32));
-
-            if (key == bytes32(0)) {
-                continue;
-            }
-
             uint256 power = _getOperatorPowerAt(epochStartTs, operator);
             validatorSet[len++] = IMiddleware.ValidatorData(power, key);
         }
