@@ -158,6 +158,7 @@ contract MiddlewareTest is Test {
     uint256 public constant OPERATOR7_STAKE_V5_STETH = 100 * 10 ** TOKEN_DECIMALS_ETH; // 100k power
 
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
+    uint256 public constant SLASHING_FRACTION = PARTS_PER_BILLION / 10; // 10%
 
     struct VaultsData {
         VaultData v1;
@@ -840,7 +841,6 @@ contract MiddlewareTest is Test {
 
         // Vault 3
         {
-            uint256 totalStakeVault3 = VAULT3_TOTAL_STAKE;
             uint256 adminFeeStakerRewardsVault3 = expectedRewardsStakerVault3.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
             expectedRewardsStakerVault3 -= adminFeeStakerRewardsVault3;
             _checkClaimableRewardsVault3(expectedRewardsStakerVault3, epoch);
@@ -877,7 +877,6 @@ contract MiddlewareTest is Test {
 
         // Vault 3
         {
-            uint256 totalStakeVault3 = VAULT3_TOTAL_STAKE;
             uint256 adminFeeStakerRewardsVault3 = expectedRewardsStakerVault3.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
             expectedRewardsStakerVault3 -= adminFeeStakerRewardsVault3;
             _checkClaimableRewardsVault3(expectedRewardsStakerVault3, epoch);
@@ -908,7 +907,6 @@ contract MiddlewareTest is Test {
 
         // Vault 5
         {
-            uint256 totalStakeVault5 = OPERATOR7_STAKE_V5_STETH;
             uint256 adminFeeStakerRewardsVault5 = expectedRewardsStakerVault5.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
             expectedRewardsStakerVault5 -= adminFeeStakerRewardsVault5;
 
@@ -1149,7 +1147,11 @@ contract MiddlewareTest is Test {
     function _loadRewardsRootAndProof(
         uint48 eraIndex,
         uint48 operator
-    ) internal returns (uint48 epoch, bytes32 rewardsRoot, bytes32[] memory proof, uint32 points, uint32 totalPoints) {
+    )
+        internal
+        view
+        returns (uint48 epoch, bytes32 rewardsRoot, bytes32[] memory proof, uint32 points, uint32 totalPoints)
+    {
         string memory project_root = vm.projectRoot();
         string memory path = string.concat(project_root, "/test/integration/rewards_data.json");
         string memory json = vm.readFile(path);
@@ -1171,8 +1173,7 @@ contract MiddlewareTest is Test {
     }
 
     function _prepareRewardsDistribution(uint48 eraIndex, uint256 amountToDistribute) private returns (uint48) {
-        (uint48 epoch, bytes32 rewardsRoot, bytes32[] memory proof, uint32 points, uint32 totalPoints) =
-            _loadRewardsRootAndProof(eraIndex, 1);
+        (uint48 epoch, bytes32 rewardsRoot,,, uint32 totalPoints) = _loadRewardsRootAndProof(eraIndex, 1);
 
         uint48 epochStartTs = middleware.getEpochStart(epoch);
         vm.warp(epochStartTs + 1);
@@ -1222,7 +1223,7 @@ contract MiddlewareTest is Test {
         uint256 amountToDistribute,
         uint32 points,
         uint32 totalPoints
-    ) private returns (uint256 expectedRewardsForStakers) {
+    ) private view returns (uint256 expectedRewardsForStakers) {
         if (checkBalance) {
             uint256 expectedRewardsForOperator =
                 amountToDistribute.mulDiv(points, totalPoints).mulDiv(OPERATOR_SHARE, MAX_PERCENTAGE);
@@ -1235,7 +1236,7 @@ contract MiddlewareTest is Test {
     function _checkClaimableRewardsVault2(
         uint256 expectedRewardsStakerVault2,
         uint48 epoch
-    ) private returns (uint256 rewardsOperator1, uint256 rewardsOperator2, uint256 rewardsOperator3) {
+    ) private view returns (uint256 rewardsOperator1, uint256 rewardsOperator2, uint256 rewardsOperator3) {
         address stakerRewardsContractVault2 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v2.vault));
 
         // Operator 1
@@ -1251,7 +1252,7 @@ contract MiddlewareTest is Test {
         _checkClaimableRewards(stakerRewardsContractVault2, epoch, operator3, rewardsOperator3);
     }
 
-    function _checkClaimableRewardsVault3(uint256 expectedRewardsStakerVault3, uint48 epoch) private {
+    function _checkClaimableRewardsVault3(uint256 expectedRewardsStakerVault3, uint48 epoch) private view {
         address stakerRewardsContractVault3 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v3.vault));
 
         // Operator 3
@@ -1271,7 +1272,7 @@ contract MiddlewareTest is Test {
         uint256 expectedRewardsStakerVault4,
         uint256 totalStakeVault4,
         uint48 epoch
-    ) private {
+    ) private view {
         address stakerRewardsContractVault4 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v4.vault));
 
         // Operator 5 in Vault 4
@@ -1288,8 +1289,92 @@ contract MiddlewareTest is Test {
         uint48 epoch,
         address operator,
         uint256 expectedRewards
-    ) private {
+    ) private view {
         uint256 actualRewards = IODefaultStakerRewards(stakerRewards).claimable(epoch, operator, address(STAR));
         assertApproxEqAbs(expectedRewards, actualRewards, 1);
+    }
+
+    // ************************************************************************************************
+    // *                                       Slashing
+    // ************************************************************************************************
+
+    function testInstantSlashingOperator3() public {
+        // Operator 3 has stake in vault2 (no slasher) and vault3 (instant slasher)
+        vm.warp(VAULT_EPOCH_DURATION + 2);
+        uint48 slashingEpoch = middleware.getCurrentEpoch();
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+
+        vm.startPrank(gateway);
+        middleware.slash(slashingEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+
+        // ---------------------
+        // Operator 1
+        {
+            uint256 operator1PowerVault1 = OPERATOR1_STAKE_V1_USDC.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC); // Normalized to 18 decimals
+            uint256 operator1PowerVault2 =
+                OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+
+            // Operator 1 is slashed on vault 2 only, but it is not slashable so power stays the same.
+            assertEq(validators[0].power, operator1PowerVault1 + operator1PowerVault2);
+        }
+
+        // Operator 2
+        {
+            // On Vault 2: Operator 2 has just 1 BTC staked, but delegator is full restake and their limit is 2 BTC. Since vault has more than the limit, the operator stake taken into account is their limit.
+            // Operator 3 is slashed on vault 2, but it is not slashable so power stays the same.
+            uint256 operator2PowerVault2 =
+                OPERATOR2_LIMIT_V2.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+
+            assertEq(validators[1].power, operator2PowerVault2);
+        }
+
+        uint256 operator3Vault3SlashedStake = OPERATOR3_STAKE_V3_WBTC.mulDiv(SLASHING_FRACTION, PARTS_PER_BILLION);
+        operator3Vault3SlashedStake.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+
+        // Operator 3
+        {
+            // On Vault 2: Operator 3 has 3 BTC staked, but delegator is full restake and their limit is 2 BTC. So only 2 BTC are taken into account. Vault is not slashable so power stays the same.
+
+            uint256 operator3PowerVault2 =
+                OPERATOR3_LIMIT_V2.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+
+            // On Vault 3: delegator is network restake and OP3 is assigned 1/5 shares. Vault is slashable so power stays are reduced.
+            uint256 operator3PowerVault3 = (VAULT3_TOTAL_STAKE - operator3Vault3SlashedStake).mulDiv(
+                uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC
+            ).mulDiv(OPERATOR3_SHARES_V3, VAULT3_TOTAL_SHARES);
+
+            assertEq(validators[2].power, operator3PowerVault2 + operator3PowerVault3);
+        }
+
+        // Operator 4
+        {
+            // On Vault 3: delegator is network restake and OP4 is assigned 1/5 shares
+            // Operator 3 is slashed on vault 3, so total power for operator 4 is reduced on the vault
+            uint256 operator4PowerVault3 = (VAULT3_TOTAL_STAKE - operator3Vault3SlashedStake).mulDiv(
+                uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC
+            ).mulDiv(OPERATOR4_SHARES_V3, VAULT3_TOTAL_SHARES);
+
+            assertEq(validators[3].power, operator4PowerVault3);
+        }
+
+        // Operator 5
+        {
+            // On Vault 3: delegator is network restake and OP5 is assigned 2/5 shares
+            // Operator 3 is slashed on vault 3, so total power for operator 5 is reduced on the vault
+            uint256 operator5PowerVault3 = (VAULT3_TOTAL_STAKE - operator3Vault3SlashedStake).mulDiv(
+                OPERATOR5_SHARES_V3, VAULT3_TOTAL_SHARES
+            ).mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+
+            // On Vault 4: delegator is network restake and OP5 is assigned 2/3 shares. Operator is not active on vault 4 so power stays the same.
+            uint256 operator5PowerVault4 = VAULT4_TOTAL_STAKE.mulDiv(OPERATOR5_SHARES_V4, VAULT4_TOTAL_SHARES).mulDiv(
+                uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS_ETH
+            );
+
+            assertEq(validators[4].power, operator5PowerVault4 + operator5PowerVault3);
+        }
     }
 }
