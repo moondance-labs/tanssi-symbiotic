@@ -10,8 +10,6 @@
     "typescript": "^5.8.3"
   },
   "scripts": {
-    "start": "ts-node chainlink_monitor_slack_alert.ts",
-    "build": "tsc",
-    "start:prod": "node dist/chainlink_monitor_slack_alert.js"
+    "start": "ts-node chainlink_monitor_slack_alert.ts"
   }
 }
