@@ -25,14 +25,6 @@ export async function compareWithMiddlewareData(
 
     const operatorsArray = [...sortedOperators];
 
-    operatorsArray.push("0xNewOperatorAddressHere");
-    operatorsArray.push("0xNewOperatorAddressHere");
-    operatorsArray.push("0xNewOperatorAddressHere2");
-
-    operatorsKeys.push("0x000000000000000000000000000000000000dEaD");
-    operatorsKeys.push("0xNewOperatorAddressHere");
-    operatorsKeys.push("0xNewOperatorAddressHere3");
-
     // Compare the data
     const comparisonResult = await compareOperatorsData(
       operatorsArray,
