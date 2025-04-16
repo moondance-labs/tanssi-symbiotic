@@ -1,10 +1,12 @@
 import { ethers } from "ethers";
 
-export function decodeOperatorsData(payload: string): {
+export type OperatorsData = {
   operatorsKeys: string[];
   operatorsCount: number;
   epoch: number;
-} {
+};
+
+export function decodeOperatorsData(payload: string): OperatorsData {
   // Convert to bytes array if it's a hex string
   const bytes = ethers.utils.arrayify(payload);
 
