@@ -44,6 +44,6 @@ contract DelegatorMock is BaseDelegator {
         bytes memory hints
     ) internal view override returns (uint256, bytes memory) {
         uint256 operatorStake = IVault(vault).activeBalanceOf(operator);
-        return (hints.length > 0 ? (0, bytes("0xrandomData")) : (operatorStake, bytes("")));
+        return (hints.length != 0 ? (0, bytes("0xrandomData")) : (operatorStake, bytes("")));
     }
 }

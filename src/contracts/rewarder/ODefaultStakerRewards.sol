@@ -349,7 +349,7 @@ contract ODefaultStakerRewards is
 
         $.claimableAdminFee[epoch][tokenAddress] += adminFeeAmount;
 
-        if (distributeAmount > 0) {
+        if (distributeAmount != 0) {
             $.rewards[epoch][tokenAddress] += distributeAmount;
         }
     }
