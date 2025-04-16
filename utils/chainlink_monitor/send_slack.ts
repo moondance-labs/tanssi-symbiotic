@@ -7,6 +7,7 @@ type AlertEventData = {
   blockNumber: number;
   txHash: string;
   shouldSendTx?: boolean;
+  header?: string;
 };
 
 export async function sendSlackAlert(eventData: AlertEventData): Promise<void> {
@@ -17,7 +18,9 @@ export async function sendSlackAlert(eventData: AlertEventData): Promise<void> {
           type: "header",
           text: {
             type: "plain_text",
-            text: "🚨 Mismatch found between Chainlink Automation and On-Chain sorting",
+            text:
+              eventData.header ??
+              "🚨 Mismatch found between Chainlink Automation and On-Chain sorting",
             emoji: true,
           },
         },

@@ -64,6 +64,7 @@ export async function compareWithMiddlewareData(
           timestamp: blockData.timestamp,
           txHash: tx.hash,
           shouldSendTx,
+          header: "✅ Transaction sent to override latest operator keys",
         });
       }
     }
