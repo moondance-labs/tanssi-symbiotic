@@ -539,13 +539,20 @@ contract RewardsTest is Test {
         uint48 epoch = 0;
         uint48 eraIndex = 0;
 
-        vm.startPrank(tanssi);
-        token.transfer(address(middleware), token.balanceOf(tanssi));
+        vm.startPrank(address(middleware));
+        token.approve(address(operatorRewards), type(uint256).max);
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidValues.selector);
+        operatorRewards.distributeRewards(epoch, eraIndex, AMOUNT_TO_DISTRIBUTE, 0, REWARDS_ROOT, address(token));
+    }
+
+    function testDistributeRewardsFailsWithInvalidAmount() public {
+        uint48 epoch = 0;
+        uint48 eraIndex = 0;
 
         vm.startPrank(address(middleware));
         token.approve(address(operatorRewards), type(uint256).max);
-        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidTotalPoints.selector);
-        operatorRewards.distributeRewards(epoch, eraIndex, AMOUNT_TO_DISTRIBUTE, 0, REWARDS_ROOT, address(token));
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidValues.selector);
+        operatorRewards.distributeRewards(epoch, eraIndex, 0, AMOUNT_TO_DISTRIBUTE, REWARDS_ROOT, address(token));
     }
 
     //**************************************************************************************************
