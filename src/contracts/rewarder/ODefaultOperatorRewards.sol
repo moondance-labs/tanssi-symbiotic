@@ -183,7 +183,7 @@ contract ODefaultOperatorRewards is
         amount = input.totalPointsClaimable * eraRoot_.tokensPerPoint;
 
         // You can only claim everything and if it's claimed before revert
-        if ($.claimed[input.eraIndex][recipient] > 0) {
+        if ($.claimed[input.eraIndex][recipient] != 0) {
             revert ODefaultOperatorRewards__InsufficientTotalClaimable();
         }
 

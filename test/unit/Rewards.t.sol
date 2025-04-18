@@ -362,7 +362,7 @@ contract RewardsTest is Test {
 
         vm.store(address(stakerRewards), tokenSlot, bytes32(uint256(amount)));
 
-        if (additionalRewards > 0) {
+        if (additionalRewards != 0) {
             // Get slot for second mapping with tokenAddress
             tokenSlot = keccak256(abi.encode(address(newToken), slot));
 
