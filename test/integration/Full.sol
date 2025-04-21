@@ -112,6 +112,8 @@ contract MiddlewareTest is Test {
     bytes32 public constant OPERATOR5_KEY = 0x0505050505050505050505050505050505050505050505050505050505050505;
     bytes32 public constant OPERATOR6_KEY = 0x0606060606060606060606060606060606060606060606060606060606060606;
     bytes32 public constant OPERATOR7_KEY = 0x0707070707070707070707070707070707070707070707070707070707070707;
+    bytes32 public constant OPERATOR8_KEY = 0x0808080808080808080808080808080808080808080808080808080808080808;
+    bytes32 public constant OPERATOR9_KEY = 0x0909090909090909090909090909090909090909090909090909090909090909;
 
     // Vault 1 - Single Operator
     uint256 public constant VAULT1_NETWORK_LIMIT = 500_000 * 10 ** TOKEN_DECIMALS_USDC; // 500k power
@@ -473,7 +475,6 @@ contract MiddlewareTest is Test {
         middleware.registerSharedVault(address(vaultsData.v4.vault), stakerRewardsParams);
         middleware.registerSharedVault(address(vaultsData.v5.vault), stakerRewardsParams);
 
-        // TODO Steven: Shall we set vaults at least for operators with a single vault? (Last param)
         middleware.registerOperator(operator1, abi.encode(OPERATOR1_KEY), address(0));
         middleware.registerOperator(operator2, abi.encode(OPERATOR2_KEY), address(0));
         middleware.registerOperator(operator3, abi.encode(OPERATOR3_KEY), address(0));
@@ -1376,5 +1377,103 @@ contract MiddlewareTest is Test {
 
             assertEq(validators[4].power, operator5PowerVault4 + operator5PowerVault3);
         }
+    }
+
+    // ************************************************************************************************
+    // *                                       GAS LIMITS
+    // ************************************************************************************************
+
+    function testDistributeRewardsWithOperatorInMultipleVaults() public {
+        // Distribute rewards
+        address operator8 = makeAddr("operator8");
+        address operator9 = makeAddr("operator9");
+        uint256 numberOfVaults = 100;
+
+        _prepareOperatorsInMultipleVaults(operator8, operator9, numberOfVaults);
+
+        // Distribute rewards
+        uint48 eraIndex = 5;
+        uint256 amountToDistribute = 100 ether;
+        vm.warp(block.timestamp + 5 * NETWORK_EPOCH_DURATION);
+
+        uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
+
+        uint256 initGas = gasleft();
+        uint256 expectedRewardsForStakers =
+            _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR8_KEY, operator8, 8, true);
+        uint256 endGas = gasleft();
+
+        // 30M is the tx gas limit in most of the networks
+        assertLt(initGas - endGas, 30_000_000);
+    }
+
+    function testSlashOperatorInMultipleVaults() public {
+        // Distribute rewards
+        address operator8 = makeAddr("operator8");
+        address operator9 = makeAddr("operator9");
+        uint256 numberOfVaults = 100;
+
+        _prepareOperatorsInMultipleVaults(operator8, operator9, numberOfVaults);
+
+        // Distribute rewards
+        vm.warp(VAULT_EPOCH_DURATION + 1);
+
+        uint48 slashingEpoch = middleware.getCurrentEpoch();
+        vm.startPrank(gateway);
+        uint256 initGas = gasleft();
+        middleware.slash(slashingEpoch, OPERATOR8_KEY, SLASHING_FRACTION);
+        vm.stopPrank();
+
+        uint256 endGas = gasleft();
+
+        console2.log("Gas used:", initGas - endGas);
+
+        // 30M is the tx gas limit in most of the networks
+        assertLt(initGas - endGas, 30_000_000);
+    }
+
+    function _prepareOperatorsInMultipleVaults(address operatorA, address operatorB, uint256 numberOfVaults) private {
+        uint256 NETWORK_LIMIT = 100 ether;
+
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            adminFee: ADMIN_FEE,
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: tanssi,
+            adminFeeSetRoleHolder: tanssi
+        });
+
+        for (uint256 i = 0; i < numberOfVaults; i++) {
+            vm.startPrank(tanssi);
+            DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
+                epochDuration: VAULT_EPOCH_DURATION,
+                depositWhitelist: false,
+                depositLimit: 0,
+                delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
+                shouldBroadcast: false,
+                vaultConfigurator: address(vaultConfigurator),
+                collateral: address(wBTC),
+                owner: owner,
+                operator: address(0)
+            });
+            (address vault, address delegator, address slasher) = deployVault.createSlashableVault(params);
+
+            middleware.registerSharedVault(address(vault), stakerRewardsParams);
+            INetworkRestakeDelegator(delegator).setOperatorNetworkShares(tanssi.subnetwork(0), operatorA, 1);
+            INetworkRestakeDelegator(delegator).setOperatorNetworkShares(tanssi.subnetwork(0), operatorB, 1);
+            INetworkRestakeDelegator(delegator).setMaxNetworkLimit(0, NETWORK_LIMIT);
+            INetworkRestakeDelegator(delegator).setNetworkLimit(tanssi.subnetwork(0), NETWORK_LIMIT);
+            vm.stopPrank();
+
+            _registerOperatorAndOptIn(operatorA, tanssi, vault, i == 0);
+            _registerOperatorAndOptIn(operatorB, tanssi, vault, i == 0);
+
+            _depositToVault(IVault(vault), operatorA, 1 ether, wBTC, true);
+            _depositToVault(IVault(vault), operatorB, 1 ether, wBTC, true);
+        }
+
+        vm.startPrank(tanssi);
+        middleware.registerOperator(operatorA, abi.encode(OPERATOR8_KEY), address(0));
+        middleware.registerOperator(operatorB, abi.encode(OPERATOR9_KEY), address(0));
+        vm.stopPrank();
     }
 }

@@ -135,5 +135,20 @@
       "0xecedcc5e8af6af22765a0037841db9ea4a1e98ed4e6a7064712bb6e3bb3851e3"
     ],
     "operator7_points": 10
+  },
+  "5": {
+    "epoch": 1,
+    "total_points": 100,
+    "root": "0x0814d868937bbc1da973e5f959165ce6818ffaf7f42ba2f408bb7c970c229b42",
+    "operator1_proof": [],
+    "operator1_points": 0,
+    "operator8_proof": [
+      "0x4e707b2d67e1031b6be1c2bd486b8d90dc1e30fcb0b66e36b1998d04a10a239a"
+    ],
+    "operator8_points": 80,
+    "operator9_proof": [
+      "0x90b9ad81dc50b413c33805a129b684ea38cead32f457390f30aaec8835af4b30"
+    ],
+    "operator9_points": 20
   }
 }
