@@ -376,6 +376,22 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
     }
 
+    function testRegisterOperatorWithEmptyKey() public {
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+
+        vm.startPrank(owner);
+        vm.expectRevert(IMiddleware.Middleware__InvalidKey.selector);
+        middleware.registerOperator(operator, abi.encode(bytes32(0)), address(0));
+        vm.stopPrank();
+    }
+
+    function testRegisterOperatorWithAddressZero() public {
+        vm.startPrank(owner);
+        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
+        middleware.registerOperator(address(0), abi.encode(OPERATOR_KEY), address(0));
+        vm.stopPrank();
+    }
+
     function testRegisterOperatorUnauthorized() public {
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -957,24 +973,6 @@ contract MiddlewareTest is Test {
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
         middleware.registerSharedVault(address(vault), stakerRewardsParams);
         middleware.pauseOperator(operator);
-        vm.warp(START_TIME + SLASHING_WINDOW + 1);
-        uint48 currentEpoch = middleware.getCurrentEpoch();
-        Middleware.ValidatorData[] memory validators =
-            OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
-        assertEq(validators.length, 0);
-
-        vm.stopPrank();
-    }
-
-    function testGetValidatorSetButOperatorHasNullKey() public {
-        _registerOperatorToNetwork(operator, address(vault), false, false);
-        _registerVaultToNetwork(address(vault), false, 0);
-
-        vm.startPrank(owner);
-        middleware.registerOperator(operator, abi.encode(bytes32(0)), address(0));
-        vault.setSlasher(address(slasher));
-        vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerSharedVault(address(vault), stakerRewardsParams);
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validators =
