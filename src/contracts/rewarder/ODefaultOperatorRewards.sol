@@ -120,7 +120,7 @@ contract ODefaultOperatorRewards is
         bytes32 root,
         address tokenAddress
     ) external nonReentrant onlyMiddleware {
-        if (amount == 0 || totalPointsToken == 0) {
+        if (amount == 0 || totalPoints == 0) {
             revert ODefaultOperatorRewards__InvalidValues();
         }
 
@@ -131,6 +131,7 @@ contract ODefaultOperatorRewards is
 
         if (transferredAmount != amount) {
             revert ODefaultOperatorRewards__InsufficientTransfer();
+        }
 
         EraRoot memory eraRoot_ = EraRoot({
             epoch: epoch,
