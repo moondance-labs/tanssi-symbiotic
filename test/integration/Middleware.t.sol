@@ -1073,12 +1073,12 @@ contract MiddlewareTest is Test {
         assertEq(validators.length, count + 3);
         assertEq(validators.length, sortedValidators.length);
         for (uint256 i = 0; i < validators.length - 1; i++) {
-            if (i > 0 && i < count - 1) {
+            if (i != 0 && i < count - 1) {
                 assertLe(validators[i].power, validators[i - 1].power);
             }
         }
         for (uint256 i = 0; i < sortedValidators.length - 1; i++) {
-            if (i > 0 && i < count - 1) {
+            if (i != 0 && i < count - 1) {
                 assertEq(validators[i].key, sortedValidators[i]);
             }
         }

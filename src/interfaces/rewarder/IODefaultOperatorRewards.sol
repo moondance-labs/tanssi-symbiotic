@@ -20,7 +20,7 @@ interface IODefaultOperatorRewards {
     error ODefaultOperatorRewards__NotNetworkMiddleware();
     error ODefaultOperatorRewards__RootNotSet();
     error ODefaultOperatorRewards__InvalidProof();
-    error ODefaultOperatorRewards__InvalidTotalPoints();
+    error ODefaultOperatorRewards__InvalidValues();
     error ODefaultOperatorRewards__InvalidOperatorShare();
     error ODefaultOperatorRewards__InvalidAddress();
     error ODefaultOperatorRewards__AlreadySet();

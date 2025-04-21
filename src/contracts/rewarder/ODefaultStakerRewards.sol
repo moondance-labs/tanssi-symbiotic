@@ -65,7 +65,6 @@ contract ODefaultStakerRewards is
         mapping(uint48 epoch => mapping(address tokenAddress => uint256 amount)) claimableAdminFee;
         mapping(uint48 epoch => uint256 amount) activeSharesCache;
         mapping(uint48 epoch => bool) epochMigrated;
-        mapping(uint48 epoch => bool) epochOperatorsMigrated;
     }
 
     function migrate(uint48 startEpoch, uint48 endEpoch, address tokenAddress) external {
@@ -350,7 +349,7 @@ contract ODefaultStakerRewards is
 
         $.claimableAdminFee[epoch][tokenAddress] += adminFeeAmount;
 
-        if (distributeAmount > 0) {
+        if (distributeAmount != 0) {
             $.rewards[epoch][tokenAddress] += distributeAmount;
         }
     }

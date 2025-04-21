@@ -90,7 +90,7 @@ contract DeployVault is Script {
             params: params,
             withSlasher: true,
             slasherIndex: uint8(DeploySymbiotic.VaultSlashType.VETO),
-            vetoDuration: vetoDuration //TODO: Restrict this in order to be compliant with architecture
+            vetoDuration: vetoDuration
         });
     }
 

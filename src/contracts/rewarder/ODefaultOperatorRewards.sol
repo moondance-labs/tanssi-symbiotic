@@ -120,20 +120,17 @@ contract ODefaultOperatorRewards is
         bytes32 root,
         address tokenAddress
     ) external nonReentrant onlyMiddleware {
-        if (amount > 0) {
-            // Check if the amount being sent is greater than 0
-            uint256 balanceBefore = IERC20(tokenAddress).balanceOf(address(this));
-            IERC20(tokenAddress).safeTransferFrom(msg.sender, address(this), amount);
-            amount = IERC20(tokenAddress).balanceOf(address(this)) - balanceBefore;
-
-            if (amount == 0) {
-                revert ODefaultOperatorRewards__InsufficientTransfer();
-            }
-
-            if (totalPoints == 0) {
-                revert ODefaultOperatorRewards__InvalidTotalPoints();
-            }
+        if (amount == 0 || totalPointsToken == 0) {
+            revert ODefaultOperatorRewards__InvalidValues();
         }
+
+        // Check if the amount being sent is greater than 0
+        uint256 balanceBefore = IERC20(tokenAddress).balanceOf(address(this));
+        IERC20(tokenAddress).safeTransferFrom(msg.sender, address(this), amount);
+        uint256 transferredAmount = IERC20(tokenAddress).balanceOf(address(this)) - balanceBefore;
+
+        if (transferredAmount != amount) {
+            revert ODefaultOperatorRewards__InsufficientTransfer();
 
         EraRoot memory eraRoot_ = EraRoot({
             epoch: epoch,
@@ -185,7 +182,7 @@ contract ODefaultOperatorRewards is
         amount = input.totalPointsClaimable * eraRoot_.tokensPerPoint;
 
         // You can only claim everything and if it's claimed before revert
-        if ($.claimed[input.eraIndex][recipient] > 0) {
+        if ($.claimed[input.eraIndex][recipient] != 0) {
             revert ODefaultOperatorRewards__InsufficientTotalClaimable();
         }
 

@@ -48,6 +48,7 @@ interface IMiddleware {
     error Middleware__InvalidEpoch();
     error Middleware__InvalidEpochDuration();
     error Middleware__InvalidAddress();
+    error Middleware__InvalidKey();
     error Middleware__InvalidInterval();
     error Middleware__InsufficientBalance();
     error Middleware__NotSupportedCollateral(address collateral);
