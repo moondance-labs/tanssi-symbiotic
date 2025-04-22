@@ -233,6 +233,36 @@ contract DeployTest is Test {
         assertNotEq(middleware, ZERO_ADDRESS);
     }
 
+    function testUpgradeMiddleware() public {
+        DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
+        address operatorRegistry = addresses.operatorRegistry;
+        address vaultFactory = addresses.vaultFactory;
+        address operatorNetworkOptIn = addresses.operatorNetworkOptInService;
+        address networkMiddlewareService = addresses.networkMiddlewareService;
+
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: tanssi,
+            operatorRegistry: operatorRegistry,
+            vaultRegistry: vaultFactory,
+            operatorNetworkOptIn: operatorNetworkOptIn,
+            owner: tanssi,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: 8 days,
+            reader: address(0)
+        });
+        address middleware = deployTanssiEcosystem.deployMiddleware(
+            params, operatorRewardsAddress, stakerRewardsFactoryAddress, networkMiddlewareService
+        );
+
+        address newOperatorRewardsAddress = makeAddr("newOperatorRewardsAddress");
+        address newStakerRewardsFactoryAddress = makeAddr("newStakerRewardsFactoryAddress");
+        deployTanssiEcosystem.upgradeMiddleware(
+            middleware, 2, newOperatorRewardsAddress, newStakerRewardsFactoryAddress, tanssi
+        );
+        assertEq(Middleware(middleware).i_operatorRewards(), newOperatorRewardsAddress);
+        assertEq(Middleware(middleware).i_stakerRewardsFactory(), newStakerRewardsFactoryAddress);
+    }
+
     function testDeployRegisterVault() public {
         (address _vault,,,,,,,,) = deployTanssiEcosystem.vaultAddresses();
 

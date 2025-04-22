@@ -20,7 +20,7 @@ pragma solidity 0.8.25;
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 contract MiddlewareV2 is UUPSUpgradeable {
-    uint256 public constant VERSION = 2;
+    uint256 public constant VERSION = 22;
 
     constructor() {
         _disableInitializers();
