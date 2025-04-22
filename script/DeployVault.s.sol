@@ -61,7 +61,8 @@ contract DeployVault is Script {
     enum DelegatorIndex {
         NETWORK_RESTAKE, // 0
         FULL_RESTAKE, // 1
-        OPERATOR_SPECIFIC // 2
+        OPERATOR_SPECIFIC, // 2
+        OPERATOR_NETWORK_SPECIFIC // 3
 
     }
 
