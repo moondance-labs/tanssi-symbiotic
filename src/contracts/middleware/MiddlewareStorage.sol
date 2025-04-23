@@ -32,7 +32,7 @@ abstract contract MiddlewareStorage {
         0xca64b196a0d05040904d062f739ed1d1e1d3cc5de78f7001fb9039595fce9100;
 
     uint8 public constant DEFAULT_DECIMALS = 18;
-    uint256 public constant VERSION = 2;
+    uint256 public constant VERSION = 1;
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
     bytes32 internal constant GATEWAY_ROLE = keccak256("GATEWAY_ROLE");
     bytes32 internal constant FORWARDER_ROLE = keccak256("FORWARDER_ROLE");

@@ -258,7 +258,7 @@ contract DeployTest is Test {
         address newOperatorRewardsAddress = makeAddr("newOperatorRewardsAddress");
         address newStakerRewardsFactoryAddress = makeAddr("newStakerRewardsFactoryAddress");
         deployTanssiEcosystem.upgradeMiddleware(
-            middleware, 2, newOperatorRewardsAddress, newStakerRewardsFactoryAddress, tanssi
+            middleware, 1, newOperatorRewardsAddress, newStakerRewardsFactoryAddress, tanssi
         );
         assertEq(Middleware(middleware).i_operatorRewards(), newOperatorRewardsAddress);
         assertEq(Middleware(middleware).i_stakerRewardsFactory(), newStakerRewardsFactoryAddress);
