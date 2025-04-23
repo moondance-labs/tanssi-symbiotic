@@ -1544,7 +1544,6 @@ contract RewardsTest is Test {
         _checkMigrationResult(maxEpoch);
     }
 
-    // We start from epoch 1, because at epoch 0 no operators can be active!
     function testUpgradeAndMigrateStakerRewards() public {
         Token newToken = new Token("NewToken", 18);
         uint48 maxEpoch = 50;
@@ -1552,7 +1551,32 @@ contract RewardsTest is Test {
         _preparePreviousStorageData(address(newToken), maxEpoch, true);
         vm.warp(NETWORK_EPOCH_DURATION * (maxEpoch + 1));
 
-        console2.log("Tanssi: ", address(tanssi));
+        deployRewards.upgradeStakerRewardsAndMigrate(
+            address(stakerRewards),
+            address(networkMiddlewareService),
+            address(vault),
+            address(tanssi),
+            address(middleware),
+            address(token)
+        );
+
+        _checkMigrationResult(maxEpoch);
+    }
+
+    function testUpgradeAndMigrateStakerRewardsWithBroadcast() public {
+        Token newToken = new Token("NewToken", 18);
+        uint48 maxEpoch = 50;
+
+        vm.startPrank(tanssi);
+        // On not testing mode, the owner of the contract to upgrade is this, so we need to grant the admin role to it
+        address ownerForUpgrade = vm.addr(deployRewards.ownerPrivateKey());
+        stakerRewards.grantRole(stakerRewards.DEFAULT_ADMIN_ROLE(), ownerForUpgrade);
+        vm.stopPrank();
+
+        _preparePreviousStorageData(address(newToken), maxEpoch, true);
+        vm.warp(NETWORK_EPOCH_DURATION * (maxEpoch + 1));
+
+        deployRewards.setIsTest(false);
         deployRewards.upgradeStakerRewardsAndMigrate(
             address(stakerRewards),
             address(networkMiddlewareService),

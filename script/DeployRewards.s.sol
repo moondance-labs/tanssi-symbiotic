@@ -118,7 +118,6 @@ contract DeployRewards is Script {
         if (!isTest) {
             vm.startBroadcast(ownerPrivateKey);
         } else {
-            // TODO Steven: Try to make it work without this:
             vm.startPrank(network);
         }
         ODefaultStakerRewards proxy = ODefaultStakerRewards(proxyAddress);

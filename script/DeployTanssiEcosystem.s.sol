@@ -418,13 +418,25 @@ contract DeployTanssiEcosystem is Script {
         vm.stopBroadcast();
     }
 
+    function runUpgradeMiddleware(
+        address proxyAddress,
+        uint256 expectedCurrentVersion,
+        address operatorRewardsAddress,
+        address stakerRewardsFactoryAddress
+    ) external {
+        isTest = false;
+        upgradeMiddleware(
+            proxyAddress, expectedCurrentVersion, operatorRewardsAddress, stakerRewardsFactoryAddress, address(0)
+        );
+    }
+
     function upgradeMiddleware(
         address proxyAddress,
         uint256 expectedCurrentVersion,
         address operatorRewardsAddress,
         address stakerRewardsFactoryAddress,
         address contractOwner
-    ) external {
+    ) public {
         if (!isTest) {
             vm.startBroadcast(ownerPrivateKey);
         } else {
