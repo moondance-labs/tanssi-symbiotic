@@ -35,6 +35,7 @@ import {IDefaultCollateralFactory} from
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
+import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
 import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Token} from "test/mocks/Token.sol";
@@ -325,7 +326,7 @@ contract DeployTanssiEcosystem is Script {
         vm.stopBroadcast();
 
         address operatorRewardsAddress = contractScripts.deployRewards.deployOperatorRewardsContract(
-            tanssi, address(networkMiddlewareService), 2000, tanssi
+            tanssi, networkMiddlewareServiceAddress, 2000, tanssi
         );
 
         address stakerRewardsFactoryAddress = contractScripts.deployRewards.deployStakerRewardsFactoryContract(
@@ -333,17 +334,20 @@ contract DeployTanssiEcosystem is Script {
         );
 
         vm.startBroadcast(ownerPrivateKey);
-        ecosystemEntities.middleware = _deployMiddlewareWithProxy(
-            tanssi,
-            operatorRegistryAddress,
-            vaultRegistryAddress,
-            operatorNetworkOptInServiceAddress,
-            tanssi,
-            NETWORK_EPOCH_DURATION,
-            SLASHING_WINDOW,
-            operatorRewardsAddress,
-            stakerRewardsFactoryAddress
-        );
+
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: tanssi,
+            operatorRegistry: operatorRegistryAddress,
+            vaultRegistry: vaultRegistryAddress,
+            operatorNetworkOptIn: operatorNetworkOptInServiceAddress,
+            owner: tanssi,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: SLASHING_WINDOW,
+            reader: address(0)
+        });
+
+        ecosystemEntities.middleware =
+            _deployMiddlewareWithProxy(params, operatorRewardsAddress, stakerRewardsFactoryAddress);
 
         // Operator 1 goes to first vault
         INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares{gas: 10_000_000}(
@@ -388,30 +392,18 @@ contract DeployTanssiEcosystem is Script {
     }
 
     function _deployMiddlewareWithProxy(
-        address _network,
-        address _operatorRegistry,
-        address _vaultRegistry,
-        address _operatorNetworkOptInService,
-        address _owner,
-        uint48 _epochDuration,
-        uint48 _slashingWindow,
-        address _operatorRewards,
-        address _stakerRewardsFactory
+        IMiddleware.InitParams memory params,
+        address operatorRewardsAddress,
+        address stakerRewardsFactoryAddress
     ) private returns (Middleware _middleware) {
-        Middleware _middlewareImpl = new Middleware(_operatorRewards, _stakerRewardsFactory);
+        Middleware _middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
         _middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
         console2.log("Middleware Implementation: ", address(_middlewareImpl));
-        address readHelper = address(new OBaseMiddlewareReader());
-        _middleware.initialize(
-            _network, // network
-            _operatorRegistry, // operatorRegistry
-            _vaultRegistry, // vaultRegistry
-            _operatorNetworkOptInService, // operatorNetworkOptInService
-            _owner, // owner
-            _epochDuration, // epochDuration
-            _slashingWindow, // slashingWindow
-            readHelper // readHelper
-        );
+
+        if (params.reader == address(0)) {
+            params.reader = address(new OBaseMiddlewareReader());
+        }
+        _middleware.initialize(params);
     }
 
     function deployTanssiEcosystem(
