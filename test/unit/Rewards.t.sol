@@ -154,7 +154,8 @@ contract RewardsTest is Test {
             tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
         );
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
-
+        // TODO TO REMOVE
+        operatorRewards.initializeV2(OPERATOR_SHARE, owner);
         delegator = new DelegatorMock(
             address(networkRegistry),
             address(vaultFactory),
@@ -1486,10 +1487,13 @@ contract RewardsTest is Test {
     function testUpgradeOperatorRewardsNotAuthorized() public {
         ODefaultOperatorRewards newOperatorRewards =
             new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService));
-
+        bytes32 adminRole = newOperatorRewards.DEFAULT_ADMIN_ROLE();
         address randomUser = makeAddr("randomUser");
         vm.prank(randomUser);
-        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, randomUser));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, randomUser, adminRole)
+        );
         operatorRewards.upgradeToAndCall(address(newOperatorRewards), hex"");
     }
 
@@ -1639,5 +1643,17 @@ contract RewardsTest is Test {
             uint256 rewards = stakerRewards.rewards(epoch, address(token));
             assertEq(rewards, epoch % 2 == 0 ? BASE_AMOUNT * 2 : BASE_AMOUNT);
         }
+    }
+
+    //TODO TO REMOVE
+
+    function testMigrateStakerRewardsWithInvalidRole() public {
+        uint48 MAX_PERCENTAGE = 10_000;
+        address operatorRewardsAddress = deployRewards.deployOperatorRewardsContract(
+            tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
+        );
+        operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidOperatorShare.selector);
+        operatorRewards.initializeV2(MAX_PERCENTAGE + 1, owner);
     }
 }

@@ -29,8 +29,9 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+
 //**************************************************************************************************
 //                                      SNOWBRIDGE
 //**************************************************************************************************
@@ -44,7 +45,7 @@ import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperato
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 
 contract ODefaultOperatorRewards is
-    OwnableUpgradeable,
+    AccessControlUpgradeable,
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable,
     IODefaultOperatorRewards
@@ -101,10 +102,35 @@ contract ODefaultOperatorRewards is
         i_networkMiddlewareService = networkMiddlewareService;
     }
 
+    /**
+     * @notice Initialize the contract.
+     * @param operatorShare_ The share of the operator.
+     * @param owner_ The address of the owner.
+     */
     function initialize(uint48 operatorShare_, address owner_) public initializer notZeroAddress(owner_) {
-        __Ownable_init(owner_);
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
+
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        $.operatorShare = operatorShare_;
+    }
+
+    /**
+     * @notice Initialize the contract for the second time.
+     * @param operatorShare_ The share of the operator.
+     * @param admin The address of the admin.
+     */
+    function initializeV2(uint48 operatorShare_, address admin) public reinitializer(2) notZeroAddress(admin) {
+        if (operatorShare_ >= MAX_PERCENTAGE) {
+            revert ODefaultOperatorRewards__InvalidOperatorShare();
+        }
+
+        __UUPSUpgradeable_init();
+        __ReentrancyGuard_init();
+        __AccessControl_init();
+
+        _grantRole(DEFAULT_ADMIN_ROLE, admin);
+
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         $.operatorShare = operatorShare_;
     }
@@ -379,7 +405,7 @@ contract ODefaultOperatorRewards is
 
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyOwner {}
+    ) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
     function _getOperatorRewardsStorage() private pure returns (OperatorRewardsStorage storage $) {
         bytes32 position = OPERATOR_REWARDS_STORAGE_LOCATION;
