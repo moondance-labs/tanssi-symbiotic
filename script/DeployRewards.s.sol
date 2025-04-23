@@ -29,7 +29,7 @@ contract DeployRewards is Script {
     ODefaultOperatorRewards public operatorRewards;
     ODefaultStakerRewards public stakerRewardsImpl;
 
-    uint256 ownerPrivateKey =
+    uint256 public ownerPrivateKey =
         vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
 
     bool isTest = false;
