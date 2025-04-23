@@ -75,7 +75,8 @@ contract DeployTest is Test {
         deploySymbiotic = new DeploySymbiotic();
         deployTanssiEcosystem = new DeployTanssiEcosystem();
         deployVault = new DeployVault();
-        deployRewards = new DeployRewards(true);
+        deployRewards = new DeployRewards();
+        deployRewards.setIsTest(true);
         helperConfig = new HelperConfig();
 
         deployTanssiEcosystem.deployTanssiEcosystem(helperConfig);

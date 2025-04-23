@@ -431,7 +431,7 @@ contract DeployTanssiEcosystem is Script {
             vm.startPrank(contractOwner);
         }
         Middleware newImplementation = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
-        Middleware proxy = Middleware(payable(proxyAddress));
+        Middleware proxy = Middleware(proxyAddress);
         uint256 currentVersion = proxy.VERSION();
         if (currentVersion != expectedCurrentVersion) {
             revert("Middleware version is not expected, cannot upgrade");
@@ -449,7 +449,8 @@ contract DeployTanssiEcosystem is Script {
         contractScripts.helperConfig = _helperConfig;
         contractScripts.deployVault = new DeployVault();
         contractScripts.deployCollateral = new DeployCollateral();
-        contractScripts.deployRewards = new DeployRewards(_isTest);
+        contractScripts.deployRewards = new DeployRewards();
+        contractScripts.deployRewards.setIsTest(isTest);
 
         (address vaultConfiguratorAddress,,,,,,,,,) = _helperConfig.activeNetworkConfig();
         ecosystemEntities.vaultConfigurator = IVaultConfigurator(vaultConfiguratorAddress);

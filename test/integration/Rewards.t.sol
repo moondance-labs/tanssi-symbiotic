@@ -283,7 +283,8 @@ contract RewardsTest is Test {
 
         _deployVaults(tanssi);
 
-        DeployRewards deployRewards = new DeployRewards(true);
+        DeployRewards deployRewards = new DeployRewards();
+        deployRewards.setIsTest(true);
         address operatorRewardsAddress = deployRewards.deployOperatorRewardsContract(
             tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
         );

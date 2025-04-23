@@ -148,7 +148,8 @@ contract RewardsTest is Test {
         networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
         address readHelper = address(new OBaseMiddlewareReader());
 
-        deployRewards = new DeployRewards(true);
+        deployRewards = new DeployRewards();
+        deployRewards.setIsTest(true);
         deployCollateral = new DeployCollateral();
         address operatorRewardsAddress = deployRewards.deployOperatorRewardsContract(
             tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
@@ -1551,7 +1552,6 @@ contract RewardsTest is Test {
         _preparePreviousStorageData(address(newToken), maxEpoch, true);
         vm.warp(NETWORK_EPOCH_DURATION * (maxEpoch + 1));
 
-        vm.startPrank(address(tanssi));
         console2.log("Tanssi: ", address(tanssi));
         deployRewards.upgradeStakerRewardsAndMigrate(
             address(stakerRewards),

@@ -688,7 +688,8 @@ contract MiddlewareTest is Test {
         address vaultFactoryAddress,
         address networkMiddlewareServiceAddress
     ) private returns (Middleware middlewareImpl) {
-        DeployRewards deployRewards = new DeployRewards(true);
+        DeployRewards deployRewards = new DeployRewards();
+        deployRewards.setIsTest(true);
 
         address operatorRewardsAddress =
             deployRewards.deployOperatorRewardsContract(network, networkMiddlewareServiceAddress, 5000, owner);

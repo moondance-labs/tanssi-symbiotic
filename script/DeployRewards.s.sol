@@ -50,9 +50,9 @@ contract DeployRewards is Script {
 
     event Done();
 
-    constructor(
+    function setIsTest(
         bool _isTest
-    ) {
+    ) public {
         isTest = _isTest;
     }
 
