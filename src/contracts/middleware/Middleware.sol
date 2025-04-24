@@ -340,11 +340,6 @@ contract Middleware is
         uint48 epochStartTs = IOBaseMiddlewareReader(address(this)).getEpochStart(epoch);
         address operator = operatorByKey(abi.encode(operatorKey));
 
-        // Without this check, parts of the code revert with math underflow when comparing times.
-        if (_SLASHING_WINDOW() > Time.timestamp()) {
-            revert Middleware__SlashingTooEarly();
-        }
-
         if (epochStartTs + _SLASHING_WINDOW() < Time.timestamp()) {
             revert Middleware__TooOldEpoch();
         }

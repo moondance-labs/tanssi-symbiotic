@@ -1274,14 +1274,6 @@ contract MiddlewareTest is Test {
         middleware.slash(currentEpoch, OPERATOR_KEY, slashPercentage);
     }
 
-    function testSlashingTooEarly() public {
-        vm.warp(1);
-        vm.expectRevert(IMiddleware.Middleware__SlashingTooEarly.selector);
-        vm.startPrank(gateway);
-        middleware.slash(1, OPERATOR_KEY, 100);
-        vm.stopPrank();
-    }
-
     // ************************************************************************************************
     // *                                      KEY MANAGER 256
     // ************************************************************************************************
