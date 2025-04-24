@@ -245,7 +245,8 @@ contract MiddlewareTest is Test {
         address stEthOracle = _deployOracle(ORACLE_DECIMALS_ETH, ORACLE_CONVERSION_ST_ETH);
 
         deployVault = new DeployVault();
-        deployRewards = new DeployRewards(true);
+        deployRewards = new DeployRewards();
+        deployRewards.setIstTest(true);
         DeploySymbiotic deploySymbiotic = new DeploySymbiotic();
 
         owner = tanssi = deploySymbiotic.owner();
