@@ -32,6 +32,11 @@ import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {IDefaultCollateralFactory} from
     "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateralFactory.sol";
 
+//**************************************************************************************************
+//                                      CHAINLINK
+//**************************************************************************************************
+import {MockV3Aggregator} from "@chainlink/tests/MockV3Aggregator.sol";
+
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
@@ -54,6 +59,8 @@ contract DeployTanssiEcosystem is Script {
     uint48 public constant OPERATOR_NETWORK_SHARES = 1;
     uint128 public constant MAX_NETWORK_LIMIT = 1000 ether;
     uint128 public constant OPERATOR_NETWORK_LIMIT = 300 ether;
+    uint8 public constant ORACLE_DECIMALS = 18;
+    int256 public constant ORACLE_CONVERSION_TOKEN = 3000;
 
     uint256 ownerPrivateKey =
         vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
@@ -279,6 +286,7 @@ contract DeployTanssiEcosystem is Script {
         INetworkMiddlewareService networkMiddlewareService = INetworkMiddlewareService(networkMiddlewareServiceAddress);
         IOptInService operatorNetworkOptInService = IOptInService(operatorNetworkOptInServiceAddress);
         IOptInService operatorVaultOptInService = IOptInService(operatorVaultOptInServiceAddress);
+        MockV3Aggregator collateralOracle = new MockV3Aggregator(ORACLE_DECIMALS, ORACLE_CONVERSION_TOKEN);
 
         if (block.chainid == 31_337 || block.chainid == 11_155_111) {
             // Deploy simple ERC20 collateral tokens
@@ -370,6 +378,10 @@ contract DeployTanssiEcosystem is Script {
         _setDelegatorConfigs();
         networkMiddlewareService.setMiddleware(address(ecosystemEntities.middleware));
         _registerEntitiesToMiddleware();
+
+        ecosystemEntities.middleware.setCollateralToOracle(
+            address(tokensAddresses.stETHToken), address(collateralOracle)
+        );
 
         console2.log("VaultConfigurator: ", address(ecosystemEntities.vaultConfigurator));
         console2.log("OperatorRegistry: ", address(operatorRegistry));
