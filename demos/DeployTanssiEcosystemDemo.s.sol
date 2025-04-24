@@ -382,6 +382,12 @@ contract DeployTanssiEcosystem is Script {
         ecosystemEntities.middleware.setCollateralToOracle(
             address(tokensAddresses.stETHToken), address(collateralOracle)
         );
+        ecosystemEntities.middleware.setCollateralToOracle(
+            address(tokensAddresses.rETHToken), address(collateralOracle)
+        );
+        ecosystemEntities.middleware.setCollateralToOracle(
+            address(tokensAddresses.wBTCToken), address(collateralOracle)
+        );
 
         console2.log("VaultConfigurator: ", address(ecosystemEntities.vaultConfigurator));
         console2.log("OperatorRegistry: ", address(operatorRegistry));
