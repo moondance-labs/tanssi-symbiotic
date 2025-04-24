@@ -431,7 +431,8 @@ contract DeployTanssiEcosystem is Script {
         contractScripts.helperConfig = _helperConfig;
         contractScripts.deployVault = new DeployVault();
         contractScripts.deployCollateral = new DeployCollateral();
-        contractScripts.deployRewards = new DeployRewards(isTest);
+        contractScripts.deployRewards = new DeployRewards();
+        contractScripts.deployRewards.setIsTest(isTest);
 
         vm.startPrank(tanssi);
         _deploy();
@@ -443,7 +444,8 @@ contract DeployTanssiEcosystem is Script {
         contractScripts.helperConfig = new HelperConfig();
         contractScripts.deployVault = new DeployVault();
         contractScripts.deployCollateral = new DeployCollateral();
-        contractScripts.deployRewards = new DeployRewards(isTest);
+        contractScripts.deployRewards = new DeployRewards();
+        contractScripts.deployRewards.setIsTest(isTest);
         vm.startBroadcast(ownerPrivateKey);
         _deploy();
         vm.stopBroadcast();
