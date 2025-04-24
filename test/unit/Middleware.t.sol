@@ -146,7 +146,8 @@ contract MiddlewareTest is Test {
     function setUp() public {
         vm.startPrank(owner);
 
-        deployRewards = new DeployRewards(true);
+        deployRewards = new DeployRewards();
+        deployRewards.setIsTest(true);
         deployCollateral = new DeployCollateral();
 
         registry = new RegistryMock();
@@ -182,7 +183,8 @@ contract MiddlewareTest is Test {
 
         readHelper = address(new OBaseMiddlewareReader());
 
-        deployRewards = new DeployRewards(true);
+        deployRewards = new DeployRewards();
+        deployRewards.setIsTest(true);
         address operatorRewardsAddress =
             deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), 5000, owner);
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);

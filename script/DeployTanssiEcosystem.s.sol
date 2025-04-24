@@ -420,11 +420,51 @@ contract DeployTanssiEcosystem is Script {
         vm.stopBroadcast();
     }
 
+    function upgradeMiddlewareBroadcast(
+        address proxyAddress,
+        uint256 expectedCurrentVersion,
+        address operatorRewardsAddress,
+        address stakerRewardsFactoryAddress
+    ) external {
+        isTest = false;
+        upgradeMiddleware(
+            proxyAddress, expectedCurrentVersion, operatorRewardsAddress, stakerRewardsFactoryAddress, address(0)
+        );
+    }
+
+    function upgradeMiddleware(
+        address proxyAddress,
+        uint256 expectedCurrentVersion,
+        address operatorRewardsAddress,
+        address stakerRewardsFactoryAddress,
+        address contractOwner
+    ) public {
+        if (!isTest) {
+            vm.startBroadcast(ownerPrivateKey);
+        } else {
+            vm.startPrank(contractOwner);
+        }
+        Middleware newImplementation = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        Middleware proxy = Middleware(proxyAddress);
+        uint256 currentVersion = proxy.VERSION();
+        if (currentVersion != expectedCurrentVersion) {
+            revert("Middleware version is not expected, cannot upgrade");
+        }
+        proxy.upgradeToAndCall(address(newImplementation), hex"");
+        console2.log("New implementation: ", address(newImplementation));
+        if (!isTest) {
+            vm.stopBroadcast();
+        } else {
+            vm.stopPrank();
+        }
+    }
+
     function _initScriptsAndEntities(HelperConfig _helperConfig, bool _isTest) private {
         contractScripts.helperConfig = _helperConfig;
         contractScripts.deployVault = new DeployVault();
         contractScripts.deployCollateral = new DeployCollateral();
-        contractScripts.deployRewards = new DeployRewards(_isTest);
+        contractScripts.deployRewards = new DeployRewards();
+        contractScripts.deployRewards.setIsTest(isTest);
 
         (address vaultConfiguratorAddress,,,,,,,,,) = _helperConfig.activeNetworkConfig();
         ecosystemEntities.vaultConfigurator = IVaultConfigurator(vaultConfiguratorAddress);

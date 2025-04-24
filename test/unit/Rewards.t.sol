@@ -148,7 +148,8 @@ contract RewardsTest is Test {
         networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
         address readHelper = address(new OBaseMiddlewareReader());
 
-        deployRewards = new DeployRewards(true);
+        deployRewards = new DeployRewards();
+        deployRewards.setIsTest(true);
         deployCollateral = new DeployCollateral();
         address operatorRewardsAddress = deployRewards.deployOperatorRewardsContract(
             tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
@@ -316,7 +317,7 @@ contract RewardsTest is Test {
 
         if (multipleRewards && newToken != address(0)) {
             // Get slot for second mapping with tokenAddress
-            tokenSlot = keccak256(abi.encode(address(newToken), slot));
+            tokenSlot = keccak256(abi.encode(newToken, slot));
 
             // Store array length
             vm.store(address(stakerRewards), tokenSlot, bytes32(uint256(1)));
@@ -1474,10 +1475,7 @@ contract RewardsTest is Test {
 
         operatorRewards.setStakerRewardContract(mockStakerRewards, mockVault);
 
-        vm.startPrank(address(owner));
-        ODefaultOperatorRewards newOperatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService));
-        operatorRewards.upgradeToAndCall(address(newOperatorRewards), hex"");
+        deployRewards.upgradeOperatorRewards(address(operatorRewards), owner, address(networkMiddlewareService));
 
         assertEq(operatorRewards.vaultToStakerRewardsContract(mockVault), mockStakerRewards);
         assertEq(operatorRewards.operatorShare(), OPERATOR_SHARE);
@@ -1537,12 +1535,88 @@ contract RewardsTest is Test {
         Token newToken = new Token("NewToken", 18);
         uint48 maxEpoch = 1000;
 
+        _preparePreviousStorageData(address(newToken), maxEpoch, true);
+
+        vm.startPrank(address(tanssi));
+
+        stakerRewards.migrate(0, maxEpoch, address(token));
+
+        _checkMigrationResult(maxEpoch);
+    }
+
+    function testUpgradeAndMigrateStakerRewards() public {
+        Token newToken = new Token("NewToken", 18);
+        uint48 maxEpoch = 50;
+
+        _preparePreviousStorageData(address(newToken), maxEpoch, true);
+        vm.warp(NETWORK_EPOCH_DURATION * (maxEpoch + 1));
+
+        deployRewards.upgradeStakerRewardsAndMigrate(
+            address(stakerRewards),
+            address(networkMiddlewareService),
+            address(vault),
+            address(tanssi),
+            address(middleware),
+            address(token)
+        );
+
+        _checkMigrationResult(maxEpoch);
+    }
+
+    function testUpgradeAndMigrateStakerRewardsWithBroadcast() public {
+        Token newToken = new Token("NewToken", 18);
+        uint48 maxEpoch = 50;
+
+        vm.startPrank(tanssi);
+        // On not testing mode, the owner of the contract to upgrade is this, so we need to grant the admin role to it
+        address ownerForUpgrade = vm.addr(deployRewards.ownerPrivateKey());
+        stakerRewards.grantRole(stakerRewards.DEFAULT_ADMIN_ROLE(), ownerForUpgrade);
+        vm.stopPrank();
+
+        _preparePreviousStorageData(address(newToken), maxEpoch, true);
+        vm.warp(NETWORK_EPOCH_DURATION * (maxEpoch + 1));
+
+        deployRewards.setIsTest(false);
+        deployRewards.upgradeStakerRewardsAndMigrate(
+            address(stakerRewards),
+            address(networkMiddlewareService),
+            address(vault),
+            address(tanssi),
+            address(middleware),
+            address(token)
+        );
+
+        _checkMigrationResult(maxEpoch);
+    }
+
+    function testMigrateShouldBeIdemPotentStakerRewards() public {
+        Token newToken = new Token("NewToken", 18);
+        uint48 maxEpoch = 1000;
+
+        _preparePreviousStorageData(address(newToken), maxEpoch, false);
+
+        vm.startPrank(address(tanssi));
+
+        stakerRewards.migrate(1, maxEpoch, address(token));
+        stakerRewards.migrate(1, maxEpoch, address(token));
+
+        for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
+            uint256 BASE_AMOUNT = DEFAULT_AMOUNT + epoch.mulDiv(1 ether, maxEpoch);
+            uint256 claimableFee = stakerRewards.claimableAdminFee(epoch, address(token));
+            assertEq(claimableFee, BASE_AMOUNT);
+
+            uint256 rewards = stakerRewards.rewards(epoch, address(token));
+            assertEq(rewards, epoch % 2 == 0 ? BASE_AMOUNT * 2 : BASE_AMOUNT);
+        }
+    }
+
+    function _preparePreviousStorageData(address newToken, uint48 maxEpoch, bool mockActiveSharesOfAt) private {
         for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
             uint256 BASE_AMOUNT = DEFAULT_AMOUNT + epoch.mulDiv(1 ether, maxEpoch);
             _setClaimableAdminFee(epoch, address(token), PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION, BASE_AMOUNT);
 
             _setPreviousRewardsMapping(
-                epoch, epoch % 2 == 0 ? true : false, epoch % 2 == 0 ? address(0) : address(newToken), BASE_AMOUNT
+                epoch, epoch % 2 == 0 ? true : false, epoch % 2 == 0 ? address(0) : newToken, BASE_AMOUNT
             );
 
             _setActiveSharesCache(
@@ -1551,18 +1625,21 @@ contract RewardsTest is Test {
             _setLastUnclaimedReward(epoch, alice, address(stakerRewards), epoch % 2 == 0 ? 1 : 0);
         }
 
-        vm.startPrank(address(tanssi));
-
-        for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
-            uint48 epochStartTs = middleware.getEpochStart(epoch);
-            vm.mockCall(
-                address(vault),
-                abi.encodeWithSelector(IVaultStorage.activeSharesOfAt.selector, alice, epochStartTs, hex""),
-                abi.encode(AMOUNT_TO_DISTRIBUTE / 10)
-            );
+        if (mockActiveSharesOfAt) {
+            for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
+                uint48 epochStartTs = middleware.getEpochStart(epoch);
+                vm.mockCall(
+                    address(vault),
+                    abi.encodeWithSelector(IVaultStorage.activeSharesOfAt.selector, alice, epochStartTs, hex""),
+                    abi.encode(AMOUNT_TO_DISTRIBUTE / 10)
+                );
+            }
         }
-        stakerRewards.migrate(0, maxEpoch, address(token));
+    }
 
+    function _checkMigrationResult(
+        uint48 maxEpoch
+    ) private view {
         for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
             uint256 BASE_AMOUNT = DEFAULT_AMOUNT + epoch.mulDiv(1 ether, maxEpoch);
             uint256 claimableFee = stakerRewards.claimableAdminFee(epoch, address(token));
@@ -1605,39 +1682,6 @@ contract RewardsTest is Test {
             claimableAdminFeeSlot = keccak256(abi.encode(address(token), claimableAdminFeeSlot));
             bytes32 oldClaimableAdminFee = vm.load(address(stakerRewards), claimableAdminFeeSlot);
             assertEq(uint256(oldClaimableAdminFee), 0);
-        }
-    }
-
-    function testMigrateShouldBeIdemPotentStakerRewards() public {
-        Token newToken = new Token("NewToken", 18);
-        uint48 maxEpoch = 1000;
-
-        for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
-            uint256 BASE_AMOUNT = DEFAULT_AMOUNT + epoch.mulDiv(1 ether, maxEpoch);
-            _setClaimableAdminFee(epoch, address(token), PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION, BASE_AMOUNT);
-
-            _setPreviousRewardsMapping(
-                epoch, epoch % 2 == 0 ? true : false, epoch % 2 == 0 ? address(0) : address(newToken), BASE_AMOUNT
-            );
-
-            _setActiveSharesCache(
-                epoch, address(stakerRewards), PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT
-            );
-            _setLastUnclaimedReward(epoch, alice, address(stakerRewards), epoch % 2 == 0 ? 1 : 0);
-        }
-
-        vm.startPrank(address(tanssi));
-
-        stakerRewards.migrate(1, maxEpoch, address(token));
-        stakerRewards.migrate(1, maxEpoch, address(token));
-
-        for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
-            uint256 BASE_AMOUNT = DEFAULT_AMOUNT + epoch.mulDiv(1 ether, maxEpoch);
-            uint256 claimableFee = stakerRewards.claimableAdminFee(epoch, address(token));
-            assertEq(claimableFee, BASE_AMOUNT);
-
-            uint256 rewards = stakerRewards.rewards(epoch, address(token));
-            assertEq(rewards, epoch % 2 == 0 ? BASE_AMOUNT * 2 : BASE_AMOUNT);
         }
     }
 }
