@@ -23,6 +23,7 @@ import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {INetworkRestakeDelegator} from "@symbiotic/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestakeDelegator.sol";
+import {IOperatorSpecificDelegator} from "@symbiotic/interfaces/delegator/IOperatorSpecificDelegator.sol";
 import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 import {OperatorRegistry} from "@symbiotic/contracts/OperatorRegistry.sol";
 import {NetworkRegistry} from "@symbiotic/contracts/NetworkRegistry.sol";
@@ -518,17 +519,17 @@ contract MiddlewareTest is Test {
         address _owner
     ) private {
         vm.startPrank(_owner);
-        INetworkRestakeDelegator(vaultsData.v1.delegator).setMaxNetworkLimit(0, VAULT1_NETWORK_LIMIT);
-        INetworkRestakeDelegator(vaultsData.v2.delegator).setMaxNetworkLimit(0, VAULT2_NETWORK_LIMIT);
+        IOperatorSpecificDelegator(vaultsData.v1.delegator).setMaxNetworkLimit(0, VAULT1_NETWORK_LIMIT);
+        IFullRestakeDelegator(vaultsData.v2.delegator).setMaxNetworkLimit(0, VAULT2_NETWORK_LIMIT);
         INetworkRestakeDelegator(vaultsData.v3.delegator).setMaxNetworkLimit(0, VAULT3_NETWORK_LIMIT);
         INetworkRestakeDelegator(vaultsData.v4.delegator).setMaxNetworkLimit(0, VAULT4_NETWORK_LIMIT);
-        INetworkRestakeDelegator(vaultsData.v5.delegator).setMaxNetworkLimit(0, VAULT5_NETWORK_LIMIT);
+        IOperatorSpecificDelegator(vaultsData.v5.delegator).setMaxNetworkLimit(0, VAULT5_NETWORK_LIMIT);
 
-        INetworkRestakeDelegator(vaultsData.v1.delegator).setNetworkLimit(tanssi.subnetwork(0), VAULT1_NETWORK_LIMIT);
-        INetworkRestakeDelegator(vaultsData.v2.delegator).setNetworkLimit(tanssi.subnetwork(0), VAULT2_NETWORK_LIMIT);
+        IOperatorSpecificDelegator(vaultsData.v1.delegator).setNetworkLimit(tanssi.subnetwork(0), VAULT1_NETWORK_LIMIT);
+        IFullRestakeDelegator(vaultsData.v2.delegator).setNetworkLimit(tanssi.subnetwork(0), VAULT2_NETWORK_LIMIT);
         INetworkRestakeDelegator(vaultsData.v3.delegator).setNetworkLimit(tanssi.subnetwork(0), VAULT3_NETWORK_LIMIT);
         INetworkRestakeDelegator(vaultsData.v4.delegator).setNetworkLimit(tanssi.subnetwork(0), VAULT4_NETWORK_LIMIT);
-        INetworkRestakeDelegator(vaultsData.v5.delegator).setNetworkLimit(tanssi.subnetwork(0), VAULT5_NETWORK_LIMIT);
+        IOperatorSpecificDelegator(vaultsData.v5.delegator).setNetworkLimit(tanssi.subnetwork(0), VAULT5_NETWORK_LIMIT);
 
         // Only Vault2 is Full Restake
         IFullRestakeDelegator(vaultsData.v2.delegator).setOperatorNetworkLimit(
@@ -788,6 +789,8 @@ contract MiddlewareTest is Test {
         vm.warp(NETWORK_EPOCH_DURATION + 2);
         Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
 
+        // On Vault 1: Operator 1 is the only staker.
+        // On Vault 2: Operator 1 has 2 BTC Staked and it matches its limit.
         uint256 expectedOperatorPower1 = OPERATOR1_STAKE_V1_USDC.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC) // Normalized to 18 decimals
             + OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
         assertEq(validators[0].power, expectedOperatorPower1);
@@ -848,10 +851,12 @@ contract MiddlewareTest is Test {
         vm.warp(NETWORK_EPOCH_DURATION + 2);
         Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
 
+        // Vault 1 is Operator specific so all the power is taken into account for operator 1
+        // Vault 2 is full restake so only the operator limit is taken into account
         uint256 expectedOperatorPower1 = (OPERATOR1_STAKE_V1_USDC + staker1Stake + staker2Stake).mulDiv(
             10 ** 18, 10 ** TOKEN_DECIMALS_USDC
         ) // Normalized to 18 decimals
-            + OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+            + OPERATOR1_LIMIT_V2.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
         assertEq(validators[0].power, expectedOperatorPower1);
     }
 
@@ -1444,7 +1449,7 @@ contract MiddlewareTest is Test {
             _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR8_KEY, operator8, 8, true);
         uint256 endGas = gasleft();
 
-        // 30M is the tx gas limit in most of the networks
+        // 30M is the tx gas limit in most of the networks. Gas usage 2025-04-24: 22895689
         assertLt(initGas - endGas, 30_000_000);
     }
 
@@ -1467,9 +1472,7 @@ contract MiddlewareTest is Test {
 
         uint256 endGas = gasleft();
 
-        console2.log("Gas used:", initGas - endGas);
-
-        // 30M is the tx gas limit in most of the networks
+        // 30M is the tx gas limit in most of the networks. Gas usage 2025-04-24: 27896693
         assertLt(initGas - endGas, 30_000_000);
     }
 }
