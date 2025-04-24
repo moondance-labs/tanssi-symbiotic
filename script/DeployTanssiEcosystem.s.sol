@@ -418,7 +418,7 @@ contract DeployTanssiEcosystem is Script {
         vm.stopBroadcast();
     }
 
-    function runUpgradeMiddleware(
+    function upgradeMiddlewareBroadcast(
         address proxyAddress,
         uint256 expectedCurrentVersion,
         address operatorRewardsAddress,

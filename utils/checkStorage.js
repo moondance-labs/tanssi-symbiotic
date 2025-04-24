@@ -81,15 +81,9 @@ async function getLocationData(
   return ethers.BigNumber.from(value);
 }
 
-function getMappingStorageSlot(position) {
+function getMappingStorageSlot(position, location) {
   return hexValue(
-    ethers.BigNumber.from(PREVIOUS_STORAGE_LOCATION).add(position)
-  );
-}
-
-function getNewMappingStorageSlot(position) {
-  return hexValue(
-    ethers.BigNumber.from(NEW_STORAGE_LOCATION).add(position)
+    ethers.BigNumber.from(location).add(position)
   );
 }
 
@@ -119,14 +113,14 @@ async function checkOldStorageCleared() {
     //     mapping(uint48 epoch => bool) epochMigrated; --- 5
     // }
 
-    const rewardsMappingBaseSlot = getMappingStorageSlot(1); // 1 is the mapping slot number for rewards
-    const lastUnclaimedMappingBaseSlot = getMappingStorageSlot(2); // 2 is the mapping slot number for lastUnclaimedReward
-    const claimableAdminFeeMappingBaseSlot = getMappingStorageSlot(3); // 3 is the mapping slot number for claimableAdminFee
-    const activeSharesCacheMappingBaseSlot = getMappingStorageSlot(4); // 4 is the mapping slot number for activeSharesCache
-    const epochMigratedMappingBaseSlot = getMappingStorageSlot(5); // 5 is the mapping slot number for epochMigrated
+    const rewardsMappingBaseSlot = getMappingStorageSlot(1, PREVIOUS_STORAGE_LOCATION); // 1 is the mapping slot number for rewards
+    const lastUnclaimedMappingBaseSlot = getMappingStorageSlot(2, PREVIOUS_STORAGE_LOCATION); // 2 is the mapping slot number for lastUnclaimedReward
+    const claimableAdminFeeMappingBaseSlot = getMappingStorageSlot(3, PREVIOUS_STORAGE_LOCATION); // 3 is the mapping slot number for claimableAdminFee
+    const activeSharesCacheMappingBaseSlot = getMappingStorageSlot(4, PREVIOUS_STORAGE_LOCATION); // 4 is the mapping slot number for activeSharesCache
+    const epochMigratedMappingBaseSlot = getMappingStorageSlot(5, PREVIOUS_STORAGE_LOCATION); // 5 is the mapping slot number for epochMigrated
 
-    const rewardsMappingBaseSlotNew = getNewMappingStorageSlot(1); // 1 is the mapping slot number for rewards
-    const claimedRewardsMappingBaseSlotNew = getNewMappingStorageSlot(2); // 2 is the mapping slot number for claimedRewards
+    const rewardsMappingBaseSlotNew = getMappingStorageSlot(1, NEW_STORAGE_LOCATION); // 1 is the mapping slot number for rewards
+    const claimedRewardsMappingBaseSlotNew = getMappingStorageSlot(2, NEW_STORAGE_LOCATION); // 2 is the mapping slot number for claimedRewards
 
     // $$.rewards[epoch][tokenAddress]
     try {
