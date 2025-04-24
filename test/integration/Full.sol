@@ -246,7 +246,7 @@ contract MiddlewareTest is Test {
 
         deployVault = new DeployVault();
         deployRewards = new DeployRewards();
-        deployRewards.setIstTest(true);
+        deployRewards.setIsTest(true);
         DeploySymbiotic deploySymbiotic = new DeploySymbiotic();
 
         owner = tanssi = deploySymbiotic.owner();
