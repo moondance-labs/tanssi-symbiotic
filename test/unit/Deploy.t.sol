@@ -19,6 +19,7 @@ import {Test, Vm} from "forge-std/Test.sol";
 //**************************************************************************************************
 //                                      SYMBIOTIC
 //**************************************************************************************************
+import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {IVaultStorage} from "@symbiotic/interfaces/vault/IVaultStorage.sol";
 import {IVaultConfigurator} from "@symbiotic/interfaces/IVaultConfigurator.sol";
@@ -567,7 +568,7 @@ contract DeployTest is Test {
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
             depositLimit: 0,
-            delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
+            delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
             shouldBroadcast: false,
             vaultConfigurator: address(0),
             collateral: stEth,
@@ -589,7 +590,7 @@ contract DeployTest is Test {
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
             depositLimit: 0,
-            delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
+            delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
             shouldBroadcast: false,
             vaultConfigurator: address(vaultConfigurator),
             collateral: address(0),

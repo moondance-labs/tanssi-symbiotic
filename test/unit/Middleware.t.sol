@@ -40,7 +40,6 @@ import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 import {IOzAccessControl} from "@symbiotic-middleware/interfaces/extensions/managers/access/IOzAccessControl.sol";
 import {PauseableEnumerableSet} from "@symbiotic-middleware/libraries/PauseableEnumerableSet.sol";
-import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
 import {OperatorManager} from "@symbiotic-middleware/managers/OperatorManager.sol";
 import {KeyManager256} from "@symbiotic-middleware/extensions/managers/keys/KeyManager256.sol";
 

@@ -16,6 +16,7 @@ pragma solidity 0.8.25;
 
 import {Script, console2} from "forge-std/Script.sol";
 
+import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
 import {IMigratablesFactory} from "@symbiotic/interfaces/common/IMigratablesFactory.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {IVaultConfigurator} from "@symbiotic/interfaces/IVaultConfigurator.sol";
@@ -50,20 +51,12 @@ contract DeployVault is Script {
         uint48 epochDuration;
         bool depositWhitelist;
         uint256 depositLimit;
-        DelegatorIndex delegatorIndex;
+        VaultManager.DelegatorType delegatorIndex;
         bool shouldBroadcast;
         address vaultConfigurator;
         address collateral;
         address owner;
         address operator;
-    }
-
-    enum DelegatorIndex {
-        NETWORK_RESTAKE, // 0
-        FULL_RESTAKE, // 1
-        OPERATOR_SPECIFIC, // 2
-        OPERATOR_NETWORK_SPECIFIC // 3
-
     }
 
     function createBaseVault(
@@ -234,7 +227,7 @@ contract DeployVault is Script {
             epochDuration: vaultEpochDuration,
             depositWhitelist: false,
             depositLimit: 0,
-            delegatorIndex: DelegatorIndex.NETWORK_RESTAKE,
+            delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
             shouldBroadcast: true,
             vaultConfigurator: vaultConfigurator,
             collateral: collateral,
@@ -253,7 +246,7 @@ contract DeployVault is Script {
         console2.log("DelegatorSlashable: ", delegatorSlashable);
         console2.log("SlasherSlashable: ", slasherSlashable);
 
-        params.delegatorIndex = DelegatorIndex.FULL_RESTAKE;
+        params.delegatorIndex = VaultManager.DelegatorType.FULL_RESTAKE;
 
         (address vaultVetoed, address delegatorVetoed, address slasherVetoed) = createVaultVetoed(params, 1 days);
         console2.log("VaultVetoed: ", vaultVetoed);

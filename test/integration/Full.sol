@@ -19,6 +19,7 @@ import {Test, console2} from "forge-std/Test.sol";
 //**************************************************************************************************
 //                                      SYMBIOTIC
 //**************************************************************************************************
+import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {INetworkRestakeDelegator} from "@symbiotic/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestakeDelegator.sol";
@@ -352,7 +353,7 @@ contract MiddlewareTest is Test {
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
             depositLimit: 0,
-            delegatorIndex: DeployVault.DelegatorIndex.OPERATOR_SPECIFIC,
+            delegatorIndex: VaultManager.DelegatorType.OPERATOR_SPECIFIC,
             shouldBroadcast: false,
             vaultConfigurator: address(vaultConfigurator),
             collateral: address(usdc),
@@ -363,28 +364,28 @@ contract MiddlewareTest is Test {
         vaultsData.v1.vault = IVault(vault);
         vaultsData.v1.delegator = delegator;
 
-        params.delegatorIndex = DeployVault.DelegatorIndex.FULL_RESTAKE;
+        params.delegatorIndex = VaultManager.DelegatorType.FULL_RESTAKE;
         params.collateral = address(wBTC);
         params.operator = address(0);
         (vault, delegator,) = deployVault.createBaseVault(params);
         vaultsData.v2.vault = IVault(vault);
         vaultsData.v2.delegator = delegator;
 
-        params.delegatorIndex = DeployVault.DelegatorIndex.NETWORK_RESTAKE;
+        params.delegatorIndex = VaultManager.DelegatorType.NETWORK_RESTAKE;
         params.collateral = address(wBTC);
         (vault, delegator, slasher) = deployVault.createSlashableVault(params);
         vaultsData.v3.vault = IVault(vault);
         vaultsData.v3.delegator = delegator;
         vaultsData.v3.slasher = slasher;
 
-        params.delegatorIndex = DeployVault.DelegatorIndex.NETWORK_RESTAKE;
+        params.delegatorIndex = VaultManager.DelegatorType.NETWORK_RESTAKE;
         params.collateral = address(stETH);
         (vault, delegator, slasher) = deployVault.createVaultVetoed(params, VETO_DURATION);
         vaultsData.v4.vault = IVault(vault);
         vaultsData.v4.delegator = delegator;
         vaultsData.v4.slasher = slasher;
 
-        params.delegatorIndex = DeployVault.DelegatorIndex.OPERATOR_SPECIFIC;
+        params.delegatorIndex = VaultManager.DelegatorType.OPERATOR_SPECIFIC;
         params.collateral = address(stETH);
         params.operator = operator7;
         (vault, delegator, slasher) = deployVault.createVaultVetoed(params, VETO_DURATION);
@@ -1443,7 +1444,7 @@ contract MiddlewareTest is Test {
                 epochDuration: VAULT_EPOCH_DURATION,
                 depositWhitelist: false,
                 depositLimit: 0,
-                delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
+                delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
                 shouldBroadcast: false,
                 vaultConfigurator: address(vaultConfigurator),
                 collateral: address(wBTC),
