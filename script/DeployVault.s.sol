@@ -24,6 +24,7 @@ import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol
 import {INetworkRestakeDelegator} from "@symbiotic/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IOperatorSpecificDelegator} from "@symbiotic/interfaces/delegator/IOperatorSpecificDelegator.sol";
+import {IOperatorNetworkSpecificDelegator} from "@symbiotic/interfaces/delegator/IOperatorNetworkSpecificDelegator.sol";
 import {IBaseSlasher} from "@symbiotic/interfaces/slasher/IBaseSlasher.sol";
 import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
@@ -45,6 +46,7 @@ contract DeployVault is Script {
         uint64 slasherIndex;
         uint48 vetoDuration;
         address operator;
+        address network;
     }
 
     struct CreateVaultBaseParams {
@@ -57,6 +59,7 @@ contract DeployVault is Script {
         address collateral;
         address owner;
         address operator;
+        address network;
     }
 
     function createBaseVault(
@@ -111,7 +114,8 @@ contract DeployVault is Script {
             withSlasher: withSlasher,
             slasherIndex: slasherIndex,
             vetoDuration: vetoDuration,
-            operator: params.operator
+            operator: params.operator,
+            network: params.network
         });
 
         if (params.shouldBroadcast) {
@@ -187,6 +191,18 @@ contract DeployVault is Script {
                     operator: params.operator
                 })
             );
+        } else if (params.delegatorIndex == 3) {
+            delegatorParams = abi.encode(
+                IOperatorNetworkSpecificDelegator.InitParams({
+                    baseParams: IBaseDelegator.BaseParams({
+                        defaultAdminRoleHolder: params.owner,
+                        hook: address(0),
+                        hookSetRoleHolder: params.owner
+                    }),
+                    network: params.network,
+                    operator: params.operator
+                })
+            );
         }
 
         bytes memory slasherParams;
@@ -232,7 +248,8 @@ contract DeployVault is Script {
             vaultConfigurator: vaultConfigurator,
             collateral: collateral,
             owner: owner,
-            operator: address(0)
+            operator: address(0),
+            network: address(0)
         });
 
         (address vault, address delegator, address slasher) = createBaseVault(params);
@@ -279,7 +296,8 @@ contract DeployVault is Script {
             withSlasher: withSlasher,
             slasherIndex: slasherIndex,
             vetoDuration: vetoDuration,
-            operator: address(0)
+            operator: address(0),
+            network: address(0)
         });
         (address vault_, address delegator_, address slasher_) = deployVault(params);
 

@@ -121,7 +121,8 @@ contract Demo is Script {
             vaultConfigurator: address(vaultConfigurator),
             collateral: address(stETHToken),
             owner: tanssi,
-            operator: address(0)
+            operator: address(0),
+            network: address(0)
         });
 
         (vaultAddresses.vault, vaultAddresses.delegator, vaultAddresses.slasher) = deployVault.createBaseVault(params);

@@ -591,7 +591,8 @@ contract DeployTest is Test {
             vaultConfigurator: address(0),
             collateral: stEth,
             owner: tanssi,
-            operator: address(0)
+            operator: address(0),
+            network: address(0)
         });
 
         vm.expectRevert(DeployVault.DeployVault__VaultConfiguratorOrCollateralNotDeployed.selector);
@@ -613,7 +614,8 @@ contract DeployTest is Test {
             vaultConfigurator: address(vaultConfigurator),
             collateral: address(0),
             owner: tanssi,
-            operator: address(0)
+            operator: address(0),
+            network: address(0)
         });
 
         vm.expectRevert(DeployVault.DeployVault__VaultConfiguratorOrCollateralNotDeployed.selector);
@@ -683,7 +685,8 @@ contract DeployTest is Test {
             withSlasher: true,
             slasherIndex: 0,
             vetoDuration: 0,
-            operator: address(0)
+            operator: address(0),
+            network: address(0)
         });
 
         deployVault.deployVault(deployParams);

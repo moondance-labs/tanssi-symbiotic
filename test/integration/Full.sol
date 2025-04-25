@@ -152,7 +152,7 @@ contract MiddlewareTest is Test {
     uint256 public constant OPERATOR6_SHARES_V4 = 1; // Operator 6 will get 1/3 of the total power
     uint256 public constant VAULT4_TOTAL_SHARES = OPERATOR5_SHARES_V4 + OPERATOR6_SHARES_V4;
 
-    // Vault 5 - Single Operator
+    // Vault 5 - Single Operator + Single Network
     uint256 public constant VAULT5_NETWORK_LIMIT = 200 * 10 ** TOKEN_DECIMALS_ETH; // 200k power
     uint256 public constant OPERATOR7_STAKE_V5_STETH = 100 * 10 ** TOKEN_DECIMALS_ETH; // 100k power
 
@@ -360,7 +360,8 @@ contract MiddlewareTest is Test {
             vaultConfigurator: address(vaultConfigurator),
             collateral: address(usdc),
             owner: _owner,
-            operator: operator1
+            operator: operator1,
+            network: address(0)
         });
         (vault, delegator,) = deployVault.createBaseVault(params);
         vaultsData.v1.vault = IVault(vault);
@@ -387,9 +388,10 @@ contract MiddlewareTest is Test {
         vaultsData.v4.delegator = delegator;
         vaultsData.v4.slasher = slasher;
 
-        params.delegatorIndex = VaultManager.DelegatorType.OPERATOR_SPECIFIC;
+        params.delegatorIndex = VaultManager.DelegatorType.OPERATOR_NETWORK_SPECIFIC;
         params.collateral = address(stETH);
         params.operator = operator7;
+        params.network = tanssi;
         (vault, delegator, slasher) = deployVault.createVaultVetoed(params, VETO_DURATION);
         vaultsData.v5.vault = IVault(vault);
         vaultsData.v5.delegator = delegator;
@@ -530,7 +532,6 @@ contract MiddlewareTest is Test {
         IFullRestakeDelegator(vaultsData.v2.delegator).setNetworkLimit(tanssi.subnetwork(0), VAULT2_NETWORK_LIMIT);
         INetworkRestakeDelegator(vaultsData.v3.delegator).setNetworkLimit(tanssi.subnetwork(0), VAULT3_NETWORK_LIMIT);
         INetworkRestakeDelegator(vaultsData.v4.delegator).setNetworkLimit(tanssi.subnetwork(0), VAULT4_NETWORK_LIMIT);
-        IOperatorSpecificDelegator(vaultsData.v5.delegator).setNetworkLimit(tanssi.subnetwork(0), VAULT5_NETWORK_LIMIT);
 
         // Only Vault2 is Full Restake
         IFullRestakeDelegator(vaultsData.v2.delegator).setOperatorNetworkLimit(
@@ -758,7 +759,8 @@ contract MiddlewareTest is Test {
                 vaultConfigurator: address(vaultConfigurator),
                 collateral: address(wBTC),
                 owner: owner,
-                operator: address(0)
+                operator: address(0),
+                network: address(0)
             });
             (address vault, address delegator, address slasher) = deployVault.createSlashableVault(params);
 
