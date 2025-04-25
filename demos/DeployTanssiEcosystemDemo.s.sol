@@ -32,9 +32,15 @@ import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {IDefaultCollateralFactory} from
     "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateralFactory.sol";
 
+//**************************************************************************************************
+//                                      CHAINLINK
+//**************************************************************************************************
+import {MockV3Aggregator} from "@chainlink/tests/MockV3Aggregator.sol";
+
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
+import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
 import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Token} from "test/mocks/Token.sol";
@@ -53,6 +59,8 @@ contract DeployTanssiEcosystem is Script {
     uint48 public constant OPERATOR_NETWORK_SHARES = 1;
     uint128 public constant MAX_NETWORK_LIMIT = 1000 ether;
     uint128 public constant OPERATOR_NETWORK_LIMIT = 300 ether;
+    uint8 public constant ORACLE_DECIMALS = 18;
+    int256 public constant ORACLE_CONVERSION_TOKEN = 3000;
 
     uint256 ownerPrivateKey =
         vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
@@ -278,6 +286,7 @@ contract DeployTanssiEcosystem is Script {
         INetworkMiddlewareService networkMiddlewareService = INetworkMiddlewareService(networkMiddlewareServiceAddress);
         IOptInService operatorNetworkOptInService = IOptInService(operatorNetworkOptInServiceAddress);
         IOptInService operatorVaultOptInService = IOptInService(operatorVaultOptInServiceAddress);
+        MockV3Aggregator collateralOracle = new MockV3Aggregator(ORACLE_DECIMALS, ORACLE_CONVERSION_TOKEN);
 
         if (block.chainid == 31_337 || block.chainid == 11_155_111) {
             // Deploy simple ERC20 collateral tokens
@@ -325,7 +334,7 @@ contract DeployTanssiEcosystem is Script {
         vm.stopBroadcast();
 
         address operatorRewardsAddress = contractScripts.deployRewards.deployOperatorRewardsContract(
-            tanssi, address(networkMiddlewareService), 2000, tanssi
+            tanssi, networkMiddlewareServiceAddress, 2000, tanssi
         );
 
         address stakerRewardsFactoryAddress = contractScripts.deployRewards.deployStakerRewardsFactoryContract(
@@ -333,17 +342,20 @@ contract DeployTanssiEcosystem is Script {
         );
 
         vm.startBroadcast(ownerPrivateKey);
-        ecosystemEntities.middleware = _deployMiddlewareWithProxy(
-            tanssi,
-            operatorRegistryAddress,
-            vaultRegistryAddress,
-            operatorNetworkOptInServiceAddress,
-            tanssi,
-            NETWORK_EPOCH_DURATION,
-            SLASHING_WINDOW,
-            operatorRewardsAddress,
-            stakerRewardsFactoryAddress
-        );
+
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: tanssi,
+            operatorRegistry: operatorRegistryAddress,
+            vaultRegistry: vaultRegistryAddress,
+            operatorNetworkOptIn: operatorNetworkOptInServiceAddress,
+            owner: tanssi,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: SLASHING_WINDOW,
+            reader: address(0)
+        });
+
+        ecosystemEntities.middleware =
+            _deployMiddlewareWithProxy(params, operatorRewardsAddress, stakerRewardsFactoryAddress);
 
         // Operator 1 goes to first vault
         INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares{gas: 10_000_000}(
@@ -367,6 +379,16 @@ contract DeployTanssiEcosystem is Script {
         networkMiddlewareService.setMiddleware(address(ecosystemEntities.middleware));
         _registerEntitiesToMiddleware();
 
+        ecosystemEntities.middleware.setCollateralToOracle(
+            address(tokensAddresses.stETHToken), address(collateralOracle)
+        );
+        ecosystemEntities.middleware.setCollateralToOracle(
+            address(tokensAddresses.rETHToken), address(collateralOracle)
+        );
+        ecosystemEntities.middleware.setCollateralToOracle(
+            address(tokensAddresses.wBTCToken), address(collateralOracle)
+        );
+
         console2.log("VaultConfigurator: ", address(ecosystemEntities.vaultConfigurator));
         console2.log("OperatorRegistry: ", address(operatorRegistry));
         console2.log("NetworkRegistry: ", address(networkRegistry));
@@ -388,30 +410,18 @@ contract DeployTanssiEcosystem is Script {
     }
 
     function _deployMiddlewareWithProxy(
-        address _network,
-        address _operatorRegistry,
-        address _vaultRegistry,
-        address _operatorNetworkOptInService,
-        address _owner,
-        uint48 _epochDuration,
-        uint48 _slashingWindow,
-        address _operatorRewards,
-        address _stakerRewardsFactory
+        IMiddleware.InitParams memory params,
+        address operatorRewardsAddress,
+        address stakerRewardsFactoryAddress
     ) private returns (Middleware _middleware) {
-        Middleware _middlewareImpl = new Middleware(_operatorRewards, _stakerRewardsFactory);
+        Middleware _middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
         _middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
         console2.log("Middleware Implementation: ", address(_middlewareImpl));
-        address readHelper = address(new OBaseMiddlewareReader());
-        _middleware.initialize(
-            _network, // network
-            _operatorRegistry, // operatorRegistry
-            _vaultRegistry, // vaultRegistry
-            _operatorNetworkOptInService, // operatorNetworkOptInService
-            _owner, // owner
-            _epochDuration, // epochDuration
-            _slashingWindow, // slashingWindow
-            readHelper // readHelper
-        );
+
+        if (params.reader == address(0)) {
+            params.reader = address(new OBaseMiddlewareReader());
+        }
+        _middleware.initialize(params);
     }
 
     function deployTanssiEcosystem(
@@ -421,7 +431,8 @@ contract DeployTanssiEcosystem is Script {
         contractScripts.helperConfig = _helperConfig;
         contractScripts.deployVault = new DeployVault();
         contractScripts.deployCollateral = new DeployCollateral();
-        contractScripts.deployRewards = new DeployRewards(isTest);
+        contractScripts.deployRewards = new DeployRewards();
+        contractScripts.deployRewards.setIsTest(isTest);
 
         vm.startPrank(tanssi);
         _deploy();
@@ -433,7 +444,8 @@ contract DeployTanssiEcosystem is Script {
         contractScripts.helperConfig = new HelperConfig();
         contractScripts.deployVault = new DeployVault();
         contractScripts.deployCollateral = new DeployCollateral();
-        contractScripts.deployRewards = new DeployRewards(isTest);
+        contractScripts.deployRewards = new DeployRewards();
+        contractScripts.deployRewards.setIsTest(isTest);
         vm.startBroadcast(ownerPrivateKey);
         _deploy();
         vm.stopBroadcast();

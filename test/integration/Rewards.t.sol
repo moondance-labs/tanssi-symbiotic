@@ -283,7 +283,8 @@ contract RewardsTest is Test {
 
         _deployVaults(tanssi);
 
-        DeployRewards deployRewards = new DeployRewards(true);
+        DeployRewards deployRewards = new DeployRewards();
+        deployRewards.setIsTest(true);
         address operatorRewardsAddress = deployRewards.deployOperatorRewardsContract(
             tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
         );
@@ -292,6 +293,9 @@ contract RewardsTest is Test {
             address(vaultFactory), address(networkMiddlewareService), operatorRewardsAddress, tanssi
         );
         middleware = _deployMiddlewareWithProxy(tanssi, owner, address(operatorRewards), stakerRewardsFactoryAddress);
+
+        // TODO TO CHANGE
+        operatorRewards.initializeV2(owner, address(middleware));
 
         middleware.setCollateralToOracle(address(stETH), stEthOracle);
         middleware.setCollateralToOracle(address(rETH), rEthOracle);

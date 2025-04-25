@@ -1,0 +1,40 @@
+name: Deploy Tanssi Ecosystem Demo
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Install dependencies
+        run: |
+          make install-tanssi-relayer
+
+      - name: Start Anvil
+        run: anvil &
+
+      - name: Wait for Anvil to start
+        run: |
+          sleep 5
+          echo "Anvil started"
+
+      - name: Deploy Tanssi Ecosystem Demo
+        run: |
+          forge script demos/DeployTanssiEcosystemDemo.s.sol:DeployTanssiEcosystem \
+            --rpc-url http://localhost:8545 \
+            --broadcast \
+            -vvv \
+            --slow \
+            --skip-simulation

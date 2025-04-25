@@ -29,6 +29,7 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
@@ -45,6 +46,7 @@ import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperato
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 
 contract ODefaultOperatorRewards is
+    OwnableUpgradeable,
     AccessControlUpgradeable,
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable,
@@ -68,6 +70,7 @@ contract ODefaultOperatorRewards is
     bytes32 constant OPERATOR_REWARDS_STORAGE_LOCATION =
         0x57cf781f364664df22ab0472e35114435fb4a6881ab5a1b47ed6d1a7d4605400;
 
+    bytes32 public constant MIDDLEWARE_ROLE = keccak256("MIDDLEWARE_ROLE");
     uint48 public constant MAX_PERCENTAGE = 10_000;
 
     /**
@@ -79,13 +82,6 @@ contract ODefaultOperatorRewards is
      * @inheritdoc IODefaultOperatorRewards
      */
     address public immutable i_network;
-
-    modifier onlyMiddleware() {
-        if (INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network) != msg.sender) {
-            revert ODefaultOperatorRewards__NotNetworkMiddleware();
-        }
-        _;
-    }
 
     modifier notZeroAddress(
         address address_
@@ -108,8 +104,14 @@ contract ODefaultOperatorRewards is
      * @param owner_ The address of the owner.
      */
     function initialize(uint48 operatorShare_, address owner_) public initializer notZeroAddress(owner_) {
+        if (operatorShare_ >= MAX_PERCENTAGE) {
+            revert ODefaultOperatorRewards__InvalidOperatorShare();
+        }
+
+        __Ownable_init(owner_);
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
+        __AccessControl_init();
 
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         $.operatorShare = operatorShare_;
@@ -117,22 +119,17 @@ contract ODefaultOperatorRewards is
 
     /**
      * @notice Initialize the contract for the second time.
-     * @param operatorShare_ The share of the operator.
      * @param admin The address of the admin.
      */
-    function initializeV2(uint48 operatorShare_, address admin) public reinitializer(2) notZeroAddress(admin) {
-        if (operatorShare_ >= MAX_PERCENTAGE) {
-            revert ODefaultOperatorRewards__InvalidOperatorShare();
-        }
-
-        __UUPSUpgradeable_init();
-        __ReentrancyGuard_init();
+    function initializeV2(
+        address admin,
+        address middleware
+    ) public reinitializer(2) notZeroAddress(admin) notZeroAddress(middleware) onlyOwner {
         __AccessControl_init();
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
-
-        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
-        $.operatorShare = operatorShare_;
+        _grantRole(MIDDLEWARE_ROLE, middleware);
+        renounceOwnership();
     }
 
     /**
@@ -145,7 +142,7 @@ contract ODefaultOperatorRewards is
         uint256 totalPointsToken,
         bytes32 root,
         address tokenAddress
-    ) external nonReentrant onlyMiddleware {
+    ) external nonReentrant onlyRole(MIDDLEWARE_ROLE) {
         if (amount == 0 || totalPointsToken == 0) {
             revert ODefaultOperatorRewards__InvalidValues();
         }
@@ -327,7 +324,7 @@ contract ODefaultOperatorRewards is
     function setStakerRewardContract(
         address stakerRewards,
         address vault
-    ) external onlyMiddleware notZeroAddress(stakerRewards) notZeroAddress(vault) {
+    ) external onlyRole(MIDDLEWARE_ROLE) notZeroAddress(stakerRewards) notZeroAddress(vault) {
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
 
         if ($.vaultToStakerRewardsContract[vault] == stakerRewards) {
@@ -344,7 +341,7 @@ contract ODefaultOperatorRewards is
      */
     function setOperatorShare(
         uint48 operatorShare_
-    ) external onlyMiddleware {
+    ) external onlyRole(MIDDLEWARE_ROLE) {
         //TODO A maximum value for the operatorShare should be chosen. 100% shouldn't be a valid option.
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         if (operatorShare_ >= MAX_PERCENTAGE) {
