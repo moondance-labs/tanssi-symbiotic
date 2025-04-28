@@ -1551,166 +1551,38 @@ contract RewardsTest is Test {
     }
 
     //**************************************************************************************************
-    //                                      MIGRATE
+    //                                      UPGRADE
     //**************************************************************************************************
 
-    // We start from epoch 1, because at epoch 0 no operators can be active!
-    function testMigrateStakerRewards()
-        // uint48 maxEpoch_
-        public
-    {
-        // maxEpoch_ = uint48(bound(maxEpoch_, 0, 300));
-        Token newToken = new Token("NewToken", 18);
-        uint48 maxEpoch = 1000;
-
-        _preparePreviousStorageData(address(newToken), maxEpoch, true);
-
-        vm.startPrank(address(tanssi));
-
-        stakerRewards.migrate(0, maxEpoch, address(token));
-
-        _checkMigrationResult(maxEpoch);
-    }
-
     function testUpgradeAndMigrateStakerRewards() public {
-        Token newToken = new Token("NewToken", 18);
-        uint48 maxEpoch = 50;
+        vm.warp(NETWORK_EPOCH_DURATION);
 
-        _preparePreviousStorageData(address(newToken), maxEpoch, true);
-        vm.warp(NETWORK_EPOCH_DURATION * (maxEpoch + 1));
-
-        deployRewards.upgradeStakerRewardsAndMigrate(
-            address(stakerRewards),
-            address(networkMiddlewareService),
-            address(vault),
-            address(tanssi),
-            address(middleware),
-            address(token)
+        deployRewards.upgradeStakerRewards(
+            address(stakerRewards), address(networkMiddlewareService), address(vault), address(tanssi)
         );
 
-        _checkMigrationResult(maxEpoch);
+        assertEq(stakerRewards.i_vault(), address(vault));
+        assertEq(stakerRewards.i_network(), address(tanssi));
+        assertEq(stakerRewards.i_networkMiddlewareService(), address(networkMiddlewareService));
     }
 
     function testUpgradeAndMigrateStakerRewardsWithBroadcast() public {
-        Token newToken = new Token("NewToken", 18);
-        uint48 maxEpoch = 50;
-
         vm.startPrank(tanssi);
         // On not testing mode, the owner of the contract to upgrade is this, so we need to grant the admin role to it
         address ownerForUpgrade = vm.addr(deployRewards.ownerPrivateKey());
         stakerRewards.grantRole(stakerRewards.DEFAULT_ADMIN_ROLE(), ownerForUpgrade);
         vm.stopPrank();
 
-        _preparePreviousStorageData(address(newToken), maxEpoch, true);
-        vm.warp(NETWORK_EPOCH_DURATION * (maxEpoch + 1));
+        vm.warp(NETWORK_EPOCH_DURATION);
 
         deployRewards.setIsTest(false);
-        deployRewards.upgradeStakerRewardsAndMigrate(
-            address(stakerRewards),
-            address(networkMiddlewareService),
-            address(vault),
-            address(tanssi),
-            address(middleware),
-            address(token)
+        deployRewards.upgradeStakerRewards(
+            address(stakerRewards), address(networkMiddlewareService), address(vault), address(tanssi)
         );
 
-        _checkMigrationResult(maxEpoch);
-    }
-
-    function testMigrateShouldBeIdemPotentStakerRewards() public {
-        Token newToken = new Token("NewToken", 18);
-        uint48 maxEpoch = 1000;
-
-        _preparePreviousStorageData(address(newToken), maxEpoch, false);
-
-        vm.startPrank(address(tanssi));
-
-        stakerRewards.migrate(1, maxEpoch, address(token));
-        stakerRewards.migrate(1, maxEpoch, address(token));
-
-        for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
-            uint256 BASE_AMOUNT = DEFAULT_AMOUNT + epoch.mulDiv(1 ether, maxEpoch);
-            uint256 claimableFee = stakerRewards.claimableAdminFee(epoch, address(token));
-            assertEq(claimableFee, BASE_AMOUNT);
-
-            uint256 rewards = stakerRewards.rewards(epoch, address(token));
-            assertEq(rewards, epoch % 2 == 0 ? BASE_AMOUNT * 2 : BASE_AMOUNT);
-        }
-    }
-
-    function _preparePreviousStorageData(address newToken, uint48 maxEpoch, bool mockActiveSharesOfAt) private {
-        for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
-            uint256 BASE_AMOUNT = DEFAULT_AMOUNT + epoch.mulDiv(1 ether, maxEpoch);
-            _setClaimableAdminFee(epoch, address(token), PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION, BASE_AMOUNT);
-
-            _setPreviousRewardsMapping(
-                epoch, epoch % 2 == 0 ? true : false, epoch % 2 == 0 ? address(0) : newToken, BASE_AMOUNT
-            );
-
-            _setActiveSharesCache(
-                epoch, address(stakerRewards), PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT
-            );
-            _setLastUnclaimedReward(epoch, alice, address(stakerRewards), epoch % 2 == 0 ? 1 : 0);
-        }
-
-        if (mockActiveSharesOfAt) {
-            for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
-                uint48 epochStartTs = middleware.getEpochStart(epoch);
-                vm.mockCall(
-                    address(vault),
-                    abi.encodeWithSelector(IVaultStorage.activeSharesOfAt.selector, alice, epochStartTs, hex""),
-                    abi.encode(AMOUNT_TO_DISTRIBUTE / 10)
-                );
-            }
-        }
-    }
-
-    function _checkMigrationResult(
-        uint48 maxEpoch
-    ) private view {
-        for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
-            uint256 BASE_AMOUNT = DEFAULT_AMOUNT + epoch.mulDiv(1 ether, maxEpoch);
-            uint256 claimableFee = stakerRewards.claimableAdminFee(epoch, address(token));
-            assertEq(claimableFee, BASE_AMOUNT);
-
-            uint256 rewards = stakerRewards.rewards(epoch, address(token));
-            assertEq(rewards, epoch % 2 == 0 ? BASE_AMOUNT * 2 : BASE_AMOUNT);
-
-            uint256 claimed = stakerRewards.stakerClaimedRewardPerEpoch(alice, epoch, address(token));
-            assertEq(claimed, epoch % 2 == 0 ? BASE_AMOUNT : 0);
-
-            // Check slot has been cleared for alice
-            bytes32 lastUnclaimedSlot = bytes32(uint256(PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION) + uint256(2)); // 2 is mapping slot number for the variable lastUnclaimedReward
-            lastUnclaimedSlot = keccak256(abi.encode(alice, lastUnclaimedSlot));
-            lastUnclaimedSlot = keccak256(abi.encode(epoch, lastUnclaimedSlot));
-            lastUnclaimedSlot = keccak256(abi.encode(address(token), lastUnclaimedSlot));
-            bytes32 aliceLastUnclaimed = vm.load(address(stakerRewards), lastUnclaimedSlot);
-            assertEq(uint256(aliceLastUnclaimed), 0);
-
-            // Check data has been cleared
-            bytes32 oldRewardLengthSlot = bytes32(uint256(PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION) + uint256(1)); // 1 is mapping slot number for the variable rewards
-
-            // Get slot for second mapping with tokenAddress
-            bytes32 tokenSlot = keccak256(abi.encode(address(token), oldRewardLengthSlot));
-            bytes32 arrayLoc = keccak256(abi.encode(tokenSlot));
-
-            bytes32 oldRewardLength = vm.load(address(stakerRewards), tokenSlot);
-            bytes32 firstValueInRewardsArray = vm.load(address(stakerRewards), arrayLoc);
-
-            assertEq(uint256(firstValueInRewardsArray), 0);
-            assertEq(uint256(oldRewardLength), 0);
-
-            bytes32 oldCacheSlot =
-                keccak256(abi.encode(epoch, bytes32(uint256(PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION) + 4)));
-            bytes32 oldCacheValue = vm.load(address(stakerRewards), oldCacheSlot);
-            assertEq(uint256(oldCacheValue), 0);
-
-            bytes32 claimableAdminFeeSlot = bytes32(uint256(PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION) + uint256(3)); // 3 is slot number for the variable claimableAdminFee
-            claimableAdminFeeSlot = keccak256(abi.encode(epoch, claimableAdminFeeSlot));
-            claimableAdminFeeSlot = keccak256(abi.encode(address(token), claimableAdminFeeSlot));
-            bytes32 oldClaimableAdminFee = vm.load(address(stakerRewards), claimableAdminFeeSlot);
-            assertEq(uint256(oldClaimableAdminFee), 0);
-        }
+        assertEq(stakerRewards.i_vault(), address(vault));
+        assertEq(stakerRewards.i_network(), address(tanssi));
+        assertEq(stakerRewards.i_networkMiddlewareService(), address(networkMiddlewareService));
     }
 
     //TODO TO REMOVE
