@@ -44,6 +44,7 @@ import {VaultTokenized} from "@symbiotic/contracts/vault/VaultTokenized.sol";
 import {NetworkRestakeDelegator} from "@symbiotic/contracts/delegator/NetworkRestakeDelegator.sol";
 import {FullRestakeDelegator} from "@symbiotic/contracts/delegator/FullRestakeDelegator.sol";
 import {OperatorSpecificDelegator} from "@symbiotic/contracts/delegator/OperatorSpecificDelegator.sol";
+import {OperatorNetworkSpecificDelegator} from "@symbiotic/contracts/delegator/OperatorNetworkSpecificDelegator.sol";
 import {INetworkRestakeDelegator} from "@symbiotic/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IOperatorSpecificDelegator} from "@symbiotic/interfaces/delegator/IOperatorSpecificDelegator.sol";
@@ -246,6 +247,19 @@ contract DeploySymbiotic is Script {
             )
         );
         factories.delegatorFactory.whitelist(operatorSpecificDelegatorImpl);
+
+        address operatorNetworkSpecificDelegatorImpl = address(
+            new OperatorNetworkSpecificDelegator(
+                address(registries.operatorRegistry),
+                address(registries.networkRegistry),
+                address(factories.vaultFactory),
+                address(services.operatorVaultOptInService),
+                address(services.operatorNetworkOptInService),
+                address(factories.delegatorFactory),
+                factories.delegatorFactory.totalTypes()
+            )
+        );
+        factories.delegatorFactory.whitelist(operatorNetworkSpecificDelegatorImpl);
 
         address slasherImpl = address(
             new Slasher(

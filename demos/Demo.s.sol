@@ -25,6 +25,7 @@ import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
 import {INetworkRestakeDelegator} from "@symbiotic/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestakeDelegator.sol";
+import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
 import {DeployCollateral} from "../DeployCollateral.s.sol";
 import {DeployVault} from "../DeployVault.s.sol";
 import {DeploySymbiotic} from "../DeploySymbiotic.s.sol";
@@ -115,11 +116,13 @@ contract Demo is Script {
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
             depositLimit: 0,
-            delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
+            delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
             shouldBroadcast: true,
             vaultConfigurator: address(vaultConfigurator),
             collateral: address(stETHToken),
-            owner: tanssi
+            owner: tanssi,
+            operator: address(0),
+            network: address(0)
         });
 
         (vaultAddresses.vault, vaultAddresses.delegator, vaultAddresses.slasher) = deployVault.createBaseVault(params);
@@ -138,7 +141,7 @@ contract Demo is Script {
         console2.log("SlasherSlashable: ", vaultAddresses.slasherSlashable);
         console2.log(" ");
 
-        params.delegatorIndex = DeployVault.DelegatorIndex.FULL_RESTAKE;
+        params.delegatorIndex = VaultManager.DelegatorType.FULL_RESTAKE;
         params.collateral = address(wBTCToken);
         (vaultAddresses.vaultVetoed, vaultAddresses.delegatorVetoed, vaultAddresses.slasherVetoed) =
             deployVault.createVaultVetoed(params, 1 days);

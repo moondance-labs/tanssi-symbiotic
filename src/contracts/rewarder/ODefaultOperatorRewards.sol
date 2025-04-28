@@ -116,11 +116,11 @@ contract ODefaultOperatorRewards is
         uint48 epoch,
         uint48 eraIndex,
         uint256 amount,
-        uint256 totalPointsToken,
+        uint256 totalPoints,
         bytes32 root,
         address tokenAddress
     ) external nonReentrant onlyMiddleware {
-        if (amount == 0 || totalPointsToken == 0) {
+        if (amount == 0 || totalPoints == 0) {
             revert ODefaultOperatorRewards__InvalidValues();
         }
 
@@ -137,7 +137,7 @@ contract ODefaultOperatorRewards is
             epoch: epoch,
             amount: amount,
             // We need to calculate how much each point is worth in tokens
-            tokensPerPoint: amount / totalPointsToken, // TODO: To change/check the math.
+            tokensPerPoint: amount / totalPoints, // TODO: To change/check the math. There will be a rounding error so some rewards will be forever stuck in this contract.
             root: root,
             tokenAddress: tokenAddress
         });

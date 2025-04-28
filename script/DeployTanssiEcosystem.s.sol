@@ -19,6 +19,7 @@ import {Script, console2} from "forge-std/Script.sol";
 //**************************************************************************************************
 //                                      SYMBIOTIC
 //**************************************************************************************************
+import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
 import {IVaultConfigurator} from "@symbiotic/interfaces/IVaultConfigurator.sol";
 import {IOperatorRegistry} from "@symbiotic/interfaces/IOperatorRegistry.sol";
 import {INetworkRegistry} from "@symbiotic/interfaces/INetworkRegistry.sol";
@@ -146,13 +147,15 @@ contract DeployTanssiEcosystem is Script {
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
             depositLimit: 0,
-            delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
+            delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
             shouldBroadcast: !isTest,
             vaultConfigurator: address(ecosystemEntities.vaultConfigurator),
             collateral: ecosystemEntities.defaultCollateralAddress != address(0)
                 ? ecosystemEntities.defaultCollateralAddress
                 : address(tokensAddresses.stETHToken),
-            owner: tanssi
+            owner: tanssi,
+            operator: address(0),
+            network: address(0)
         });
 
         if (!isTest) {
@@ -182,7 +185,7 @@ contract DeployTanssiEcosystem is Script {
         console2.log(" ");
 
         if (isTest || block.chainid == 31_337) {
-            params.delegatorIndex = DeployVault.DelegatorIndex.FULL_RESTAKE;
+            params.delegatorIndex = VaultManager.DelegatorType.FULL_RESTAKE;
             if (block.chainid == 31_337) {
                 params.collateral = address(tokensAddresses.wBTCToken);
             }
@@ -316,7 +319,7 @@ contract DeployTanssiEcosystem is Script {
         });
 
         ecosystemEntities.middleware =
-            _deployMiddlewareWithProxy(params, operatorRewardsAddress, stakerRewardsFactoryAddress);
+            deployMiddlewareWithProxy(params, operatorRewardsAddress, stakerRewardsFactoryAddress);
 
         networkMiddlewareService.setMiddleware(address(ecosystemEntities.middleware));
         _registerEntitiesToMiddleware();
@@ -343,11 +346,11 @@ contract DeployTanssiEcosystem is Script {
         }
     }
 
-    function _deployMiddlewareWithProxy(
+    function deployMiddlewareWithProxy(
         IMiddleware.InitParams memory params,
         address operatorRewards,
         address stakerRewardsFactory
-    ) private returns (Middleware _middleware) {
+    ) public returns (Middleware _middleware) {
         Middleware _middlewareImpl = new Middleware(operatorRewards, stakerRewardsFactory);
         _middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
 
@@ -366,7 +369,7 @@ contract DeployTanssiEcosystem is Script {
         vm.startBroadcast(ownerPrivateKey);
 
         ecosystemEntities.middleware =
-            _deployMiddlewareWithProxy(params, operatorRewardsAddress, stakerRewardsFactoryAddress);
+            deployMiddlewareWithProxy(params, operatorRewardsAddress, stakerRewardsFactoryAddress);
 
         if (networkMiddlewareServiceAddress != address(0)) {
             INetworkMiddlewareService(networkMiddlewareServiceAddress).setMiddleware(
