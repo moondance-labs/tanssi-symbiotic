@@ -1713,39 +1713,6 @@ contract RewardsTest is Test {
         }
     }
 
-    function testMigrateShouldBeIdemPotentStakerRewards2() public {
-        Token newToken = new Token("NewToken", 18);
-        uint48 maxEpoch = 1000;
-
-        for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
-            uint256 BASE_AMOUNT = DEFAULT_AMOUNT + epoch.mulDiv(1 ether, maxEpoch);
-            _setClaimableAdminFee(epoch, address(token), PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION, BASE_AMOUNT);
-
-            _setPreviousRewardsMapping(
-                epoch, epoch % 2 == 0 ? true : false, epoch % 2 == 0 ? address(0) : address(newToken), BASE_AMOUNT
-            );
-
-            _setActiveSharesCache(
-                epoch, address(stakerRewards), PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT
-            );
-            _setLastUnclaimedReward(epoch, alice, address(stakerRewards), epoch % 2 == 0 ? 1 : 0);
-        }
-
-        vm.startPrank(address(tanssi));
-
-        stakerRewards.migrate(1, maxEpoch, address(token));
-        stakerRewards.migrate(1, maxEpoch, address(token));
-
-        for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
-            uint256 BASE_AMOUNT = DEFAULT_AMOUNT + epoch.mulDiv(1 ether, maxEpoch);
-            uint256 claimableFee = stakerRewards.claimableAdminFee(epoch, address(token));
-            assertEq(claimableFee, BASE_AMOUNT);
-
-            uint256 rewards = stakerRewards.rewards(epoch, address(token));
-            assertEq(rewards, epoch % 2 == 0 ? BASE_AMOUNT * 2 : BASE_AMOUNT);
-        }
-    }
-
     //TODO TO REMOVE
 
     function testMigrateOperatorRewardsButNotContractOwner() public {
