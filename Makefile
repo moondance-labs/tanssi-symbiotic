@@ -83,7 +83,7 @@ deploy-tanssi-eco:
 
 deploy-full-tanssi-eco-demo:
 	@echo "📡 Deploying Full Tanssi Ecosystem Locally for Demo..."
-	@forge script script/test/DeployTanssiEcosystemDemo.s.sol --slow --skip-simulation ${NETWORK_ARGS}
+	@forge script demos/DeployTanssiEcosystemDemo.s.sol --slow --skip-simulation ${NETWORK_ARGS}
 	@echo "✅ Full Tanssi Ecosystem Locally for Demo deployment completed"
 
 # EXAMPLE: These are all mock data to deploy locally
