@@ -108,6 +108,12 @@ upgrade-operator-rewards:
 	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "upgradeOperatorRewards(address,address,address)" $(OPERATOR_REWARDS_ADDRESS) $(NETWORK) $(NETWORK_MIDDLEWARE_SERVICE) -vv
 	@echo "✅ Operator Rewards upgrade completed"
 
+upgrade-operator-rewards2:
+	@echo "📡 Upgrading Operator Rewards..."
+	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "upgradeOperatorRewards(address,address,address,address)" $(OPERATOR_REWARDS_ADDRESS) $(NETWORK) $(NETWORK_MIDDLEWARE_SERVICE) $(MIDDLEWARE_ADDRESS) -vv
+	@echo "✅ Operator Rewards upgrade completed"
+
+
 upgrade-middleware:
 	@echo "📡 Upgrading Middleware..."
 	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem $(NETWORK_ARGS) --sig "upgradeMiddleware(address,uint256,address,address,address)" $(MIDDLEWARE_ADDRESS) $(CURRENT_MIDDLEWARE_VERSION) $(OPERATOR_REWARDS_ADDRESS) $(STAKE_REWARDS_FACTORY_ADDRESS) 0x0000000000000000000000000000000000000000 -vv

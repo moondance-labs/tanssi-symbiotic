@@ -70,6 +70,9 @@ import {VaultMock} from "../mocks/symbiotic/VaultMock.sol";
 import {Token} from "../mocks/Token.sol";
 import {MockFeeToken} from "../mocks/FeeToken.sol";
 
+//TODO Delete
+import {OperatorTestMock} from "../mocks/OperatorTestMock.sol";
+
 import {DeployRewards} from "script/DeployRewards.s.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
 
@@ -1686,7 +1689,7 @@ contract RewardsTest is Test {
 
             // Check data has been cleared
             bytes32 oldRewardLengthSlot = bytes32(uint256(PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION) + uint256(1)); // 1 is mapping slot number for the variable rewards
-            oldRewardLengthSlot = keccak256(abi.encode(epoch, oldRewardLengthSlot));
+
             // Get slot for second mapping with tokenAddress
             bytes32 tokenSlot = keccak256(abi.encode(address(token), oldRewardLengthSlot));
             bytes32 arrayLoc = keccak256(abi.encode(tokenSlot));
@@ -1752,5 +1755,31 @@ contract RewardsTest is Test {
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
         vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, address(this)));
         operatorRewards.initializeV2(owner, address(middleware));
+    }
+
+    function testUpgradeOperatorRewardsInitializeV2() public {
+        vm.startPrank(owner);
+        // Old version
+        OperatorTestMock operatorRewardsImpl = new OperatorTestMock(tanssi, address(networkMiddlewareService));
+        OperatorTestMock operatorRewardsMock =
+            OperatorTestMock(address(new ERC1967Proxy(address(operatorRewardsImpl), "")));
+        operatorRewardsMock.initialize(OPERATOR_SHARE, owner);
+
+        // New version
+        ODefaultOperatorRewards newOperatorRewards =
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService));
+        bytes memory data =
+            abi.encodeWithSelector(ODefaultOperatorRewards.initializeV2.selector, tanssi, address(middleware));
+        operatorRewardsMock.upgradeToAndCall(address(newOperatorRewards), data);
+
+        address vault2 = makeAddr("vault2");
+        address stakerRewards2 = makeAddr("stakerRewards2");
+
+        vm.startPrank(address(middleware));
+        vm.expectEmit(true, true, false, true);
+        emit IODefaultOperatorRewards.SetStakerRewardContract(stakerRewards2, vault2);
+        operatorRewardsMock.setStakerRewardContract(stakerRewards2, vault2);
+
+        assertEq(operatorRewardsMock.owner(), address(0));
     }
 }
