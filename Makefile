@@ -113,7 +113,7 @@ upgrade-middleware:
 	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem $(NETWORK_ARGS) --sig "upgradeMiddleware(address,uint256,address,address,address)" $(MIDDLEWARE_ADDRESS) $(CURRENT_MIDDLEWARE_VERSION) $(OPERATOR_REWARDS_ADDRESS) $(STAKE_REWARDS_FACTORY_ADDRESS) 0x0000000000000000000000000000000000000000 -vv
 	@echo "✅ Middleware upgrade completed"
 
-upgrade-staker-rewards-and-migrate:
-	@echo "📡 Upgrading Staker Rewards and Migrating..."
-	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "upgradeStakerRewardsAndMigrate(address,address,address,address,address,address)" $(STAKER_REWARDS_PROXY_ADDRESS) $(NETWORK_MIDDLEWARE_SERVICE) $(VAULT_ADDRESS) $(NETWORK) $(MIDDLEWARE_ADDRESS) $(TOKEN_ADDRESS) -vv
-	@echo "✅ Staker Rewards upgrade and migration completed"
+upgrade-staker-rewards:
+	@echo "📡 Upgrading Staker Rewards..."
+	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "upgradeStakerRewards(address,address,address,address)" $(STAKER_REWARDS_PROXY_ADDRESS) $(NETWORK_MIDDLEWARE_SERVICE) $(VAULT_ADDRESS) $(NETWORK) -vv
+	@echo "✅ Staker Rewards upgrade completed"
