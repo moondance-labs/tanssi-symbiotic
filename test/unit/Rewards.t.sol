@@ -482,6 +482,17 @@ contract RewardsTest is Test {
         ODefaultOperatorRewards(proxy).initialize(0, address(0));
     }
 
+    function testInitializeOperatorRewardsWithTooBigShares() public {
+        operatorRewards = new ODefaultOperatorRewards(
+            tanssi, // network
+            address(networkMiddlewareService) // networkMiddlewareService
+        );
+        address proxy = address(new ERC1967Proxy((address(operatorRewards)), ""));
+        uint48 MAX_PERCENTAGE = operatorRewards.MAX_PERCENTAGE();
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidOperatorShare.selector);
+        ODefaultOperatorRewards(proxy).initialize(MAX_PERCENTAGE + 1, address(networkMiddlewareService));
+    }
+
     //**************************************************************************************************
     //                                      distributeRewards
     //**************************************************************************************************
@@ -927,7 +938,7 @@ contract RewardsTest is Test {
             abi.encodeWithSelector(
                 IAccessControl.AccessControlUnauthorizedAccount.selector,
                 address(this),
-                operatorRewards.MIDDLEWARE_ROLE()
+                operatorRewards.STAKER_REWARDS_SETTER_ROLE()
             )
         );
         operatorRewards.setStakerRewardContract(newStakerRewards, newVault);
