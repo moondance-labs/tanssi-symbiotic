@@ -741,8 +741,6 @@ contract DeployTest is Test {
         (Middleware middleware,,) = deployTanssiEcosystem.ecosystemEntities();
         address operatorRewards =
             deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20, tanssi);
-        vm.prank(tanssi);
-        ODefaultOperatorRewards(operatorRewards).initializeV2(tanssi, address(middleware));
 
         deployRewards.upgradeOperatorRewards(operatorRewards, tanssi, addresses.networkMiddlewareService);
     }
@@ -754,8 +752,6 @@ contract DeployTest is Test {
 
         address operatorRewards =
             deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20, tanssi);
-        vm.prank(tanssi);
-        ODefaultOperatorRewards(operatorRewards).initializeV2(tanssi, address(middleware));
 
         deployRewards.upgradeOperatorRewards(operatorRewards, tanssi, addresses.networkMiddlewareService);
     }

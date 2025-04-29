@@ -30,7 +30,6 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 //**************************************************************************************************
@@ -46,7 +45,6 @@ import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperato
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 
 contract ODefaultOperatorRewards is
-    OwnableUpgradeable,
     OzAccessControl,
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable,
@@ -102,40 +100,25 @@ contract ODefaultOperatorRewards is
     /**
      * @notice Initialize the contract.
      * @param operatorShare_ The share of the operator.
-     * @param owner_ The address of the owner.
+     * @param owner The address of the owner.
      */
-    function initialize(uint48 operatorShare_, address owner_) public initializer notZeroAddress(owner_) {
+    function initialize(uint48 operatorShare_, address owner) public initializer notZeroAddress(owner) {
         if (operatorShare_ >= MAX_PERCENTAGE) {
             revert ODefaultOperatorRewards__InvalidOperatorShare();
         }
 
-        __Ownable_init(owner_);
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
-        __OzAccessControl_init(owner_);
+        __OzAccessControl_init(owner);
 
-        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
-        $.operatorShare = operatorShare_;
-    }
-
-    /**
-     * @notice Initialize the contract for the second time.
-     * @param admin The address of the admin.
-     */
-    function initializeV2(
-        address admin,
-        address middleware
-    ) public reinitializer(2) notZeroAddress(admin) notZeroAddress(middleware) onlyOwner {
-        __OzAccessControl_init(admin);
-
-        _grantRole(DEFAULT_ADMIN_ROLE, admin);
-        _grantRole(MIDDLEWARE_ROLE, middleware);
-        _grantRole(STAKER_REWARDS_SETTER_ROLE, middleware);
+        _grantRole(DEFAULT_ADMIN_ROLE, owner);
 
         _setSelectorRole(this.distributeRewards.selector, MIDDLEWARE_ROLE);
         _setSelectorRole(this.setOperatorShare.selector, MIDDLEWARE_ROLE);
         _setSelectorRole(this.setStakerRewardContract.selector, STAKER_REWARDS_SETTER_ROLE);
-        renounceOwnership();
+
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        $.operatorShare = operatorShare_;
     }
 
     /**

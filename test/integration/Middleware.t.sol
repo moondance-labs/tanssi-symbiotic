@@ -277,7 +277,9 @@ contract MiddlewareTest is Test {
         stakerRewardsFactory = ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress);
 
         middleware = _deployMiddlewareWithProxy(tanssi, owner, operatorRewardsAddress, stakerRewardsFactoryAddress);
-        operatorRewards.initializeV2(owner, address(middleware));
+        operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
+        operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
+        operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware));
 
         _createGateway();
         middleware.setGateway(address(gateway));
@@ -825,7 +827,10 @@ contract MiddlewareTest is Test {
             adminFeeSetRoleHolder: network2
         });
         vm.startPrank(owner);
-        ODefaultOperatorRewards(operatorRewardsAddress2).initializeV2(owner, address(middleware2));
+        ODefaultOperatorRewards operatorRewards2 = ODefaultOperatorRewards(operatorRewardsAddress2);
+        operatorRewards2.grantRole(operatorRewards2.MIDDLEWARE_ROLE(), address(middleware2));
+        operatorRewards2.grantRole(operatorRewards2.STAKER_REWARDS_SETTER_ROLE(), address(middleware2));
+
         vm.startPrank(network2);
         middleware2.registerSharedVault(address(vault), stakerRewardsParams);
         middleware2.registerOperator(operatorX, abi.encode(OPERATORX_KEY), address(0));

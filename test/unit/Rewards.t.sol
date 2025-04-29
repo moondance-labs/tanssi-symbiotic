@@ -70,9 +70,6 @@ import {VaultMock} from "../mocks/symbiotic/VaultMock.sol";
 import {Token} from "../mocks/Token.sol";
 import {MockFeeToken} from "../mocks/FeeToken.sol";
 
-//TODO Delete
-import {OperatorTestMock} from "../mocks/OperatorTestMock.sol";
-
 import {DeployRewards} from "script/DeployRewards.s.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
 
@@ -194,7 +191,10 @@ contract RewardsTest is Test {
 
         Middleware _middlewareImpl = new Middleware(operatorRewardsAddress, address(stakerRewards));
         middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
-
+        vm.startPrank(owner);
+        operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
+        operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware));
+        vm.stopPrank();
         IMiddleware.InitParams memory params = IMiddleware.InitParams({
             network: tanssi,
             operatorRegistry: address(operatorRegistry),
@@ -206,9 +206,8 @@ contract RewardsTest is Test {
             reader: readHelper
         });
         Middleware(address(middleware)).initialize(params);
-        // TODO TO REMOVE
+
         vm.prank(owner);
-        operatorRewards.initializeV2(owner, address(middleware));
 
         slasher = new Slasher(address(vaultFactory), address(networkMiddlewareService), slasherFactory, 0);
 
@@ -1594,42 +1593,5 @@ contract RewardsTest is Test {
         assertEq(stakerRewards.i_vault(), address(vault));
         assertEq(stakerRewards.i_network(), address(tanssi));
         assertEq(stakerRewards.i_networkMiddlewareService(), address(networkMiddlewareService));
-    }
-
-    //TODO TO REMOVE
-
-    function testMigrateOperatorRewardsButNotContractOwner() public {
-        address operatorRewardsAddress = deployRewards.deployOperatorRewardsContract(
-            tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
-        );
-        operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
-        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, address(this)));
-        operatorRewards.initializeV2(owner, address(middleware));
-    }
-
-    function testUpgradeOperatorRewardsInitializeV2() public {
-        vm.startPrank(owner);
-        // Old version
-        OperatorTestMock operatorRewardsImpl = new OperatorTestMock(tanssi, address(networkMiddlewareService));
-        OperatorTestMock operatorRewardsMock =
-            OperatorTestMock(address(new ERC1967Proxy(address(operatorRewardsImpl), "")));
-        operatorRewardsMock.initialize(OPERATOR_SHARE, owner);
-
-        // New version
-        ODefaultOperatorRewards newOperatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService));
-        bytes memory data =
-            abi.encodeWithSelector(ODefaultOperatorRewards.initializeV2.selector, tanssi, address(middleware));
-        operatorRewardsMock.upgradeToAndCall(address(newOperatorRewards), data);
-
-        address vault2 = makeAddr("vault2");
-        address stakerRewards2 = makeAddr("stakerRewards2");
-
-        vm.startPrank(address(middleware));
-        vm.expectEmit(true, true, false, true);
-        emit IODefaultOperatorRewards.SetStakerRewardContract(stakerRewards2, vault2);
-        operatorRewardsMock.setStakerRewardContract(stakerRewards2, vault2);
-
-        assertEq(operatorRewardsMock.owner(), address(0));
     }
 }
