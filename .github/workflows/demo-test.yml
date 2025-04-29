@@ -6,13 +6,27 @@ on:
       - staging
       - main
   pull_request:
-    paths:
-      - '**/*.sol'
   workflow_dispatch:
 
 jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      solidity_changed: ${{ steps.filter.outputs.solidity }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            solidity:
+              - '**/*.sol' # Match any file ending in .sol anywhere in the repo
+
   deploy:
     runs-on: ubuntu-latest
+    needs: [detect-changes]
+    # Only run this job if the 'solidity' filter from detect-changes job is true
+    if: needs.detect-changes.outputs.solidity_changed == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
