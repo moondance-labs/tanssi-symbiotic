@@ -294,6 +294,9 @@ contract RewardsTest is Test {
         );
         middleware = _deployMiddlewareWithProxy(tanssi, owner, address(operatorRewards), stakerRewardsFactoryAddress);
 
+        // TODO TO CHANGE
+        operatorRewards.initializeV2(owner, address(middleware));
+
         middleware.setCollateralToOracle(address(stETH), stEthOracle);
         middleware.setCollateralToOracle(address(rETH), rEthOracle);
         middleware.setCollateralToOracle(address(wBTC), wBtcOracle);

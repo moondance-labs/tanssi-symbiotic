@@ -149,4 +149,28 @@ contract DeployRewards is Script {
             vm.stopPrank();
         }
     }
+
+    function upgradeOperatorRewards(
+        address proxyAddress,
+        address network,
+        address networkMiddlewareService,
+        address middleware
+    ) external {
+        if (!isTest) {
+            vm.startBroadcast(ownerPrivateKey);
+        } else {
+            vm.startPrank(network);
+        }
+        ODefaultOperatorRewards proxy = ODefaultOperatorRewards(proxyAddress);
+        ODefaultOperatorRewards implementation = new ODefaultOperatorRewards(network, networkMiddlewareService);
+        console2.log("New Operator Rewards Implementation: ", address(implementation));
+        bytes memory data = abi.encodeWithSelector(ODefaultOperatorRewards.initializeV2.selector, network, middleware);
+        proxy.upgradeToAndCall(address(implementation), data);
+        console2.log("Operator Rewards Upgraded");
+        if (!isTest) {
+            vm.stopBroadcast();
+        } else {
+            vm.stopPrank();
+        }
+    }
 }

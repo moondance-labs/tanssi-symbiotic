@@ -214,6 +214,7 @@ contract MiddlewareTest is Test {
         middleware.initialize(params);
         middleware.setGateway(address(gateway));
         middleware.setCollateralToOracle(address(collateral), address(collateralOracle));
+        operatorRewards.initializeV2(owner, address(middleware));
 
         vm.startPrank(tanssi);
         registry.register();

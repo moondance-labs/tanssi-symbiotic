@@ -339,6 +339,7 @@ contract DeployTanssiEcosystem is Script {
         address operatorRewardsAddress = contractScripts.deployRewards.deployOperatorRewardsContract(
             tanssi, networkMiddlewareServiceAddress, 2000, tanssi
         );
+        ODefaultOperatorRewards operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
         address stakerRewardsFactoryAddress = contractScripts.deployRewards.deployStakerRewardsFactoryContract(
             vaultRegistryAddress, networkMiddlewareServiceAddress, operatorRewardsAddress, tanssi
@@ -360,6 +361,7 @@ contract DeployTanssiEcosystem is Script {
         ecosystemEntities.middleware =
             _deployMiddlewareWithProxy(params, operatorRewardsAddress, stakerRewardsFactoryAddress);
 
+        operatorRewards.initializeV2(tanssi, address(ecosystemEntities.middleware));
         // Operator 1 goes to first vault
         INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares{gas: 10_000_000}(
             tanssi.subnetwork(0), operator, 1

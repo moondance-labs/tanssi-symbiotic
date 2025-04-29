@@ -277,6 +277,8 @@ contract MiddlewareTest is Test {
         stakerRewardsFactory = ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress);
 
         middleware = _deployMiddlewareWithProxy(tanssi, owner, operatorRewardsAddress, stakerRewardsFactoryAddress);
+        operatorRewards.initializeV2(owner, address(middleware));
+
         _createGateway();
         middleware.setGateway(address(gateway));
         middleware.setCollateralToOracle(address(stETH), stEthOracle);
@@ -815,12 +817,16 @@ contract MiddlewareTest is Test {
         vm.startPrank(network2);
         Middleware middleware2 =
             _deployMiddlewareWithProxy(network2, network2, operatorRewardsAddress2, address(stakerRewardsFactory));
+
         IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
             adminFee: 0,
             defaultAdminRoleHolder: network2,
             adminFeeClaimRoleHolder: network2,
             adminFeeSetRoleHolder: network2
         });
+        vm.startPrank(owner);
+        ODefaultOperatorRewards(operatorRewardsAddress2).initializeV2(owner, address(middleware2));
+        vm.startPrank(network2);
         middleware2.registerSharedVault(address(vault), stakerRewardsParams);
         middleware2.registerOperator(operatorX, abi.encode(OPERATORX_KEY), address(0));
 

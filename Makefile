@@ -57,7 +57,7 @@ anvil :; anvil -m 'test test test test test test test test test test test junk' 
 
 RPC_URL ?= http://localhost:8545
 PRIVATE_KEY ?= ${DEFAULT_ANVIL_KEY}
-NETWORK_ARGS := --rpc-url ${RPC_URL} --private-key ${PRIVATE_KEY} --broadcast
+NETWORK_ARGS := --rpc-url ${RPC_URL} --private-key ${PRIVATE_KEY} --broadcast --verify --etherscan-api-key ${ETHERSCAN_API_KEY}
 
 
 deploy:
@@ -78,12 +78,12 @@ demo:
 
 deploy-tanssi-eco:
 	@echo "📡 Deploying Tanssi Ecosystem..."
-	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem ${NETWORK_ARGS} --slow --skip-simulation --verify --etherscan-api-key ${ETHERSCAN_API_KEY}
+	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem ${NETWORK_ARGS} --slow --skip-simulation
 	@echo "✅ Tanssi Ecosystem deployment completed"
 
 deploy-full-tanssi-eco-demo:
 	@echo "📡 Deploying Full Tanssi Ecosystem Locally for Demo..."
-	@forge script script/test/DeployTanssiEcosystemDemo.s.sol --slow --skip-simulation ${NETWORK_ARGS}
+	@forge script demos/DeployTanssiEcosystemDemo.s.sol --slow --skip-simulation ${NETWORK_ARGS}
 	@echo "✅ Full Tanssi Ecosystem Locally for Demo deployment completed"
 
 # EXAMPLE: These are all mock data to deploy locally
@@ -107,6 +107,12 @@ upgrade-operator-rewards:
 	@echo "📡 Upgrading Operator Rewards..."
 	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "upgradeOperatorRewards(address,address,address)" $(OPERATOR_REWARDS_ADDRESS) $(NETWORK) $(NETWORK_MIDDLEWARE_SERVICE) -vv
 	@echo "✅ Operator Rewards upgrade completed"
+
+upgrade-operator-rewards2:
+	@echo "📡 Upgrading Operator Rewards..."
+	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "upgradeOperatorRewards(address,address,address,address)" $(OPERATOR_REWARDS_ADDRESS) $(NETWORK) $(NETWORK_MIDDLEWARE_SERVICE) $(MIDDLEWARE_ADDRESS) -vv
+	@echo "✅ Operator Rewards upgrade completed"
+
 
 upgrade-middleware:
 	@echo "📡 Upgrading Middleware..."

@@ -41,7 +41,7 @@ import {Token} from "test/mocks/Token.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
-
+import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
 import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
 import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
@@ -738,18 +738,25 @@ contract DeployTest is Test {
 
     function testUpgradeRewardsOperator() public {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
-
+        (Middleware middleware,,) = deployTanssiEcosystem.ecosystemEntities();
         address operatorRewards =
             deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20, tanssi);
+        vm.prank(tanssi);
+        ODefaultOperatorRewards(operatorRewards).initializeV2(tanssi, address(middleware));
+
         deployRewards.upgradeOperatorRewards(operatorRewards, tanssi, addresses.networkMiddlewareService);
     }
 
     function testUpgradeRewardsOperatorWithBroadcast() public {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
-
+        (Middleware middleware,,) = deployTanssiEcosystem.ecosystemEntities();
         deployRewards.setIsTest(false);
+
         address operatorRewards =
             deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20, tanssi);
+        vm.prank(tanssi);
+        ODefaultOperatorRewards(operatorRewards).initializeV2(tanssi, address(middleware));
+
         deployRewards.upgradeOperatorRewards(operatorRewards, tanssi, addresses.networkMiddlewareService);
     }
 
