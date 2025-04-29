@@ -2,9 +2,11 @@ name: Test
 
 on:
   push:
+    branches:
+      - staging
+      - main
   pull_request:
   workflow_dispatch:
-
 env:
   FOUNDRY_PROFILE: ci
 
@@ -37,6 +39,19 @@ jobs:
             echo "coverage_dir=tanssi-symbiotic-coverage/branches/master" >> $GITHUB_OUTPUT
             echo "coverage_report=false" >> $GITHUB_OUTPUT
           fi
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      solidity_changed: ${{ steps.filter.outputs.solidity }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            solidity:
+              - '**/*.sol' # Match any file ending in .sol anywhere in the repo
+
   check:
     strategy:
       fail-fast: true
@@ -52,7 +67,9 @@ jobs:
       RESOLVER_PRIVATE_KEY: "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
       OPERATOR_PRIVATE_KEY: "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6"
 
-    needs: ["set-tags"]
+    needs: [set-tags, detect-changes] # Add detect-changes dependency
+    # Only run this job if the 'solidity' filter from detect-changes job is true
+    if: needs.detect-changes.outputs.solidity_changed == 'true'
     steps:
       - uses: actions/checkout@v4
         with:
