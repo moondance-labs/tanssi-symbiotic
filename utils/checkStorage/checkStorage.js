@@ -19,6 +19,8 @@ if (process.env.OPERATOR_ADDRESSES) {
 
 const PREVIOUS_STORAGE_LOCATION =
   "0xe07cde22a6017f26eee680b6867ce6727151fb6097c75742cbe379265c377400";
+const NEW_STORAGE_LOCATION =
+  "0xef473712465551821e7a51c85c06a1bf76bdf2a3508e28184170ac7eb0322c00";
 
 // Read epoch from command line arguments
 const epochArg = process.argv[2];
@@ -79,9 +81,9 @@ async function getLocationData(
   return ethers.BigNumber.from(value);
 }
 
-function getMappingStorageSlot(position) {
+function getMappingStorageSlot(position, location) {
   return hexValue(
-    ethers.BigNumber.from(PREVIOUS_STORAGE_LOCATION).add(position)
+    ethers.BigNumber.from(location).add(position)
   );
 }
 
@@ -96,6 +98,9 @@ async function checkOldStorageCleared() {
     console.log(
       `\nPrevious Storage Base Slot (ERC-7201): ${PREVIOUS_STORAGE_LOCATION}`
     );
+    console.log(
+      `New Storage Base Slot (ERC-7201): ${NEW_STORAGE_LOCATION}`
+    );
 
     // Determine the base slots for each mapping within the PreviousStakerRewardsStorage struct
     //   struct PreviousStakerRewardsStorage {
@@ -108,11 +113,14 @@ async function checkOldStorageCleared() {
     //     mapping(uint48 epoch => bool) epochMigrated; --- 5
     // }
 
-    const rewardsMappingBaseSlot = getMappingStorageSlot(1); // 1 is the mapping slot number for rewards
-    const lastUnclaimedMappingBaseSlot = getMappingStorageSlot(2); // 2 is the mapping slot number for lastUnclaimedReward
-    const claimableAdminFeeMappingBaseSlot = getMappingStorageSlot(3); // 3 is the mapping slot number for claimableAdminFee
-    const activeSharesCacheMappingBaseSlot = getMappingStorageSlot(4); // 4 is the mapping slot number for activeSharesCache
-    const epochMigratedMappingBaseSlot = getMappingStorageSlot(5); // 5 is the mapping slot number for epochMigrated
+    const rewardsMappingBaseSlot = getMappingStorageSlot(1, PREVIOUS_STORAGE_LOCATION); // 1 is the mapping slot number for rewards
+    const lastUnclaimedMappingBaseSlot = getMappingStorageSlot(2, PREVIOUS_STORAGE_LOCATION); // 2 is the mapping slot number for lastUnclaimedReward
+    const claimableAdminFeeMappingBaseSlot = getMappingStorageSlot(3, PREVIOUS_STORAGE_LOCATION); // 3 is the mapping slot number for claimableAdminFee
+    const activeSharesCacheMappingBaseSlot = getMappingStorageSlot(4, PREVIOUS_STORAGE_LOCATION); // 4 is the mapping slot number for activeSharesCache
+    const epochMigratedMappingBaseSlot = getMappingStorageSlot(5, PREVIOUS_STORAGE_LOCATION); // 5 is the mapping slot number for epochMigrated
+
+    const rewardsMappingBaseSlotNew = getMappingStorageSlot(1, NEW_STORAGE_LOCATION); // 1 is the mapping slot number for rewards
+    const claimedRewardsMappingBaseSlotNew = getMappingStorageSlot(2, NEW_STORAGE_LOCATION); // 2 is the mapping slot number for claimedRewards
 
     // $$.rewards[epoch][tokenAddress]
     try {
@@ -125,7 +133,7 @@ async function checkOldStorageCleared() {
         rewardsMappingBaseSlot,
         provider
       );
-      console.log("Storage value for rewards length:", value.toString());
+      console.log("Old Storage value for rewards length:", value.toString());
     } catch (error) {
       console.error("Error reading storage for rewards length:", error);
       throw error;
@@ -142,7 +150,7 @@ async function checkOldStorageCleared() {
         activeSharesCacheMappingBaseSlot,
         provider
       );
-      console.log("Storage value for activeSharesCache:", value.toString());
+      console.log("Old Storage value for activeSharesCache:", value.toString());
     } catch (error) {
       console.error("Error reading storage for activeSharesCache:", error);
       throw error;
@@ -159,7 +167,7 @@ async function checkOldStorageCleared() {
         claimableAdminFeeMappingBaseSlot,
         provider
       );
-      console.log("Storage value for claimableAdminFee:", value.toString());
+      console.log("Old Storage value for claimableAdminFee:", value.toString());
     } catch (error) {
       console.error("Error reading storage for claimableAdminFee:", error);
       throw error;
@@ -184,7 +192,7 @@ async function checkOldStorageCleared() {
             provider
           );
           console.log(
-            `Storage value for lastUnclaimedReward for operator ${operator}:`,
+            `Old Storage value for lastUnclaimedReward for operator ${operator}:`,
             value.toString()
           );
         } catch (error) {
@@ -208,11 +216,50 @@ async function checkOldStorageCleared() {
         epochMigratedMappingBaseSlot,
         provider
       );
-      console.log("Storage value for epochMigrated:", value.toString());
+      console.log("Old Storage value for epochMigrated:", value.toString());
     } catch (error) {
       console.error("Error reading storage for epochMigrated:", error);
       throw error;
     }
+
+  // $.rewards[epoch][tokenAddress]
+    try {
+      const dataForRewards = [EPOCH_TO_CHECK, TOKEN_ADDRESS_TO_CHECK];
+      const typesForRewards = ["uint48", "address"];
+      const value = await getLocationData(
+        STAKER_CONTRACT,
+        dataForRewards,
+        typesForRewards,
+        rewardsMappingBaseSlotNew,
+        provider
+      );
+      console.log("New Storage value for rewards:", value.toString());
+    } catch (error) {
+      console.error("Error reading storage for new rewards:", error);
+      throw error;
+    }
+
+    // $.stakerClaimedRewardPerEpoch[account][epoch][tokenAddress]
+    if (operatorAddresses.length > 0) {
+      for (const operator of operatorAddresses) {
+        try {
+          const dataForStakerClaimedRewardPerEpoch = [operator, EPOCH_TO_CHECK, TOKEN_ADDRESS_TO_CHECK];
+          const typesForStakerClaimedRewardPerEpoch = ["address", "uint48", "address"];
+          const value = await getLocationData(
+            STAKER_CONTRACT,
+            dataForStakerClaimedRewardPerEpoch,
+            typesForStakerClaimedRewardPerEpoch,
+            claimedRewardsMappingBaseSlotNew,
+            provider
+          );
+          console.log(`New Storage value Claimed rewards for operator ${operator}:`, value.toString());
+        } catch (error) {
+          console.error("Error reading storage for claimed rewards:", error);
+          throw error;
+        }
+      }
+    }
+    
   } catch (error) {
     console.error("\n--- ERROR ---");
 

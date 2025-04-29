@@ -48,6 +48,7 @@ interface IMiddleware {
     error Middleware__InvalidEpoch();
     error Middleware__InvalidEpochDuration();
     error Middleware__InvalidAddress();
+    error Middleware__InvalidKey();
     error Middleware__InvalidInterval();
     error Middleware__InsufficientBalance();
     error Middleware__NotSupportedCollateral(address collateral);
@@ -148,8 +149,8 @@ interface IMiddleware {
      * @notice Distribute rewards for a specific era contained in an epoch by providing a Merkle root, total points, total amount of tokens and the token address of the rewards.
      * @param epoch network epoch of the middleware
      * @param eraIndex era index of Starlight's rewards distribution
-     * @param totalPointsToken total amount of points for the reward distribution
-     * @param tokensInflatedToken amount of tokens to distribute
+     * @param totalPoints total amount of points for the reward distribution
+     * @param tokenAmount amount of tokens to distribute
      * @param rewardsRoot Merkle root of the reward distribution
      * @param tokenAddress The token address of the rewards
      * @dev This function is called by the gateway only
@@ -158,8 +159,8 @@ interface IMiddleware {
     function distributeRewards(
         uint256 epoch,
         uint256 eraIndex,
-        uint256 totalPointsToken,
-        uint256 tokensInflatedToken,
+        uint256 totalPoints,
+        uint256 tokenAmount,
         bytes32 rewardsRoot,
         address tokenAddress
     ) external;

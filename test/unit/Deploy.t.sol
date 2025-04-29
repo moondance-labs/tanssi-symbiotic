@@ -19,6 +19,7 @@ import {Test, Vm} from "forge-std/Test.sol";
 //**************************************************************************************************
 //                                      SYMBIOTIC
 //**************************************************************************************************
+import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {IVaultStorage} from "@symbiotic/interfaces/vault/IVaultStorage.sol";
 import {IVaultConfigurator} from "@symbiotic/interfaces/IVaultConfigurator.sol";
@@ -40,7 +41,7 @@ import {Token} from "test/mocks/Token.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
-
+import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
 import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
 import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
@@ -75,7 +76,8 @@ contract DeployTest is Test {
         deploySymbiotic = new DeploySymbiotic();
         deployTanssiEcosystem = new DeployTanssiEcosystem();
         deployVault = new DeployVault();
-        deployRewards = new DeployRewards(true);
+        deployRewards = new DeployRewards();
+        deployRewards.setIsTest(true);
         helperConfig = new HelperConfig();
 
         deployTanssiEcosystem.deployTanssiEcosystem(helperConfig);
@@ -211,26 +213,43 @@ contract DeployTest is Test {
     }
 
     function testDeployMiddleware() public {
-        DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
-        address operatorRegistry = addresses.operatorRegistry;
-        address vaultFactory = addresses.vaultFactory;
-        address operatorNetworkOptIn = addresses.operatorNetworkOptInService;
-        address networkMiddlewareService = addresses.networkMiddlewareService;
-
-        IMiddleware.InitParams memory params = IMiddleware.InitParams({
-            network: tanssi,
-            operatorRegistry: operatorRegistry,
-            vaultRegistry: vaultFactory,
-            operatorNetworkOptIn: operatorNetworkOptIn,
-            owner: tanssi,
-            epochDuration: NETWORK_EPOCH_DURATION,
-            slashingWindow: 8 days,
-            reader: address(0)
-        });
-        address middleware = deployTanssiEcosystem.deployMiddleware(
-            params, operatorRewardsAddress, stakerRewardsFactoryAddress, networkMiddlewareService
-        );
+        address middleware = _deployMiddleware();
         assertNotEq(middleware, ZERO_ADDRESS);
+    }
+
+    function testUpgradeMiddleware() public {
+        address middleware = _deployMiddleware();
+
+        address newOperatorRewardsAddress = makeAddr("newOperatorRewardsAddress");
+        address newStakerRewardsFactoryAddress = makeAddr("newStakerRewardsFactoryAddress");
+        deployTanssiEcosystem.upgradeMiddleware(
+            middleware, 1, newOperatorRewardsAddress, newStakerRewardsFactoryAddress, tanssi
+        );
+        assertEq(Middleware(middleware).i_operatorRewards(), newOperatorRewardsAddress);
+        assertEq(Middleware(middleware).i_stakerRewardsFactory(), newStakerRewardsFactoryAddress);
+    }
+
+    function testUpgradeMiddlewareWithBroadcast() public {
+        address middleware = _deployMiddleware();
+
+        address newOperatorRewardsAddress = makeAddr("newOperatorRewardsAddress");
+        address newStakerRewardsFactoryAddress = makeAddr("newStakerRewardsFactoryAddress");
+        deployTanssiEcosystem.upgradeMiddlewareBroadcast(
+            middleware, 1, newOperatorRewardsAddress, newStakerRewardsFactoryAddress
+        );
+        assertEq(Middleware(middleware).i_operatorRewards(), newOperatorRewardsAddress);
+        assertEq(Middleware(middleware).i_stakerRewardsFactory(), newStakerRewardsFactoryAddress);
+    }
+
+    function testUpgradeMiddlewareFailsIfUnexpectedVersion() public {
+        address middleware = _deployMiddleware();
+
+        address newOperatorRewardsAddress = makeAddr("newOperatorRewardsAddress");
+        address newStakerRewardsFactoryAddress = makeAddr("newStakerRewardsFactoryAddress");
+        vm.expectRevert("Middleware version is not expected, cannot upgrade");
+        deployTanssiEcosystem.upgradeMiddleware(
+            middleware, 2, newOperatorRewardsAddress, newStakerRewardsFactoryAddress, tanssi
+        );
     }
 
     function testDeployRegisterVault() public {
@@ -567,11 +586,13 @@ contract DeployTest is Test {
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
             depositLimit: 0,
-            delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
+            delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
             shouldBroadcast: false,
             vaultConfigurator: address(0),
             collateral: stEth,
-            owner: tanssi
+            owner: tanssi,
+            operator: address(0),
+            network: address(0)
         });
 
         vm.expectRevert(DeployVault.DeployVault__VaultConfiguratorOrCollateralNotDeployed.selector);
@@ -588,11 +609,13 @@ contract DeployTest is Test {
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
             depositLimit: 0,
-            delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
+            delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
             shouldBroadcast: false,
             vaultConfigurator: address(vaultConfigurator),
             collateral: address(0),
-            owner: tanssi
+            owner: tanssi,
+            operator: address(0),
+            network: address(0)
         });
 
         vm.expectRevert(DeployVault.DeployVault__VaultConfiguratorOrCollateralNotDeployed.selector);
@@ -661,7 +684,9 @@ contract DeployTest is Test {
             delegatorIndex: uint64(0),
             withSlasher: true,
             slasherIndex: 0,
-            vetoDuration: 0
+            vetoDuration: 0,
+            operator: address(0),
+            network: address(0)
         });
 
         deployVault.deployVault(deployParams);
@@ -711,6 +736,30 @@ contract DeployTest is Test {
         assertNotEq(operatorRewards, ZERO_ADDRESS);
     }
 
+    function testUpgradeRewardsOperator() public {
+        DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
+        (Middleware middleware,,) = deployTanssiEcosystem.ecosystemEntities();
+        address operatorRewards =
+            deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20, tanssi);
+        vm.prank(tanssi);
+        ODefaultOperatorRewards(operatorRewards).initializeV2(tanssi, address(middleware));
+
+        deployRewards.upgradeOperatorRewards(operatorRewards, tanssi, addresses.networkMiddlewareService);
+    }
+
+    function testUpgradeRewardsOperatorWithBroadcast() public {
+        DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
+        (Middleware middleware,,) = deployTanssiEcosystem.ecosystemEntities();
+        deployRewards.setIsTest(false);
+
+        address operatorRewards =
+            deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20, tanssi);
+        vm.prank(tanssi);
+        ODefaultOperatorRewards(operatorRewards).initializeV2(tanssi, address(middleware));
+
+        deployRewards.upgradeOperatorRewards(operatorRewards, tanssi, addresses.networkMiddlewareService);
+    }
+
     function testDeployRewardsStakerFactory() public {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
         address operatorRewards =
@@ -720,5 +769,32 @@ contract DeployTest is Test {
             addresses.vaultFactory, addresses.networkMiddlewareService, operatorRewards, tanssi
         );
         assertNotEq(stakerFactory, ZERO_ADDRESS);
+    }
+
+    //**************************************************************************************************
+    //                                      PRIVATE FUNCTIONS
+    //**************************************************************************************************
+
+    function _deployMiddleware() private returns (address) {
+        DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
+        address operatorRegistry = addresses.operatorRegistry;
+        address vaultFactory = addresses.vaultFactory;
+        address operatorNetworkOptIn = addresses.operatorNetworkOptInService;
+        address networkMiddlewareService = addresses.networkMiddlewareService;
+
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: tanssi,
+            operatorRegistry: operatorRegistry,
+            vaultRegistry: vaultFactory,
+            operatorNetworkOptIn: operatorNetworkOptIn,
+            owner: tanssi,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: 8 days,
+            reader: address(0)
+        });
+        address middleware = deployTanssiEcosystem.deployMiddleware(
+            params, operatorRewardsAddress, stakerRewardsFactoryAddress, networkMiddlewareService
+        );
+        return middleware;
     }
 }

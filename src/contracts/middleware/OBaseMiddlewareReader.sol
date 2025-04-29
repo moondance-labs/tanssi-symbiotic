@@ -497,7 +497,7 @@ contract OBaseMiddlewareReader is MiddlewareStorage, EpochCapture, VaultManager,
             address operator = operators[i];
             (uint256 vaultIdx, address[] memory _vaults) = getOperatorVaults(operator, epochStartTs);
 
-            if (vaultIdx > 0) {
+            if (vaultIdx != 0) {
                 operatorVaultPairs[valIdx++] = IMiddleware.OperatorVaultPair(operator, _vaults);
             }
             unchecked {
@@ -564,7 +564,7 @@ contract OBaseMiddlewareReader is MiddlewareStorage, EpochCapture, VaultManager,
             );
             // }
 
-            if (operatorStake > 0) {
+            if (operatorStake != 0) {
                 vaults[vaultIdx++] = _vault;
             }
             unchecked {
@@ -635,11 +635,6 @@ contract OBaseMiddlewareReader is MiddlewareStorage, EpochCapture, VaultManager,
                 ++i;
             }
             bytes32 key = abi.decode(getOperatorKeyAt(operator, epochStartTs), (bytes32));
-
-            if (key == bytes32(0)) {
-                continue;
-            }
-
             uint256 power = _getOperatorPowerAt(epochStartTs, operator);
             validatorSet[len++] = IMiddleware.ValidatorData(power, key);
         }

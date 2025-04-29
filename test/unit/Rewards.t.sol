@@ -70,6 +70,9 @@ import {VaultMock} from "../mocks/symbiotic/VaultMock.sol";
 import {Token} from "../mocks/Token.sol";
 import {MockFeeToken} from "../mocks/FeeToken.sol";
 
+//TODO Delete
+import {OperatorTestMock} from "../mocks/OperatorTestMock.sol";
+
 import {DeployRewards} from "script/DeployRewards.s.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
 
@@ -148,7 +151,8 @@ contract RewardsTest is Test {
         networkMiddlewareService = new NetworkMiddlewareService(address(networkRegistry));
         address readHelper = address(new OBaseMiddlewareReader());
 
-        deployRewards = new DeployRewards(true);
+        deployRewards = new DeployRewards();
+        deployRewards.setIsTest(true);
         deployCollateral = new DeployCollateral();
         address operatorRewardsAddress = deployRewards.deployOperatorRewardsContract(
             tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
@@ -202,6 +206,10 @@ contract RewardsTest is Test {
             reader: readHelper
         });
         Middleware(address(middleware)).initialize(params);
+        // TODO TO REMOVE
+        vm.prank(owner);
+        operatorRewards.initializeV2(owner, address(middleware));
+
         slasher = new Slasher(address(vaultFactory), address(networkMiddlewareService), slasherFactory, 0);
 
         token.transfer(address(middleware), token.totalSupply());
@@ -316,7 +324,7 @@ contract RewardsTest is Test {
 
         if (multipleRewards && newToken != address(0)) {
             // Get slot for second mapping with tokenAddress
-            tokenSlot = keccak256(abi.encode(address(newToken), slot));
+            tokenSlot = keccak256(abi.encode(newToken, slot));
 
             // Store array length
             vm.store(address(stakerRewards), tokenSlot, bytes32(uint256(1)));
@@ -362,7 +370,7 @@ contract RewardsTest is Test {
 
         vm.store(address(stakerRewards), tokenSlot, bytes32(uint256(amount)));
 
-        if (additionalRewards > 0) {
+        if (additionalRewards != 0) {
             // Get slot for second mapping with tokenAddress
             tokenSlot = keccak256(abi.encode(address(newToken), slot));
 
@@ -474,6 +482,17 @@ contract RewardsTest is Test {
         ODefaultOperatorRewards(proxy).initialize(0, address(0));
     }
 
+    function testInitializeOperatorRewardsWithTooBigShares() public {
+        operatorRewards = new ODefaultOperatorRewards(
+            tanssi, // network
+            address(networkMiddlewareService) // networkMiddlewareService
+        );
+        address proxy = address(new ERC1967Proxy((address(operatorRewards)), ""));
+        uint48 MAX_PERCENTAGE = operatorRewards.MAX_PERCENTAGE();
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidOperatorShare.selector);
+        ODefaultOperatorRewards(proxy).initialize(MAX_PERCENTAGE + 1, address(networkMiddlewareService));
+    }
+
     //**************************************************************************************************
     //                                      distributeRewards
     //**************************************************************************************************
@@ -519,7 +538,13 @@ contract RewardsTest is Test {
         uint48 epoch = 0;
         uint48 eraIndex = 0;
 
-        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__NotNetworkMiddleware.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                address(this),
+                operatorRewards.MIDDLEWARE_ROLE()
+            )
+        );
         operatorRewards.distributeRewards(
             epoch, eraIndex, AMOUNT_TO_DISTRIBUTE, AMOUNT_TO_DISTRIBUTE, REWARDS_ROOT, address(token)
         );
@@ -539,13 +564,20 @@ contract RewardsTest is Test {
         uint48 epoch = 0;
         uint48 eraIndex = 0;
 
-        vm.startPrank(tanssi);
-        token.transfer(address(middleware), token.balanceOf(tanssi));
+        vm.startPrank(address(middleware));
+        token.approve(address(operatorRewards), type(uint256).max);
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidValues.selector);
+        operatorRewards.distributeRewards(epoch, eraIndex, AMOUNT_TO_DISTRIBUTE, 0, REWARDS_ROOT, address(token));
+    }
+
+    function testDistributeRewardsFailsWithInvalidAmount() public {
+        uint48 epoch = 0;
+        uint48 eraIndex = 0;
 
         vm.startPrank(address(middleware));
         token.approve(address(operatorRewards), type(uint256).max);
-        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidTotalPoints.selector);
-        operatorRewards.distributeRewards(epoch, eraIndex, AMOUNT_TO_DISTRIBUTE, 0, REWARDS_ROOT, address(token));
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidValues.selector);
+        operatorRewards.distributeRewards(epoch, eraIndex, 0, AMOUNT_TO_DISTRIBUTE, REWARDS_ROOT, address(token));
     }
 
     //**************************************************************************************************
@@ -862,7 +894,13 @@ contract RewardsTest is Test {
 
     function testSetOperatorShareNotNetworkMiddleware() public {
         uint48 newOperatorShare = 30;
-        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__NotNetworkMiddleware.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                address(this),
+                operatorRewards.MIDDLEWARE_ROLE()
+            )
+        );
         operatorRewards.setOperatorShare(newOperatorShare);
     }
 
@@ -896,7 +934,13 @@ contract RewardsTest is Test {
     function testSetStakerRewardContractNotNetworkMiddleware() public {
         address newStakerRewards = makeAddr("newStakerRewards");
         address newVault = makeAddr("newVault");
-        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__NotNetworkMiddleware.selector);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                address(this),
+                operatorRewards.STAKER_REWARDS_SETTER_ROLE()
+            )
+        );
         operatorRewards.setStakerRewardContract(newStakerRewards, newVault);
     }
 
@@ -1467,10 +1511,7 @@ contract RewardsTest is Test {
 
         operatorRewards.setStakerRewardContract(mockStakerRewards, mockVault);
 
-        vm.startPrank(address(owner));
-        ODefaultOperatorRewards newOperatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService));
-        operatorRewards.upgradeToAndCall(address(newOperatorRewards), hex"");
+        deployRewards.upgradeOperatorRewards(address(operatorRewards), owner, address(networkMiddlewareService));
 
         assertEq(operatorRewards.vaultToStakerRewardsContract(mockVault), mockStakerRewards);
         assertEq(operatorRewards.operatorShare(), OPERATOR_SHARE);
@@ -1479,10 +1520,13 @@ contract RewardsTest is Test {
     function testUpgradeOperatorRewardsNotAuthorized() public {
         ODefaultOperatorRewards newOperatorRewards =
             new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService));
-
+        bytes32 adminRole = newOperatorRewards.DEFAULT_ADMIN_ROLE();
         address randomUser = makeAddr("randomUser");
         vm.prank(randomUser);
-        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, randomUser));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, randomUser, adminRole)
+        );
         operatorRewards.upgradeToAndCall(address(newOperatorRewards), hex"");
     }
 
@@ -1518,119 +1562,74 @@ contract RewardsTest is Test {
     }
 
     //**************************************************************************************************
-    //                                      MIGRATE
+    //                                      UPGRADE
     //**************************************************************************************************
 
-    // We start from epoch 1, because at epoch 0 no operators can be active!
-    function testMigrateStakerRewards()
-        // uint48 maxEpoch_
-        public
-    {
-        // maxEpoch_ = uint48(bound(maxEpoch_, 0, 300));
-        Token newToken = new Token("NewToken", 18);
-        uint48 maxEpoch = 1000;
+    function testUpgradeAndMigrateStakerRewards() public {
+        vm.warp(NETWORK_EPOCH_DURATION);
 
-        for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
-            uint256 BASE_AMOUNT = DEFAULT_AMOUNT + epoch.mulDiv(1 ether, maxEpoch);
-            _setClaimableAdminFee(epoch, address(token), PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION, BASE_AMOUNT);
+        deployRewards.upgradeStakerRewards(
+            address(stakerRewards), address(networkMiddlewareService), address(vault), address(tanssi)
+        );
 
-            _setPreviousRewardsMapping(
-                epoch, epoch % 2 == 0 ? true : false, epoch % 2 == 0 ? address(0) : address(newToken), BASE_AMOUNT
-            );
-
-            _setActiveSharesCache(
-                epoch, address(stakerRewards), PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT
-            );
-            _setLastUnclaimedReward(epoch, alice, address(stakerRewards), epoch % 2 == 0 ? 1 : 0);
-        }
-
-        vm.startPrank(address(tanssi));
-
-        for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
-            uint48 epochStartTs = middleware.getEpochStart(epoch);
-            vm.mockCall(
-                address(vault),
-                abi.encodeWithSelector(IVaultStorage.activeSharesOfAt.selector, alice, epochStartTs, hex""),
-                abi.encode(AMOUNT_TO_DISTRIBUTE / 10)
-            );
-        }
-        stakerRewards.migrate(0, maxEpoch, address(token));
-
-        for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
-            uint256 BASE_AMOUNT = DEFAULT_AMOUNT + epoch.mulDiv(1 ether, maxEpoch);
-            uint256 claimableFee = stakerRewards.claimableAdminFee(epoch, address(token));
-            assertEq(claimableFee, BASE_AMOUNT);
-
-            uint256 rewards = stakerRewards.rewards(epoch, address(token));
-            assertEq(rewards, epoch % 2 == 0 ? BASE_AMOUNT * 2 : BASE_AMOUNT);
-
-            uint256 claimed = stakerRewards.stakerClaimedRewardPerEpoch(alice, epoch, address(token));
-            assertEq(claimed, epoch % 2 == 0 ? BASE_AMOUNT : 0);
-
-            // Check slot has been cleared for alice
-            bytes32 lastUnclaimedSlot = bytes32(uint256(PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION) + uint256(2)); // 2 is mapping slot number for the variable lastUnclaimedReward
-            lastUnclaimedSlot = keccak256(abi.encode(alice, lastUnclaimedSlot));
-            lastUnclaimedSlot = keccak256(abi.encode(epoch, lastUnclaimedSlot));
-            lastUnclaimedSlot = keccak256(abi.encode(address(token), lastUnclaimedSlot));
-            bytes32 aliceLastUnclaimed = vm.load(address(stakerRewards), lastUnclaimedSlot);
-            assertEq(uint256(aliceLastUnclaimed), 0);
-
-            // Check data has been cleared
-            bytes32 oldRewardLengthSlot = bytes32(uint256(PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION) + uint256(1)); // 1 is mapping slot number for the variable rewards
-            oldRewardLengthSlot = keccak256(abi.encode(epoch, oldRewardLengthSlot));
-            // Get slot for second mapping with tokenAddress
-            bytes32 tokenSlot = keccak256(abi.encode(address(token), oldRewardLengthSlot));
-            bytes32 arrayLoc = keccak256(abi.encode(tokenSlot));
-
-            bytes32 oldRewardLength = vm.load(address(stakerRewards), tokenSlot);
-            bytes32 firstValueInRewardsArray = vm.load(address(stakerRewards), arrayLoc);
-
-            assertEq(uint256(firstValueInRewardsArray), 0);
-            assertEq(uint256(oldRewardLength), 0);
-
-            bytes32 oldCacheSlot =
-                keccak256(abi.encode(epoch, bytes32(uint256(PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION) + 4)));
-            bytes32 oldCacheValue = vm.load(address(stakerRewards), oldCacheSlot);
-            assertEq(uint256(oldCacheValue), 0);
-
-            bytes32 claimableAdminFeeSlot = bytes32(uint256(PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION) + uint256(3)); // 3 is slot number for the variable claimableAdminFee
-            claimableAdminFeeSlot = keccak256(abi.encode(epoch, claimableAdminFeeSlot));
-            claimableAdminFeeSlot = keccak256(abi.encode(address(token), claimableAdminFeeSlot));
-            bytes32 oldClaimableAdminFee = vm.load(address(stakerRewards), claimableAdminFeeSlot);
-            assertEq(uint256(oldClaimableAdminFee), 0);
-        }
+        assertEq(stakerRewards.i_vault(), address(vault));
+        assertEq(stakerRewards.i_network(), address(tanssi));
+        assertEq(stakerRewards.i_networkMiddlewareService(), address(networkMiddlewareService));
     }
 
-    function testMigrateShouldBeIdemPotentStakerRewards() public {
-        Token newToken = new Token("NewToken", 18);
-        uint48 maxEpoch = 1000;
+    function testUpgradeAndMigrateStakerRewardsWithBroadcast() public {
+        vm.startPrank(tanssi);
+        // On not testing mode, the owner of the contract to upgrade is this, so we need to grant the admin role to it
+        address ownerForUpgrade = vm.addr(deployRewards.ownerPrivateKey());
+        stakerRewards.grantRole(stakerRewards.DEFAULT_ADMIN_ROLE(), ownerForUpgrade);
+        vm.stopPrank();
 
-        for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
-            uint256 BASE_AMOUNT = DEFAULT_AMOUNT + epoch.mulDiv(1 ether, maxEpoch);
-            _setClaimableAdminFee(epoch, address(token), PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION, BASE_AMOUNT);
+        vm.warp(NETWORK_EPOCH_DURATION);
 
-            _setPreviousRewardsMapping(
-                epoch, epoch % 2 == 0 ? true : false, epoch % 2 == 0 ? address(0) : address(newToken), BASE_AMOUNT
-            );
+        deployRewards.setIsTest(false);
+        deployRewards.upgradeStakerRewards(
+            address(stakerRewards), address(networkMiddlewareService), address(vault), address(tanssi)
+        );
 
-            _setActiveSharesCache(
-                epoch, address(stakerRewards), PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT
-            );
-            _setLastUnclaimedReward(epoch, alice, address(stakerRewards), epoch % 2 == 0 ? 1 : 0);
-        }
+        assertEq(stakerRewards.i_vault(), address(vault));
+        assertEq(stakerRewards.i_network(), address(tanssi));
+        assertEq(stakerRewards.i_networkMiddlewareService(), address(networkMiddlewareService));
+    }
 
-        vm.startPrank(address(tanssi));
+    //TODO TO REMOVE
 
-        stakerRewards.migrate(1, maxEpoch, address(token));
-        stakerRewards.migrate(1, maxEpoch, address(token));
+    function testMigrateOperatorRewardsButNotContractOwner() public {
+        address operatorRewardsAddress = deployRewards.deployOperatorRewardsContract(
+            tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
+        );
+        operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, address(this)));
+        operatorRewards.initializeV2(owner, address(middleware));
+    }
 
-        for (uint48 epoch = 1; epoch < maxEpoch; ++epoch) {
-            uint256 BASE_AMOUNT = DEFAULT_AMOUNT + epoch.mulDiv(1 ether, maxEpoch);
-            uint256 claimableFee = stakerRewards.claimableAdminFee(epoch, address(token));
-            assertEq(claimableFee, BASE_AMOUNT);
+    function testUpgradeOperatorRewardsInitializeV2() public {
+        vm.startPrank(owner);
+        // Old version
+        OperatorTestMock operatorRewardsImpl = new OperatorTestMock(tanssi, address(networkMiddlewareService));
+        OperatorTestMock operatorRewardsMock =
+            OperatorTestMock(address(new ERC1967Proxy(address(operatorRewardsImpl), "")));
+        operatorRewardsMock.initialize(OPERATOR_SHARE, owner);
 
-            uint256 rewards = stakerRewards.rewards(epoch, address(token));
-            assertEq(rewards, epoch % 2 == 0 ? BASE_AMOUNT * 2 : BASE_AMOUNT);
-        }
+        // New version
+        ODefaultOperatorRewards newOperatorRewards =
+            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService));
+        bytes memory data =
+            abi.encodeWithSelector(ODefaultOperatorRewards.initializeV2.selector, tanssi, address(middleware));
+        operatorRewardsMock.upgradeToAndCall(address(newOperatorRewards), data);
+
+        address vault2 = makeAddr("vault2");
+        address stakerRewards2 = makeAddr("stakerRewards2");
+
+        vm.startPrank(address(middleware));
+        vm.expectEmit(true, true, false, true);
+        emit IODefaultOperatorRewards.SetStakerRewardContract(stakerRewards2, vault2);
+        operatorRewardsMock.setStakerRewardContract(stakerRewards2, vault2);
+
+        assertEq(operatorRewardsMock.owner(), address(0));
     }
 }
