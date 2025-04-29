@@ -42,14 +42,12 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      # Output 'true' if any .sol files changed, 'false' otherwise
       solidity_changed: ${{ steps.filter.outputs.solidity }}
     steps:
       - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3 # Use the paths-filter action
+      - uses: dorny/paths-filter@v3
         id: filter
         with:
-          # Define a filter named 'solidity'
           filters: |
             solidity:
               - '**/*.sol' # Match any file ending in .sol anywhere in the repo
