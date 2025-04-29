@@ -278,7 +278,7 @@ contract MiddlewareTest is Test {
 
         _deployMiddlewareWithProxy(operatorRewardsAddress, stakerRewardsFactoryAddress);
         middlewareReader = OBaseMiddlewareReader(address(middleware));
-
+        operatorRewards.initializeV2(owner, address(middleware));
         _deployGateway();
 
         middleware.setGateway(address(gateway));

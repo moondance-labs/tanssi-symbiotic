@@ -149,7 +149,7 @@ contract ODefaultOperatorRewards is
         bytes32 root,
         address tokenAddress
     ) external nonReentrant checkAccess {
-        if (amount == 0 || totalPointsToken == 0) {
+        if (amount == 0 || totalPoints == 0) {
             revert ODefaultOperatorRewards__InvalidValues();
         }
 
