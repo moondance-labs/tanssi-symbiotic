@@ -47,6 +47,7 @@ import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
+import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
@@ -638,8 +639,12 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(network2);
 
-        Middleware _middlewareImpl = _getMiddlewareImpl(network2, vaultFactoryAddress, networkMiddlewareServiceAddress);
+        (Middleware _middlewareImpl, address operatorRewardsAddress) =
+            _getMiddlewareImpl(network2, vaultFactoryAddress, networkMiddlewareServiceAddress);
         Middleware middleware2 = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
+        vm.startPrank(owner);
+        ODefaultOperatorRewards(operatorRewardsAddress).initializeV2(network2, address(middleware2));
+        vm.startPrank(network2);
         address readHelper = address(new OBaseMiddlewareReader());
         IMiddleware.InitParams memory params = IMiddleware.InitParams({
             network: network2,
@@ -687,10 +692,11 @@ contract MiddlewareTest is Test {
         address network,
         address vaultFactoryAddress,
         address networkMiddlewareServiceAddress
-    ) private returns (Middleware middlewareImpl) {
-        DeployRewards deployRewards = new DeployRewards(true);
+    ) private returns (Middleware middlewareImpl, address operatorRewardsAddress) {
+        DeployRewards deployRewards = new DeployRewards();
+        deployRewards.setIsTest(true);
 
-        address operatorRewardsAddress =
+        operatorRewardsAddress =
             deployRewards.deployOperatorRewardsContract(network, networkMiddlewareServiceAddress, 5000, owner);
 
         address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(

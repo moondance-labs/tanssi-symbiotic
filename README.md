@@ -14,12 +14,6 @@ This repository provides the necessary infrastructure for deploying and interact
 
 By using this repository, developers can quickly set up the necessary environment for working with Symbiotic contracts, our Middleware and Rewarder.
 
-## Architecture
-
-The architecture can be seen in the following image
-
-![Architecture](./architecture.png)
-
 ## Usage
 
 ### Install

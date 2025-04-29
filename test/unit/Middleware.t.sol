@@ -40,7 +40,6 @@ import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 import {IOzAccessControl} from "@symbiotic-middleware/interfaces/extensions/managers/access/IOzAccessControl.sol";
 import {PauseableEnumerableSet} from "@symbiotic-middleware/libraries/PauseableEnumerableSet.sol";
-import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
 import {OperatorManager} from "@symbiotic-middleware/managers/OperatorManager.sol";
 import {KeyManager256} from "@symbiotic-middleware/extensions/managers/keys/KeyManager256.sol";
 
@@ -147,7 +146,8 @@ contract MiddlewareTest is Test {
     function setUp() public {
         vm.startPrank(owner);
 
-        deployRewards = new DeployRewards(true);
+        deployRewards = new DeployRewards();
+        deployRewards.setIsTest(true);
         deployCollateral = new DeployCollateral();
 
         registry = new RegistryMock();
@@ -183,7 +183,8 @@ contract MiddlewareTest is Test {
 
         readHelper = address(new OBaseMiddlewareReader());
 
-        deployRewards = new DeployRewards(true);
+        deployRewards = new DeployRewards();
+        deployRewards.setIsTest(true);
         address operatorRewardsAddress =
             deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), 5000, owner);
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
@@ -213,6 +214,7 @@ contract MiddlewareTest is Test {
         middleware.initialize(params);
         middleware.setGateway(address(gateway));
         middleware.setCollateralToOracle(address(collateral), address(collateralOracle));
+        operatorRewards.initializeV2(owner, address(middleware));
 
         vm.startPrank(tanssi);
         registry.register();
@@ -373,6 +375,22 @@ contract MiddlewareTest is Test {
 
         assertEq(validators.length, 1);
         assertEq(validators[0].key, OPERATOR_KEY);
+        vm.stopPrank();
+    }
+
+    function testRegisterOperatorWithEmptyKey() public {
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+
+        vm.startPrank(owner);
+        vm.expectRevert(IMiddleware.Middleware__InvalidKey.selector);
+        middleware.registerOperator(operator, abi.encode(bytes32(0)), address(0));
+        vm.stopPrank();
+    }
+
+    function testRegisterOperatorWithAddressZero() public {
+        vm.startPrank(owner);
+        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
+        middleware.registerOperator(address(0), abi.encode(OPERATOR_KEY), address(0));
         vm.stopPrank();
     }
 
@@ -957,24 +975,6 @@ contract MiddlewareTest is Test {
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
         middleware.registerSharedVault(address(vault), stakerRewardsParams);
         middleware.pauseOperator(operator);
-        vm.warp(START_TIME + SLASHING_WINDOW + 1);
-        uint48 currentEpoch = middleware.getCurrentEpoch();
-        Middleware.ValidatorData[] memory validators =
-            OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
-        assertEq(validators.length, 0);
-
-        vm.stopPrank();
-    }
-
-    function testGetValidatorSetButOperatorHasNullKey() public {
-        _registerOperatorToNetwork(operator, address(vault), false, false);
-        _registerVaultToNetwork(address(vault), false, 0);
-
-        vm.startPrank(owner);
-        middleware.registerOperator(operator, abi.encode(bytes32(0)), address(0));
-        vault.setSlasher(address(slasher));
-        vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerSharedVault(address(vault), stakerRewardsParams);
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validators =

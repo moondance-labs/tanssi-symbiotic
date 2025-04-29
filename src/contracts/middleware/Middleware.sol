@@ -39,6 +39,7 @@ import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {Operators} from "@symbiotic-middleware/extensions/operators/Operators.sol";
+import {BaseOperators} from "@symbiotic-middleware/extensions/operators/BaseOperators.sol";
 import {KeyManager256} from "@symbiotic-middleware/extensions/managers/keys/KeyManager256.sol";
 import {OzAccessControl} from "@symbiotic-middleware/extensions/managers/access/OzAccessControl.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
@@ -259,19 +260,19 @@ contract Middleware is
     function distributeRewards(
         uint256 epoch,
         uint256 eraIndex,
-        uint256 totalPointsToken,
-        uint256 tokensInflatedToken,
+        uint256 totalPoints,
+        uint256 tokenAmount,
         bytes32 rewardsRoot,
         address tokenAddress
     ) external checkAccess {
-        if (IERC20(tokenAddress).balanceOf(address(this)) < tokensInflatedToken) {
+        if (IERC20(tokenAddress).balanceOf(address(this)) < tokenAmount) {
             revert Middleware__InsufficientBalance();
         }
 
-        IERC20(tokenAddress).approve(i_operatorRewards, tokensInflatedToken);
+        IERC20(tokenAddress).approve(i_operatorRewards, tokenAmount);
 
         IODefaultOperatorRewards(i_operatorRewards).distributeRewards(
-            uint48(epoch), uint48(eraIndex), tokensInflatedToken, totalPointsToken, rewardsRoot, tokenAddress
+            uint48(epoch), uint48(eraIndex), tokenAmount, totalPoints, rewardsRoot, tokenAddress
         );
     }
 
@@ -339,8 +340,7 @@ contract Middleware is
         uint48 epochStartTs = IOBaseMiddlewareReader(address(this)).getEpochStart(epoch);
         address operator = operatorByKey(abi.encode(operatorKey));
 
-        // for epoch older than SLASHING_WINDOW total stake can be invalidated (use cache)
-        if (epochStartTs < Time.timestamp() - _SLASHING_WINDOW()) {
+        if (epochStartTs + _SLASHING_WINDOW() < Time.timestamp()) {
             revert Middleware__TooOldEpoch();
         }
 
@@ -426,6 +426,9 @@ contract Middleware is
         }
     }
 
+    /**
+     * @inheritdoc OSharedVaults
+     */
     function _afterRegisterSharedVault(
         address sharedVault,
         IODefaultStakerRewards.InitParams memory stakerRewardsParams
@@ -439,6 +442,22 @@ contract Middleware is
         _setVaultToCollateral(sharedVault, collateral);
     }
 
+    /**
+     * @inheritdoc BaseOperators
+     */
+    function _beforeRegisterOperator(
+        address operator,
+        bytes memory key,
+        address
+    ) internal pure override notZeroAddress(operator) {
+        if (abi.decode(key, (bytes32)) == bytes32(0)) {
+            revert Middleware__InvalidKey();
+        }
+    }
+
+    /**
+     * @inheritdoc BaseOperators
+     */
     function _beforeUnregisterOperator(
         address operator
     ) internal override {
