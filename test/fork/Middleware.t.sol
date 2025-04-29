@@ -643,7 +643,7 @@ contract MiddlewareTest is Test {
             _getMiddlewareImpl(network2, vaultFactoryAddress, networkMiddlewareServiceAddress);
         Middleware middleware2 = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
         vm.startPrank(owner);
-        ODefaultOperatorRewards(operatorRewardsAddress).initializeV2(network2, address(middleware2));
+        ODefaultOperatorRewards(operatorRewardsAddress).initialize(5000, network2, address(middleware2));
         vm.startPrank(network2);
         address readHelper = address(new OBaseMiddlewareReader());
         IMiddleware.InitParams memory params = IMiddleware.InitParams({
@@ -697,7 +697,7 @@ contract MiddlewareTest is Test {
         deployRewards.setIsTest(true);
 
         operatorRewardsAddress =
-            deployRewards.deployOperatorRewardsContract(network, networkMiddlewareServiceAddress, 5000, owner);
+            deployRewards.deployOperatorRewardsContract(network, networkMiddlewareServiceAddress, owner);
 
         address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
             vaultFactoryAddress, networkMiddlewareServiceAddress, operatorRewardsAddress, owner

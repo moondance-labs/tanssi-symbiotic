@@ -101,41 +101,34 @@ contract ODefaultOperatorRewards is
 
     /**
      * @notice Initialize the contract.
-     * @param operatorShare_ The share of the operator.
-     * @param owner_ The address of the owner.
+     * @param operatorShare The share of the operator.
+     * @param owner The address of the owner.
+     * @param middleware The address of the middleware.
      */
-    function initialize(uint48 operatorShare_, address owner_) public initializer notZeroAddress(owner_) {
-        if (operatorShare_ >= MAX_PERCENTAGE) {
+    function initialize(
+        uint48 operatorShare,
+        address owner,
+        address middleware
+    ) public initializer notZeroAddress(owner) notZeroAddress(middleware) {
+        if (operatorShare >= MAX_PERCENTAGE) {
             revert ODefaultOperatorRewards__InvalidOperatorShare();
         }
 
-        __Ownable_init(owner_);
+        __Ownable_init(owner);
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
-        __OzAccessControl_init(owner_);
+        __OzAccessControl_init(owner);
 
-        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
-        $.operatorShare = operatorShare_;
-    }
-
-    /**
-     * @notice Initialize the contract for the second time.
-     * @param admin The address of the admin.
-     */
-    function initializeV2(
-        address admin,
-        address middleware
-    ) public reinitializer(2) notZeroAddress(admin) notZeroAddress(middleware) onlyOwner {
-        __OzAccessControl_init(admin);
-
-        _grantRole(DEFAULT_ADMIN_ROLE, admin);
+        _grantRole(DEFAULT_ADMIN_ROLE, owner);
         _grantRole(MIDDLEWARE_ROLE, middleware);
         _grantRole(STAKER_REWARDS_SETTER_ROLE, middleware);
 
         _setSelectorRole(this.distributeRewards.selector, MIDDLEWARE_ROLE);
         _setSelectorRole(this.setOperatorShare.selector, MIDDLEWARE_ROLE);
         _setSelectorRole(this.setStakerRewardContract.selector, STAKER_REWARDS_SETTER_ROLE);
-        renounceOwnership();
+
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        $.operatorShare = operatorShare;
     }
 
     /**

@@ -266,9 +266,8 @@ contract MiddlewareTest is Test {
         _deployVaults(tanssi);
 
         vm.startPrank(tanssi);
-        address operatorRewardsAddress = deployRewards.deployOperatorRewardsContract(
-            tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
-        );
+        address operatorRewardsAddress =
+            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), owner);
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
         address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
@@ -278,7 +277,7 @@ contract MiddlewareTest is Test {
 
         _deployMiddlewareWithProxy(operatorRewardsAddress, stakerRewardsFactoryAddress);
         middlewareReader = OBaseMiddlewareReader(address(middleware));
-        operatorRewards.initializeV2(owner, address(middleware));
+        operatorRewards.initialize(OPERATOR_SHARE, owner, address(middleware));
         _deployGateway();
 
         middleware.setGateway(address(gateway));

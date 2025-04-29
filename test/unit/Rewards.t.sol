@@ -70,9 +70,6 @@ import {VaultMock} from "../mocks/symbiotic/VaultMock.sol";
 import {Token} from "../mocks/Token.sol";
 import {MockFeeToken} from "../mocks/FeeToken.sol";
 
-//TODO Delete
-import {OperatorTestMock} from "../mocks/OperatorTestMock.sol";
-
 import {DeployRewards} from "script/DeployRewards.s.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
 
@@ -154,9 +151,8 @@ contract RewardsTest is Test {
         deployRewards = new DeployRewards();
         deployRewards.setIsTest(true);
         deployCollateral = new DeployCollateral();
-        address operatorRewardsAddress = deployRewards.deployOperatorRewardsContract(
-            tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
-        );
+        address operatorRewardsAddress =
+            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), owner);
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
         delegator = new DelegatorMock(
@@ -206,9 +202,9 @@ contract RewardsTest is Test {
             reader: readHelper
         });
         Middleware(address(middleware)).initialize(params);
-        // TODO TO REMOVE
+
         vm.prank(owner);
-        operatorRewards.initializeV2(owner, address(middleware));
+        operatorRewards.initialize(OPERATOR_SHARE, owner, address(middleware));
 
         slasher = new Slasher(address(vaultFactory), address(networkMiddlewareService), slasherFactory, 0);
 
@@ -479,7 +475,7 @@ contract RewardsTest is Test {
         address proxy = address(new ERC1967Proxy((address(operatorRewards)), ""));
 
         vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidAddress.selector);
-        ODefaultOperatorRewards(proxy).initialize(0, address(0));
+        ODefaultOperatorRewards(proxy).initialize(0, address(0), address(middleware));
     }
 
     function testInitializeOperatorRewardsWithTooBigShares() public {
@@ -490,7 +486,9 @@ contract RewardsTest is Test {
         address proxy = address(new ERC1967Proxy((address(operatorRewards)), ""));
         uint48 MAX_PERCENTAGE = operatorRewards.MAX_PERCENTAGE();
         vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidOperatorShare.selector);
-        ODefaultOperatorRewards(proxy).initialize(MAX_PERCENTAGE + 1, address(networkMiddlewareService));
+        ODefaultOperatorRewards(proxy).initialize(
+            MAX_PERCENTAGE + 1, address(networkMiddlewareService), address(middleware)
+        );
     }
 
     //**************************************************************************************************
@@ -1594,42 +1592,5 @@ contract RewardsTest is Test {
         assertEq(stakerRewards.i_vault(), address(vault));
         assertEq(stakerRewards.i_network(), address(tanssi));
         assertEq(stakerRewards.i_networkMiddlewareService(), address(networkMiddlewareService));
-    }
-
-    //TODO TO REMOVE
-
-    function testMigrateOperatorRewardsButNotContractOwner() public {
-        address operatorRewardsAddress = deployRewards.deployOperatorRewardsContract(
-            tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
-        );
-        operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
-        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, address(this)));
-        operatorRewards.initializeV2(owner, address(middleware));
-    }
-
-    function testUpgradeOperatorRewardsInitializeV2() public {
-        vm.startPrank(owner);
-        // Old version
-        OperatorTestMock operatorRewardsImpl = new OperatorTestMock(tanssi, address(networkMiddlewareService));
-        OperatorTestMock operatorRewardsMock =
-            OperatorTestMock(address(new ERC1967Proxy(address(operatorRewardsImpl), "")));
-        operatorRewardsMock.initialize(OPERATOR_SHARE, owner);
-
-        // New version
-        ODefaultOperatorRewards newOperatorRewards =
-            new ODefaultOperatorRewards(tanssi, address(networkMiddlewareService));
-        bytes memory data =
-            abi.encodeWithSelector(ODefaultOperatorRewards.initializeV2.selector, tanssi, address(middleware));
-        operatorRewardsMock.upgradeToAndCall(address(newOperatorRewards), data);
-
-        address vault2 = makeAddr("vault2");
-        address stakerRewards2 = makeAddr("stakerRewards2");
-
-        vm.startPrank(address(middleware));
-        vm.expectEmit(true, true, false, true);
-        emit IODefaultOperatorRewards.SetStakerRewardContract(stakerRewards2, vault2);
-        operatorRewardsMock.setStakerRewardContract(stakerRewards2, vault2);
-
-        assertEq(operatorRewardsMock.owner(), address(0));
     }
 }

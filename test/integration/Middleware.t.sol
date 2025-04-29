@@ -268,7 +268,7 @@ contract MiddlewareTest is Test {
         _deployVaults(tanssi);
 
         address operatorRewardsAddress =
-            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), 5000, owner);
+            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), owner);
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
         address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
@@ -277,7 +277,7 @@ contract MiddlewareTest is Test {
         stakerRewardsFactory = ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress);
 
         middleware = _deployMiddlewareWithProxy(tanssi, owner, operatorRewardsAddress, stakerRewardsFactoryAddress);
-        operatorRewards.initializeV2(owner, address(middleware));
+        operatorRewards.initialize(5000, owner, address(middleware));
 
         _createGateway();
         middleware.setGateway(address(gateway));
@@ -812,7 +812,7 @@ contract MiddlewareTest is Test {
         _registerOperatorAndOptIn(operatorX, network2, address(vault), true);
 
         address operatorRewardsAddress2 =
-            deployRewards.deployOperatorRewardsContract(network2, address(networkMiddlewareService), 5000, owner);
+            deployRewards.deployOperatorRewardsContract(network2, address(networkMiddlewareService), owner);
 
         vm.startPrank(network2);
         Middleware middleware2 =
@@ -825,7 +825,7 @@ contract MiddlewareTest is Test {
             adminFeeSetRoleHolder: network2
         });
         vm.startPrank(owner);
-        ODefaultOperatorRewards(operatorRewardsAddress2).initializeV2(owner, address(middleware2));
+        ODefaultOperatorRewards(operatorRewardsAddress2).initialize(5000, owner, address(middleware2));
         vm.startPrank(network2);
         middleware2.registerSharedVault(address(vault), stakerRewardsParams);
         middleware2.registerOperator(operatorX, abi.encode(OPERATORX_KEY), address(0));

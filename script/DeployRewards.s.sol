@@ -58,7 +58,6 @@ contract DeployRewards is Script {
     function deployOperatorRewardsContract(
         address network,
         address networkMiddlewareService,
-        uint48 operatorShare,
         address owner
     ) public returns (address) {
         if (!isTest) {
@@ -66,7 +65,6 @@ contract DeployRewards is Script {
         }
         ODefaultOperatorRewards operatorRewardsImpl = new ODefaultOperatorRewards(network, networkMiddlewareService);
         operatorRewards = ODefaultOperatorRewards(address(new ERC1967Proxy(address(operatorRewardsImpl), "")));
-        operatorRewards.initialize(operatorShare, owner);
         console2.log("Operator rewards contract deployed at address: ", address(operatorRewards));
         if (!isTest) {
             vm.stopBroadcast();
@@ -97,9 +95,8 @@ contract DeployRewards is Script {
     function run(
         DeployParams calldata params
     ) external {
-        address operatorRewardsAddress = deployOperatorRewardsContract(
-            params.network, params.networkMiddlewareService, params.operatorShare, params.defaultAdminRole
-        );
+        address operatorRewardsAddress =
+            deployOperatorRewardsContract(params.network, params.networkMiddlewareService, params.defaultAdminRole);
         deployStakerRewardsFactoryContract(
             params.vaultFactory, params.networkMiddlewareService, operatorRewardsAddress, params.network
         );
@@ -142,30 +139,6 @@ contract DeployRewards is Script {
         ODefaultOperatorRewards implementation = new ODefaultOperatorRewards(network, networkMiddlewareService);
         console2.log("New Operator Rewards Implementation: ", address(implementation));
         proxy.upgradeToAndCall(address(implementation), hex"");
-        console2.log("Operator Rewards Upgraded");
-        if (!isTest) {
-            vm.stopBroadcast();
-        } else {
-            vm.stopPrank();
-        }
-    }
-
-    function upgradeOperatorRewards(
-        address proxyAddress,
-        address network,
-        address networkMiddlewareService,
-        address middleware
-    ) external {
-        if (!isTest) {
-            vm.startBroadcast(ownerPrivateKey);
-        } else {
-            vm.startPrank(network);
-        }
-        ODefaultOperatorRewards proxy = ODefaultOperatorRewards(proxyAddress);
-        ODefaultOperatorRewards implementation = new ODefaultOperatorRewards(network, networkMiddlewareService);
-        console2.log("New Operator Rewards Implementation: ", address(implementation));
-        bytes memory data = abi.encodeWithSelector(ODefaultOperatorRewards.initializeV2.selector, network, middleware);
-        proxy.upgradeToAndCall(address(implementation), data);
         console2.log("Operator Rewards Upgraded");
         if (!isTest) {
             vm.stopBroadcast();
