@@ -732,7 +732,7 @@ contract DeployTest is Test {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
 
         address operatorRewards =
-            deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, tanssi);
+            deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20, tanssi);
         assertNotEq(operatorRewards, ZERO_ADDRESS);
     }
 
@@ -740,9 +740,7 @@ contract DeployTest is Test {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
         (Middleware middleware,,) = deployTanssiEcosystem.ecosystemEntities();
         address operatorRewards =
-            deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, tanssi);
-        vm.prank(tanssi);
-        ODefaultOperatorRewards(operatorRewards).initialize(20, tanssi, address(middleware));
+            deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20, tanssi);
 
         deployRewards.upgradeOperatorRewards(operatorRewards, tanssi, addresses.networkMiddlewareService);
     }
@@ -753,9 +751,7 @@ contract DeployTest is Test {
         deployRewards.setIsTest(false);
 
         address operatorRewards =
-            deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, tanssi);
-        vm.prank(tanssi);
-        ODefaultOperatorRewards(operatorRewards).initialize(20, tanssi, address(middleware));
+            deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20, tanssi);
 
         deployRewards.upgradeOperatorRewards(operatorRewards, tanssi, addresses.networkMiddlewareService);
     }
@@ -763,7 +759,7 @@ contract DeployTest is Test {
     function testDeployRewardsStakerFactory() public {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
         address operatorRewards =
-            deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, tanssi);
+            deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20, tanssi);
 
         address stakerFactory = deployRewards.deployStakerRewardsFactoryContract(
             addresses.vaultFactory, addresses.networkMiddlewareService, operatorRewards, tanssi

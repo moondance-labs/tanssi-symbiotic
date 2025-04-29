@@ -186,7 +186,7 @@ contract MiddlewareTest is Test {
         deployRewards = new DeployRewards();
         deployRewards.setIsTest(true);
         address operatorRewardsAddress =
-            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), owner);
+            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), 5000, owner);
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
         address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
@@ -214,7 +214,10 @@ contract MiddlewareTest is Test {
         middleware.initialize(params);
         middleware.setGateway(address(gateway));
         middleware.setCollateralToOracle(address(collateral), address(collateralOracle));
-        operatorRewards.initialize(5000, owner, address(middleware));
+
+        operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
+        operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
+        operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware));
 
         vm.startPrank(tanssi);
         registry.register();

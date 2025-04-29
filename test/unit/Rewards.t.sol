@@ -151,8 +151,9 @@ contract RewardsTest is Test {
         deployRewards = new DeployRewards();
         deployRewards.setIsTest(true);
         deployCollateral = new DeployCollateral();
-        address operatorRewardsAddress =
-            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), owner);
+        address operatorRewardsAddress = deployRewards.deployOperatorRewardsContract(
+            tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
+        );
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
         delegator = new DelegatorMock(
@@ -190,7 +191,10 @@ contract RewardsTest is Test {
 
         Middleware _middlewareImpl = new Middleware(operatorRewardsAddress, address(stakerRewards));
         middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
-
+        vm.startPrank(owner);
+        operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
+        operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware));
+        vm.stopPrank();
         IMiddleware.InitParams memory params = IMiddleware.InitParams({
             network: tanssi,
             operatorRegistry: address(operatorRegistry),
@@ -204,7 +208,6 @@ contract RewardsTest is Test {
         Middleware(address(middleware)).initialize(params);
 
         vm.prank(owner);
-        operatorRewards.initialize(OPERATOR_SHARE, owner, address(middleware));
 
         slasher = new Slasher(address(vaultFactory), address(networkMiddlewareService), slasherFactory, 0);
 
@@ -475,7 +478,7 @@ contract RewardsTest is Test {
         address proxy = address(new ERC1967Proxy((address(operatorRewards)), ""));
 
         vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidAddress.selector);
-        ODefaultOperatorRewards(proxy).initialize(0, address(0), address(middleware));
+        ODefaultOperatorRewards(proxy).initialize(0, address(0));
     }
 
     function testInitializeOperatorRewardsWithTooBigShares() public {
@@ -486,9 +489,7 @@ contract RewardsTest is Test {
         address proxy = address(new ERC1967Proxy((address(operatorRewards)), ""));
         uint48 MAX_PERCENTAGE = operatorRewards.MAX_PERCENTAGE();
         vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidOperatorShare.selector);
-        ODefaultOperatorRewards(proxy).initialize(
-            MAX_PERCENTAGE + 1, address(networkMiddlewareService), address(middleware)
-        );
+        ODefaultOperatorRewards(proxy).initialize(MAX_PERCENTAGE + 1, address(networkMiddlewareService));
     }
 
     //**************************************************************************************************

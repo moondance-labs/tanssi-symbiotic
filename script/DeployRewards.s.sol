@@ -58,6 +58,7 @@ contract DeployRewards is Script {
     function deployOperatorRewardsContract(
         address network,
         address networkMiddlewareService,
+        uint48 operatorShare,
         address owner
     ) public returns (address) {
         if (!isTest) {
@@ -65,6 +66,7 @@ contract DeployRewards is Script {
         }
         ODefaultOperatorRewards operatorRewardsImpl = new ODefaultOperatorRewards(network, networkMiddlewareService);
         operatorRewards = ODefaultOperatorRewards(address(new ERC1967Proxy(address(operatorRewardsImpl), "")));
+        operatorRewards.initialize(operatorShare, owner);
         console2.log("Operator rewards contract deployed at address: ", address(operatorRewards));
         if (!isTest) {
             vm.stopBroadcast();
@@ -95,8 +97,9 @@ contract DeployRewards is Script {
     function run(
         DeployParams calldata params
     ) external {
-        address operatorRewardsAddress =
-            deployOperatorRewardsContract(params.network, params.networkMiddlewareService, params.defaultAdminRole);
+        address operatorRewardsAddress = deployOperatorRewardsContract(
+            params.network, params.networkMiddlewareService, params.operatorShare, params.defaultAdminRole
+        );
         deployStakerRewardsFactoryContract(
             params.vaultFactory, params.networkMiddlewareService, operatorRewardsAddress, params.network
         );

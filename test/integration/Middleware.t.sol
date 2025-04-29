@@ -268,7 +268,7 @@ contract MiddlewareTest is Test {
         _deployVaults(tanssi);
 
         address operatorRewardsAddress =
-            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), owner);
+            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), 5000, owner);
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
         address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
@@ -277,7 +277,9 @@ contract MiddlewareTest is Test {
         stakerRewardsFactory = ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress);
 
         middleware = _deployMiddlewareWithProxy(tanssi, owner, operatorRewardsAddress, stakerRewardsFactoryAddress);
-        operatorRewards.initialize(5000, owner, address(middleware));
+        operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
+        operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
+        operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware));
 
         _createGateway();
         middleware.setGateway(address(gateway));
@@ -812,7 +814,7 @@ contract MiddlewareTest is Test {
         _registerOperatorAndOptIn(operatorX, network2, address(vault), true);
 
         address operatorRewardsAddress2 =
-            deployRewards.deployOperatorRewardsContract(network2, address(networkMiddlewareService), owner);
+            deployRewards.deployOperatorRewardsContract(network2, address(networkMiddlewareService), 5000, owner);
 
         vm.startPrank(network2);
         Middleware middleware2 =
@@ -825,7 +827,10 @@ contract MiddlewareTest is Test {
             adminFeeSetRoleHolder: network2
         });
         vm.startPrank(owner);
-        ODefaultOperatorRewards(operatorRewardsAddress2).initialize(5000, owner, address(middleware2));
+        ODefaultOperatorRewards operatorRewards2 = ODefaultOperatorRewards(operatorRewardsAddress2);
+        operatorRewards2.grantRole(operatorRewards2.MIDDLEWARE_ROLE(), address(middleware2));
+        operatorRewards2.grantRole(operatorRewards2.STAKER_REWARDS_SETTER_ROLE(), address(middleware2));
+
         vm.startPrank(network2);
         middleware2.registerSharedVault(address(vault), stakerRewardsParams);
         middleware2.registerOperator(operatorX, abi.encode(OPERATORX_KEY), address(0));

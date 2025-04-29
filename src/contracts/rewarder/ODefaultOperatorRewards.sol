@@ -99,34 +99,26 @@ contract ODefaultOperatorRewards is
 
     /**
      * @notice Initialize the contract.
-     * @param operatorShare The share of the operator.
+     * @param operatorShare_ The share of the operator.
      * @param owner The address of the owner.
-     * @param middleware The address of the middleware.
      */
-    function initialize(
-        uint48 operatorShare,
-        address owner,
-        address middleware
-    ) public initializer notZeroAddress(owner) notZeroAddress(middleware) {
-        if (operatorShare >= MAX_PERCENTAGE) {
+    function initialize(uint48 operatorShare_, address owner) public initializer notZeroAddress(owner) {
+        if (operatorShare_ >= MAX_PERCENTAGE) {
             revert ODefaultOperatorRewards__InvalidOperatorShare();
         }
 
-        __Ownable_init(owner);
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
         __OzAccessControl_init(owner);
 
         _grantRole(DEFAULT_ADMIN_ROLE, owner);
-        _grantRole(MIDDLEWARE_ROLE, middleware);
-        _grantRole(STAKER_REWARDS_SETTER_ROLE, middleware);
 
         _setSelectorRole(this.distributeRewards.selector, MIDDLEWARE_ROLE);
         _setSelectorRole(this.setOperatorShare.selector, MIDDLEWARE_ROLE);
         _setSelectorRole(this.setStakerRewardContract.selector, STAKER_REWARDS_SETTER_ROLE);
 
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
-        $.operatorShare = operatorShare;
+        $.operatorShare = operatorShare_;
     }
 
     /**

@@ -285,15 +285,17 @@ contract RewardsTest is Test {
 
         DeployRewards deployRewards = new DeployRewards();
         deployRewards.setIsTest(true);
-        address operatorRewardsAddress =
-            deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), owner);
+        address operatorRewardsAddress = deployRewards.deployOperatorRewardsContract(
+            tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
+        );
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
         address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
             address(vaultFactory), address(networkMiddlewareService), operatorRewardsAddress, tanssi
         );
         middleware = _deployMiddlewareWithProxy(tanssi, owner, address(operatorRewards), stakerRewardsFactoryAddress);
 
-        operatorRewards.initialize(OPERATOR_SHARE, owner, address(middleware));
+        operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
+        operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware));
 
         middleware.setCollateralToOracle(address(stETH), stEthOracle);
         middleware.setCollateralToOracle(address(rETH), rEthOracle);
