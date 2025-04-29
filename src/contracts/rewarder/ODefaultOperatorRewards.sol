@@ -21,6 +21,7 @@ pragma solidity 0.8.25;
 import {INetworkMiddlewareService} from "@symbiotic/interfaces/service/INetworkMiddlewareService.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
+import {OzAccessControl} from "@symbiotic-middleware/extensions/managers/access/OzAccessControl.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN
@@ -30,7 +31,6 @@ import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 //**************************************************************************************************
@@ -47,7 +47,7 @@ import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRew
 
 contract ODefaultOperatorRewards is
     OwnableUpgradeable,
-    AccessControlUpgradeable,
+    OzAccessControl,
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable,
     IODefaultOperatorRewards
@@ -112,7 +112,7 @@ contract ODefaultOperatorRewards is
         __Ownable_init(owner_);
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
-        __AccessControl_init();
+        __OzAccessControl_init(owner_);
 
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         $.operatorShare = operatorShare_;
@@ -126,12 +126,15 @@ contract ODefaultOperatorRewards is
         address admin,
         address middleware
     ) public reinitializer(2) notZeroAddress(admin) notZeroAddress(middleware) onlyOwner {
-        __AccessControl_init();
+        __OzAccessControl_init(admin);
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(MIDDLEWARE_ROLE, middleware);
         _grantRole(STAKER_REWARDS_SETTER_ROLE, middleware);
 
+        _setSelectorRole(this.distributeRewards.selector, MIDDLEWARE_ROLE);
+        _setSelectorRole(this.setOperatorShare.selector, MIDDLEWARE_ROLE);
+        _setSelectorRole(this.setStakerRewardContract.selector, STAKER_REWARDS_SETTER_ROLE);
         renounceOwnership();
     }
 
@@ -145,7 +148,7 @@ contract ODefaultOperatorRewards is
         uint256 totalPointsToken,
         bytes32 root,
         address tokenAddress
-    ) external nonReentrant onlyRole(MIDDLEWARE_ROLE) {
+    ) external nonReentrant checkAccess {
         if (amount == 0 || totalPointsToken == 0) {
             revert ODefaultOperatorRewards__InvalidValues();
         }
@@ -327,7 +330,7 @@ contract ODefaultOperatorRewards is
     function setStakerRewardContract(
         address stakerRewards,
         address vault
-    ) external onlyRole(STAKER_REWARDS_SETTER_ROLE) notZeroAddress(stakerRewards) notZeroAddress(vault) {
+    ) external checkAccess notZeroAddress(stakerRewards) notZeroAddress(vault) {
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
 
         if ($.vaultToStakerRewardsContract[vault] == stakerRewards) {
@@ -344,7 +347,7 @@ contract ODefaultOperatorRewards is
      */
     function setOperatorShare(
         uint48 operatorShare_
-    ) external onlyRole(MIDDLEWARE_ROLE) {
+    ) external checkAccess {
         //TODO A maximum value for the operatorShare should be chosen. 100% shouldn't be a valid option.
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         if (operatorShare_ >= MAX_PERCENTAGE) {
@@ -405,7 +408,7 @@ contract ODefaultOperatorRewards is
 
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
+    ) internal override checkAccess {}
 
     function _getOperatorRewardsStorage() private pure returns (OperatorRewardsStorage storage $) {
         bytes32 position = OPERATOR_REWARDS_STORAGE_LOCATION;
