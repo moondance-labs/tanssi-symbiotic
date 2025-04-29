@@ -51,16 +51,6 @@ const middlewareAbi = [
       },
     ],
   },
-  // TODO take out. Should use sortOperatorsByPower once Middleware is upgraded to latest
-  {
-    inputs: [{ internalType: "uint48", name: "epoch", type: "uint48" }],
-    name: "sortOperatorsByVaults",
-    outputs: [
-      { internalType: "bytes32[]", name: "sortedKeys", type: "bytes32[]" },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
 ];
 
 async function main(): Promise<void> {

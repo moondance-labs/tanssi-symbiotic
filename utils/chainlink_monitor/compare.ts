@@ -16,8 +16,7 @@ export async function compareWithMiddlewareData(
 
   try {
     // Get sorted operators from middleware
-    // TODO Should use sortOperatorsByPower once Middleware is upgraded to latest
-    const verifiedOperatorKeys = await middlewareContract.sortOperatorsByVaults(
+    const verifiedOperatorKeys = await middlewareContract.sortOperatorsByPower(
       epoch
     );
 
@@ -130,17 +129,17 @@ export async function compareOperatorsData(
         };
       }
     }
+    if (hasDiscrepancy) {
+      message = `:warning: *Mismatch in Operators for Epoch ${epoch}* :warning:\n\n`;
 
-    message = `:warning: *Mismatch in Operators for Epoch ${epoch}* :warning:\n\n`;
-
-    message += `The following discrepancies were found:\n\n`;
-    for (const [key, diff] of Object.entries(differences)) {
-      const index = key.replace("index_", "");
-      message += `*At position ${index}:*\n`;
-      message += `> *Middleware:* ${diff.middleware}\n`;
-      message += `> *Gateway:* ${diff.gateway}\n\n`;
+      message += `The following discrepancies were found:\n\n`;
+      for (const [key, diff] of Object.entries(differences)) {
+        const index = key.replace("index_", "");
+        message += `*At position ${index}:*\n`;
+        message += `> *Middleware:* ${diff.middleware}\n`;
+        message += `> *Gateway:* ${diff.gateway}\n\n`;
+      }
     }
-
     return {
       match: !hasDiscrepancy,
       message,
