@@ -380,11 +380,13 @@ contract RewardsTest is Test {
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
             depositLimit: 0,
-            delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
+            delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
             shouldBroadcast: false,
             vaultConfigurator: address(vaultConfigurator),
             collateral: address(stETH),
-            owner: _owner
+            owner: _owner,
+            operator: address(0),
+            network: address(0)
         });
 
         (vaultAddresses.vault, vaultAddresses.delegator, vaultAddresses.slasher) = deployVault.createBaseVault(params);
@@ -394,7 +396,7 @@ contract RewardsTest is Test {
             deployVault.createSlashableVault(params);
 
         params.collateral = address(wBTC);
-        params.delegatorIndex = DeployVault.DelegatorIndex.FULL_RESTAKE;
+        params.delegatorIndex = VaultManager.DelegatorType.FULL_RESTAKE;
         (vaultAddresses.vaultVetoed, vaultAddresses.delegatorVetoed, vaultAddresses.slasherVetoed) =
             deployVault.createVaultVetoed(params, 1 days);
     }

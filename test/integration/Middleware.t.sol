@@ -366,11 +366,13 @@ contract MiddlewareTest is Test {
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
             depositLimit: 0,
-            delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
+            delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
             shouldBroadcast: false,
             vaultConfigurator: address(vaultConfigurator),
             collateral: address(stETH),
-            owner: _owner
+            owner: _owner,
+            operator: address(0),
+            network: address(0)
         });
 
         (vaultAddresses.vault, vaultAddresses.delegator, vaultAddresses.slasher) = deployVault.createBaseVault(params);
@@ -380,7 +382,7 @@ contract MiddlewareTest is Test {
             deployVault.createSlashableVault(params);
 
         params.collateral = address(wBTC);
-        params.delegatorIndex = DeployVault.DelegatorIndex.FULL_RESTAKE;
+        params.delegatorIndex = VaultManager.DelegatorType.FULL_RESTAKE;
 
         (vaultAddresses.vaultVetoed, vaultAddresses.delegatorVetoed, vaultAddresses.slasherVetoed) =
             deployVault.createVaultVetoed(params, 1 days);
@@ -863,11 +865,13 @@ contract MiddlewareTest is Test {
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
             depositLimit: 0,
-            delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
+            delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
             shouldBroadcast: false,
             vaultConfigurator: address(vaultConfigurator),
             collateral: address(usdc),
-            owner: tanssi
+            owner: tanssi,
+            operator: address(0),
+            network: address(0)
         });
 
         (address vaultUsdc, address vaultDelegatorUsdc,) = deployVault.createBaseVault(params);
@@ -1119,8 +1123,7 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 gasBefore = gasleft();
-        Middleware.ValidatorData[] memory validatorsNotSorted =
-            OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
+        OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasNotSorted = gasBefore - gasAfter;
         console2.log("Total gas used for non sorted: ", gasNotSorted);
@@ -1157,8 +1160,7 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 gasBefore = gasleft();
-        Middleware.ValidatorData[] memory validatorsNotSorted =
-            OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
+        OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasNotSorted = gasBefore - gasAfter;
         console2.log("Total gas used for non sorted: ", gasNotSorted);
@@ -1196,8 +1198,7 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 gasBefore = gasleft();
-        Middleware.ValidatorData[] memory validatorsNotSorted =
-            OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
+        OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasNotSorted = gasBefore - gasAfter;
         console2.log("Total gas used for non sorted: ", gasNotSorted);
@@ -1214,8 +1215,7 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 gasBefore = gasleft();
-        Middleware.ValidatorData[] memory validatorsNotSorted =
-            OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
+        OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasNotSorted = gasBefore - gasAfter;
         console2.log("Total gas used for non sorted: ", gasNotSorted);
@@ -1310,11 +1310,13 @@ contract MiddlewareTest is Test {
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
             depositLimit: 0,
-            delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
+            delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
             shouldBroadcast: false,
             vaultConfigurator: address(vaultConfigurator),
             collateral: address(stETH),
-            owner: _owner
+            owner: _owner,
+            operator: address(0),
+            network: address(0)
         });
 
         (testVaultAddresses.vault, testVaultAddresses.delegator, testVaultAddresses.slasher) =

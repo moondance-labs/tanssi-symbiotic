@@ -19,6 +19,7 @@ import {Test, Vm} from "forge-std/Test.sol";
 //**************************************************************************************************
 //                                      SYMBIOTIC
 //**************************************************************************************************
+import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {IVaultStorage} from "@symbiotic/interfaces/vault/IVaultStorage.sol";
 import {IVaultConfigurator} from "@symbiotic/interfaces/IVaultConfigurator.sol";
@@ -585,11 +586,13 @@ contract DeployTest is Test {
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
             depositLimit: 0,
-            delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
+            delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
             shouldBroadcast: false,
             vaultConfigurator: address(0),
             collateral: stEth,
-            owner: tanssi
+            owner: tanssi,
+            operator: address(0),
+            network: address(0)
         });
 
         vm.expectRevert(DeployVault.DeployVault__VaultConfiguratorOrCollateralNotDeployed.selector);
@@ -606,11 +609,13 @@ contract DeployTest is Test {
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
             depositLimit: 0,
-            delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
+            delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
             shouldBroadcast: false,
             vaultConfigurator: address(vaultConfigurator),
             collateral: address(0),
-            owner: tanssi
+            owner: tanssi,
+            operator: address(0),
+            network: address(0)
         });
 
         vm.expectRevert(DeployVault.DeployVault__VaultConfiguratorOrCollateralNotDeployed.selector);
@@ -679,7 +684,9 @@ contract DeployTest is Test {
             delegatorIndex: uint64(0),
             withSlasher: true,
             slasherIndex: 0,
-            vetoDuration: 0
+            vetoDuration: 0,
+            operator: address(0),
+            network: address(0)
         });
 
         deployVault.deployVault(deployParams);

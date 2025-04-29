@@ -19,6 +19,7 @@ import {Script, console2} from "forge-std/Script.sol";
 //**************************************************************************************************
 //                                      SYMBIOTIC
 //**************************************************************************************************
+import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
 import {IVaultConfigurator} from "@symbiotic/interfaces/IVaultConfigurator.sol";
 import {IOperatorRegistry} from "@symbiotic/interfaces/IOperatorRegistry.sol";
 import {INetworkRegistry} from "@symbiotic/interfaces/INetworkRegistry.sol";
@@ -167,13 +168,15 @@ contract DeployTanssiEcosystem is Script {
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
             depositLimit: 0,
-            delegatorIndex: DeployVault.DelegatorIndex.NETWORK_RESTAKE,
+            delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
             shouldBroadcast: !isTest,
             vaultConfigurator: address(ecosystemEntities.vaultConfigurator),
             collateral: ecosystemEntities.defaultCollateralAddress != address(0)
                 ? ecosystemEntities.defaultCollateralAddress
                 : address(tokensAddresses.stETHToken),
-            owner: tanssi
+            owner: tanssi,
+            operator: address(0),
+            network: address(0)
         });
 
         if (!isTest) {
@@ -203,7 +206,7 @@ contract DeployTanssiEcosystem is Script {
         console2.log(" ");
 
         if (isTest || block.chainid == 31_337 || block.chainid == 11_155_111) {
-            params.delegatorIndex = DeployVault.DelegatorIndex.FULL_RESTAKE;
+            params.delegatorIndex = VaultManager.DelegatorType.FULL_RESTAKE;
             if (block.chainid == 31_337 || block.chainid == 11_155_111) {
                 params.collateral = address(tokensAddresses.wBTCToken);
             }
