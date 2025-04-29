@@ -214,7 +214,10 @@ contract MiddlewareTest is Test {
         middleware.initialize(params);
         middleware.setGateway(address(gateway));
         middleware.setCollateralToOracle(address(collateral), address(collateralOracle));
-        operatorRewards.initializeV2(owner, address(middleware));
+
+        operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
+        operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
+        operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware));
 
         vm.startPrank(tanssi);
         registry.register();

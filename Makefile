@@ -97,7 +97,6 @@ deploy-rewards:
 		"($(VAULT_ADDRESS),$(VAULT_FACTORY_ADDRESS),$(ADMIN_FEE),$(DEFAULT_ADMIN_ROLE),$(ADMIN_FEE_CLAIM_ROLE),$(ADMIN_FEE_SET_ROLE),$(NETWORK),$(NETWORK_MIDDLEWARE_SERVICE),$(START_TIME),$(EPOCH_DURATION),$(OPERATOR_SHARE))"
 	@echo "✅ Rewards Contracts deployment completed"
 
-
 deploy-staker-rewards-factory:
 	@echo "📡 Deploying Staker Rewards Factory..."
 	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "deployStakerRewardsFactoryContract(address,address,address,address)" $(VAULT_FACTORY_ADDRESS) $(NETWORK_MIDDLEWARE_SERVICE) $(OPERATOR_REWARDS_ADDRESS) $(NETWORK) -vv
@@ -107,12 +106,6 @@ upgrade-operator-rewards:
 	@echo "📡 Upgrading Operator Rewards..."
 	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "upgradeOperatorRewards(address,address,address)" $(OPERATOR_REWARDS_ADDRESS) $(NETWORK) $(NETWORK_MIDDLEWARE_SERVICE) -vv
 	@echo "✅ Operator Rewards upgrade completed"
-
-upgrade-operator-rewards2:
-	@echo "📡 Upgrading Operator Rewards..."
-	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "upgradeOperatorRewards(address,address,address,address)" $(OPERATOR_REWARDS_ADDRESS) $(NETWORK) $(NETWORK_MIDDLEWARE_SERVICE) $(MIDDLEWARE_ADDRESS) -vv
-	@echo "✅ Operator Rewards upgrade completed"
-
 
 upgrade-middleware:
 	@echo "📡 Upgrading Middleware..."

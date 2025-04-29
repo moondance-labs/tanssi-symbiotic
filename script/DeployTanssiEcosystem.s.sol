@@ -322,8 +322,9 @@ contract DeployTanssiEcosystem is Script {
         ecosystemEntities.middleware =
             deployMiddlewareWithProxy(params, operatorRewardsAddress, stakerRewardsFactoryAddress);
 
-        // TODO Take out
-        operatorRewards.initializeV2(tanssi, address(ecosystemEntities.middleware));
+        operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(ecosystemEntities.middleware));
+        operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(ecosystemEntities.middleware));
+
         networkMiddlewareService.setMiddleware(address(ecosystemEntities.middleware));
         _registerEntitiesToMiddleware();
 

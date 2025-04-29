@@ -278,7 +278,10 @@ contract MiddlewareTest is Test {
 
         _deployMiddlewareWithProxy(operatorRewardsAddress, stakerRewardsFactoryAddress);
         middlewareReader = OBaseMiddlewareReader(address(middleware));
-        operatorRewards.initializeV2(owner, address(middleware));
+
+        operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
+        operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
+        operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware));
         _deployGateway();
 
         middleware.setGateway(address(gateway));
