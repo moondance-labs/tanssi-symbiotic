@@ -203,9 +203,9 @@ interface IODefaultOperatorRewards {
 
     /**
      * @notice Set the operator share of the rewards.
-     * @param operatorShare operator share of the rewards
+     * @param operatorShare_ operator share of the rewards
      */
     function setOperatorShare(
-        uint48 operatorShare
+        uint48 operatorShare_
     ) external;
 }

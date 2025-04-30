@@ -102,7 +102,7 @@ contract ODefaultOperatorRewards is
      * @param operatorShare_ The share of the operator.
      * @param owner The address of the owner.
      */
-    function initialize(uint48 operatorShare_, address owner) public initializer notZeroAddress(owner) {
+    function initialize(uint48 operatorShare_, address owner) external initializer notZeroAddress(owner) {
         if (operatorShare_ >= MAX_PERCENTAGE) {
             revert ODefaultOperatorRewards__InvalidOperatorShare();
         }

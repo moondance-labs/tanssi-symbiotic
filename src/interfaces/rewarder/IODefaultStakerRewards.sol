@@ -227,10 +227,10 @@ interface IODefaultStakerRewards {
 
     /**
      * @notice Set an admin fee.
-     * @param adminFee admin fee (up to ADMIN_FEE_BASE inclusively)
+     * @param adminFee_ admin fee (up to ADMIN_FEE_BASE inclusively)
      * @dev Only the ADMIN_FEE_SET_ROLE holder can call this function.
      */
     function setAdminFee(
-        uint256 adminFee
+        uint256 adminFee_
     ) external;
 }

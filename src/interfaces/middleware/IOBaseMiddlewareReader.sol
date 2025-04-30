@@ -157,7 +157,7 @@ interface IOBaseMiddlewareReader {
 
     function getOperatorsByEpoch(
         uint48 epoch
-    ) external view returns (address[] memory activeOperators);
+    ) external view returns (address[] memory activeOperators_);
 
     function getOperatorVaultPairs(
         uint48 epoch
