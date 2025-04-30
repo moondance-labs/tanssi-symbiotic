@@ -331,7 +331,6 @@ contract ODefaultOperatorRewards is
     function setOperatorShare(
         uint48 operatorShare_
     ) external checkAccess {
-        //TODO A maximum value for the operatorShare should be chosen. 100% shouldn't be a valid option.
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         if (operatorShare_ >= MAX_PERCENTAGE) {
             revert ODefaultOperatorRewards__InvalidOperatorShare();
