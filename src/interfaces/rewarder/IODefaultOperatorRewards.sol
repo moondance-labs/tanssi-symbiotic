@@ -17,7 +17,6 @@ pragma solidity ^0.8.0;
 interface IODefaultOperatorRewards {
     error ODefaultOperatorRewards__InsufficientTotalClaimable();
     error ODefaultOperatorRewards__InsufficientTransfer();
-    error ODefaultOperatorRewards__NotNetworkMiddleware();
     error ODefaultOperatorRewards__RootNotSet();
     error ODefaultOperatorRewards__InvalidProof();
     error ODefaultOperatorRewards__InvalidValues();
