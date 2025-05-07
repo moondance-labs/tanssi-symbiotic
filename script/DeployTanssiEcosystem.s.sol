@@ -409,7 +409,7 @@ contract DeployTanssiEcosystem is Script {
         HelperConfig _helperConfig
     ) external {
         isTest = true;
-        _initScriptsAndEntities(_helperConfig, isTest);
+        _initScriptsAndEntities(_helperConfig);
 
         vm.startPrank(tanssi);
         _deploy();
@@ -418,7 +418,7 @@ contract DeployTanssiEcosystem is Script {
 
     function run() external {
         isTest = false;
-        _initScriptsAndEntities(new HelperConfig(), isTest);
+        _initScriptsAndEntities(new HelperConfig());
 
         vm.startBroadcast(ownerPrivateKey);
         _deploy();
@@ -464,7 +464,9 @@ contract DeployTanssiEcosystem is Script {
         }
     }
 
-    function _initScriptsAndEntities(HelperConfig _helperConfig, bool _isTest) private {
+    function _initScriptsAndEntities(
+        HelperConfig _helperConfig
+    ) private {
         contractScripts.helperConfig = _helperConfig;
         contractScripts.deployVault = new DeployVault();
         contractScripts.deployCollateral = new DeployCollateral();

@@ -14,8 +14,6 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
-import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfaces/IOGateway.sol";
-
 abstract contract MiddlewareStorage {
     /// @custom:storage-location erc7201:tanssi.middleware.MiddlewareStorage.v1.1
     struct StorageMiddleware {
