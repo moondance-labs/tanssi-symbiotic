@@ -115,10 +115,6 @@ contract DeployTanssiEcosystem is Script {
     function deployTokens(
         address owner
     ) public returns (address, address, address) {
-        // if (!isTest) {
-        //     vm.stopBroadcast();
-        // }
-
         address stETH = contractScripts.deployCollateral.deployCollateral("stETH");
         console2.log(" ");
         address rETH = contractScripts.deployCollateral.deployCollateral("rETH");
@@ -134,13 +130,7 @@ contract DeployTanssiEcosystem is Script {
         tokensAddresses.rETHToken.mint(owner, 10_000 ether);
         tokensAddresses.wBTCToken.mint(owner, 10_000 ether);
 
-        // vm.stopBroadcast();
-
-        // if (!isTest) {
-        //     vm.startBroadcast(ownerPrivateKey);
-        // }
         return (stETH, rETH, wBTC);
-        // return (stETH, address(0), address(0));
     }
 
     function deployVaults() public returns (VaultAddresses memory) {
@@ -468,16 +458,13 @@ contract DeployTanssiEcosystem is Script {
     }
 
     function _initScriptsAndEntities(HelperConfig _helperConfig, bool _isTest) private {
-        console2.log("X");
         contractScripts.helperConfig = _helperConfig;
         contractScripts.deployVault = new DeployVault();
         contractScripts.deployCollateral = new DeployCollateral();
         contractScripts.deployRewards = new DeployRewards();
         contractScripts.deployRewards.setIsTest(isTest);
 
-        console2.log("Y");
         (address vaultConfiguratorAddress,,,,,,,,,) = _helperConfig.activeNetworkConfig();
-        console2.log("Z");
         ecosystemEntities.vaultConfigurator = IVaultConfigurator(vaultConfiguratorAddress);
     }
 }
