@@ -31,6 +31,7 @@ import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestak
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {IDefaultCollateralFactory} from
     "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateralFactory.sol";
+import {DefaultCollateralFactory} from "@symbiotic-collateral/contracts/defaultCollateral/DefaultCollateralFactory.sol";
 import {VaultFactory} from "@symbiotic/contracts/VaultFactory.sol";
 
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
@@ -114,10 +115,6 @@ contract DeployTanssiEcosystem is Script {
     function deployTokens(
         address owner
     ) public returns (address, address, address) {
-        // if (!isTest) {
-        //     vm.stopBroadcast();
-        // }
-
         address stETH = contractScripts.deployCollateral.deployCollateral("stETH");
         console2.log(" ");
         address rETH = contractScripts.deployCollateral.deployCollateral("rETH");
@@ -133,13 +130,7 @@ contract DeployTanssiEcosystem is Script {
         tokensAddresses.rETHToken.mint(owner, 10_000 ether);
         tokensAddresses.wBTCToken.mint(owner, 10_000 ether);
 
-        // vm.stopBroadcast();
-
-        // if (!isTest) {
-        //     vm.startBroadcast(ownerPrivateKey);
-        // }
         return (stETH, rETH, wBTC);
-        // return (stETH, address(0), address(0));
     }
 
     function deployVaults() public returns (VaultAddresses memory) {
@@ -251,11 +242,13 @@ contract DeployTanssiEcosystem is Script {
         (,,,,,,, address defaultCollateralFactoryAddress, address stETHAddress,) =
             contractScripts.helperConfig.activeNetworkConfig();
 
-        IDefaultCollateralFactory defaultCollateralFactory;
         if (block.chainid != 31_337) {
-            defaultCollateralFactory = IDefaultCollateralFactory(defaultCollateralFactoryAddress);
-            ecosystemEntities.defaultCollateralAddress =
-                defaultCollateralFactory.create(address(stETHAddress), 10_000 ether, address(0));
+            if (defaultCollateralFactoryAddress == address(0)) {
+                defaultCollateralFactoryAddress = address(new DefaultCollateralFactory());
+            }
+
+            ecosystemEntities.defaultCollateralAddress = IDefaultCollateralFactory(defaultCollateralFactoryAddress)
+                .create(address(stETHAddress), 10_000 ether, address(0));
         }
 
         if (!isTest) {

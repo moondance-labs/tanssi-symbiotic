@@ -41,15 +41,15 @@ test :; forge test
 
 testv :; forge test -vvvv
 
-coverage :; forge coverage --nmp test/fork/*
+coverage :; forge coverage --nmp "test/fork/*"
 
-coverage-fork :; forge coverage --mp test/fork/* --fork-url ${FORK_RPC_URL}
+coverage-fork :; forge coverage --mp "test/fork/*" --fork-url ${FORK_RPC_URL}
 
-dcoverage :; forge coverage --nmp test/fork/* --report debug > coverage.txt
+dcoverage :; forge coverage --nmp "test/fork/*" --report debug > coverage.txt
 
-hcoverage:; forge coverage  --nmp test/fork/* --report lcov && genhtml lcov.info -o report --branch-coverage
+hcoverage:; forge coverage  --nmp "test/fork/*" --report lcov && genhtml lcov.info -o report --branch-coverage
 
-snapshot :; forge snapshot --nmp test/fork/*
+snapshot :; forge snapshot --nmp "test/fork/*"
 
 format :; forge fmt
 
