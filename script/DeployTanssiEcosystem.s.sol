@@ -31,6 +31,7 @@ import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestak
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {IDefaultCollateralFactory} from
     "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateralFactory.sol";
+import {DefaultCollateralFactory} from "@symbiotic-collateral/contracts/defaultCollateral/DefaultCollateralFactory.sol";
 import {VaultFactory} from "@symbiotic/contracts/VaultFactory.sol";
 
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
@@ -251,11 +252,13 @@ contract DeployTanssiEcosystem is Script {
         (,,,,,,, address defaultCollateralFactoryAddress, address stETHAddress,) =
             contractScripts.helperConfig.activeNetworkConfig();
 
-        IDefaultCollateralFactory defaultCollateralFactory;
         if (block.chainid != 31_337) {
-            defaultCollateralFactory = IDefaultCollateralFactory(defaultCollateralFactoryAddress);
-            ecosystemEntities.defaultCollateralAddress =
-                defaultCollateralFactory.create(address(stETHAddress), 10_000 ether, address(0));
+            if (defaultCollateralFactoryAddress == address(0)) {
+                defaultCollateralFactoryAddress = address(new DefaultCollateralFactory());
+            }
+
+            ecosystemEntities.defaultCollateralAddress = IDefaultCollateralFactory(defaultCollateralFactoryAddress)
+                .create(address(stETHAddress), 10_000 ether, address(0));
         }
 
         if (!isTest) {
@@ -465,13 +468,16 @@ contract DeployTanssiEcosystem is Script {
     }
 
     function _initScriptsAndEntities(HelperConfig _helperConfig, bool _isTest) private {
+        console2.log("X");
         contractScripts.helperConfig = _helperConfig;
         contractScripts.deployVault = new DeployVault();
         contractScripts.deployCollateral = new DeployCollateral();
         contractScripts.deployRewards = new DeployRewards();
         contractScripts.deployRewards.setIsTest(isTest);
 
+        console2.log("Y");
         (address vaultConfiguratorAddress,,,,,,,,,) = _helperConfig.activeNetworkConfig();
+        console2.log("Z");
         ecosystemEntities.vaultConfigurator = IVaultConfigurator(vaultConfiguratorAddress);
     }
 }

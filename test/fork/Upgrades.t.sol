@@ -55,6 +55,13 @@ contract MiddlewareTest is Test {
         deployTanssiEcosystem = new DeployTanssiEcosystem();
         tanssi = IOBaseMiddlewareReader(address(middleware)).NETWORK();
         admin = deployTanssiEcosystem.tanssi(); // Loaded from the env OWNER_PRIVATE_KEY
+
+        // Actual admin in the 3 contracts, we use its account to set the admin role to our admin which will run using broadcast
+        vm.startPrank(0x8f7b28C2A36E805F4024c1AE1e96a4B75E50A512);
+        operatorRewards.grantRole(operatorRewards.DEFAULT_ADMIN_ROLE(), admin);
+        stakerRewards.grantRole(stakerRewards.DEFAULT_ADMIN_ROLE(), admin);
+        middleware.grantRole(middleware.DEFAULT_ADMIN_ROLE(), admin);
+        vm.stopPrank();
     }
 
     function testUpgradeMiddleware() public {
@@ -90,11 +97,6 @@ contract MiddlewareTest is Test {
     function testUpgradeRewardsOperatorWithBroadcast() public {
         address networkMiddlewareService = operatorRewards.i_networkMiddlewareService();
         uint48 operatorShare = operatorRewards.operatorShare();
-
-        // Temporary fix for the owner role not being set in the test environment:
-        vm.startPrank(0x8f7b28C2A36E805F4024c1AE1e96a4B75E50A512);
-        operatorRewards.grantRole(operatorRewards.DEFAULT_ADMIN_ROLE(), admin);
-        vm.stopPrank();
 
         deployRewards.setIsTest(false);
         deployRewards.upgradeOperatorRewards(address(operatorRewards), tanssi, networkMiddlewareService);

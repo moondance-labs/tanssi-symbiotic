@@ -32,8 +32,6 @@ import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol
 import {IBaseSlasher} from "@symbiotic/interfaces/slasher/IBaseSlasher.sol";
 import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 
-import {IDefaultCollateralFactory} from
-    "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateralFactory.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
