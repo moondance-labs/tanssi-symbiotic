@@ -581,7 +581,7 @@ contract RewardsTest is Test {
 
         vm.expectEmit(false, true, true, true);
         emit IODefaultOperatorRewards.DistributeRewards(
-            uint48(epoch), uint48(eraIndex), tokenAddress, 1, amount, bytes32(uint256(1))
+            uint48(epoch), uint48(eraIndex), tokenAddress, amount, amount, bytes32(uint256(1))
         );
 
         // Expect the gateway to emit `InboundMessageDispatched`
@@ -694,7 +694,7 @@ contract RewardsTest is Test {
             console2.log("Total gas used: ", gasClaiming);
         }
 
-        uint256 amountClaimed_ = operatorRewards.claimed(eraIndex, operator3);
+        uint256 amountClaimed_ = operatorRewards.claimed(eraIndex, abi.encode(OPERATOR3_KEY));
         assertEq(amountClaimed_, EXPECTED_CLAIMABLE);
 
         _checkStakerRewardsBalanceForVault(rewardsToken, address(vault), expectedRewardsPerVault[0]);

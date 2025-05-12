@@ -504,14 +504,14 @@ contract RewardsTest is Test {
 
         vm.expectEmit(true, true, false, true);
         emit IODefaultOperatorRewards.DistributeRewards(
-            epoch, eraIndex, address(token), TOKENS_PER_POINT, AMOUNT_TO_DISTRIBUTE, REWARDS_ROOT
+            epoch, eraIndex, address(token), AMOUNT_TO_DISTRIBUTE, AMOUNT_TO_DISTRIBUTE, REWARDS_ROOT
         );
         _distributeRewards(epoch, eraIndex, AMOUNT_TO_DISTRIBUTE, address(token));
 
         IODefaultOperatorRewards.EraRoot memory eraRoot_ = operatorRewards.eraRoot(0);
         assertEq(eraRoot_.epoch, epoch);
         assertEq(eraRoot_.amount, AMOUNT_TO_DISTRIBUTE);
-        assertEq(eraRoot_.tokensPerPoint, TOKENS_PER_POINT);
+        assertEq(eraRoot_.totalPoints, AMOUNT_TO_DISTRIBUTE);
         assertEq(eraRoot_.root, REWARDS_ROOT);
         assertEq(eraRoot_.tokenAddress, address(token));
 
@@ -613,7 +613,7 @@ contract RewardsTest is Test {
         );
         operatorRewards.claimRewards(claimRewardsData);
 
-        uint256 amountClaimed_ = operatorRewards.claimed(eraIndex, alice);
+        uint256 amountClaimed_ = operatorRewards.claimed(eraIndex, abi.encode(ALICE_KEY));
         assertEq(amountClaimed_, EXPECTED_CLAIMABLE);
     }
 
@@ -696,7 +696,7 @@ contract RewardsTest is Test {
             console2.log("Total gas used: ", gasClaiming);
         }
 
-        uint256 amountClaimed_ = operatorRewards.claimed(eraIndex, alice);
+        uint256 amountClaimed_ = operatorRewards.claimed(eraIndex, abi.encode(ALICE_KEY));
         assertEq(amountClaimed_, EXPECTED_CLAIMABLE);
 
         uint256 stakerRewardsVault1Balance = token.balanceOf(address(stakerRewards));
