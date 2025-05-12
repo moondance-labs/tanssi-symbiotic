@@ -1564,7 +1564,7 @@ contract RewardsTest is Test {
     //                                      UPGRADE
     //**************************************************************************************************
 
-    function testUpgradeAndMigrateStakerRewards() public {
+    function testUpgradeStakerRewardsWithScript() public {
         vm.warp(NETWORK_EPOCH_DURATION);
 
         deployRewards.upgradeStakerRewards(
@@ -1576,7 +1576,7 @@ contract RewardsTest is Test {
         assertEq(stakerRewards.i_networkMiddlewareService(), address(networkMiddlewareService));
     }
 
-    function testUpgradeAndMigrateStakerRewardsWithBroadcast() public {
+    function testUpgradeStakerRewardsWithBroadcast() public {
         vm.startPrank(tanssi);
         // On not testing mode, the owner of the contract to upgrade is this, so we need to grant the admin role to it
         address ownerForUpgrade = vm.addr(deployRewards.ownerPrivateKey());
