@@ -14,7 +14,7 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, console2} from "forge-std/Test.sol";
 
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
@@ -22,6 +22,8 @@ import {DeployRewards} from "script/DeployRewards.s.sol";
 import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
+import {IODefaultOperatorRewardsOld} from "src/interfaces/rewarder/IODefaultOperatorRewardsOld.sol";
+import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 
 contract MiddlewareTest is Test {
     Middleware middleware;
@@ -105,6 +107,77 @@ contract MiddlewareTest is Test {
         assertEq(operatorRewards.i_networkMiddlewareService(), networkMiddlewareService);
     }
 
+    function testUpgradeAndMigrateOperatorRewardsWithBroadcast() public {
+        address networkMiddlewareService = operatorRewards.i_networkMiddlewareService();
+        uint48 operatorShare = operatorRewards.operatorShare();
+        IODefaultOperatorRewardsOld oldOperatorRewards = IODefaultOperatorRewardsOld(address(operatorRewards));
+
+        uint48 testEpoch = 30; // We know this epoch has 4 eras and claimed data
+
+        // Eras per epoch
+        uint48[] memory eraIndexesPerEpoch = new uint48[](4);
+        IODefaultOperatorRewardsOld.EraRoot[] memory eraRoots = new IODefaultOperatorRewardsOld.EraRoot[](4);
+
+        eraIndexesPerEpoch[0] = oldOperatorRewards.eraIndexesPerEpoch(testEpoch, 0);
+        eraIndexesPerEpoch[1] = oldOperatorRewards.eraIndexesPerEpoch(testEpoch, 1);
+        eraIndexesPerEpoch[2] = oldOperatorRewards.eraIndexesPerEpoch(testEpoch, 2);
+        eraIndexesPerEpoch[3] = oldOperatorRewards.eraIndexesPerEpoch(testEpoch, 3);
+
+        // Double checking this is the forked data we want
+        assertEq(eraIndexesPerEpoch[0], 576);
+        assertEq(eraIndexesPerEpoch[1], 577);
+        assertEq(eraIndexesPerEpoch[2], 578);
+        assertEq(eraIndexesPerEpoch[3], 579); // This one, has claimed data
+
+        eraRoots[0] = oldOperatorRewards.eraRoot(eraIndexesPerEpoch[0]);
+        eraRoots[1] = oldOperatorRewards.eraRoot(eraIndexesPerEpoch[1]);
+        eraRoots[2] = oldOperatorRewards.eraRoot(eraIndexesPerEpoch[2]);
+        eraRoots[3] = oldOperatorRewards.eraRoot(eraIndexesPerEpoch[3]);
+
+        address testOperator = 0x72158193a23E35817e86076246c4A3d68f8F4749;
+
+        uint256 claimed1 = oldOperatorRewards.claimed(eraIndexesPerEpoch[3], testOperator);
+        assertEq(claimed1, 10_483_452_703_380_352_520);
+
+        address testVault = 0x94bA7BB350D8D15720C70Ba9216985AA3165B67E;
+        address stakerRewardsContract = oldOperatorRewards.vaultToStakerRewardsContract(testVault);
+
+        deployRewards.setIsTest(false);
+        uint256 currentGas = gasleft();
+        deployRewards.upgradeAndMigrateOperatorRewards(
+            address(operatorRewards), tanssi, networkMiddlewareService, address(middleware)
+        );
+        uint256 newGas = gasleft();
+        console2.log("Gas used: ", currentGas - newGas);
+
+        assertEq(operatorRewards.operatorShare(), operatorShare);
+        assertEq(operatorRewards.i_networkMiddlewareService(), networkMiddlewareService);
+
+        // Check eras per epoch
+        assertEq(operatorRewards.eraIndexesPerEpoch(testEpoch, 0), eraIndexesPerEpoch[0]);
+        assertEq(operatorRewards.eraIndexesPerEpoch(testEpoch, 1), eraIndexesPerEpoch[1]);
+        assertEq(operatorRewards.eraIndexesPerEpoch(testEpoch, 2), eraIndexesPerEpoch[2]);
+        assertEq(operatorRewards.eraIndexesPerEpoch(testEpoch, 3), eraIndexesPerEpoch[3]);
+
+        // Check era root
+        _compareOldAndNewEraRoots(576, eraRoots[0], operatorRewards.eraRoot(576));
+        _compareOldAndNewEraRoots(577, eraRoots[1], operatorRewards.eraRoot(577));
+        _compareOldAndNewEraRoots(578, eraRoots[2], operatorRewards.eraRoot(578));
+        _compareOldAndNewEraRoots(579, eraRoots[3], operatorRewards.eraRoot(579));
+
+        // Check claimed
+        bytes memory testOperatorKey =
+            abi.encodePacked(bytes32(0xe86f7e1076c1cbcf4fbbb79d9aeafaa3b8450ab3a12bfa4b1ae52841ab396c10));
+        assertEq(operatorRewards.claimed(eraIndexesPerEpoch[3], testOperatorKey), claimed1);
+
+        // Check vault to staker rewards contract
+        assertEq(operatorRewards.vaultToStakerRewardsContract(testVault), stakerRewardsContract);
+
+        // TODO: Check old data is deleted
+        // TODO: Distribute new rewards
+        // TODO: Claim rewards
+    }
+
     function testUpgradeStakerRewardsWithBroadcast() public {
         address vault = stakerRewards.i_vault();
         address network = stakerRewards.i_network();
@@ -115,5 +188,17 @@ contract MiddlewareTest is Test {
         assertEq(stakerRewards.i_vault(), vault);
         assertEq(stakerRewards.i_network(), network);
         assertEq(stakerRewards.i_networkMiddlewareService(), networkMiddlewareService);
+    }
+
+    function _compareOldAndNewEraRoots(
+        uint48 eraIndex,
+        IODefaultOperatorRewardsOld.EraRoot memory oldEraRoot,
+        IODefaultOperatorRewards.EraRoot memory newEraRoot
+    ) private pure {
+        assertEq(oldEraRoot.epoch, newEraRoot.epoch);
+        assertEq(oldEraRoot.amount, newEraRoot.amount);
+        assertEq(oldEraRoot.tokensPerPoint, oldEraRoot.amount * oldEraRoot.tokensPerPoint);
+        assertEq(oldEraRoot.root, newEraRoot.root);
+        assertEq(oldEraRoot.tokenAddress, newEraRoot.tokenAddress);
     }
 }

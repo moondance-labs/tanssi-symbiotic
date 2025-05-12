@@ -22,6 +22,7 @@ import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerReward
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
+import {Middleware} from "src/contracts/middleware/Middleware.sol";
 
 contract DeployRewards is Script {
     ODefaultStakerRewardsFactory public stakerRewardsFactory;
@@ -142,6 +143,33 @@ contract DeployRewards is Script {
         ODefaultOperatorRewards implementation = new ODefaultOperatorRewards(network, networkMiddlewareService);
         console2.log("New Operator Rewards Implementation: ", address(implementation));
         proxy.upgradeToAndCall(address(implementation), hex"");
+        console2.log("Operator Rewards Upgraded");
+        if (!isTest) {
+            vm.stopBroadcast();
+        } else {
+            vm.stopPrank();
+        }
+    }
+
+    function upgradeAndMigrateOperatorRewards(
+        address proxyAddress,
+        address network,
+        address networkMiddlewareService,
+        address middleware
+    ) external {
+        if (!isTest) {
+            vm.startBroadcast(ownerPrivateKey);
+        } else {
+            vm.startPrank(network);
+        }
+
+        ODefaultOperatorRewards proxy = ODefaultOperatorRewards(proxyAddress);
+        ODefaultOperatorRewards implementation = new ODefaultOperatorRewards(network, networkMiddlewareService);
+        console2.log("New Operator Rewards Implementation: ", address(implementation));
+        uint256 lastEpoch = Middleware(middleware).getCurrentEpoch();
+        bytes memory data = abi.encodeWithSelector(ODefaultOperatorRewards.migrate.selector, 1, lastEpoch);
+        proxy.upgradeToAndCall(address(implementation), data);
+
         console2.log("Operator Rewards Upgraded");
         if (!isTest) {
             vm.stopBroadcast();

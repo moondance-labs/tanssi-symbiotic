@@ -41,14 +41,14 @@ import {ScaleCodec} from "@tanssi-bridge-relayer/snowbridge/contracts/src/utils/
 //                                      TANSSI
 //**************************************************************************************************
 import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
-import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
+import {IODefaultOperatorRewardsOld} from "src/interfaces/rewarder/IODefaultOperatorRewardsOld.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 
-contract ODefaultOperatorRewards is
+contract ODefaultOperatorRewardsOld is
     OzAccessControl,
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable,
-    IODefaultOperatorRewards
+    IODefaultOperatorRewardsOld
 {
     using SafeERC20 for IERC20;
     using Math for uint256;
@@ -56,42 +56,29 @@ contract ODefaultOperatorRewards is
     using Subnetwork for bytes32;
 
     /// @custom:storage-location erc7201:tanssi.rewards.ODefaultOperatorRewards.v1
-    struct OldOperatorRewardsStorage {
+    struct OperatorRewardsStorage {
         uint48 operatorShare;
-        mapping(uint48 eraIndex => OldEraRoot eraRoot) eraRoot;
+        mapping(uint48 eraIndex => EraRoot eraRoot) eraRoot;
         mapping(uint48 epoch => uint48[] eraIndexes) eraIndexesPerEpoch;
         mapping(uint48 eraIndex => mapping(address account => uint256 amount)) claimed;
         mapping(address vault => address stakerRewardsAddress) vaultToStakerRewardsContract;
     }
 
-    /// @custom:storage-location erc7201:tanssi.rewards.ODefaultOperatorRewards.v2
-    struct OperatorRewardsStorage {
-        uint48 operatorShare;
-        mapping(uint48 eraIndex => EraRoot eraRoot) eraRoot;
-        mapping(uint48 epoch => uint48[] eraIndexes) eraIndexesPerEpoch;
-        mapping(uint48 eraIndex => mapping(bytes account => uint256 amount)) claimed; // Todo shall we use bytes or bytes32 for account?
-        mapping(address vault => address stakerRewardsAddress) vaultToStakerRewardsContract;
-    }
-
     // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultOperatorRewards.v1")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 constant OLD_OPERATOR_REWARDS_STORAGE_LOCATION =
+    bytes32 constant OPERATOR_REWARDS_STORAGE_LOCATION =
         0x57cf781f364664df22ab0472e35114435fb4a6881ab5a1b47ed6d1a7d4605400;
-
-    // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultOperatorRewards.v2")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 public constant OPERATOR_REWARDS_STORAGE_LOCATION =
-        0x9e763766bd4dc4b79493b61f657e7d458cf0270bbd21be73fbf773df86fbd400;
 
     bytes32 public constant STAKER_REWARDS_SETTER_ROLE = keccak256("STAKER_REWARDS_SETTER_ROLE");
     bytes32 public constant MIDDLEWARE_ROLE = keccak256("MIDDLEWARE_ROLE");
     uint48 public constant MAX_PERCENTAGE = 10_000;
 
     /**
-     * @inheritdoc IODefaultOperatorRewards
+     * @inheritdoc IODefaultOperatorRewardsOld
      */
     address public immutable i_networkMiddlewareService;
 
     /**
-     * @inheritdoc IODefaultOperatorRewards
+     * @inheritdoc IODefaultOperatorRewardsOld
      */
     address public immutable i_network;
 
@@ -134,102 +121,8 @@ contract ODefaultOperatorRewards is
         $.operatorShare = operatorShare_;
     }
 
-    function migrate(uint48 startEpoch, uint48 endEpoch) external checkAccess {
-        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
-        OldOperatorRewardsStorage storage $old = _getOldOperatorRewardsStorage();
-        address middleware = INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network);
-        IOBaseMiddlewareReader reader = IOBaseMiddlewareReader(middleware);
-
-        $.operatorShare = $old.operatorShare;
-
-        for (uint48 epoch = startEpoch; epoch <= endEpoch;) {
-            uint48[] memory eraIndexes = $old.eraIndexesPerEpoch[epoch];
-            uint48 epochTs = EpochCapture(middleware).getEpochStart(epoch);
-            address[] memory operators = reader.activeOperatorsAt(epochTs);
-
-            // TODO: Current implementation is too inefficient:
-            _migrateVaultsToStakerRewards($, $old, operators, epochTs, reader);
-
-            if ($.eraIndexesPerEpoch[epoch].length == 0) {
-                for (uint48 eraIndex; eraIndex < eraIndexes.length;) {
-                    uint48 eraIndex_ = eraIndexes[eraIndex];
-                    OldEraRoot memory oldEraRoot_ = $old.eraRoot[eraIndex_];
-
-                    EraRoot memory newEraRoot = EraRoot({
-                        epoch: epoch,
-                        amount: oldEraRoot_.amount,
-                        totalPoints: oldEraRoot_.amount * oldEraRoot_.tokensPerPoint,
-                        root: oldEraRoot_.root,
-                        tokenAddress: oldEraRoot_.tokenAddress
-                    });
-                    $.eraRoot[eraIndex] = newEraRoot;
-                    $.eraIndexesPerEpoch[epoch].push(eraIndex);
-                    _migrateClaimed($, $old, eraIndex, operators, reader);
-
-                    unchecked {
-                        ++eraIndex;
-                    }
-                }
-            } // Else it already migrated, shall it revert instead?
-            unchecked {
-                ++epoch;
-            }
-        }
-    }
-
-    function _migrateClaimed(
-        OperatorRewardsStorage storage $,
-        OldOperatorRewardsStorage storage $old,
-        uint48 eraIndex,
-        address[] memory operators,
-        IOBaseMiddlewareReader reader
-    ) private {
-        for (uint48 i; i < operators.length;) {
-            address operator = operators[i];
-            bytes memory operatorKey = reader.operatorKey(operator);
-            uint256 claimedAmount = $old.claimed[eraIndex][operator];
-            if (claimedAmount != 0) {
-                if ($.claimed[eraIndex][operatorKey] == 0) {
-                    $.claimed[eraIndex][operatorKey] = claimedAmount;
-                } else {
-                    // TODO: It already migrated, shall it revert instead?
-                }
-            }
-
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    function _migrateVaultsToStakerRewards(
-        OperatorRewardsStorage storage $,
-        OldOperatorRewardsStorage storage $old,
-        address[] memory operators,
-        uint48 epochTs,
-        IOBaseMiddlewareReader reader
-    ) private {
-        for (uint48 i; i < operators.length;) {
-            address operator = operators[i];
-            (, address[] memory operatorVaults) = reader.getOperatorVaults(operator, epochTs);
-            for (uint48 j; j < operatorVaults.length;) {
-                address vault = operatorVaults[j];
-                if ($.vaultToStakerRewardsContract[vault] == address(0)) {
-                    $.vaultToStakerRewardsContract[vault] = $old.vaultToStakerRewardsContract[vault];
-                }
-
-                unchecked {
-                    ++j;
-                }
-            }
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
     /**
-     * @inheritdoc IODefaultOperatorRewards
+     * @inheritdoc IODefaultOperatorRewardsOld
      */
     function distributeRewards(
         uint48 epoch,
@@ -256,7 +149,7 @@ contract ODefaultOperatorRewards is
             epoch: epoch,
             amount: amount,
             // We need to calculate how much each point is worth in tokens
-            totalPoints: totalPoints,
+            tokensPerPoint: amount / totalPoints, // TODO: To change/check the math. There will be a rounding error so some rewards will be forever stuck in this contract.
             root: root,
             tokenAddress: tokenAddress
         });
@@ -266,11 +159,11 @@ contract ODefaultOperatorRewards is
         $.eraRoot[eraIndex] = eraRoot_;
         $.eraIndexesPerEpoch[epoch].push(eraIndex);
 
-        emit DistributeRewards(epoch, eraIndex, tokenAddress, totalPoints, amount, root);
+        emit DistributeRewards(epoch, eraIndex, tokenAddress, eraRoot_.tokensPerPoint, amount, root);
     }
 
     /**
-     * @inheritdoc IODefaultOperatorRewards
+     * @inheritdoc IODefaultOperatorRewardsOld
      */
     function claimRewards(
         ClaimRewardsInput calldata input
@@ -294,10 +187,30 @@ contract ODefaultOperatorRewards is
         }
 
         address middlewareAddress = INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network);
-        uint256 stakerAmount;
-        address recipient;
+        // Starlight sends back only the operator key, thus we need to get back the operator address
+        address recipient = IOBaseMiddlewareReader(middlewareAddress).operatorByKey(abi.encode(input.operatorKey));
 
-        (amount, stakerAmount, recipient) = _distributeRewardsToOperator($, input, eraRoot_, middlewareAddress);
+        // Calculate the total amount of tokens that can be claimed which is:
+        // total amount of tokens = total points claimable * tokens per point
+        amount = input.totalPointsClaimable * eraRoot_.tokensPerPoint;
+
+        // You can only claim everything and if it's claimed before revert
+        if ($.claimed[input.eraIndex][recipient] != 0) {
+            revert ODefaultOperatorRewards__InsufficientTotalClaimable();
+        }
+
+        $.claimed[input.eraIndex][recipient] = amount;
+
+        // operatorShare% of the rewards to the operator
+        uint256 operatorAmount = amount.mulDiv($.operatorShare, MAX_PERCENTAGE);
+
+        // (1-s_operatorShare)% of the rewards to the stakers
+        uint256 stakerAmount = amount - operatorAmount;
+
+        // On every claim send operatorShare% of the rewards to the operator
+        // And then distribute rewards to the stakers
+        // This is gonna send (1-s_operatorShare)% of the rewards
+        IERC20(tokenAddress).safeTransfer(recipient, operatorAmount);
 
         _distributeRewardsToStakers(
             eraRoot_.epoch, input.eraIndex, stakerAmount, recipient, middlewareAddress, tokenAddress, input.data
@@ -328,39 +241,6 @@ contract ODefaultOperatorRewards is
         );
 
         _distributeRewardsPerVault(epoch, eraIndex, tokenAddress, totalVaults, operatorVaults, amountPerVault, data);
-    }
-
-    function _distributeRewardsToOperator(
-        OperatorRewardsStorage storage $,
-        ClaimRewardsInput calldata input,
-        EraRoot memory eraRoot_,
-        address middlewareAddress
-    ) private returns (uint256 amount, uint256 stakerAmount, address recipient) {
-        // Calculate the total amount of tokens that can be claimed which is:
-        // total amount of tokens = (total points claimable * total amount) / total points
-        amount = uint256(input.totalPointsClaimable).mulDiv(eraRoot_.amount, eraRoot_.totalPoints);
-
-        bytes memory operatorKey = abi.encode(input.operatorKey);
-        // Starlight sends back only the operator key, thus we need to get back the operator address
-        recipient = IOBaseMiddlewareReader(middlewareAddress).operatorByKey(operatorKey);
-
-        // You can only claim everything and if it's claimed before revert
-        if ($.claimed[input.eraIndex][operatorKey] != 0) {
-            revert ODefaultOperatorRewards__InsufficientTotalClaimable();
-        }
-
-        $.claimed[input.eraIndex][operatorKey] = amount;
-
-        // operatorShare% of the rewards to the operator
-        uint256 operatorAmount = amount.mulDiv($.operatorShare, MAX_PERCENTAGE);
-
-        // (1-s_operatorShare)% of the rewards to the stakers
-        stakerAmount = amount - operatorAmount;
-
-        // On every claim send operatorShare% of the rewards to the operator
-        // And then distribute rewards to the stakers
-        // This is gonna send (1-s_operatorShare)% of the rewards
-        IERC20(eraRoot_.tokenAddress).safeTransfer(recipient, operatorAmount);
     }
 
     function _getRewardsAmountPerVault(
@@ -415,9 +295,6 @@ contract ODefaultOperatorRewards is
     ) private {
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         for (uint256 i; i < totalVaults;) {
-            if (amountPerVault[i] == 0) {
-                continue;
-            }
             address stakerRewardsForVault = $.vaultToStakerRewardsContract[operatorVaults[i]];
             IERC20(tokenAddress).approve(stakerRewardsForVault, amountPerVault[i]);
             IODefaultStakerRewards(stakerRewardsForVault).distributeRewards(
@@ -431,7 +308,7 @@ contract ODefaultOperatorRewards is
     }
 
     /**
-     * @inheritdoc IODefaultOperatorRewards
+     * @inheritdoc IODefaultOperatorRewardsOld
      */
     function setStakerRewardContract(
         address stakerRewards,
@@ -449,7 +326,7 @@ contract ODefaultOperatorRewards is
     }
 
     /**
-     * @inheritdoc IODefaultOperatorRewards
+     * @inheritdoc IODefaultOperatorRewardsOld
      */
     function setOperatorShare(
         uint48 operatorShare_
@@ -468,7 +345,7 @@ contract ODefaultOperatorRewards is
     }
 
     /**
-     * @inheritdoc IODefaultOperatorRewards
+     * @inheritdoc IODefaultOperatorRewardsOld
      */
     function operatorShare() external view returns (uint48 operatorShare_) {
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
@@ -476,7 +353,7 @@ contract ODefaultOperatorRewards is
     }
 
     /**
-     * @inheritdoc IODefaultOperatorRewards
+     * @inheritdoc IODefaultOperatorRewardsOld
      */
     function eraRoot(
         uint48 eraIndex
@@ -486,7 +363,7 @@ contract ODefaultOperatorRewards is
     }
 
     /**
-     * @inheritdoc IODefaultOperatorRewards
+     * @inheritdoc IODefaultOperatorRewardsOld
      */
     function eraIndexesPerEpoch(uint48 epoch, uint256 index) external view returns (uint48 eraIndex) {
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
@@ -494,15 +371,15 @@ contract ODefaultOperatorRewards is
     }
 
     /**
-     * @inheritdoc IODefaultOperatorRewards
+     * @inheritdoc IODefaultOperatorRewardsOld
      */
-    function claimed(uint48 eraIndex, bytes memory account) external view returns (uint256 amount) {
+    function claimed(uint48 eraIndex, address account) external view returns (uint256 amount) {
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         amount = $.claimed[eraIndex][account];
     }
 
     /**
-     * @inheritdoc IODefaultOperatorRewards
+     * @inheritdoc IODefaultOperatorRewardsOld
      */
     function vaultToStakerRewardsContract(
         address vault
@@ -514,13 +391,6 @@ contract ODefaultOperatorRewards is
     function _authorizeUpgrade(
         address newImplementation
     ) internal override checkAccess {}
-
-    function _getOldOperatorRewardsStorage() private pure returns (OldOperatorRewardsStorage storage $) {
-        bytes32 position = OLD_OPERATOR_REWARDS_STORAGE_LOCATION;
-        assembly {
-            $.slot := position
-        }
-    }
 
     function _getOperatorRewardsStorage() private pure returns (OperatorRewardsStorage storage $) {
         bytes32 position = OPERATOR_REWARDS_STORAGE_LOCATION;
