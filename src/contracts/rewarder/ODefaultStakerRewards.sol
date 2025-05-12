@@ -17,7 +17,6 @@ pragma solidity 0.8.25;
 // *********************************************************************************************************************
 //                                                  SYMBIOTIC
 // *********************************************************************************************************************
-import {IStakerRewards} from "@symbiotic-rewards/interfaces/stakerRewards/IStakerRewards.sol";
 import {INetworkMiddlewareService} from "@symbiotic/interfaces/service/INetworkMiddlewareService.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
@@ -34,7 +33,6 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
-import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 
 contract ODefaultStakerRewards is
     AccessControlUpgradeable,
@@ -217,7 +215,7 @@ contract ODefaultStakerRewards is
         finalAmount = IERC20(tokenAddress).balanceOf(address(this)) - balanceBefore;
 
         // Check if the amount being sent is greater than 0
-        if (finalAmount == 0) {
+        if (finalAmount != amount) {
             revert ODefaultStakerRewards__InsufficientReward();
         }
     }

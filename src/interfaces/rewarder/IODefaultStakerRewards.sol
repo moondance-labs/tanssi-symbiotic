@@ -21,7 +21,6 @@ interface IODefaultStakerRewards {
     error ODefaultStakerRewards__InsufficientReward();
     error ODefaultStakerRewards__InvalidAddress();
     error ODefaultStakerRewards__InvalidAdminFee();
-    error ODefaultStakerRewards__InvalidHintsLength();
     error ODefaultStakerRewards__InvalidRecipient();
     error ODefaultStakerRewards__InvalidRewardTimestamp();
     error ODefaultStakerRewards__MissingRoles();
@@ -227,10 +226,10 @@ interface IODefaultStakerRewards {
 
     /**
      * @notice Set an admin fee.
-     * @param adminFee admin fee (up to ADMIN_FEE_BASE inclusively)
+     * @param adminFee_ admin fee (up to ADMIN_FEE_BASE inclusively)
      * @dev Only the ADMIN_FEE_SET_ROLE holder can call this function.
      */
     function setAdminFee(
-        uint256 adminFee
+        uint256 adminFee_
     ) external;
 }

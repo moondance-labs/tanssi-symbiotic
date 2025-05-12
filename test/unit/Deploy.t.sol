@@ -736,7 +736,7 @@ contract DeployTest is Test {
 
     function testUpgradeRewardsOperator() public {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
-        (Middleware middleware,,) = deployTanssiEcosystem.ecosystemEntities();
+        deployTanssiEcosystem.ecosystemEntities();
         address operatorRewards =
             deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20, tanssi);
 
@@ -745,7 +745,7 @@ contract DeployTest is Test {
 
     function testUpgradeRewardsOperatorWithBroadcast() public {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
-        (Middleware middleware,,) = deployTanssiEcosystem.ecosystemEntities();
+        deployTanssiEcosystem.ecosystemEntities();
         deployRewards.setIsTest(false);
 
         address operatorRewards =

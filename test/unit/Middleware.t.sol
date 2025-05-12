@@ -1693,10 +1693,13 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function testMiddlewareIsUpgradeable() public {
-        // uint48 OPERATOR_SHARE = 2000;
+        uint48 OPERATOR_SHARE = 2000;
 
-        // ODefaultOperatorRewards newOperatorRewards = ODefaultOperatorRewards(
-        //     deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner));
+        ODefaultOperatorRewards(
+            deployRewards.deployOperatorRewardsContract(
+                tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
+            )
+        );
 
         vm.prank(owner);
 
@@ -1709,7 +1712,6 @@ contract MiddlewareTest is Test {
         middleware.upgradeToAndCall(address(middlewareImplV2), emptyBytes);
 
         assertEq(middleware.VERSION(), 2);
-        // assertEq(middleware.i_operatorRewards(), address(newOperatorRewards)); // TODO: We need to use a storage for middleware first
 
         address gatewayAddress = makeAddr("gatewayAddress");
 
@@ -1730,7 +1732,7 @@ contract MiddlewareTest is Test {
 
         middleware.setGateway(newGateway);
         assertEq(middleware.VERSION(), 1);
-        // assertEq(address(middleware.s_gateway()), newGateway); // TODO: We need to use a storage for middleware first
+        assertEq(address(middleware.getGateway()), newGateway);
 
         MiddlewareV3 middlewareImplV3 = new MiddlewareV3(address(operatorRewards));
         bytes memory emptyBytes = hex"";
@@ -1738,7 +1740,6 @@ contract MiddlewareTest is Test {
         middleware.upgradeToAndCall(address(middlewareImplV3), emptyBytes);
 
         assertEq(middleware.VERSION(), 3);
-        // assertEq(address(MiddlewareV3(address(middleware)).s_gateway()), newGateway); TODO: We need to use a storage for middleware first
 
         vm.expectRevert(); //Doesn't exists
         middleware.setGateway(address(0));
