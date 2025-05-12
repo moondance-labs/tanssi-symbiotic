@@ -100,18 +100,18 @@ jobs:
 
       - name: Run Forge tests
         run: |
-          forge test --nmp test/fork/* -vvv
+          forge test --nmp "test/fork/*" -vvv
         id: test
 
       - name: Run Forge fork tests
         run: |
-          forge test --fork-url $SEPOLIA_RPC_URL --mp test/fork/* -vvvv
+          forge test --fork-url $SEPOLIA_RPC_URL --mp "test/fork/*" -vvv
         id: test-fork
 
       - name: Run Forge coverage
         run: |
           mkdir -p coverage
-          forge coverage --report lcov -r coverage/current.lcov --nmp test/fork/*
+          forge coverage --report lcov -r coverage/current.lcov --nmp "test/fork/*"
         id: coverage
       - name: Retrieve master coverage
         run: |
