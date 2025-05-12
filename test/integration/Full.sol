@@ -585,7 +585,7 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
     }
 
-    function _withdrawFromVault(IVault vault, address withdrawer, uint256 amount, Token collateral) private {
+    function _withdrawFromVault(IVault vault, address withdrawer, uint256 amount) private {
         vm.startPrank(withdrawer);
         vault.withdraw(withdrawer, amount);
         vm.stopPrank();
@@ -765,7 +765,7 @@ contract MiddlewareTest is Test {
                 operator: address(0),
                 network: address(0)
             });
-            (address vault, address delegator, address slasher) = deployVault.createSlashableVault(params);
+            (address vault, address delegator,) = deployVault.createSlashableVault(params);
 
             middleware.registerSharedVault(address(vault), stakerRewardsParams);
             INetworkRestakeDelegator(delegator).setOperatorNetworkShares(tanssi.subnetwork(0), operatorA, 1);
@@ -904,7 +904,7 @@ contract MiddlewareTest is Test {
 
         uint256 operator1_withdraw_stake = 50_000 * 10 ** TOKEN_DECIMALS_USDC;
 
-        _withdrawFromVault(vaultsData.v1.vault, operator1, operator1_withdraw_stake, usdc);
+        _withdrawFromVault(vaultsData.v1.vault, operator1, operator1_withdraw_stake);
 
         // Power should not change until the network epoch ends
         validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
@@ -1448,11 +1448,10 @@ contract MiddlewareTest is Test {
         uint256 amountToDistribute = 100 ether;
         vm.warp(block.timestamp + 5 * NETWORK_EPOCH_DURATION);
 
-        uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
+        _prepareRewardsDistribution(eraIndex, amountToDistribute);
 
         uint256 initGas = gasleft();
-        uint256 expectedRewardsForStakers =
-            _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR8_KEY, operator8, 8, true);
+        _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR8_KEY, operator8, 8, true);
         uint256 endGas = gasleft();
 
         // 30M is the tx gas limit in most of the networks. Gas usage 2025-04-24: 22895689

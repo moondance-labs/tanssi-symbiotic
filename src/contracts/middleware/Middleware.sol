@@ -110,7 +110,7 @@ contract Middleware is
      */
     function initialize(
         InitParams memory params
-    ) public initializer {
+    ) external initializer {
         _validateInitParams(params);
 
         {

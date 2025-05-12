@@ -17,7 +17,6 @@ pragma solidity ^0.8.0;
 interface IODefaultOperatorRewards {
     error ODefaultOperatorRewards__InsufficientTotalClaimable();
     error ODefaultOperatorRewards__InsufficientTransfer();
-    error ODefaultOperatorRewards__NotNetworkMiddleware();
     error ODefaultOperatorRewards__RootNotSet();
     error ODefaultOperatorRewards__InvalidProof();
     error ODefaultOperatorRewards__InvalidValues();
@@ -203,9 +202,9 @@ interface IODefaultOperatorRewards {
 
     /**
      * @notice Set the operator share of the rewards.
-     * @param operatorShare operator share of the rewards
+     * @param operatorShare_ operator share of the rewards
      */
     function setOperatorShare(
-        uint48 operatorShare
+        uint48 operatorShare_
     ) external;
 }
