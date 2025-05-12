@@ -492,9 +492,9 @@ contract MiddlewareTest is Test {
 
         vm.prank(gateway);
         ecosystemEntities.middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
+        vm.stopPrank();
 
         vm.warp(block.timestamp + VETO_DURATION);
-        vm.prank(address(ecosystemEntities.middleware));
         ecosystemEntities.vetoSlasher.executeSlash(0, hex"");
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = ecosystemEntities.middleware.getCurrentEpoch();
@@ -544,9 +544,9 @@ contract MiddlewareTest is Test {
 
         vm.prank(gateway);
         ecosystemEntities.middleware.slash(currentEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
+        vm.stopPrank();
 
         vm.warp(block.timestamp + VETO_DURATION);
-        vm.prank(address(ecosystemEntities.middleware));
         ecosystemEntities.vetoSlasher.executeSlash(0, hex"");
 
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);

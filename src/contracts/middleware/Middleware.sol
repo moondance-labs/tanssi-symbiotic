@@ -165,7 +165,6 @@ contract Middleware is
         if (oracle == address(0)) {
             revert Middleware__NotSupportedCollateral(collateral);
         }
-        // TODO: Check updateAt is recent enough
         (, int256 price,,,) = AggregatorV3Interface(oracle).latestRoundData();
         uint8 priceDecimals = AggregatorV3Interface(oracle).decimals();
         power = stake.mulDiv(uint256(price), 10 ** priceDecimals);
