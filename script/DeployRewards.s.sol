@@ -155,12 +155,13 @@ contract DeployRewards is Script {
         address proxyAddress,
         address network,
         address networkMiddlewareService,
-        address middleware
+        address middleware,
+        address owner
     ) external {
         if (!isTest) {
             vm.startBroadcast(ownerPrivateKey);
         } else {
-            vm.startPrank(network);
+            vm.startPrank(owner);
         }
 
         ODefaultOperatorRewards proxy = ODefaultOperatorRewards(proxyAddress);

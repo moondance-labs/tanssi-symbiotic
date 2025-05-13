@@ -78,7 +78,7 @@ contract ODefaultOperatorRewards is
         0x57cf781f364664df22ab0472e35114435fb4a6881ab5a1b47ed6d1a7d4605400;
 
     // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultOperatorRewards.v2")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 public constant OPERATOR_REWARDS_STORAGE_LOCATION =
+    bytes32 constant OPERATOR_REWARDS_STORAGE_LOCATION =
         0x9e763766bd4dc4b79493b61f657e7d458cf0270bbd21be73fbf773df86fbd400;
 
     bytes32 public constant STAKER_REWARDS_SETTER_ROLE = keccak256("STAKER_REWARDS_SETTER_ROLE");
@@ -144,16 +144,17 @@ contract ODefaultOperatorRewards is
 
         for (uint48 epoch = startEpoch; epoch <= endEpoch;) {
             uint48[] memory eraIndexes = $old.eraIndexesPerEpoch[epoch];
+            delete $old.eraIndexesPerEpoch[epoch];
             uint48 epochTs = EpochCapture(middleware).getEpochStart(epoch);
             address[] memory operators = reader.activeOperatorsAt(epochTs);
 
-            // TODO: Current implementation is too inefficient:
-            _migrateVaultsToStakerRewards($, $old, operators, epochTs, reader);
+            _migrateVaultsToStakerRewards($, $old, epochTs, reader);
 
             if ($.eraIndexesPerEpoch[epoch].length == 0) {
-                for (uint48 eraIndex; eraIndex < eraIndexes.length;) {
-                    uint48 eraIndex_ = eraIndexes[eraIndex];
-                    OldEraRoot memory oldEraRoot_ = $old.eraRoot[eraIndex_];
+                for (uint48 i; i < eraIndexes.length;) {
+                    uint48 eraIndex = eraIndexes[i];
+                    OldEraRoot memory oldEraRoot_ = $old.eraRoot[eraIndex];
+                    delete $old.eraRoot[eraIndex];
 
                     EraRoot memory newEraRoot = EraRoot({
                         epoch: epoch,
@@ -167,7 +168,7 @@ contract ODefaultOperatorRewards is
                     _migrateClaimed($, $old, eraIndex, operators, reader);
 
                     unchecked {
-                        ++eraIndex;
+                        ++i;
                     }
                 }
             } // Else it already migrated, shall it revert instead?
@@ -188,11 +189,10 @@ contract ODefaultOperatorRewards is
             address operator = operators[i];
             bytes memory operatorKey = reader.operatorKey(operator);
             uint256 claimedAmount = $old.claimed[eraIndex][operator];
+            delete $old.claimed[eraIndex][operator];
             if (claimedAmount != 0) {
                 if ($.claimed[eraIndex][operatorKey] == 0) {
                     $.claimed[eraIndex][operatorKey] = claimedAmount;
-                } else {
-                    // TODO: It already migrated, shall it revert instead?
                 }
             }
 
@@ -205,23 +205,18 @@ contract ODefaultOperatorRewards is
     function _migrateVaultsToStakerRewards(
         OperatorRewardsStorage storage $,
         OldOperatorRewardsStorage storage $old,
-        address[] memory operators,
         uint48 epochTs,
         IOBaseMiddlewareReader reader
     ) private {
-        for (uint48 i; i < operators.length;) {
-            address operator = operators[i];
-            (, address[] memory operatorVaults) = reader.getOperatorVaults(operator, epochTs);
-            for (uint48 j; j < operatorVaults.length;) {
-                address vault = operatorVaults[j];
-                if ($.vaultToStakerRewardsContract[vault] == address(0)) {
-                    $.vaultToStakerRewardsContract[vault] = $old.vaultToStakerRewardsContract[vault];
-                }
-
-                unchecked {
-                    ++j;
-                }
+        address[] memory vaults = reader.activeSharedVaultsAt(epochTs);
+        uint256 vaultsLength = vaults.length;
+        for (uint256 i; i < vaultsLength;) {
+            address vault = vaults[i];
+            if ($old.vaultToStakerRewardsContract[vault] != address(0)) {
+                $.vaultToStakerRewardsContract[vault] = $old.vaultToStakerRewardsContract[vault];
+                delete $old.vaultToStakerRewardsContract[vault];
             }
+
             unchecked {
                 ++i;
             }
@@ -415,14 +410,13 @@ contract ODefaultOperatorRewards is
     ) private {
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         for (uint256 i; i < totalVaults;) {
-            if (amountPerVault[i] == 0) {
-                continue;
+            if (amountPerVault[i] != 0) {
+                address stakerRewardsForVault = $.vaultToStakerRewardsContract[operatorVaults[i]];
+                IERC20(tokenAddress).approve(stakerRewardsForVault, amountPerVault[i]);
+                IODefaultStakerRewards(stakerRewardsForVault).distributeRewards(
+                    epoch, eraIndex, amountPerVault[i], tokenAddress, data
+                );
             }
-            address stakerRewardsForVault = $.vaultToStakerRewardsContract[operatorVaults[i]];
-            IERC20(tokenAddress).approve(stakerRewardsForVault, amountPerVault[i]);
-            IODefaultStakerRewards(stakerRewardsForVault).distributeRewards(
-                epoch, eraIndex, amountPerVault[i], tokenAddress, data
-            );
 
             unchecked {
                 ++i;

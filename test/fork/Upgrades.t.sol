@@ -145,7 +145,7 @@ contract MiddlewareTest is Test {
         deployRewards.setIsTest(false);
         uint256 currentGas = gasleft();
         deployRewards.upgradeAndMigrateOperatorRewards(
-            address(operatorRewards), tanssi, networkMiddlewareService, address(middleware)
+            address(operatorRewards), tanssi, networkMiddlewareService, address(middleware), admin
         );
         uint256 newGas = gasleft();
         console2.log("Gas used: ", currentGas - newGas);
@@ -160,10 +160,10 @@ contract MiddlewareTest is Test {
         assertEq(operatorRewards.eraIndexesPerEpoch(testEpoch, 3), eraIndexesPerEpoch[3]);
 
         // Check era root
-        _compareOldAndNewEraRoots(576, eraRoots[0], operatorRewards.eraRoot(576));
-        _compareOldAndNewEraRoots(577, eraRoots[1], operatorRewards.eraRoot(577));
-        _compareOldAndNewEraRoots(578, eraRoots[2], operatorRewards.eraRoot(578));
-        _compareOldAndNewEraRoots(579, eraRoots[3], operatorRewards.eraRoot(579));
+        _compareOldAndNewEraRoots(eraRoots[0], operatorRewards.eraRoot(576));
+        _compareOldAndNewEraRoots(eraRoots[1], operatorRewards.eraRoot(577));
+        _compareOldAndNewEraRoots(eraRoots[2], operatorRewards.eraRoot(578));
+        _compareOldAndNewEraRoots(eraRoots[3], operatorRewards.eraRoot(579));
 
         // Check claimed
         bytes memory testOperatorKey =
@@ -173,7 +173,6 @@ contract MiddlewareTest is Test {
         // Check vault to staker rewards contract
         assertEq(operatorRewards.vaultToStakerRewardsContract(testVault), stakerRewardsContract);
 
-        // TODO: Check old data is deleted
         // TODO: Distribute new rewards
         // TODO: Claim rewards
     }
@@ -191,14 +190,13 @@ contract MiddlewareTest is Test {
     }
 
     function _compareOldAndNewEraRoots(
-        uint48 eraIndex,
         IODefaultOperatorRewardsOld.EraRoot memory oldEraRoot,
         IODefaultOperatorRewards.EraRoot memory newEraRoot
     ) private pure {
-        assertEq(oldEraRoot.epoch, newEraRoot.epoch);
-        assertEq(oldEraRoot.amount, newEraRoot.amount);
-        assertEq(oldEraRoot.tokensPerPoint, oldEraRoot.amount * oldEraRoot.tokensPerPoint);
-        assertEq(oldEraRoot.root, newEraRoot.root);
-        assertEq(oldEraRoot.tokenAddress, newEraRoot.tokenAddress);
+        assertEq(newEraRoot.epoch, oldEraRoot.epoch);
+        assertEq(newEraRoot.amount, oldEraRoot.amount);
+        assertEq(newEraRoot.totalPoints, oldEraRoot.amount * oldEraRoot.tokensPerPoint);
+        assertEq(newEraRoot.root, oldEraRoot.root);
+        assertEq(newEraRoot.tokenAddress, oldEraRoot.tokenAddress);
     }
 }

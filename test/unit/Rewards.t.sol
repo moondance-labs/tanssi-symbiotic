@@ -51,9 +51,11 @@ import {ScaleCodec} from "@tanssi-bridge-relayer/snowbridge/contracts/src/utils/
 //**************************************************************************************************
 
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
+import {ODefaultOperatorRewardsOld} from "src/contracts/rewarder/ODefaultOperatorRewardsOld.sol";
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
+import {IODefaultOperatorRewardsOld} from "src/interfaces/rewarder/IODefaultOperatorRewardsOld.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
@@ -92,10 +94,15 @@ contract RewardsTest is Test {
     bytes32 public constant REWARDS_ROOT = 0x4b0ddd8b9b8ec6aec84bcd2003c973254c41d976f6f29a163054eec4e7947810;
     bytes32 public constant STAKER_REWARDS_STORAGE_LOCATION =
         0xef473712465551821e7a51c85c06a1bf76bdf2a3508e28184170ac7eb0322c00;
-    bytes32 private constant PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION =
+    bytes32 public constant PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION =
         0xe07cde22a6017f26eee680b6867ce6727151fb6097c75742cbe379265c377400;
     bytes32 public constant MIDDLEWARE_STORAGE_LOCATION =
         0xca64b196a0d05040904d062f739ed1d1e1d3cc5de78f7001fb9039595fce9100;
+
+    bytes32 public constant OLD_OPERATOR_REWARDS_STORAGE_LOCATION =
+        0x57cf781f364664df22ab0472e35114435fb4a6881ab5a1b47ed6d1a7d4605400;
+    bytes32 public constant OPERATOR_REWARDS_STORAGE_LOCATION =
+        0x9e763766bd4dc4b79493b61f657e7d458cf0270bbd21be73fbf773df86fbd400;
 
     // Operator keys with which the operator is registered
     bytes32 public ALICE_KEY;
@@ -305,6 +312,7 @@ contract RewardsTest is Test {
         );
     }
 
+    // TODO: Remove
     function _setPreviousRewardsMapping(uint48 epoch, bool multipleRewards, address newToken, uint256 amount) private {
         // For StakerRewardsStorage.rewards[epoch][tokenAddress] = [10 ether]
 
@@ -1593,5 +1601,144 @@ contract RewardsTest is Test {
         assertEq(stakerRewards.i_vault(), address(vault));
         assertEq(stakerRewards.i_network(), address(tanssi));
         assertEq(stakerRewards.i_networkMiddlewareService(), address(networkMiddlewareService));
+    }
+
+    function testUpgradeAndMigrateOperatorRewards() public {
+        vm.warp(NETWORK_EPOCH_DURATION * 2 + 1);
+
+        (
+            uint48 testEpoch,
+            uint48[] memory eraIndexesPerEpoch,
+            IODefaultOperatorRewardsOld.EraRoot[] memory eraRoots,
+            uint256[] memory claimedPerEpoch,
+            address initialOperatorRewards
+        ) = _prepareMigrationTest();
+
+        deployRewards.setIsTest(true);
+        deployRewards.upgradeAndMigrateOperatorRewards(
+            initialOperatorRewards, address(tanssi), address(networkMiddlewareService), address(middleware), owner
+        );
+        ODefaultOperatorRewards migratedOperatorRewards = ODefaultOperatorRewards(initialOperatorRewards);
+
+        _checkStateAfterMigration(migratedOperatorRewards, testEpoch, eraIndexesPerEpoch, eraRoots, claimedPerEpoch);
+    }
+
+    function testUpgradeAndMigrateOperatorRewardsIsIdempotent() public {
+        vm.warp(NETWORK_EPOCH_DURATION * 2 + 1);
+
+        (
+            uint48 testEpoch,
+            uint48[] memory eraIndexesPerEpoch,
+            IODefaultOperatorRewardsOld.EraRoot[] memory eraRoots,
+            uint256[] memory claimedPerEpoch,
+            address initialOperatorRewards
+        ) = _prepareMigrationTest();
+
+        deployRewards.setIsTest(true);
+        deployRewards.upgradeAndMigrateOperatorRewards(
+            initialOperatorRewards, address(tanssi), address(networkMiddlewareService), address(middleware), owner
+        );
+        ODefaultOperatorRewards migratedOperatorRewards = ODefaultOperatorRewards(initialOperatorRewards);
+
+        _checkStateAfterMigration(migratedOperatorRewards, testEpoch, eraIndexesPerEpoch, eraRoots, claimedPerEpoch);
+
+        vm.startPrank(owner);
+        migratedOperatorRewards.migrate(1, 1);
+        vm.stopPrank();
+
+        _checkStateAfterMigration(migratedOperatorRewards, testEpoch, eraIndexesPerEpoch, eraRoots, claimedPerEpoch);
+    }
+
+    function _prepareMigrationTest()
+        private
+        returns (
+            uint48 testEpoch,
+            uint48[] memory eraIndexesPerEpoch,
+            IODefaultOperatorRewardsOld.EraRoot[] memory eraRoots,
+            uint256[] memory claimedPerEpoch,
+            address initialOperatorRewards
+        )
+    {
+        testEpoch = 1;
+        eraIndexesPerEpoch = new uint48[](4);
+        eraRoots = new IODefaultOperatorRewardsOld.EraRoot[](4);
+        claimedPerEpoch = new uint256[](4);
+
+        eraIndexesPerEpoch[0] = 1;
+        eraIndexesPerEpoch[1] = 2;
+        eraIndexesPerEpoch[2] = 3;
+        eraIndexesPerEpoch[3] = 4;
+
+        eraRoots[0] = IODefaultOperatorRewardsOld.EraRoot(testEpoch, 100 ether, 1, bytes32(uint256(1)), address(token));
+        eraRoots[1] = IODefaultOperatorRewardsOld.EraRoot(testEpoch, 90 ether, 1, bytes32(uint256(2)), address(token));
+        eraRoots[2] = IODefaultOperatorRewardsOld.EraRoot(testEpoch, 100 ether, 1, bytes32(uint256(3)), address(token));
+        eraRoots[3] = IODefaultOperatorRewardsOld.EraRoot(testEpoch, 120 ether, 1, bytes32(uint256(4)), address(token));
+
+        claimedPerEpoch[0] = 20 ether;
+        claimedPerEpoch[1] = 0;
+        claimedPerEpoch[2] = 0;
+        claimedPerEpoch[3] = 24 ether;
+
+        vm.startPrank(owner);
+        ODefaultOperatorRewardsOld operatorRewardsImpl =
+            new ODefaultOperatorRewardsOld(tanssi, address(networkMiddlewareService));
+        initialOperatorRewards = address(new ERC1967Proxy(address(operatorRewardsImpl), ""));
+        ODefaultOperatorRewardsOld(initialOperatorRewards).initialize(OPERATOR_SHARE, owner);
+
+        address operator = Middleware(middleware).operatorByKey(abi.encode(ALICE_KEY));
+        ODefaultOperatorRewardsOld(initialOperatorRewards).setPreviousOperatorRewardsEpochData(
+            eraIndexesPerEpoch, eraRoots, claimedPerEpoch, operator, address(vault), address(stakerRewards)
+        );
+
+        vm.stopPrank();
+
+        address[] memory activeVaultsMockAnswer = new address[](1);
+        activeVaultsMockAnswer[0] = address(vault);
+        vm.mockCall(
+            address(middleware),
+            abi.encodeWithSelector(IOBaseMiddlewareReader.activeSharedVaultsAt.selector),
+            abi.encode(activeVaultsMockAnswer)
+        );
+    }
+
+    function _checkStateAfterMigration(
+        ODefaultOperatorRewards migratedOperatorRewards,
+        uint48 testEpoch,
+        uint48[] memory eraIndexesPerEpoch,
+        IODefaultOperatorRewardsOld.EraRoot[] memory eraRoots,
+        uint256[] memory claimedPerEpoch
+    ) private view {
+        assertEq(migratedOperatorRewards.operatorShare(), OPERATOR_SHARE);
+        assertEq(migratedOperatorRewards.i_networkMiddlewareService(), address(networkMiddlewareService));
+
+        // Check eras per epoch
+        assertEq(migratedOperatorRewards.eraIndexesPerEpoch(testEpoch, 0), eraIndexesPerEpoch[0]);
+        assertEq(migratedOperatorRewards.eraIndexesPerEpoch(testEpoch, 1), eraIndexesPerEpoch[1]);
+        assertEq(migratedOperatorRewards.eraIndexesPerEpoch(testEpoch, 2), eraIndexesPerEpoch[2]);
+        assertEq(migratedOperatorRewards.eraIndexesPerEpoch(testEpoch, 3), eraIndexesPerEpoch[3]);
+
+        // Check era root
+        _compareOldAndNewEraRoots(eraRoots[0], migratedOperatorRewards.eraRoot(1));
+        _compareOldAndNewEraRoots(eraRoots[1], migratedOperatorRewards.eraRoot(2));
+        _compareOldAndNewEraRoots(eraRoots[2], migratedOperatorRewards.eraRoot(3));
+        _compareOldAndNewEraRoots(eraRoots[3], migratedOperatorRewards.eraRoot(4));
+
+        assertEq(migratedOperatorRewards.claimed(1, abi.encode(ALICE_KEY)), claimedPerEpoch[0]);
+        assertEq(migratedOperatorRewards.claimed(2, abi.encode(ALICE_KEY)), claimedPerEpoch[1]);
+        assertEq(migratedOperatorRewards.claimed(3, abi.encode(ALICE_KEY)), claimedPerEpoch[2]);
+        assertEq(migratedOperatorRewards.claimed(4, abi.encode(ALICE_KEY)), claimedPerEpoch[3]);
+
+        assertEq(migratedOperatorRewards.vaultToStakerRewardsContract(address(vault)), address(stakerRewards));
+    }
+
+    function _compareOldAndNewEraRoots(
+        IODefaultOperatorRewardsOld.EraRoot memory oldEraRoot,
+        IODefaultOperatorRewards.EraRoot memory newEraRoot
+    ) private pure {
+        assertEq(newEraRoot.epoch, oldEraRoot.epoch);
+        assertEq(newEraRoot.amount, oldEraRoot.amount);
+        assertEq(newEraRoot.totalPoints, oldEraRoot.amount * oldEraRoot.tokensPerPoint);
+        assertEq(newEraRoot.root, oldEraRoot.root);
+        assertEq(newEraRoot.tokenAddress, oldEraRoot.tokenAddress);
     }
 }

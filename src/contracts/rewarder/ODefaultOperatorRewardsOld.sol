@@ -344,6 +344,25 @@ contract ODefaultOperatorRewardsOld is
         emit SetOperatorShare(operatorShare_);
     }
 
+    // This method helps populate the tests. Once migrated this entire contract will be removed
+    function setPreviousOperatorRewardsEpochData(
+        uint48[] memory mockEraIndexesPerEpoch,
+        IODefaultOperatorRewardsOld.EraRoot[] memory mockEraRoots,
+        uint256[] memory mockClaimedPerEpoch,
+        address operator,
+        address vault,
+        address stakerRewards
+    ) external {
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        for (uint256 i; i < mockEraIndexesPerEpoch.length; ++i) {
+            uint48 eraIndex = mockEraIndexesPerEpoch[i];
+            $.eraRoot[eraIndex] = mockEraRoots[i];
+            $.eraIndexesPerEpoch[mockEraRoots[i].epoch].push(eraIndex);
+            $.claimed[eraIndex][operator] = mockClaimedPerEpoch[i];
+        }
+        $.vaultToStakerRewardsContract[vault] = stakerRewards;
+    }
+
     /**
      * @inheritdoc IODefaultOperatorRewardsOld
      */
