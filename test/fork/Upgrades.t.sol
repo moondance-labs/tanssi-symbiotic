@@ -33,6 +33,8 @@ contract MiddlewareTest is Test {
     DeployRewards deployRewards;
     address tanssi;
     address admin;
+    address rewardsToken;
+    address gateway;
 
     function setUp() public {
         string memory root = vm.projectRoot();
@@ -47,6 +49,8 @@ contract MiddlewareTest is Test {
             abi.decode(vm.parseJson(json, string.concat(jsonPath, ".operatorRewards")), (address));
         address stakerRewardsAddress =
             abi.decode(vm.parseJson(json, string.concat(jsonPath, ".stakerRewards")), (address));
+        rewardsToken = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".rewardsToken")), (address));
+        gateway = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".gateway")), (address));
 
         middleware = Middleware(middlewareAddress);
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
@@ -174,8 +178,40 @@ contract MiddlewareTest is Test {
         // Check vault to staker rewards contract
         assertEq(operatorRewards.vaultToStakerRewardsContract(testVault), stakerRewardsContract);
 
-        // TODO: Distribute new rewards
-        // TODO: Claim rewards
+        // Check regular operation after upgrade
+        {
+            // Distribute new rewards
+            uint48 currentEpoch = middleware.getCurrentEpoch();
+            uint48 lastEraIndex = operatorRewards.eraIndexesPerEpoch(currentEpoch - 1, 3);
+            uint256 totalPoints = 1000;
+
+            // This root + proof was generated for a single operator. Since it's a leafless merkle tree, the proof empty
+            bytes32 rewardsRoot = 0x774abe8388b8b4aa79a6345dca92a0c066e54243f86c0a2b14db204dc8791474;
+            bytes32[] memory proof = new bytes32[](0);
+
+            uint256 amountToDistribute = 100 ether;
+            deal(rewardsToken, address(middleware), amountToDistribute);
+
+            vm.startPrank(gateway);
+            middleware.distributeRewards(
+                currentEpoch, lastEraIndex + 1, totalPoints, amountToDistribute, rewardsRoot, rewardsToken
+            );
+            vm.stopPrank();
+
+            // Claim rewards
+            bytes memory additionalData = abi.encode(100, new bytes(0), new bytes(0));
+
+            IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards
+                .ClaimRewardsInput({
+                operatorKey: 0xe86f7e1076c1cbcf4fbbb79d9aeafaa3b8450ab3a12bfa4b1ae52841ab396c10,
+                eraIndex: lastEraIndex + 1,
+                totalPointsClaimable: 100,
+                proof: proof,
+                data: additionalData
+            });
+
+            operatorRewards.claimRewards(claimRewardsData);
+        }
     }
 
     function testUpgradeStakerRewardsWithBroadcast() public {
