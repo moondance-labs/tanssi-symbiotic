@@ -94,8 +94,6 @@ contract RewardsTest is Test {
     bytes32 public constant REWARDS_ROOT = 0x4b0ddd8b9b8ec6aec84bcd2003c973254c41d976f6f29a163054eec4e7947810;
     bytes32 public constant STAKER_REWARDS_STORAGE_LOCATION =
         0xef473712465551821e7a51c85c06a1bf76bdf2a3508e28184170ac7eb0322c00;
-    bytes32 public constant PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION =
-        0xe07cde22a6017f26eee680b6867ce6727151fb6097c75742cbe379265c377400;
     bytes32 public constant MIDDLEWARE_STORAGE_LOCATION =
         0xca64b196a0d05040904d062f739ed1d1e1d3cc5de78f7001fb9039595fce9100;
 
@@ -312,45 +310,6 @@ contract RewardsTest is Test {
         );
     }
 
-    // TODO: Remove
-    function _setPreviousRewardsMapping(uint48 epoch, bool multipleRewards, address newToken, uint256 amount) private {
-        // For StakerRewardsStorage.rewards[epoch][tokenAddress] = [10 ether]
-
-        // Get base slot for first mapping
-        bytes32 slot = bytes32(uint256(PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION) + uint256(1)); // 1 is mapping slot number for the variable rewards
-        slot = keccak256(abi.encode(epoch, slot));
-        // Get slot for second mapping with tokenAddress
-        bytes32 tokenSlot = keccak256(abi.encode(address(token), slot));
-
-        // Store array length
-        vm.store(address(stakerRewards), tokenSlot, bytes32(uint256(1)));
-
-        // Store array value
-        bytes32 arrayLoc = keccak256(abi.encode(tokenSlot));
-        vm.store(address(stakerRewards), arrayLoc, bytes32(uint256(amount)));
-
-        if (multipleRewards && newToken != address(0)) {
-            // Get slot for second mapping with tokenAddress
-            tokenSlot = keccak256(abi.encode(newToken, slot));
-
-            // Store array length
-            vm.store(address(stakerRewards), tokenSlot, bytes32(uint256(1)));
-
-            // Store array value
-            arrayLoc = keccak256(abi.encode(tokenSlot));
-            vm.store(address(stakerRewards), arrayLoc, bytes32(uint256(amount)));
-        } else if (multipleRewards) {
-            // Store array length
-            vm.store(address(stakerRewards), tokenSlot, bytes32(uint256(2)));
-
-            arrayLoc = keccak256(abi.encode(tokenSlot));
-            vm.store(address(stakerRewards), arrayLoc, bytes32(uint256(amount)));
-
-            // Store second reward at index 1 (arrayLoc + 1)
-            vm.store(address(stakerRewards), bytes32(uint256(arrayLoc) + 1), bytes32(uint256(amount)));
-        }
-    }
-
     function _setVaultToCollateral(address vault_, address collateral_) internal {
         bytes32 slot = bytes32(uint256(MIDDLEWARE_STORAGE_LOCATION) + uint256(5)); // 5 is mapping slot number for the vault to collateral
         // Get slot for mapping with vault_
@@ -390,14 +349,6 @@ contract RewardsTest is Test {
         bytes32 slot = bytes32(uint256(location) + uint256(4)); // 4 is mapping slot number for the variable activeSharesCache
         slot = keccak256(abi.encode(epoch, slot));
         vm.store(address(_stakerRewards), slot, bytes32(amount));
-    }
-
-    function _setLastUnclaimedReward(uint48 epoch, address account, address _stakerRewards, uint256 index) private {
-        bytes32 slot = bytes32(uint256(PREVIOUS_STAKER_REWARDS_STORAGE_LOCATION) + uint256(2)); // 2 is mapping slot number for the variable lastUnclaimedReward
-        slot = keccak256(abi.encode(account, slot));
-        slot = keccak256(abi.encode(epoch, slot));
-        slot = keccak256(abi.encode(address(token), slot));
-        vm.store(address(_stakerRewards), slot, bytes32(index));
     }
 
     function _setClaimableAdminFee(uint48 epoch, address _token, bytes32 location, uint256 amount) private {
