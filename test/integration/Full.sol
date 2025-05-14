@@ -1417,6 +1417,43 @@ contract MiddlewareTest is Test {
         operatorRewards.claimRewards(claimRewardsData);
     }
 
+    function testOperatorCanClaimRewardsEvenAfterUnregistering() public {
+        uint48 eraIndex = 1;
+        uint256 amountToDistribute = 100 ether;
+        uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
+
+        uint256 expectedRewardsForStakers =
+            _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR2_KEY, operator2, 2, true);
+
+        // Owner pauses and unregisters operator
+        vm.startPrank(owner);
+        middleware.pauseOperator(operator2);
+        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        middleware.unregisterOperator(operator2);
+        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+
+        // Operator opts out
+        vm.startPrank(operator2);
+        // operatorRegistry.unregisterOperator(); // No such a thing. Only registering is possible.
+        operatorNetworkOptInService.optOut(tanssi);
+        operatorVaultOptInService.optOut(address(vaultsData.v2.vault));
+        vm.stopPrank();
+
+        // Try to claim, since substrate key still points to the original EVM address, claim is valid.
+        (,, bytes32[] memory proof, uint32 points, uint32 totalPoints) = _loadRewardsRootAndProof(eraIndex, 2);
+        bytes memory additionalData = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
+        IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
+            operatorKey: OPERATOR2_KEY,
+            eraIndex: eraIndex,
+            totalPointsClaimable: points,
+            proof: proof,
+            data: additionalData
+        });
+
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__AlreadyClaimed.selector);
+        operatorRewards.claimRewards(claimRewardsData);
+    }
+
     // ************************************************************************************************
     // *                                       Slashing
     // ************************************************************************************************
