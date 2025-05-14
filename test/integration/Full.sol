@@ -1386,6 +1386,7 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(owner);
         vm.expectRevert(KeyManagerAddress.DuplicateKey.selector);
+        // registerOperator tries to call update key just like updateOperatorKey, but it already exists so it reverts
         middleware.registerOperator(operator2New, abi.encode(OPERATOR2_KEY), address(0));
         vm.stopPrank();
 
