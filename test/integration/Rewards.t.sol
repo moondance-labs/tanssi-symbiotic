@@ -694,7 +694,7 @@ contract RewardsTest is Test {
             console2.log("Total gas used: ", gasClaiming);
         }
 
-        uint256 amountClaimed_ = operatorRewards.claimed(eraIndex, abi.encode(OPERATOR3_KEY));
+        uint256 amountClaimed_ = operatorRewards.claimed(eraIndex, operator3);
         assertEq(amountClaimed_, EXPECTED_CLAIMABLE);
 
         _checkStakerRewardsBalanceForVault(rewardsToken, address(vault), expectedRewardsPerVault[0]);

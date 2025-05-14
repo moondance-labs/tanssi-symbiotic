@@ -32,7 +32,8 @@ contract MiddlewareTest is Test {
     DeployTanssiEcosystem deployTanssiEcosystem;
     DeployRewards deployRewards;
     address tanssi;
-    address admin;
+    address admin; // Used to run tests
+    address currentAdmin; // Current admin in the 3 contracts, we use its account to set the admin role to test admin which will run using broadcast
     address rewardsToken;
     address gateway;
 
@@ -51,6 +52,7 @@ contract MiddlewareTest is Test {
             abi.decode(vm.parseJson(json, string.concat(jsonPath, ".stakerRewards")), (address));
         rewardsToken = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".rewardsToken")), (address));
         gateway = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".gateway")), (address));
+        currentAdmin = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".admin")), (address));
 
         middleware = Middleware(middlewareAddress);
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
@@ -62,8 +64,7 @@ contract MiddlewareTest is Test {
         tanssi = IOBaseMiddlewareReader(address(middleware)).NETWORK();
         admin = deployTanssiEcosystem.tanssi(); // Loaded from the env OWNER_PRIVATE_KEY
 
-        // Actual admin in the 3 contracts, we use its account to set the admin role to our admin which will run using broadcast
-        vm.startPrank(0x8f7b28C2A36E805F4024c1AE1e96a4B75E50A512);
+        vm.startPrank(currentAdmin);
         operatorRewards.grantRole(operatorRewards.DEFAULT_ADMIN_ROLE(), admin);
         stakerRewards.grantRole(stakerRewards.DEFAULT_ADMIN_ROLE(), admin);
         middleware.grantRole(middleware.DEFAULT_ADMIN_ROLE(), admin);
@@ -173,7 +174,7 @@ contract MiddlewareTest is Test {
         // Check claimed
         bytes memory testOperatorKey =
             abi.encodePacked(bytes32(0xe86f7e1076c1cbcf4fbbb79d9aeafaa3b8450ab3a12bfa4b1ae52841ab396c10));
-        assertEq(operatorRewards.claimed(eraIndexesPerEpoch[3], testOperatorKey), claimed1);
+        assertEq(operatorRewards.claimed(eraIndexesPerEpoch[3], testOperator), claimed1);
 
         // Check vault to staker rewards contract
         assertEq(operatorRewards.vaultToStakerRewardsContract(testVault), stakerRewardsContract);

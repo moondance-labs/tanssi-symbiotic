@@ -56,30 +56,17 @@ contract ODefaultOperatorRewards is
     using Subnetwork for bytes32;
 
     /// @custom:storage-location erc7201:tanssi.rewards.ODefaultOperatorRewards.v1
-    struct OldOperatorRewardsStorage {
+    struct OperatorRewardsStorage {
         uint48 operatorShare;
-        mapping(uint48 eraIndex => OldEraRoot eraRoot) eraRoot;
+        mapping(uint48 eraIndex => EraRoot eraRoot) eraRoot;
         mapping(uint48 epoch => uint48[] eraIndexes) eraIndexesPerEpoch;
         mapping(uint48 eraIndex => mapping(address account => uint256 amount)) claimed;
         mapping(address vault => address stakerRewardsAddress) vaultToStakerRewardsContract;
     }
 
-    /// @custom:storage-location erc7201:tanssi.rewards.ODefaultOperatorRewards.v2
-    struct OperatorRewardsStorage {
-        uint48 operatorShare;
-        mapping(uint48 eraIndex => EraRoot eraRoot) eraRoot;
-        mapping(uint48 epoch => uint48[] eraIndexes) eraIndexesPerEpoch;
-        mapping(uint48 eraIndex => mapping(bytes account => uint256 amount)) claimed; // Todo shall we use bytes or bytes32 for account?
-        mapping(address vault => address stakerRewardsAddress) vaultToStakerRewardsContract;
-    }
-
     // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultOperatorRewards.v1")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 constant OLD_OPERATOR_REWARDS_STORAGE_LOCATION =
-        0x57cf781f364664df22ab0472e35114435fb4a6881ab5a1b47ed6d1a7d4605400;
-
-    // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultOperatorRewards.v2")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 constant OPERATOR_REWARDS_STORAGE_LOCATION =
-        0x9e763766bd4dc4b79493b61f657e7d458cf0270bbd21be73fbf773df86fbd400;
+        0x57cf781f364664df22ab0472e35114435fb4a6881ab5a1b47ed6d1a7d4605400;
 
     bytes32 public constant STAKER_REWARDS_SETTER_ROLE = keccak256("STAKER_REWARDS_SETTER_ROLE");
     bytes32 public constant MIDDLEWARE_ROLE = keccak256("MIDDLEWARE_ROLE");
@@ -136,89 +123,22 @@ contract ODefaultOperatorRewards is
 
     function migrate(uint48 startEpoch, uint48 endEpoch) external checkAccess {
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
-        OldOperatorRewardsStorage storage $old = _getOldOperatorRewardsStorage();
-        address middleware = INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network);
-        IOBaseMiddlewareReader reader = IOBaseMiddlewareReader(middleware);
-
-        $.operatorShare = $old.operatorShare;
 
         for (uint48 epoch = startEpoch; epoch <= endEpoch;) {
-            uint48[] memory eraIndexes = $old.eraIndexesPerEpoch[epoch];
-            delete $old.eraIndexesPerEpoch[epoch];
-            uint48 epochTs = EpochCapture(middleware).getEpochStart(epoch);
-            address[] memory operators = reader.activeOperatorsAt(epochTs);
+            uint48[] memory eraIndexes = $.eraIndexesPerEpoch[epoch];
 
-            _migrateVaultsToStakerRewards($, $old, epochTs, reader);
-
-            if ($.eraIndexesPerEpoch[epoch].length == 0) {
-                for (uint48 i; i < eraIndexes.length;) {
-                    uint48 eraIndex = eraIndexes[i];
-                    OldEraRoot memory oldEraRoot_ = $old.eraRoot[eraIndex];
-                    delete $old.eraRoot[eraIndex];
-
-                    EraRoot memory newEraRoot = EraRoot({
-                        epoch: epoch,
-                        amount: oldEraRoot_.amount,
-                        totalPoints: oldEraRoot_.amount * oldEraRoot_.tokensPerPoint,
-                        root: oldEraRoot_.root,
-                        tokenAddress: oldEraRoot_.tokenAddress
-                    });
-                    $.eraRoot[eraIndex] = newEraRoot;
-                    $.eraIndexesPerEpoch[epoch].push(eraIndex);
-                    _migrateClaimed($, $old, eraIndex, operators, reader);
-
-                    unchecked {
-                        ++i;
-                    }
+            for (uint48 i; i < eraIndexes.length;) {
+                uint48 eraIndex = eraIndexes[i];
+                EraRoot memory current = $.eraRoot[eraIndex];
+                // totalPoints used to be tokensPerPoint. We need to multiply it by the amount to get the total points
+                // We use the same storage to avoid a bigger migration, since types are exactly the same.
+                $.eraRoot[eraIndex].totalPoints = current.totalPoints * current.amount;
+                unchecked {
+                    ++i;
                 }
-            } // Else it already migrated, shall it revert instead?
+            }
             unchecked {
                 ++epoch;
-            }
-        }
-    }
-
-    function _migrateClaimed(
-        OperatorRewardsStorage storage $,
-        OldOperatorRewardsStorage storage $old,
-        uint48 eraIndex,
-        address[] memory operators,
-        IOBaseMiddlewareReader reader
-    ) private {
-        for (uint48 i; i < operators.length;) {
-            address operator = operators[i];
-            bytes memory operatorKey = reader.operatorKey(operator);
-            uint256 claimedAmount = $old.claimed[eraIndex][operator];
-            delete $old.claimed[eraIndex][operator];
-            if (claimedAmount != 0) {
-                if ($.claimed[eraIndex][operatorKey] == 0) {
-                    $.claimed[eraIndex][operatorKey] = claimedAmount;
-                }
-            }
-
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    function _migrateVaultsToStakerRewards(
-        OperatorRewardsStorage storage $,
-        OldOperatorRewardsStorage storage $old,
-        uint48 epochTs,
-        IOBaseMiddlewareReader reader
-    ) private {
-        address[] memory vaults = reader.activeSharedVaultsAt(epochTs);
-        uint256 vaultsLength = vaults.length;
-        for (uint256 i; i < vaultsLength;) {
-            address vault = vaults[i];
-            if ($old.vaultToStakerRewardsContract[vault] != address(0)) {
-                $.vaultToStakerRewardsContract[vault] = $old.vaultToStakerRewardsContract[vault];
-                delete $old.vaultToStakerRewardsContract[vault];
-            }
-
-            unchecked {
-                ++i;
             }
         }
     }
@@ -340,11 +260,11 @@ contract ODefaultOperatorRewards is
         recipient = IOBaseMiddlewareReader(middlewareAddress).operatorByKey(operatorKey);
 
         // You can only claim everything and if it's claimed before revert
-        if ($.claimed[input.eraIndex][operatorKey] != 0) {
-            revert ODefaultOperatorRewards__InsufficientTotalClaimable();
+        if ($.claimed[input.eraIndex][recipient] != 0) {
+            revert ODefaultOperatorRewards__AlreadyClaimed();
         }
 
-        $.claimed[input.eraIndex][operatorKey] = amount;
+        $.claimed[input.eraIndex][recipient] = amount;
 
         // operatorShare% of the rewards to the operator
         uint256 operatorAmount = amount.mulDiv($.operatorShare, MAX_PERCENTAGE);
@@ -490,7 +410,7 @@ contract ODefaultOperatorRewards is
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
-    function claimed(uint48 eraIndex, bytes memory account) external view returns (uint256 amount) {
+    function claimed(uint48 eraIndex, address account) external view returns (uint256 amount) {
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         amount = $.claimed[eraIndex][account];
     }
@@ -508,13 +428,6 @@ contract ODefaultOperatorRewards is
     function _authorizeUpgrade(
         address newImplementation
     ) internal override checkAccess {}
-
-    function _getOldOperatorRewardsStorage() private pure returns (OldOperatorRewardsStorage storage $) {
-        bytes32 position = OLD_OPERATOR_REWARDS_STORAGE_LOCATION;
-        assembly {
-            $.slot := position
-        }
-    }
 
     function _getOperatorRewardsStorage() private pure returns (OperatorRewardsStorage storage $) {
         bytes32 position = OPERATOR_REWARDS_STORAGE_LOCATION;

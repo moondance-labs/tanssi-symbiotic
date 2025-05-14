@@ -15,7 +15,7 @@
 pragma solidity ^0.8.0;
 
 interface IODefaultOperatorRewards {
-    error ODefaultOperatorRewards__InsufficientTotalClaimable();
+    error ODefaultOperatorRewards__AlreadyClaimed();
     error ODefaultOperatorRewards__InsufficientTransfer();
     error ODefaultOperatorRewards__RootNotSet();
     error ODefaultOperatorRewards__InvalidProof();
@@ -160,10 +160,10 @@ interface IODefaultOperatorRewards {
     /**
      * @notice Get a claimed amount of rewards for a particular account and epoch
      * @param eraIndex era index of Starlight's rewards distribution
-     * @param account operator key of the rewards' recipient
+     * @param account address of the claimer
      * @return amount claimed amount of tokens
      */
-    function claimed(uint48 eraIndex, bytes memory account) external view returns (uint256 amount);
+    function claimed(uint48 eraIndex, address account) external view returns (uint256 amount);
 
     /**
      * @notice Get the staker rewards contract's address for a particular vault
