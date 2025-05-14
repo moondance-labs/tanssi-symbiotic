@@ -20,6 +20,7 @@ import {Test, console2} from "forge-std/Test.sol";
 //                                      SYMBIOTIC
 //**************************************************************************************************
 import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
+import {KeyManagerAddress} from "@symbiotic-middleware/extensions/managers/keys/KeyManagerAddress.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {INetworkRestakeDelegator} from "@symbiotic/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestakeDelegator.sol";
@@ -62,6 +63,7 @@ import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
 
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
+import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {Token} from "test/mocks/Token.sol";
 import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
@@ -1345,6 +1347,73 @@ contract MiddlewareTest is Test {
 
         // Staker rewards contract should have distributed all the balance
         assertEq(STAR.balanceOf(stakerRewardsContractVault2), 0);
+    }
+
+    function testCannotReclaimRewardsIfEvmKeyChangesForOperator() public {
+        uint48 eraIndex = 1;
+        uint256 amountToDistribute = 100 ether;
+        uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
+
+        uint256 expectedRewardsForStakers =
+            _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR2_KEY, operator2, 2, true);
+
+        address operator2New = makeAddr("operator2New");
+
+        // First we try directly updating directly, but it is not possible. This method is used to assign a new key to an existing evm operator, not the other way around.
+        vm.startPrank(owner);
+        vm.expectRevert(KeyManagerAddress.DuplicateKey.selector);
+        middleware.updateOperatorKey(operator2New, abi.encode(OPERATOR2_KEY));
+
+        // Then we try unregistering and registering again
+        middleware.pauseOperator(operator2);
+        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        middleware.unregisterOperator(operator2);
+        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+
+        vm.startPrank(operator2);
+        // operatorRegistry.unregisterOperator(); // No such a thing. Only registering is possible.
+        operatorNetworkOptInService.optOut(tanssi);
+        operatorVaultOptInService.optOut(address(vaultsData.v2.vault));
+        vm.stopPrank();
+
+        vm.startPrank(operator2New);
+        operatorRegistry.registerOperator();
+        operatorNetworkOptInService.optIn(tanssi);
+        operatorVaultOptInService.optIn(address(vaultsData.v2.vault));
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+
+        vm.startPrank(owner);
+        vm.expectRevert(KeyManagerAddress.DuplicateKey.selector);
+        middleware.registerOperator(operator2New, abi.encode(OPERATOR2_KEY), address(0));
+        vm.stopPrank();
+
+        // The substrate key still points to initial evm address
+        address operatorFromKey = IOBaseMiddlewareReader(address(middleware)).operatorByKey(abi.encode(OPERATOR2_KEY));
+        assertEq(operatorFromKey, operator2);
+
+        // The initial EVM address points to no key, link in this direction is removed when unregistering
+        bytes memory keyFromOperator = IOBaseMiddlewareReader(address(middleware)).operatorKey(operator2);
+        assertEq(keyFromOperator, abi.encode(0));
+
+        // The new EVM address points to no key since registration could not be completed.
+        keyFromOperator = IOBaseMiddlewareReader(address(middleware)).operatorKey(operator2New);
+        assertEq(keyFromOperator, abi.encode(0));
+
+        // Try to claim anyway, it will revert with already claimed
+        (,, bytes32[] memory proof, uint32 points, uint32 totalPoints) = _loadRewardsRootAndProof(eraIndex, 2);
+        bytes memory additionalData = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
+        IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
+            operatorKey: OPERATOR2_KEY,
+            eraIndex: eraIndex,
+            totalPointsClaimable: points,
+            proof: proof,
+            data: additionalData
+        });
+
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__AlreadyClaimed.selector);
+        operatorRewards.claimRewards(claimRewardsData);
     }
 
     // ************************************************************************************************

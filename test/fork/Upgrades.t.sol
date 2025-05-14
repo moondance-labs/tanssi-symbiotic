@@ -102,7 +102,6 @@ contract UpgradesTest is Test {
     }
 
     function testUpgradeRewardsOperatorWithBroadcast() public {
-        vm.skip(true); // TODO: Remove skip once migrated, currently it expected to fail due to change in storage. Next test checks upgrade with migration
         address networkMiddlewareService = operatorRewards.i_networkMiddlewareService();
         uint48 operatorShare = operatorRewards.operatorShare();
 
