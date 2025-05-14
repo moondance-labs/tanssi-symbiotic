@@ -572,7 +572,7 @@ contract RewardsTest is Test {
         );
         operatorRewards.claimRewards(claimRewardsData);
 
-        uint256 amountClaimed_ = operatorRewards.claimed(eraIndex, recipient);
+        uint256 amountClaimed_ = operatorRewards.claimed(eraIndex, alice);
         assertEq(amountClaimed_, EXPECTED_CLAIMABLE);
     }
 
@@ -655,7 +655,7 @@ contract RewardsTest is Test {
             console2.log("Total gas used: ", gasClaiming);
         }
 
-        uint256 amountClaimed_ = operatorRewards.claimed(eraIndex, recipient);
+        uint256 amountClaimed_ = operatorRewards.claimed(eraIndex, alice);
         assertEq(amountClaimed_, EXPECTED_CLAIMABLE);
 
         uint256 stakerRewardsVault1Balance = token.balanceOf(address(stakerRewards));
