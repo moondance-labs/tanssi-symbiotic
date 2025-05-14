@@ -25,8 +25,7 @@ import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerReward
 import {IODefaultOperatorRewardsOld} from "src/interfaces/rewarder/IODefaultOperatorRewardsOld.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 
-
-contract MiddlewareTest is Test {
+contract UpgradesTest is Test {
     Middleware middleware;
     ODefaultOperatorRewards operatorRewards;
     ODefaultStakerRewards stakerRewards;
@@ -227,7 +226,6 @@ contract MiddlewareTest is Test {
         assertEq(stakerRewards.i_network(), network);
         assertEq(stakerRewards.i_networkMiddlewareService(), networkMiddlewareService);
     }
-
 
     function _compareOldAndNewEraRoots(
         IODefaultOperatorRewardsOld.EraRoot memory oldEraRoot,
