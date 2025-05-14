@@ -1594,10 +1594,14 @@ contract RewardsTest is Test {
         eraIndexesPerEpoch[2] = 3;
         eraIndexesPerEpoch[3] = 4;
 
-        eraRoots[0] = IODefaultOperatorRewardsOld.EraRoot(testEpoch, 100 ether, 1, bytes32(uint256(1)), address(token));
-        eraRoots[1] = IODefaultOperatorRewardsOld.EraRoot(testEpoch, 90 ether, 1, bytes32(uint256(2)), address(token));
-        eraRoots[2] = IODefaultOperatorRewardsOld.EraRoot(testEpoch, 100 ether, 1, bytes32(uint256(3)), address(token));
-        eraRoots[3] = IODefaultOperatorRewardsOld.EraRoot(testEpoch, 120 ether, 1, bytes32(uint256(4)), address(token));
+        eraRoots[0] =
+            IODefaultOperatorRewardsOld.EraRoot(testEpoch, 100 ether, 1, bytes32(uint256(1)), address(token));
+        eraRoots[1] =
+            IODefaultOperatorRewardsOld.EraRoot(testEpoch, 90 ether, 1, bytes32(uint256(2)), address(token));
+        eraRoots[2] =
+            IODefaultOperatorRewardsOld.EraRoot(testEpoch, 100 ether, 1, bytes32(uint256(3)), address(token));
+        eraRoots[3] =
+            IODefaultOperatorRewardsOld.EraRoot(testEpoch, 120 ether, 1, bytes32(uint256(4)), address(token));
 
         claimedPerEpoch[0] = 20 ether;
         claimedPerEpoch[1] = 0;

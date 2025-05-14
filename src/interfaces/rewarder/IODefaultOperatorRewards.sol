@@ -76,24 +76,7 @@ interface IODefaultOperatorRewards {
      * @notice Struct to store the data related to rewards distribution per Starlight's era.
      * @param epoch network epoch of the middleware
      * @param amount amount of tokens received per eraIndex
-     * @param tokensPerPoint amount of tokens per point
-     * @param root Merkle root of the rewards distribution
-     * @param tokenAddress address of the reward token
-     */
-    struct OldEraRoot {
-        uint48 epoch;
-        uint256 amount;
-        uint256 tokensPerPoint;
-        bytes32 root;
-        address tokenAddress;
-    }
-
-    /**
-     * @notice Struct to store the data related to rewards distribution per Starlight's era.
-     * @param epoch network epoch of the middleware
-     * @param amount amount of tokens received per eraIndex
      * @param totalPoints total amount of points for the reward distribution
-     * @param totalAmount total amount of tokens for the reward distribution
      * @param root Merkle root of the rewards distribution
      * @param tokenAddress address of the reward token
      */
