@@ -134,6 +134,11 @@ contract ODefaultOperatorRewards is
         $.operatorShare = operatorShare_;
     }
 
+    /**
+     * @notice Migrate the old operator rewards storage to the new operator rewards storage.
+     * @param startEpoch The start epoch, inclusive.
+     * @param endEpoch The end epoch, inclusive.
+     */
     function migrate(uint48 startEpoch, uint48 endEpoch) external checkAccess {
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         OldOperatorRewardsStorage storage $old = _getOldOperatorRewardsStorage();

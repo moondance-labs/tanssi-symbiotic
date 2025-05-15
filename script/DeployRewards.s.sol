@@ -167,9 +167,21 @@ contract DeployRewards is Script {
         ODefaultOperatorRewards proxy = ODefaultOperatorRewards(proxyAddress);
         ODefaultOperatorRewards implementation = new ODefaultOperatorRewards(network, networkMiddlewareService);
         console2.log("New Operator Rewards Implementation: ", address(implementation));
-        uint256 lastEpoch = Middleware(middleware).getCurrentEpoch();
-        bytes memory data = abi.encodeWithSelector(ODefaultOperatorRewards.migrate.selector, 1, lastEpoch);
-        proxy.upgradeToAndCall(address(implementation), data);
+        uint48 lastEpoch = uint48(Middleware(middleware).getCurrentEpoch());
+        if (lastEpoch > 30) {
+            uint256 currentGas = gasleft();
+            bytes memory data = abi.encodeWithSelector(ODefaultOperatorRewards.migrate.selector, 1, 30);
+            proxy.upgradeToAndCall(address(implementation), data);
+            uint256 newGas = gasleft();
+            console2.log("Gas on upgrade and first migrate: ", currentGas - newGas);
+            currentGas = gasleft();
+            proxy.migrate(31, lastEpoch);
+            newGas = gasleft();
+            console2.log("Gas on second migrate: ", currentGas - newGas);
+        } else {
+            bytes memory data = abi.encodeWithSelector(ODefaultOperatorRewards.migrate.selector, 1, lastEpoch);
+            proxy.upgradeToAndCall(address(implementation), data);
+        }
 
         console2.log("Operator Rewards Upgraded");
         if (!isTest) {

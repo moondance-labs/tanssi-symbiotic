@@ -149,12 +149,9 @@ contract UpgradesTest is Test {
         address stakerRewardsContract = oldOperatorRewards.vaultToStakerRewardsContract(testVault);
 
         deployRewards.setIsTest(false);
-        uint256 currentGas = gasleft();
         deployRewards.upgradeAndMigrateOperatorRewards(
             address(operatorRewards), tanssi, networkMiddlewareService, address(middleware), admin
         );
-        uint256 newGas = gasleft();
-        console2.log("Gas used: ", currentGas - newGas);
 
         assertEq(operatorRewards.operatorShare(), operatorShare);
         assertEq(operatorRewards.i_networkMiddlewareService(), networkMiddlewareService);
