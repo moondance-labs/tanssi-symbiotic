@@ -375,17 +375,17 @@ contract Middleware is
 
     /**
      * @dev Execute a slash with a given slash index using hints.
-     * @param slasher address of the slasher, must be an instance of IVetoSlasher
+     * @param vault The vault address, must have a veto slasher
      * @param slashIndex index of the slash request
      * @param hints hints for checkpoints' indexes
      * @return slashedAmount virtual amount of the collateral slashed
      */
     function executeSlash(
-        address slasher,
+        address vault,
         uint256 slashIndex,
         bytes calldata hints
     ) external returns (uint256 slashedAmount) {
-        return IVetoSlasher(slasher).executeSlash(slashIndex, hints);
+        slashedAmount = _executeSlash(vault, slashIndex, hints);
     }
 
     /**

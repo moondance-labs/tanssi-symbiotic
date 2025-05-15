@@ -645,7 +645,7 @@ contract MiddlewareTest is Test {
         middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
         vm.warp(block.timestamp + VETO_DURATION);
-        middleware.executeSlash(address(vetoSlasher), 0, hex"");
+        middleware.executeSlash(address(vaultVetoed), 0, hex"");
 
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
@@ -697,7 +697,7 @@ contract MiddlewareTest is Test {
         middleware.slash(currentEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
 
         vm.warp(block.timestamp + VETO_DURATION);
-        middleware.executeSlash(address(vetoSlasher), 0, hex"");
+        middleware.executeSlash(address(vaultVetoed), 0, hex"");
 
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
