@@ -255,7 +255,7 @@ contract DeployTest is Test {
     function testDeployRegisterVault() public {
         (address _vault,,,,,,,,) = deployTanssiEcosystem.vaultAddresses();
 
-        (Middleware middleware,,) = deployTanssiEcosystem.ecosystemEntities();
+        (Middleware middleware,,,,,) = deployTanssiEcosystem.ecosystemEntities();
 
         vm.startPrank(tanssi);
         middleware.pauseSharedVault(_vault);
@@ -531,10 +531,10 @@ contract DeployTest is Test {
         deployTanssiEcosystem = new DeployTanssiEcosystem();
         deployTanssiEcosystem.deployTanssiEcosystem(helperConfig);
 
-        (,, address defaultCollateralAddress) = deployTanssiEcosystem.ecosystemEntities();
+        (,, address stETHCollateralAddress,,,) = deployTanssiEcosystem.ecosystemEntities();
 
         // Verify default collateral was deployed
-        assertTrue(defaultCollateralAddress != address(0));
+        assertTrue(stETHCollateralAddress != address(0));
     }
 
     function testDefaultCollateralNotBeingDeployedIfLocal() public {
@@ -542,10 +542,10 @@ contract DeployTest is Test {
         vm.startPrank(tanssi);
         deployTanssiEcosystem.deployTanssiEcosystem(helperConfig);
 
-        (,, address defaultCollateralAddress) = deployTanssiEcosystem.ecosystemEntities();
+        (,, address stETHCollateralAddress,,,) = deployTanssiEcosystem.ecosystemEntities();
 
         // Verify default collateral was deployed
-        assertTrue(defaultCollateralAddress == address(0));
+        assertTrue(stETHCollateralAddress == address(0));
         vm.stopPrank();
     }
 
@@ -554,7 +554,7 @@ contract DeployTest is Test {
         // Deploy full ecosystem
         deployTanssiEcosystem.deployTanssiEcosystem(helperConfig);
 
-        (Middleware middleware,,) = deployTanssiEcosystem.ecosystemEntities();
+        (Middleware middleware,,,,,) = deployTanssiEcosystem.ecosystemEntities();
         (address vault,,, address vaultSlashable,,, address vaultVetoed,,) = deployTanssiEcosystem.vaultAddresses();
 
         // Verify vault registrations
@@ -569,7 +569,7 @@ contract DeployTest is Test {
         deployTanssiEcosystem.deployTanssiEcosystem(helperConfig);
 
         // Verify ecosystem entities were deployed
-        (Middleware middleware, IVaultConfigurator vaultConfigurator,) = deployTanssiEcosystem.ecosystemEntities();
+        (Middleware middleware, IVaultConfigurator vaultConfigurator,,,,) = deployTanssiEcosystem.ecosystemEntities();
         assertTrue(address(middleware) != address(0));
         assertTrue(address(vaultConfigurator) != address(0));
 
@@ -603,7 +603,7 @@ contract DeployTest is Test {
     //                                      DEPLOY VAULT
     //**************************************************************************************************
     function testDeployVaultWithCollateralEmpty() public {
-        (, IVaultConfigurator vaultConfigurator,) = deployTanssiEcosystem.ecosystemEntities();
+        (, IVaultConfigurator vaultConfigurator,,,,) = deployTanssiEcosystem.ecosystemEntities();
 
         DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
             epochDuration: VAULT_EPOCH_DURATION,
@@ -624,7 +624,7 @@ contract DeployTest is Test {
 
     function testDeployVaultRun() public {
         vm.recordLogs();
-        (, IVaultConfigurator vaultConfigurator,) = deployTanssiEcosystem.ecosystemEntities();
+        (, IVaultConfigurator vaultConfigurator,,,,) = deployTanssiEcosystem.ecosystemEntities();
 
         deployVault.run(address(vaultConfigurator), tanssi, address(1), VAULT_EPOCH_DURATION, false, 0, 0, false, 0, 0);
 
@@ -638,7 +638,7 @@ contract DeployTest is Test {
 
     function testDeployVaultWithIndex1() public {
         vm.recordLogs();
-        (, IVaultConfigurator vaultConfigurator,) = deployTanssiEcosystem.ecosystemEntities();
+        (, IVaultConfigurator vaultConfigurator,,,,) = deployTanssiEcosystem.ecosystemEntities();
 
         deployVault.run(address(vaultConfigurator), tanssi, address(1), VAULT_EPOCH_DURATION, false, 0, 1, false, 0, 0);
 
@@ -652,7 +652,7 @@ contract DeployTest is Test {
 
     function testDeployVaultWithIndex2() public {
         vm.recordLogs();
-        (Middleware middleware, IVaultConfigurator vaultConfigurator,) = deployTanssiEcosystem.ecosystemEntities();
+        (Middleware middleware, IVaultConfigurator vaultConfigurator,,,,) = deployTanssiEcosystem.ecosystemEntities();
 
         IRegistry operatorRegistry = IRegistry(OBaseMiddlewareReader(address(middleware)).OPERATOR_REGISTRY());
         vm.mockCall(
@@ -671,7 +671,7 @@ contract DeployTest is Test {
     function testDeployVaultDirectCall() public {
         vm.recordLogs();
 
-        (, IVaultConfigurator vaultConfigurator,) = deployTanssiEcosystem.ecosystemEntities();
+        (, IVaultConfigurator vaultConfigurator,,,,) = deployTanssiEcosystem.ecosystemEntities();
         (Token stETHToken,,) = deployTanssiEcosystem.tokensAddresses();
 
         DeployVault.VaultDeployParams memory deployParams = DeployVault.VaultDeployParams({
@@ -738,7 +738,7 @@ contract DeployTest is Test {
 
     function testUpgradeRewardsOperator() public {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
-        (Middleware middleware,,) = deployTanssiEcosystem.ecosystemEntities();
+        (Middleware middleware,,,,,) = deployTanssiEcosystem.ecosystemEntities();
         address operatorRewards =
             deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20, tanssi);
 
@@ -747,7 +747,7 @@ contract DeployTest is Test {
 
     function testUpgradeRewardsOperatorWithBroadcast() public {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
-        (Middleware middleware,,) = deployTanssiEcosystem.ecosystemEntities();
+        (Middleware middleware,,,,,) = deployTanssiEcosystem.ecosystemEntities();
         deployRewards.setIsTest(false);
 
         address operatorRewards =

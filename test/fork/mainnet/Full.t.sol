@@ -52,14 +52,14 @@ import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
 
-contract MiddlewareTest is Test {
+contract FullTest is Test {
     using Subnetwork for address;
     using Subnetwork for bytes32;
     using Math for uint256;
 
     uint48 public constant VAULT_EPOCH_DURATION = 12 days;
-    uint48 public constant NETWORK_EPOCH_DURATION = 6 days;
-    uint48 public constant SLASHING_WINDOW = 7 days;
+    uint48 public constant NETWORK_EPOCH_DURATION = 1 days;
+    uint48 public constant SLASHING_WINDOW = 2 days;
     uint48 public constant VETO_DURATION = 1 days;
     uint256 public constant SLASH_AMOUNT = 30 ether;
     uint256 public constant OPERATOR_STAKE = 90 ether;
@@ -117,6 +117,9 @@ contract MiddlewareTest is Test {
         IVault vaultSlashable;
         IVault vaultVetoed;
         IDefaultCollateral stETH;
+        IDefaultCollateral cbETH;
+        IDefaultCollateral rETH;
+        IDefaultCollateral WBTC;
     }
 
     VaultAddresses public vaultAddresses;
@@ -141,14 +144,14 @@ contract MiddlewareTest is Test {
     }
 
     function _deployBaseInfrastructure() private {
+        // Check if it's good for mainnet
         vm.allowCheatcodes(address(0x6B5CF024365D5d5d0786673780CA7E3F07f85B63));
         DeployTanssiEcosystem deployTanssi = new DeployTanssiEcosystem();
         helperConfig = new HelperConfig();
         deployTanssi.deployTanssiEcosystem(helperConfig);
-
-        address defaultCollateralAddress;
-        (ecosystemEntities.middleware,, defaultCollateralAddress) = deployTanssi.ecosystemEntities();
-        ecosystemEntities.stETH = IDefaultCollateral(defaultCollateralAddress);
+        address stETHCollateralAddress;
+        (ecosystemEntities.middleware,, stETHCollateralAddress,,,) = deployTanssi.ecosystemEntities();
+        ecosystemEntities.stETH = IDefaultCollateral(stETHCollateralAddress);
 
         _setVaultAddresses(deployTanssi);
         _initializeVaults();
@@ -218,7 +221,7 @@ contract MiddlewareTest is Test {
     }
 
     function _handleDeposits() private {
-        (,,,,, address operatorVaultOptInServiceAddress,,,,) = helperConfig.activeNetworkConfig();
+        (,,,,, address operatorVaultOptInServiceAddress,,,) = helperConfig.activeNetworkConfig();
 
         IOptInService operatorVaultOptInService = IOptInService(operatorVaultOptInServiceAddress);
 
@@ -280,7 +283,6 @@ contract MiddlewareTest is Test {
             ,
             address operatorNetworkOptInServiceAddress,
             address operatorVaultOptInServiceAddress,
-            ,
             ,
             ,
         ) = helperConfig.activeNetworkConfig();
@@ -370,7 +372,7 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function testInitialState() public view {
-        (, address operatorRegistryAddress,, address vaultFactoryAddress,,,,,,) = helperConfig.activeNetworkConfig();
+        (, address operatorRegistryAddress,, address vaultFactoryAddress,,,,,) = helperConfig.activeNetworkConfig();
 
         assertEq(OBaseMiddlewareReader(address(ecosystemEntities.middleware)).NETWORK(), tanssi);
         assertEq(
@@ -614,7 +616,6 @@ contract MiddlewareTest is Test {
             address operatorNetworkOptInServiceAddress,
             ,
             address networkMiddlewareServiceAddress,
-            ,
             ,
         ) = helperConfig.activeNetworkConfig();
 

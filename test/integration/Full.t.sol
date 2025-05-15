@@ -74,7 +74,7 @@ import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperato
 import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 
-contract MiddlewareTest is Test {
+contract FullTest is Test {
     using Subnetwork for address;
     using Subnetwork for bytes32;
     using Math for uint256;

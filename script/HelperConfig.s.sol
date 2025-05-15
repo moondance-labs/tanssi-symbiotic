@@ -19,6 +19,8 @@ import {DeploySymbiotic} from "./DeploySymbiotic.s.sol";
 
 contract HelperConfig is Script {
     NetworkConfig public activeNetworkConfig;
+    TokensConfig public activeTokensConfig;
+    VaultsConfig public activeVaultsConfig;
 
     struct NetworkConfig {
         address vaultConfigurator;
@@ -29,64 +31,99 @@ contract HelperConfig is Script {
         address operatorVaultOptInService;
         address networkMiddlewareService;
         address collateral;
-        address stETH;
         address readHelper;
+    }
+
+    struct TokensConfig {
+        address wstETH;
+        address rETH;
+        address cbETH;
+        address WBTC;
+    }
+
+    struct VaultTrifecta {
+        address vault;
+        address delegator;
+        address slasher;
+    }
+
+    struct VaultsConfig {
+        VaultTrifecta vaultWstETH;
+        VaultTrifecta vaultRETH;
+        VaultTrifecta vaultCbETH;
+        VaultTrifecta vaultWBTC;
     }
 
     uint256 public DEFAULT_ANVIL_PRIVATE_KEY = 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6;
 
     constructor() {
         if (block.chainid == 31_337) {
-            activeNetworkConfig = getAnvilEthConfig();
+            (activeNetworkConfig, activeTokensConfig, activeVaultsConfig) = getAnvilEthConfig();
         } else {
-            activeNetworkConfig = getChainConfig();
+            (activeNetworkConfig, activeTokensConfig, activeVaultsConfig) = getChainConfig();
         }
     }
 
-    function getChainConfig() public view returns (NetworkConfig memory networkConfig) {
+    function getChainConfig()
+        public
+        view
+        returns (NetworkConfig memory networkConfig, TokensConfig memory tokensConfig, VaultsConfig memory vaultsConfig)
+    {
         string memory root = vm.projectRoot();
         string memory path = string.concat(root, "/script/chain_data.json");
         string memory json = vm.readFile(path);
 
         //! Make sure chainid is present in the json or this will just revert without giving any information
         uint256 chainId = block.chainid;
+        // Parse based on chainId
         string memory jsonPath = string.concat("$.", vm.toString(chainId));
 
-        // Parse based on chainId
-        address vaultConfiguratorAddress =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".vaultConfigurator")), (address));
-        address operatorRegistryAddress =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".operatorRegistry")), (address));
-        address networkRegistryAddress =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".networkRegistry")), (address));
-        address vaultRegistryAddress =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".vaultFactory")), (address));
-        address operatorNetworkOptInAddress =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".operatorNetworkOptInService")), (address));
-        address operatorVaultOptInAddress =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".operatorVaultOptInService")), (address));
-        address networkMiddlewareAddress =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".networkMiddlewareService")), (address));
-        address defaultCollateralFactoryAddress =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".defaultCollateralFactory")), (address));
-        address readHelperAddress = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".readHelper")), (address));
-        address stETHAddress = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".stETH")), (address));
+        networkConfig.vaultConfigurator =
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, "vaultConfigurator")), (address));
+        networkConfig.operatorRegistry =
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, "operatorRegistry")), (address));
+        networkConfig.networkRegistry =
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, "networkRegistry")), (address));
 
-        networkConfig = NetworkConfig({
-            vaultConfigurator: vaultConfiguratorAddress,
-            operatorRegistry: operatorRegistryAddress,
-            networkRegistry: networkRegistryAddress,
-            vaultRegistry: vaultRegistryAddress,
-            operatorNetworkOptIn: operatorNetworkOptInAddress,
-            operatorVaultOptInService: operatorVaultOptInAddress,
-            networkMiddlewareService: networkMiddlewareAddress,
-            collateral: defaultCollateralFactoryAddress,
-            stETH: stETHAddress,
-            readHelper: readHelperAddress
-        });
+        networkConfig.vaultRegistry = abi.decode(vm.parseJson(json, string.concat(jsonPath, "vaultFactory")), (address));
+
+        networkConfig.operatorNetworkOptIn =
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, "operatorNetworkOptInService")), (address));
+        networkConfig.operatorVaultOptInService =
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, "operatorVaultOptInService")), (address));
+        networkConfig.networkMiddlewareService =
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, "networkMiddlewareService")), (address));
+
+        networkConfig.collateral =
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, "defaultCollateralFactory")), (address));
+        networkConfig.readHelper = abi.decode(vm.parseJson(json, string.concat(jsonPath, "readHelper")), (address));
+        tokensConfig.wstETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, "wstETH")), (address));
+        tokensConfig.rETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, "rETH")), (address));
+        tokensConfig.cbETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, "cbETH")), (address));
+        tokensConfig.WBTC = abi.decode(vm.parseJson(json, string.concat(jsonPath, "WBTC")), (address));
+        vaultsConfig.vaultWstETH = _loadVaultTrifectaData(json, jsonPath, "wstETH");
+        vaultsConfig.vaultRETH = _loadVaultTrifectaData(json, jsonPath, "rETH");
+        vaultsConfig.vaultCbETH = _loadVaultTrifectaData(json, jsonPath, "cbETH");
+        vaultsConfig.vaultWBTC = _loadVaultTrifectaData(json, jsonPath, "WBTC");
     }
 
-    function getAnvilEthConfig() public returns (NetworkConfig memory networkConfig) {
+    function _loadVaultTrifectaData(
+        string memory json,
+        string memory jsonPath,
+        string memory collateral
+    ) private pure returns (VaultTrifecta memory vaultTrifecta) {
+        vaultTrifecta.vault =
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, string.concat(collateral, "Vault"))), (address));
+        vaultTrifecta.delegator =
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, string.concat(collateral, "Delegator"))), (address));
+        vaultTrifecta.slasher =
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, string.concat(collateral, "Slasher"))), (address));
+    }
+
+    function getAnvilEthConfig()
+        public
+        returns (NetworkConfig memory networkConfig, TokensConfig memory tokensConfig, VaultsConfig memory vaultConfig)
+    {
         DeploySymbiotic deploySymbiotic = new DeploySymbiotic();
 
         DeploySymbiotic.SymbioticAddresses memory symbioticAddresses = deploySymbiotic.deploySymbioticBroadcast();
@@ -100,8 +137,9 @@ contract HelperConfig is Script {
             operatorVaultOptInService: symbioticAddresses.operatorVaultOptInService,
             networkMiddlewareService: symbioticAddresses.networkMiddlewareService,
             collateral: address(deploySymbiotic.collateral()),
-            stETH: address(0),
             readHelper: address(0)
         });
+
+        tokensConfig = TokensConfig({wstETH: address(0), rETH: address(0), cbETH: address(0), WBTC: address(0)});
     }
 }
