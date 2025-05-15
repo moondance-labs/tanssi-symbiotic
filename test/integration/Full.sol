@@ -1417,6 +1417,66 @@ contract MiddlewareTest is Test {
         operatorRewards.claimRewards(claimRewardsData);
     }
 
+    bytes32 public constant NEW_OPERATOR2_KEY = 0x0202020202020202020202020202020202020202020202020202020222222222;
+
+    function testCannotReclaimRewardsAfterMultipleKeyChangesForOperator() public {
+        uint48 eraIndex = 1;
+        uint256 amountToDistribute = 100 ether;
+        uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
+
+        uint256 previousBalanceOp2 = STAR.balanceOf(operator2);
+        uint256 previousBalanceOp1 = STAR.balanceOf(operator1);
+        _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR2_KEY, operator2, 2, true);
+
+        uint256 newBalanceOp2 = STAR.balanceOf(operator2);
+        uint256 newBalanceOp1 = STAR.balanceOf(operator1);
+
+        // WE WILL USE EXISTING OPERATOR - OPERATOR #1
+        vm.startPrank(owner);
+
+        // UPDATE OPERATOR #2 KEY AND THEN DEREGISTER
+        middleware.pauseOperator(operator2);
+        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        middleware.updateOperatorKey(operator2, abi.encode(NEW_OPERATOR2_KEY));
+        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        middleware.unregisterOperator(operator2);
+        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+
+        vm.startPrank(operator2);
+        operatorNetworkOptInService.optOut(tanssi);
+        operatorVaultOptInService.optOut(address(vaultsData.v2.vault));
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+
+        vm.startPrank(owner);
+        // ASSIGN OPERATOR #2 KEY TO OPERATOR #1
+        middleware.updateOperatorKey(operator1, abi.encode(OPERATOR2_KEY));
+        vm.stopPrank();
+
+        // OPERATOR #2 KEY POINTS TO OPERATOR #1
+        address operatorFromKey = IOBaseMiddlewareReader(address(middleware)).operatorByKey(abi.encode(OPERATOR2_KEY));
+        assertEq(operatorFromKey, operator1);
+
+        // OPERATOR #2 INACTIVE
+        bytes memory keyFromOperator = IOBaseMiddlewareReader(address(middleware)).operatorKey(operator2);
+        assertEq(keyFromOperator, abi.encode(0));
+
+        // TRY CLAIM
+        (,, bytes32[] memory proof, uint32 points, uint32 totalPoints) = _loadRewardsRootAndProof(eraIndex, 2);
+        bytes memory additionalData = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
+        IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
+            operatorKey: OPERATOR2_KEY,
+            eraIndex: eraIndex,
+            totalPointsClaimable: points,
+            proof: proof,
+            data: additionalData
+        });
+
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__AlreadyClaimed.selector);
+        operatorRewards.claimRewards(claimRewardsData);
+    }
+
     function testOperatorCanClaimRewardsEvenAfterUnregistering() public {
         uint48 eraIndex = 1;
         uint256 amountToDistribute = 100 ether;
