@@ -1430,6 +1430,7 @@ contract MiddlewareTest is Test {
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
 
         vm.warp(NETWORK_EPOCH_DURATION + 2);
+        vm.roll(80);
         bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
         assertEq(keys.length, 1);
     }
@@ -1437,7 +1438,7 @@ contract MiddlewareTest is Test {
     function testSendCurrentOperatorKeysButNoOperators() public {
         vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
         vm.startPrank(owner);
-
+        vm.roll(80);
         bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
         assertEq(keys.length, 0);
     }
@@ -1452,6 +1453,7 @@ contract MiddlewareTest is Test {
 
         middleware.pauseOperator(operator);
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
+        vm.roll(80);
         middleware.unregisterOperator(operator);
 
         vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
@@ -1471,6 +1473,7 @@ contract MiddlewareTest is Test {
 
         middleware.pauseOperator(operator);
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
+        vm.roll(80);
 
         vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
         vm.startPrank(owner);
@@ -1484,8 +1487,28 @@ contract MiddlewareTest is Test {
 
         vm.store(address(middleware), slot, bytes32(0));
 
+        vm.roll(80);
+
         vm.expectRevert(IMiddleware.Middleware__GatewayNotSet.selector);
         middleware.sendCurrentOperatorsKeys();
+    }
+
+    function testSendCurrentOperatorKeysButIsLimitedByMaxIntervalBlock() public {
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+
+        vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
+        vm.startPrank(owner);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
+        vm.roll(80);
+        bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
+        assertEq(keys.length, 1);
+
+        vm.warp(NETWORK_EPOCH_DURATION + 2 + 60); // + 60 seconds ≈ 5 blocks
+        vm.roll(85);
+        vm.expectRevert(IMiddleware.Middleware__CallTooFrequent.selector);
+        keys = middleware.sendCurrentOperatorsKeys();
     }
 
     // ************************************************************************************************
