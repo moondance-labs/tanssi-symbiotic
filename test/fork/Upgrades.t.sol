@@ -173,7 +173,7 @@ contract UpgradesTest is Test {
         // Check claimed
         bytes memory testOperatorKey =
             abi.encodePacked(bytes32(0xe86f7e1076c1cbcf4fbbb79d9aeafaa3b8450ab3a12bfa4b1ae52841ab396c10));
-        assertEq(operatorRewards.claimed(eraIndexesPerEpoch[3], testOperator), claimed1);
+        assertEq(operatorRewards.claimed(eraIndexesPerEpoch[3], testOperatorKey), claimed1);
 
         // Check vault to staker rewards contract
         assertEq(operatorRewards.vaultToStakerRewardsContract(testVault), stakerRewardsContract);

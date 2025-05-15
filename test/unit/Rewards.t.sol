@@ -572,7 +572,7 @@ contract RewardsTest is Test {
         );
         operatorRewards.claimRewards(claimRewardsData);
 
-        uint256 amountClaimed_ = operatorRewards.claimed(eraIndex, alice);
+        uint256 amountClaimed_ = operatorRewards.claimed(eraIndex, abi.encode(ALICE_KEY));
         assertEq(amountClaimed_, EXPECTED_CLAIMABLE);
     }
 
@@ -655,7 +655,7 @@ contract RewardsTest is Test {
             console2.log("Total gas used: ", gasClaiming);
         }
 
-        uint256 amountClaimed_ = operatorRewards.claimed(eraIndex, alice);
+        uint256 amountClaimed_ = operatorRewards.claimed(eraIndex, abi.encode(ALICE_KEY));
         assertEq(amountClaimed_, EXPECTED_CLAIMABLE);
 
         uint256 stakerRewardsVault1Balance = token.balanceOf(address(stakerRewards));
@@ -1648,10 +1648,10 @@ contract RewardsTest is Test {
         _compareOldAndNewEraRoots(eraRoots[2], migratedOperatorRewards.eraRoot(3));
         _compareOldAndNewEraRoots(eraRoots[3], migratedOperatorRewards.eraRoot(4));
 
-        assertEq(migratedOperatorRewards.claimed(1, alice), claimedPerEpoch[0]);
-        assertEq(migratedOperatorRewards.claimed(2, alice), claimedPerEpoch[1]);
-        assertEq(migratedOperatorRewards.claimed(3, alice), claimedPerEpoch[2]);
-        assertEq(migratedOperatorRewards.claimed(4, alice), claimedPerEpoch[3]);
+        assertEq(migratedOperatorRewards.claimed(1, abi.encode(ALICE_KEY)), claimedPerEpoch[0]);
+        assertEq(migratedOperatorRewards.claimed(2, abi.encode(ALICE_KEY)), claimedPerEpoch[1]);
+        assertEq(migratedOperatorRewards.claimed(3, abi.encode(ALICE_KEY)), claimedPerEpoch[2]);
+        assertEq(migratedOperatorRewards.claimed(4, abi.encode(ALICE_KEY)), claimedPerEpoch[3]);
 
         assertEq(migratedOperatorRewards.vaultToStakerRewardsContract(address(vault)), address(stakerRewards));
     }
