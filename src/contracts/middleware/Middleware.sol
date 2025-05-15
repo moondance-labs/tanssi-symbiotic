@@ -374,6 +374,21 @@ contract Middleware is
     }
 
     /**
+     * @dev Execute a slash with a given slash index using hints.
+     * @param vault The vault address, must have a veto slasher
+     * @param slashIndex index of the slash request
+     * @param hints hints for checkpoints' indexes
+     * @return slashedAmount virtual amount of the collateral slashed
+     */
+    function executeSlash(
+        address vault,
+        uint256 slashIndex,
+        bytes calldata hints
+    ) external returns (uint256 slashedAmount) {
+        slashedAmount = _executeSlash(vault, slashIndex, hints);
+    }
+
+    /**
      * @dev Get vault stake and calculate slashing amount.
      * @param vault The vault address to calculate its stake
      * @param params Struct containing slashing parameters
