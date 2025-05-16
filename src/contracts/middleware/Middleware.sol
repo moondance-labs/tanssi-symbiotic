@@ -280,11 +280,17 @@ contract Middleware is
      * @inheritdoc IMiddleware
      */
     function sendCurrentOperatorsKeys() external returns (bytes32[] memory sortedKeys) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        if (block.number < $.lastExecutionBlock + MIN_INTERVAL_TO_SEND_OPERATOR_KEYS) {
+            revert Middleware__CallTooFrequent();
+        }
+
         address gateway = getGateway();
         if (gateway == address(0)) {
             revert Middleware__GatewayNotSet();
         }
 
+        $.lastExecutionBlock = block.number;
         uint48 epoch = getCurrentEpoch();
         sortedKeys = IOBaseMiddlewareReader(address(this)).sortOperatorsByPower(epoch);
         IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);

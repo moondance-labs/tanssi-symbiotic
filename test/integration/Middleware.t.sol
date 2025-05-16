@@ -1342,6 +1342,7 @@ contract MiddlewareTest is Test {
         vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
 
         vm.warp(NETWORK_EPOCH_DURATION + 2);
+        vm.roll(80);
         bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
         assertEq(keys.length, 3);
 
@@ -1358,7 +1359,7 @@ contract MiddlewareTest is Test {
         );
 
         vm.warp(block.timestamp + VAULT_EPOCH_DURATION + 1);
-
+        vm.roll(80 + 57_235); // 57_235 is ≈ the number of blocks in 1 week
         keys = middleware.sendCurrentOperatorsKeys();
         assertEq(keys.length, 3);
 

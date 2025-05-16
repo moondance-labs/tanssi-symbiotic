@@ -279,7 +279,9 @@ contract DeployTanssiEcosystem is Script {
             deployTokens(tanssi);
             _transferTokensToOperators();
         } else {
-            INetworkRegistry(networkRegistryAddress).registerNetwork();
+            if (!INetworkRegistry(networkRegistryAddress).isEntity(tanssi)) {
+                INetworkRegistry(networkRegistryAddress).registerNetwork();
+            }
         }
         deployVaults();
         _setDelegatorConfigs();
