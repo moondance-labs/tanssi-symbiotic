@@ -156,7 +156,8 @@ contract DeployRewards is Script {
         address network,
         address networkMiddlewareService,
         address middleware,
-        address owner
+        address owner,
+        uint48 maxEpochsToMigrate
     ) external {
         if (!isTest) {
             vm.startBroadcast(ownerPrivateKey);
@@ -168,14 +169,16 @@ contract DeployRewards is Script {
         ODefaultOperatorRewards implementation = new ODefaultOperatorRewards(network, networkMiddlewareService);
         console2.log("New Operator Rewards Implementation: ", address(implementation));
         uint48 lastEpoch = Middleware(middleware).getCurrentEpoch();
-        if (lastEpoch > 30) {
+        // Current number of epochs cannot be migrated in a single call, so we need to migrate in chunks.
+        // We are certain that the migration can run in 2 chunks even if upgrade is delayed for a few weeks, so we don't implement a more complex logic to adjust number of chunks according to last epoch.
+        if (lastEpoch > maxEpochsToMigrate) {
             uint256 currentGas = gasleft();
-            bytes memory data = abi.encodeWithSelector(ODefaultOperatorRewards.migrate.selector, 1, 30);
+            bytes memory data = abi.encodeWithSelector(ODefaultOperatorRewards.migrate.selector, 1, maxEpochsToMigrate);
             proxy.upgradeToAndCall(address(implementation), data);
             uint256 newGas = gasleft();
             console2.log("Gas on upgrade and first migrate: ", currentGas - newGas);
             currentGas = gasleft();
-            proxy.migrate(31, lastEpoch);
+            proxy.migrate(maxEpochsToMigrate + 1, lastEpoch);
             newGas = gasleft();
             console2.log("Gas on second migrate: ", currentGas - newGas);
         } else {

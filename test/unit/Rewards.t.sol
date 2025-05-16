@@ -1554,7 +1554,7 @@ contract RewardsTest is Test {
         assertEq(stakerRewards.i_networkMiddlewareService(), address(networkMiddlewareService));
     }
 
-    function testUpgradeAndMigrateOperatorRewards() public {
+    function testUpgradeAndMigrateOperatorRewardsInOneChunk() public {
         vm.warp(NETWORK_EPOCH_DURATION * 2 + 1);
 
         (
@@ -1567,7 +1567,27 @@ contract RewardsTest is Test {
 
         deployRewards.setIsTest(true);
         deployRewards.upgradeAndMigrateOperatorRewards(
-            initialOperatorRewards, address(tanssi), address(networkMiddlewareService), address(middleware), owner
+            initialOperatorRewards, address(tanssi), address(networkMiddlewareService), address(middleware), owner, 10
+        );
+        ODefaultOperatorRewards migratedOperatorRewards = ODefaultOperatorRewards(initialOperatorRewards);
+
+        _checkStateAfterMigration(migratedOperatorRewards, testEpoch, eraIndexesPerEpoch, eraRoots, claimedPerEpoch);
+    }
+
+    function testUpgradeAndMigrateOperatorRewardsInTwoChunks() public {
+        vm.warp(NETWORK_EPOCH_DURATION * 3 + 1);
+
+        (
+            uint48 testEpoch,
+            uint48[] memory eraIndexesPerEpoch,
+            IODefaultOperatorRewardsOld.EraRoot[] memory eraRoots,
+            uint256[] memory claimedPerEpoch,
+            address initialOperatorRewards
+        ) = _prepareMigrationTest();
+
+        deployRewards.setIsTest(true);
+        deployRewards.upgradeAndMigrateOperatorRewards(
+            initialOperatorRewards, address(tanssi), address(networkMiddlewareService), address(middleware), owner, 2
         );
         ODefaultOperatorRewards migratedOperatorRewards = ODefaultOperatorRewards(initialOperatorRewards);
 

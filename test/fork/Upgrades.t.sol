@@ -151,7 +151,7 @@ contract UpgradesTest is Test {
 
         deployRewards.setIsTest(false);
         deployRewards.upgradeAndMigrateOperatorRewards(
-            address(operatorRewards), tanssi, networkMiddlewareService, address(middleware), admin
+            address(operatorRewards), tanssi, networkMiddlewareService, address(middleware), admin, 30
         );
 
         assertEq(operatorRewards.operatorShare(), operatorShare);
