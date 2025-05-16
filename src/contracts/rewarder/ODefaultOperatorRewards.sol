@@ -69,7 +69,7 @@ contract ODefaultOperatorRewards is
         uint48 operatorShare;
         mapping(uint48 eraIndex => EraRoot eraRoot) eraRoot;
         mapping(uint48 epoch => uint48[] eraIndexes) eraIndexesPerEpoch;
-        mapping(uint48 eraIndex => mapping(bytes account => uint256 amount)) claimed; // Todo shall we use bytes or bytes32 for account?
+        mapping(uint48 eraIndex => mapping(bytes32 account => uint256 amount)) claimed;
         mapping(address vault => address stakerRewardsAddress) vaultToStakerRewardsContract;
     }
 
@@ -176,7 +176,7 @@ contract ODefaultOperatorRewards is
                         ++i;
                     }
                 }
-            } // Else it already migrated, shall it revert instead?
+            } // Else it already migrated
             unchecked {
                 ++epoch;
             }
@@ -192,7 +192,7 @@ contract ODefaultOperatorRewards is
     ) private {
         for (uint48 i; i < operators.length;) {
             address operator = operators[i];
-            bytes memory operatorKey = reader.operatorKey(operator);
+            bytes32 operatorKey = abi.decode(reader.operatorKey(operator), (bytes32));
             uint256 claimedAmount = $old.claimed[eraIndex][operator];
             delete $old.claimed[eraIndex][operator];
             if (claimedAmount != 0) {
@@ -345,11 +345,11 @@ contract ODefaultOperatorRewards is
         recipient = IOBaseMiddlewareReader(middlewareAddress).operatorByKey(operatorKey);
 
         // You can only claim everything and if it's claimed before revert
-        if ($.claimed[input.eraIndex][operatorKey] != 0) {
+        if ($.claimed[input.eraIndex][input.operatorKey] != 0) {
             revert ODefaultOperatorRewards__AlreadyClaimed();
         }
 
-        $.claimed[input.eraIndex][operatorKey] = amount;
+        $.claimed[input.eraIndex][input.operatorKey] = amount;
 
         // operatorShare% of the rewards to the operator
         uint256 operatorAmount = amount.mulDiv($.operatorShare, MAX_PERCENTAGE);
@@ -415,13 +415,11 @@ contract ODefaultOperatorRewards is
     ) private {
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         for (uint256 i; i < totalVaults;) {
-            if (amountPerVault[i] != 0) {
-                address stakerRewardsForVault = $.vaultToStakerRewardsContract[operatorVaults[i]];
-                IERC20(tokenAddress).approve(stakerRewardsForVault, amountPerVault[i]);
-                IODefaultStakerRewards(stakerRewardsForVault).distributeRewards(
-                    epoch, eraIndex, amountPerVault[i], tokenAddress, data
-                );
-            }
+            address stakerRewardsForVault = $.vaultToStakerRewardsContract[operatorVaults[i]];
+            IERC20(tokenAddress).approve(stakerRewardsForVault, amountPerVault[i]);
+            IODefaultStakerRewards(stakerRewardsForVault).distributeRewards(
+                epoch, eraIndex, amountPerVault[i], tokenAddress, data
+            );
 
             unchecked {
                 ++i;
@@ -495,7 +493,7 @@ contract ODefaultOperatorRewards is
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
-    function claimed(uint48 eraIndex, bytes memory account) external view returns (uint256 amount) {
+    function claimed(uint48 eraIndex, bytes32 account) external view returns (uint256 amount) {
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         amount = $.claimed[eraIndex][account];
     }

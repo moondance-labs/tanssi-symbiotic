@@ -163,7 +163,7 @@ interface IODefaultOperatorRewards {
      * @param account operator key of the rewards' recipient
      * @return amount claimed amount of tokens
      */
-    function claimed(uint48 eraIndex, bytes memory account) external view returns (uint256 amount);
+    function claimed(uint48 eraIndex, bytes32 account) external view returns (uint256 amount);
 
     /**
      * @notice Get the staker rewards contract's address for a particular vault

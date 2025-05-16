@@ -114,6 +114,8 @@ contract MiddlewareTest is Test {
     bytes32 public constant OPERATOR8_KEY = 0x0808080808080808080808080808080808080808080808080808080808080808;
     bytes32 public constant OPERATOR9_KEY = 0x0909090909090909090909090909090909090909090909090909090909090909;
 
+    bytes32 public constant NEW_OPERATOR2_KEY = 0x0202020202020202020202020202020202020202020202020202020222222222;
+
     // Vault 1 - Single Operator
     uint256 public constant VAULT1_NETWORK_LIMIT = 500_000 * 10 ** TOKEN_DECIMALS_USDC; // 500k power
     uint256 public constant OPERATOR1_STAKE_V1_USDC = 100_000 * 10 ** TOKEN_DECIMALS_USDC; // 100k power
@@ -1417,8 +1419,6 @@ contract MiddlewareTest is Test {
         operatorRewards.claimRewards(claimRewardsData);
     }
 
-    bytes32 public constant NEW_OPERATOR2_KEY = 0x0202020202020202020202020202020202020202020202020202020222222222;
-
     function testCannotReclaimRewardsAfterMultipleKeyChangesForOperator() public {
         uint48 eraIndex = 1;
         uint256 amountToDistribute = 100 ether;
@@ -1477,7 +1477,7 @@ contract MiddlewareTest is Test {
         operatorRewards.claimRewards(claimRewardsData);
     }
 
-    function testOperatorCanClaimRewardsEvenAfterUnregistering() public {
+    function testOperatorCannotDoubleClaimRewardsEvenAfterUnregistering() public {
         uint48 eraIndex = 1;
         uint256 amountToDistribute = 100 ether;
         uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);

@@ -167,7 +167,7 @@ contract DeployRewards is Script {
         ODefaultOperatorRewards proxy = ODefaultOperatorRewards(proxyAddress);
         ODefaultOperatorRewards implementation = new ODefaultOperatorRewards(network, networkMiddlewareService);
         console2.log("New Operator Rewards Implementation: ", address(implementation));
-        uint48 lastEpoch = uint48(Middleware(middleware).getCurrentEpoch());
+        uint48 lastEpoch = Middleware(middleware).getCurrentEpoch();
         if (lastEpoch > 30) {
             uint256 currentGas = gasleft();
             bytes memory data = abi.encodeWithSelector(ODefaultOperatorRewards.migrate.selector, 1, 30);
