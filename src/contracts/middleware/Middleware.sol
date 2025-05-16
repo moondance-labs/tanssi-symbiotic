@@ -280,11 +280,17 @@ contract Middleware is
      * @inheritdoc IMiddleware
      */
     function sendCurrentOperatorsKeys() external returns (bytes32[] memory sortedKeys) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        if (block.number < $.lastExecutionBlock + MIN_INTERVAL_TO_SEND_OPERATOR_KEYS) {
+            revert Middleware__CallTooFrequent();
+        }
+
         address gateway = getGateway();
         if (gateway == address(0)) {
             revert Middleware__GatewayNotSet();
         }
 
+        $.lastExecutionBlock = block.number;
         uint48 epoch = getCurrentEpoch();
         sortedKeys = IOBaseMiddlewareReader(address(this)).sortOperatorsByPower(epoch);
         IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);
@@ -371,6 +377,21 @@ contract Middleware is
                 ++i;
             }
         }
+    }
+
+    /**
+     * @dev Execute a slash with a given slash index using hints.
+     * @param vault The vault address, must have a veto slasher
+     * @param slashIndex index of the slash request
+     * @param hints hints for checkpoints' indexes
+     * @return slashedAmount virtual amount of the collateral slashed
+     */
+    function executeSlash(
+        address vault,
+        uint256 slashIndex,
+        bytes calldata hints
+    ) external returns (uint256 slashedAmount) {
+        slashedAmount = _executeSlash(vault, slashIndex, hints);
     }
 
     /**

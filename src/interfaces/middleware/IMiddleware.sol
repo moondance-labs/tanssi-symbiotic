@@ -42,6 +42,7 @@ interface IMiddleware {
     event GatewaySet(address indexed gateway);
 
     // Errors
+    error Middleware__CallTooFrequent();
     error Middleware__GatewayNotSet();
     error Middleware__AlreadySet();
     error Middleware__TooOldEpoch();

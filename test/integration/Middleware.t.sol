@@ -645,8 +645,8 @@ contract MiddlewareTest is Test {
         middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
         vm.warp(block.timestamp + VETO_DURATION);
-        vm.prank(address(middleware));
-        vetoSlasher.executeSlash(0, hex"");
+        middleware.executeSlash(address(vaultVetoed), 0, hex"");
+
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
@@ -697,8 +697,7 @@ contract MiddlewareTest is Test {
         middleware.slash(currentEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
 
         vm.warp(block.timestamp + VETO_DURATION);
-        vm.prank(address(middleware));
-        vetoSlasher.executeSlash(0, hex"");
+        middleware.executeSlash(address(vaultVetoed), 0, hex"");
 
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
@@ -1343,6 +1342,7 @@ contract MiddlewareTest is Test {
         vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
 
         vm.warp(NETWORK_EPOCH_DURATION + 2);
+        vm.roll(80);
         bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
         assertEq(keys.length, 3);
 
@@ -1359,7 +1359,7 @@ contract MiddlewareTest is Test {
         );
 
         vm.warp(block.timestamp + VAULT_EPOCH_DURATION + 1);
-
+        vm.roll(80 + 57_235); // 57_235 is ≈ the number of blocks in 1 week
         keys = middleware.sendCurrentOperatorsKeys();
         assertEq(keys.length, 3);
 
