@@ -1493,7 +1493,7 @@ contract MiddlewareTest is Test {
         middleware.sendCurrentOperatorsKeys();
     }
 
-    function testSendCurrentOperatorKeysButIsLimitedByMaxIntervalBlock() public {
+    function testSendCurrentOperatorKeysButIsLimitedByMinIntervalBlock() public {
         _registerOperatorToNetwork(operator, address(vault), false, false);
 
         vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
