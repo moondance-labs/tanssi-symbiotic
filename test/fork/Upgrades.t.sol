@@ -22,8 +22,9 @@ import {DeployRewards} from "script/DeployRewards.s.sol";
 import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
-import {IODefaultOperatorRewardsOld} from "src/interfaces/rewarder/IODefaultOperatorRewardsOld.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
+
+import {IODefaultOperatorRewardsOld} from "../mocks/previousVersions/IODefaultOperatorRewardsOld.sol";
 
 contract UpgradesTest is Test {
     Middleware middleware;

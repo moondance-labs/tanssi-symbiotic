@@ -41,8 +41,8 @@ import {ScaleCodec} from "@tanssi-bridge-relayer/snowbridge/contracts/src/utils/
 //                                      TANSSI
 //**************************************************************************************************
 import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
-import {IODefaultOperatorRewardsOld} from "src/interfaces/rewarder/IODefaultOperatorRewardsOld.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
+import {IODefaultOperatorRewardsOld} from "./IODefaultOperatorRewardsOld.sol";
 
 contract ODefaultOperatorRewardsOld is
     OzAccessControl,
