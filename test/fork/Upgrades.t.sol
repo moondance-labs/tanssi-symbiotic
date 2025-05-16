@@ -179,8 +179,8 @@ contract UpgradesTest is Test {
         // Check regular operation after upgrade
         {
             // Distribute new rewards
-            uint48 currentEpoch = middleware.getCurrentEpoch();
-            uint48 lastEraIndex = operatorRewards.eraIndexesPerEpoch(currentEpoch - 1, 3);
+            uint48 previousEpoch = middleware.getCurrentEpoch() - 1;
+            uint48 recentEraIndex = operatorRewards.eraIndexesPerEpoch(previousEpoch, 0); // First era of previous epoch
             uint256 totalPoints = 1000;
 
             // This root + proof was generated for a single operator. Since it's a leafless merkle tree, the proof empty
@@ -192,7 +192,7 @@ contract UpgradesTest is Test {
 
             vm.startPrank(gateway);
             middleware.distributeRewards(
-                currentEpoch, lastEraIndex + 1, totalPoints, amountToDistribute, rewardsRoot, rewardsToken
+                previousEpoch, recentEraIndex, totalPoints, amountToDistribute, rewardsRoot, rewardsToken
             );
             vm.stopPrank();
 
@@ -202,7 +202,7 @@ contract UpgradesTest is Test {
             IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards
                 .ClaimRewardsInput({
                 operatorKey: 0xe86f7e1076c1cbcf4fbbb79d9aeafaa3b8450ab3a12bfa4b1ae52841ab396c10,
-                eraIndex: lastEraIndex + 1,
+                eraIndex: recentEraIndex,
                 totalPointsClaimable: 100,
                 proof: proof,
                 data: additionalData
