@@ -1573,9 +1573,7 @@ contract MiddlewareTest is Test {
         IMiddleware.OperatorVaultPair[] memory operatorVaultPairs =
             OBaseMiddlewareReader(address(middleware)).getOperatorVaultPairs(currentEpoch);
 
-        assertEq(operatorVaultPairs.length, 1);
-        assertEq(operatorVaultPairs[0].operator, address(0));
-        assertEq(operatorVaultPairs[0].vaults.length, 0);
+        assertEq(operatorVaultPairs.length, 0);
         vm.stopPrank();
     }
 
