@@ -320,7 +320,7 @@ contract ODefaultStakerRewards is
 
         IERC20(tokenAddress).safeTransfer(recipient, claimableAdminFee_);
 
-        emit ClaimAdminFee(recipient, tokenAddress, claimableAdminFee_);
+        emit ClaimAdminFee(recipient, tokenAddress, epoch, claimableAdminFee_);
     }
 
     /**

@@ -1470,7 +1470,7 @@ contract RewardsTest is Test {
 
         vm.startPrank(address(tanssi));
         vm.expectEmit(true, true, false, true);
-        emit IODefaultStakerRewards.ClaimAdminFee(tanssi, address(token), 10 ether);
+        emit IODefaultStakerRewards.ClaimAdminFee(tanssi, address(token), epoch, 10 ether);
         stakerRewards.claimAdminFee(tanssi, epoch, address(token));
 
         claimableFee = stakerRewards.claimableAdminFee(epoch, address(token));
