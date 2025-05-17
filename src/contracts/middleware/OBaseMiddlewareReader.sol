@@ -661,6 +661,6 @@ contract OBaseMiddlewareReader is
         uint48 timestamp
     ) external view returns (uint48 epoch) {
         EpochCaptureStorage storage $ = _getEpochCaptureStorage();
-        return (timestamp - $.startTimestamp) / $.epochDuration;
+        return (timestamp - $.startTimestamp - 1) / $.epochDuration;
     }
 }
