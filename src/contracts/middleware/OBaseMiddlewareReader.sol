@@ -513,7 +513,7 @@ contract OBaseMiddlewareReader is
         }
 
         assembly ("memory-safe") {
-            mstore(operatorVaultPairs, vaultIdx)
+            mstore(operatorVaultPairs, valIdx)
         }
     }
 
