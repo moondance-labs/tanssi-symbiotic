@@ -187,7 +187,7 @@ contract ODefaultStakerRewards is
         uint48 epochTs = EpochCapture(INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network))
             .getEpochStart(epoch);
         // If the epoch is in the future, revert
-        if (epochTs >= Time.timestamp()) {
+        if (epochTs > Time.timestamp()) {
             revert ODefaultStakerRewards__InvalidRewardTimestamp();
         }
 

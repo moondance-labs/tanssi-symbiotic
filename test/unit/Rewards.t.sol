@@ -796,9 +796,9 @@ contract RewardsTest is Test {
         uint48 epoch = 0;
         uint48 eraIndex = 0;
 
-        _mockVaultActiveSharesStakeAt(address(vault), epoch, true, true);
-        _mockGetOperatorVaults(epoch);
-        _distributeRewards(epoch, eraIndex, AMOUNT_TO_DISTRIBUTE, address(token));
+        _mockVaultActiveSharesStakeAt(address(vault), epoch + 1, true, true);
+        _mockGetOperatorVaults(epoch + 1);
+        _distributeRewards(epoch + 1, eraIndex, AMOUNT_TO_DISTRIBUTE, address(token));
 
         bytes32[] memory proof = _generateValidProof();
         IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
