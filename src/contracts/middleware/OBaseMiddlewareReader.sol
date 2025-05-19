@@ -511,6 +511,10 @@ contract OBaseMiddlewareReader is
                 ++i;
             }
         }
+
+        assembly ("memory-safe") {
+            mstore(operatorVaultPairs, valIdx)
+        }
     }
 
     /**
@@ -643,7 +647,9 @@ contract OBaseMiddlewareReader is
             }
             bytes32 key = abi.decode(getOperatorKeyAt(operator, epochStartTs), (bytes32));
             uint256 power = _getOperatorPowerAt(epochStartTs, operator);
-            validatorSet[len++] = IMiddleware.ValidatorData(power, key);
+            if (key != bytes32(0)) {
+                validatorSet[len++] = IMiddleware.ValidatorData(power, key);
+            }
         }
 
         // shrink array to skip unused slots
@@ -661,6 +667,6 @@ contract OBaseMiddlewareReader is
         uint48 timestamp
     ) external view returns (uint48 epoch) {
         EpochCaptureStorage storage $ = _getEpochCaptureStorage();
-        return (timestamp - $.startTimestamp) / $.epochDuration;
+        return (timestamp - $.startTimestamp - 1) / $.epochDuration;
     }
 }

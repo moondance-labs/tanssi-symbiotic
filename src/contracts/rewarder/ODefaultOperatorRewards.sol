@@ -106,6 +106,7 @@ contract ODefaultOperatorRewards is
         address network,
         address networkMiddlewareService
     ) notZeroAddress(network) notZeroAddress(networkMiddlewareService) {
+        _disableInitializers();
         i_network = network;
         i_networkMiddlewareService = networkMiddlewareService;
     }

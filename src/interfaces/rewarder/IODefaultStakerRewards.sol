@@ -66,9 +66,10 @@ interface IODefaultStakerRewards {
      * @notice Emitted when an admin fee is claimed.
      * @param recipient account that received the fee
      * @param tokenAddress address of the reward token
+     * @param epoch epoch of the claimed fee
      * @param amount amount of the fee claimed
      */
-    event ClaimAdminFee(address indexed recipient, address indexed tokenAddress, uint256 amount);
+    event ClaimAdminFee(address indexed recipient, address indexed tokenAddress, uint48 indexed epoch, uint256 amount);
 
     /**
      * @notice Emitted when an admin fee is set.
