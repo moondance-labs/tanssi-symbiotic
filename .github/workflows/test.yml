@@ -61,7 +61,7 @@ jobs:
     env:
       # Safe to put here since they are default anvil private keys
       ETH_RPC_URL: "https://eth.llamarpc.com"
-      HOLESKY_RPC_URL: ${{ secrets.ETH_HOLESKY_URL }}
+      SEPOLIA_RPC_URL: ${{ secrets.ETH_SEPOLIA_URL }}
       OWNER_PRIVATE_KEY: "0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6"
       NETWORK_PRIVATE_KEY: "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
       RESOLVER_PRIVATE_KEY: "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
@@ -100,18 +100,18 @@ jobs:
 
       - name: Run Forge tests
         run: |
-          forge test --nmp test/fork/* -vvv
+          forge test --nmp "test/fork/*" -vvv
         id: test
 
       - name: Run Forge fork tests
         run: |
-          forge test --fork-url $HOLESKY_RPC_URL --mp test/fork/* -vvvv
+          forge test --fork-url $SEPOLIA_RPC_URL --mp "test/fork/*" -vvv
         id: test-fork
 
       - name: Run Forge coverage
         run: |
           mkdir -p coverage
-          forge coverage --report lcov -r coverage/current.lcov --nmp test/fork/*
+          forge coverage --report lcov -r coverage/current.lcov --nmp "test/fork/*"
         id: coverage
       - name: Retrieve master coverage
         run: |

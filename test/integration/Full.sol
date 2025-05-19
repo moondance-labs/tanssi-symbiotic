@@ -20,6 +20,7 @@ import {Test, console2} from "forge-std/Test.sol";
 //                                      SYMBIOTIC
 //**************************************************************************************************
 import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
+import {KeyManagerAddress} from "@symbiotic-middleware/extensions/managers/keys/KeyManagerAddress.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {INetworkRestakeDelegator} from "@symbiotic/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestakeDelegator.sol";
@@ -62,6 +63,7 @@ import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
 
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
+import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {Token} from "test/mocks/Token.sol";
 import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
@@ -111,6 +113,8 @@ contract MiddlewareTest is Test {
     bytes32 public constant OPERATOR7_KEY = 0x0707070707070707070707070707070707070707070707070707070707070707;
     bytes32 public constant OPERATOR8_KEY = 0x0808080808080808080808080808080808080808080808080808080808080808;
     bytes32 public constant OPERATOR9_KEY = 0x0909090909090909090909090909090909090909090909090909090909090909;
+
+    bytes32 public constant NEW_OPERATOR2_KEY = 0x0202020202020202020202020202020202020202020202020202020222222222;
 
     // Vault 1 - Single Operator
     uint256 public constant VAULT1_NETWORK_LIMIT = 500_000 * 10 ** TOKEN_DECIMALS_USDC; // 500k power
@@ -585,7 +589,7 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
     }
 
-    function _withdrawFromVault(IVault vault, address withdrawer, uint256 amount, Token collateral) private {
+    function _withdrawFromVault(IVault vault, address withdrawer, uint256 amount) private {
         vm.startPrank(withdrawer);
         vault.withdraw(withdrawer, amount);
         vm.stopPrank();
@@ -765,7 +769,7 @@ contract MiddlewareTest is Test {
                 operator: address(0),
                 network: address(0)
             });
-            (address vault, address delegator, address slasher) = deployVault.createSlashableVault(params);
+            (address vault, address delegator,) = deployVault.createSlashableVault(params);
 
             middleware.registerSharedVault(address(vault), stakerRewardsParams);
             INetworkRestakeDelegator(delegator).setOperatorNetworkShares(tanssi.subnetwork(0), operatorA, 1);
@@ -904,7 +908,7 @@ contract MiddlewareTest is Test {
 
         uint256 operator1_withdraw_stake = 50_000 * 10 ** TOKEN_DECIMALS_USDC;
 
-        _withdrawFromVault(vaultsData.v1.vault, operator1, operator1_withdraw_stake, usdc);
+        _withdrawFromVault(vaultsData.v1.vault, operator1, operator1_withdraw_stake);
 
         // Power should not change until the network epoch ends
         validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
@@ -1347,6 +1351,169 @@ contract MiddlewareTest is Test {
         assertEq(STAR.balanceOf(stakerRewardsContractVault2), 0);
     }
 
+    function testCannotReclaimRewardsIfEvmKeyChangesForOperator() public {
+        uint48 eraIndex = 1;
+        uint256 amountToDistribute = 100 ether;
+        uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
+
+        uint256 expectedRewardsForStakers =
+            _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR2_KEY, operator2, 2, true);
+
+        address operator2New = makeAddr("operator2New");
+
+        // First we try directly updating directly, but it is not possible. This method is used to assign a new key to an existing evm operator, not the other way around.
+        vm.startPrank(owner);
+        vm.expectRevert(KeyManagerAddress.DuplicateKey.selector);
+        middleware.updateOperatorKey(operator2New, abi.encode(OPERATOR2_KEY));
+
+        // Then we try unregistering and registering again
+        middleware.pauseOperator(operator2);
+        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        middleware.unregisterOperator(operator2);
+        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+
+        vm.startPrank(operator2);
+        // operatorRegistry.unregisterOperator(); // No such a thing. Only registering is possible.
+        operatorNetworkOptInService.optOut(tanssi);
+        operatorVaultOptInService.optOut(address(vaultsData.v2.vault));
+        vm.stopPrank();
+
+        vm.startPrank(operator2New);
+        operatorRegistry.registerOperator();
+        operatorNetworkOptInService.optIn(tanssi);
+        operatorVaultOptInService.optIn(address(vaultsData.v2.vault));
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+
+        vm.startPrank(owner);
+        vm.expectRevert(KeyManagerAddress.DuplicateKey.selector);
+        // registerOperator tries to call update key just like updateOperatorKey, but it already exists so it reverts
+        middleware.registerOperator(operator2New, abi.encode(OPERATOR2_KEY), address(0));
+        vm.stopPrank();
+
+        // The substrate key still points to initial evm address
+        address operatorFromKey = IOBaseMiddlewareReader(address(middleware)).operatorByKey(abi.encode(OPERATOR2_KEY));
+        assertEq(operatorFromKey, operator2);
+
+        // The initial EVM address points to no key, link in this direction is removed when unregistering
+        bytes memory keyFromOperator = IOBaseMiddlewareReader(address(middleware)).operatorKey(operator2);
+        assertEq(keyFromOperator, abi.encode(0));
+
+        // The new EVM address points to no key since registration could not be completed.
+        keyFromOperator = IOBaseMiddlewareReader(address(middleware)).operatorKey(operator2New);
+        assertEq(keyFromOperator, abi.encode(0));
+
+        // Try to claim anyway, it will revert with already claimed
+        (,, bytes32[] memory proof, uint32 points, uint32 totalPoints) = _loadRewardsRootAndProof(eraIndex, 2);
+        bytes memory additionalData = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
+        IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
+            operatorKey: OPERATOR2_KEY,
+            eraIndex: eraIndex,
+            totalPointsClaimable: points,
+            proof: proof,
+            data: additionalData
+        });
+
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__AlreadyClaimed.selector);
+        operatorRewards.claimRewards(claimRewardsData);
+    }
+
+    function testCannotReclaimRewardsAfterMultipleKeyChangesForOperator() public {
+        uint48 eraIndex = 1;
+        uint256 amountToDistribute = 100 ether;
+        uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
+
+        uint256 previousBalanceOp2 = STAR.balanceOf(operator2);
+        uint256 previousBalanceOp1 = STAR.balanceOf(operator1);
+        _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR2_KEY, operator2, 2, true);
+
+        uint256 newBalanceOp2 = STAR.balanceOf(operator2);
+        uint256 newBalanceOp1 = STAR.balanceOf(operator1);
+
+        // WE WILL USE EXISTING OPERATOR - OPERATOR #1
+        vm.startPrank(owner);
+
+        // UPDATE OPERATOR #2 KEY AND THEN DEREGISTER
+        middleware.pauseOperator(operator2);
+        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        middleware.updateOperatorKey(operator2, abi.encode(NEW_OPERATOR2_KEY));
+        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        middleware.unregisterOperator(operator2);
+        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+
+        vm.startPrank(operator2);
+        operatorNetworkOptInService.optOut(tanssi);
+        operatorVaultOptInService.optOut(address(vaultsData.v2.vault));
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+
+        vm.startPrank(owner);
+        // ASSIGN OPERATOR #2 KEY TO OPERATOR #1
+        middleware.updateOperatorKey(operator1, abi.encode(OPERATOR2_KEY));
+        vm.stopPrank();
+
+        // OPERATOR #2 KEY POINTS TO OPERATOR #1
+        address operatorFromKey = IOBaseMiddlewareReader(address(middleware)).operatorByKey(abi.encode(OPERATOR2_KEY));
+        assertEq(operatorFromKey, operator1);
+
+        // OPERATOR #2 INACTIVE
+        bytes memory keyFromOperator = IOBaseMiddlewareReader(address(middleware)).operatorKey(operator2);
+        assertEq(keyFromOperator, abi.encode(0));
+
+        // TRY CLAIM
+        (,, bytes32[] memory proof, uint32 points, uint32 totalPoints) = _loadRewardsRootAndProof(eraIndex, 2);
+        bytes memory additionalData = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
+        IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
+            operatorKey: OPERATOR2_KEY,
+            eraIndex: eraIndex,
+            totalPointsClaimable: points,
+            proof: proof,
+            data: additionalData
+        });
+
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__AlreadyClaimed.selector);
+        operatorRewards.claimRewards(claimRewardsData);
+    }
+
+    function testOperatorCannotDoubleClaimRewardsEvenAfterUnregistering() public {
+        uint48 eraIndex = 1;
+        uint256 amountToDistribute = 100 ether;
+        uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
+
+        uint256 expectedRewardsForStakers =
+            _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR2_KEY, operator2, 2, true);
+
+        // Owner pauses and unregisters operator
+        vm.startPrank(owner);
+        middleware.pauseOperator(operator2);
+        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        middleware.unregisterOperator(operator2);
+        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+
+        // Operator opts out
+        vm.startPrank(operator2);
+        // operatorRegistry.unregisterOperator(); // No such a thing. Only registering is possible.
+        operatorNetworkOptInService.optOut(tanssi);
+        operatorVaultOptInService.optOut(address(vaultsData.v2.vault));
+        vm.stopPrank();
+
+        // Try to claim, since substrate key still points to the original EVM address, claim is valid.
+        (,, bytes32[] memory proof, uint32 points, uint32 totalPoints) = _loadRewardsRootAndProof(eraIndex, 2);
+        bytes memory additionalData = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
+        IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
+            operatorKey: OPERATOR2_KEY,
+            eraIndex: eraIndex,
+            totalPointsClaimable: points,
+            proof: proof,
+            data: additionalData
+        });
+
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__AlreadyClaimed.selector);
+        operatorRewards.claimRewards(claimRewardsData);
+    }
+
     // ************************************************************************************************
     // *                                       Slashing
     // ************************************************************************************************
@@ -1448,11 +1615,10 @@ contract MiddlewareTest is Test {
         uint256 amountToDistribute = 100 ether;
         vm.warp(block.timestamp + 5 * NETWORK_EPOCH_DURATION);
 
-        uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
+        _prepareRewardsDistribution(eraIndex, amountToDistribute);
 
         uint256 initGas = gasleft();
-        uint256 expectedRewardsForStakers =
-            _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR8_KEY, operator8, 8, true);
+        _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR8_KEY, operator8, 8, true);
         uint256 endGas = gasleft();
 
         // 30M is the tx gas limit in most of the networks. Gas usage 2025-04-24: 22895689

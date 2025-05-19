@@ -289,9 +289,6 @@ contract MiddlewareTest is Test {
     }
 
     function testGetEpochAtTs() public view {
-        // Test start time
-        assertEq(OBaseMiddlewareReader(address(middleware)).getEpochAtTs(uint48(START_TIME)), 0);
-
         // Test middle of first epoch
         assertEq(
             OBaseMiddlewareReader(address(middleware)).getEpochAtTs(uint48(START_TIME + NETWORK_EPOCH_DURATION / 2)), 0
@@ -299,11 +296,12 @@ contract MiddlewareTest is Test {
 
         // Test exact epoch boundaries
         assertEq(
-            OBaseMiddlewareReader(address(middleware)).getEpochAtTs(uint48(START_TIME + NETWORK_EPOCH_DURATION)), 1
+            OBaseMiddlewareReader(address(middleware)).getEpochAtTs(uint48(START_TIME + NETWORK_EPOCH_DURATION + 1)), 1
         );
 
         assertEq(
-            OBaseMiddlewareReader(address(middleware)).getEpochAtTs(uint48(START_TIME + 2 * NETWORK_EPOCH_DURATION)), 2
+            OBaseMiddlewareReader(address(middleware)).getEpochAtTs(uint48(START_TIME + 2 * NETWORK_EPOCH_DURATION + 1)),
+            2
         );
 
         // Test random time in later epoch
@@ -1430,6 +1428,7 @@ contract MiddlewareTest is Test {
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
 
         vm.warp(NETWORK_EPOCH_DURATION + 2);
+        vm.roll(80);
         bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
         assertEq(keys.length, 1);
     }
@@ -1437,7 +1436,7 @@ contract MiddlewareTest is Test {
     function testSendCurrentOperatorKeysButNoOperators() public {
         vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
         vm.startPrank(owner);
-
+        vm.roll(80);
         bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
         assertEq(keys.length, 0);
     }
@@ -1452,6 +1451,7 @@ contract MiddlewareTest is Test {
 
         middleware.pauseOperator(operator);
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
+        vm.roll(80);
         middleware.unregisterOperator(operator);
 
         vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
@@ -1471,6 +1471,7 @@ contract MiddlewareTest is Test {
 
         middleware.pauseOperator(operator);
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
+        vm.roll(80);
 
         vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
         vm.startPrank(owner);
@@ -1484,8 +1485,28 @@ contract MiddlewareTest is Test {
 
         vm.store(address(middleware), slot, bytes32(0));
 
+        vm.roll(80);
+
         vm.expectRevert(IMiddleware.Middleware__GatewayNotSet.selector);
         middleware.sendCurrentOperatorsKeys();
+    }
+
+    function testSendCurrentOperatorKeysButIsLimitedByMinIntervalBlock() public {
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+
+        vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
+        vm.startPrank(owner);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
+        vm.roll(80);
+        bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
+        assertEq(keys.length, 1);
+
+        vm.warp(NETWORK_EPOCH_DURATION + 2 + 60); // + 60 seconds ≈ 5 blocks
+        vm.roll(85);
+        keys = middleware.sendCurrentOperatorsKeys();
+        assertEq(keys.length, 0);
     }
 
     // ************************************************************************************************
@@ -1550,9 +1571,7 @@ contract MiddlewareTest is Test {
         IMiddleware.OperatorVaultPair[] memory operatorVaultPairs =
             OBaseMiddlewareReader(address(middleware)).getOperatorVaultPairs(currentEpoch);
 
-        assertEq(operatorVaultPairs.length, 1);
-        assertEq(operatorVaultPairs[0].operator, address(0));
-        assertEq(operatorVaultPairs[0].vaults.length, 0);
+        assertEq(operatorVaultPairs.length, 0);
         vm.stopPrank();
     }
 
@@ -1693,10 +1712,13 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function testMiddlewareIsUpgradeable() public {
-        // uint48 OPERATOR_SHARE = 2000;
+        uint48 OPERATOR_SHARE = 2000;
 
-        // ODefaultOperatorRewards newOperatorRewards = ODefaultOperatorRewards(
-        //     deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner));
+        ODefaultOperatorRewards(
+            deployRewards.deployOperatorRewardsContract(
+                tanssi, address(networkMiddlewareService), OPERATOR_SHARE, owner
+            )
+        );
 
         vm.prank(owner);
 
@@ -1709,7 +1731,6 @@ contract MiddlewareTest is Test {
         middleware.upgradeToAndCall(address(middlewareImplV2), emptyBytes);
 
         assertEq(middleware.VERSION(), 2);
-        // assertEq(middleware.i_operatorRewards(), address(newOperatorRewards)); // TODO: We need to use a storage for middleware first
 
         address gatewayAddress = makeAddr("gatewayAddress");
 
@@ -1730,7 +1751,7 @@ contract MiddlewareTest is Test {
 
         middleware.setGateway(newGateway);
         assertEq(middleware.VERSION(), 1);
-        // assertEq(address(middleware.s_gateway()), newGateway); // TODO: We need to use a storage for middleware first
+        assertEq(address(middleware.getGateway()), newGateway);
 
         MiddlewareV3 middlewareImplV3 = new MiddlewareV3(address(operatorRewards));
         bytes memory emptyBytes = hex"";
@@ -1738,7 +1759,6 @@ contract MiddlewareTest is Test {
         middleware.upgradeToAndCall(address(middlewareImplV3), emptyBytes);
 
         assertEq(middleware.VERSION(), 3);
-        // assertEq(address(MiddlewareV3(address(middleware)).s_gateway()), newGateway); TODO: We need to use a storage for middleware first
 
         vm.expectRevert(); //Doesn't exists
         middleware.setGateway(address(0));

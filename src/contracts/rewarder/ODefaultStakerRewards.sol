@@ -17,7 +17,6 @@ pragma solidity 0.8.25;
 // *********************************************************************************************************************
 //                                                  SYMBIOTIC
 // *********************************************************************************************************************
-import {IStakerRewards} from "@symbiotic-rewards/interfaces/stakerRewards/IStakerRewards.sol";
 import {INetworkMiddlewareService} from "@symbiotic/interfaces/service/INetworkMiddlewareService.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
@@ -34,7 +33,6 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
-import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 
 contract ODefaultStakerRewards is
     AccessControlUpgradeable,
@@ -189,7 +187,7 @@ contract ODefaultStakerRewards is
         uint48 epochTs = EpochCapture(INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network))
             .getEpochStart(epoch);
         // If the epoch is in the future, revert
-        if (epochTs >= Time.timestamp()) {
+        if (epochTs > Time.timestamp()) {
             revert ODefaultStakerRewards__InvalidRewardTimestamp();
         }
 
@@ -204,20 +202,20 @@ contract ODefaultStakerRewards is
         // This is used to cache the active shares for the epoch and optimize the claiming process
         _cacheActiveShares($, epoch, epochTs, activeSharesHint, activeStakeHint);
 
-        amount = _transferAndCheckAmount(tokenAddress, amount);
+        _transferAndCheckAmount(tokenAddress, amount);
 
         _updateAdminFeeAndRewards(amount, adminFee_, epoch, tokenAddress);
 
         emit DistributeRewards(i_network, tokenAddress, eraIndex, epoch, amount, data);
     }
 
-    function _transferAndCheckAmount(address tokenAddress, uint256 amount) private returns (uint256 finalAmount) {
+    function _transferAndCheckAmount(address tokenAddress, uint256 amount) private {
         uint256 balanceBefore = IERC20(tokenAddress).balanceOf(address(this));
         IERC20(tokenAddress).safeTransferFrom(msg.sender, address(this), amount);
-        finalAmount = IERC20(tokenAddress).balanceOf(address(this)) - balanceBefore;
+        uint256 finalAmount = IERC20(tokenAddress).balanceOf(address(this)) - balanceBefore;
 
         // Check if the amount being sent is greater than 0
-        if (finalAmount == 0) {
+        if (finalAmount != amount) {
             revert ODefaultStakerRewards__InsufficientReward();
         }
     }
@@ -322,7 +320,7 @@ contract ODefaultStakerRewards is
 
         IERC20(tokenAddress).safeTransfer(recipient, claimableAdminFee_);
 
-        emit ClaimAdminFee(recipient, tokenAddress, claimableAdminFee_);
+        emit ClaimAdminFee(recipient, tokenAddress, epoch, claimableAdminFee_);
     }
 
     /**
