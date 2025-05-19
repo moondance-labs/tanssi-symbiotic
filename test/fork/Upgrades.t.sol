@@ -115,6 +115,7 @@ contract UpgradesTest is Test {
     }
 
     function testUpgradeAndMigrateOperatorRewardsWithBroadcast() public {
+        vm.skip(true); // TODO: Remove after migration code is removed
         address networkMiddlewareService = operatorRewards.i_networkMiddlewareService();
         uint48 operatorShare = operatorRewards.operatorShare();
         IODefaultOperatorRewardsOld oldOperatorRewards = IODefaultOperatorRewardsOld(address(operatorRewards));

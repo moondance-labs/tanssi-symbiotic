@@ -158,6 +158,16 @@ contract Middleware is
         }
     }
 
+    function setReader(
+        address reader
+    ) external checkAccess notZeroAddress(reader) {
+        // From BaseMiddleware.sol
+        bytes32 ReaderStorageLocation = 0xfd87879bc98f37af7578af722aecfbe5843e5ad354da2d1e70cb5157c4ec8800;
+        assembly {
+            sstore(ReaderStorageLocation, reader)
+        }
+    }
+
     function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
         address collateral = vaultToCollateral(vault);
         address oracle = collateralToOracle(collateral);
