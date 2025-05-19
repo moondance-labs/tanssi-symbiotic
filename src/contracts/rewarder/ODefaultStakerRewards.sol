@@ -202,17 +202,17 @@ contract ODefaultStakerRewards is
         // This is used to cache the active shares for the epoch and optimize the claiming process
         _cacheActiveShares($, epoch, epochTs, activeSharesHint, activeStakeHint);
 
-        amount = _transferAndCheckAmount(tokenAddress, amount);
+        _transferAndCheckAmount(tokenAddress, amount);
 
         _updateAdminFeeAndRewards(amount, adminFee_, epoch, tokenAddress);
 
         emit DistributeRewards(i_network, tokenAddress, eraIndex, epoch, amount, data);
     }
 
-    function _transferAndCheckAmount(address tokenAddress, uint256 amount) private returns (uint256 finalAmount) {
+    function _transferAndCheckAmount(address tokenAddress, uint256 amount) private {
         uint256 balanceBefore = IERC20(tokenAddress).balanceOf(address(this));
         IERC20(tokenAddress).safeTransferFrom(msg.sender, address(this), amount);
-        finalAmount = IERC20(tokenAddress).balanceOf(address(this)) - balanceBefore;
+        uint256 finalAmount = IERC20(tokenAddress).balanceOf(address(this)) - balanceBefore;
 
         // Check if the amount being sent is greater than 0
         if (finalAmount != amount) {
