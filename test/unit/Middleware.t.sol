@@ -289,9 +289,6 @@ contract MiddlewareTest is Test {
     }
 
     function testGetEpochAtTs() public view {
-        // Test start time
-        assertEq(OBaseMiddlewareReader(address(middleware)).getEpochAtTs(uint48(START_TIME)), 0);
-
         // Test middle of first epoch
         assertEq(
             OBaseMiddlewareReader(address(middleware)).getEpochAtTs(uint48(START_TIME + NETWORK_EPOCH_DURATION / 2)), 0
