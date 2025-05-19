@@ -340,16 +340,17 @@ contract ODefaultOperatorRewards is
         // total amount of tokens = (total points claimable * total amount) / total points
         amount = uint256(input.totalPointsClaimable).mulDiv(eraRoot_.amount, eraRoot_.totalPoints);
 
-        bytes memory operatorKey = abi.encode(input.operatorKey);
+        bytes32 operatorKey = input.operatorKey;
         // Starlight sends back only the operator key, thus we need to get back the operator address
-        recipient = IOBaseMiddlewareReader(middlewareAddress).operatorByKey(operatorKey);
+        recipient = IOBaseMiddlewareReader(middlewareAddress).operatorByKey(abi.encode(operatorKey));
 
+        uint48 eraIndex = input.eraIndex;
         // You can only claim everything and if it's claimed before revert
-        if ($.claimed[input.eraIndex][input.operatorKey] != 0) {
+        if ($.claimed[eraIndex][operatorKey] != 0) {
             revert ODefaultOperatorRewards__AlreadyClaimed();
         }
 
-        $.claimed[input.eraIndex][input.operatorKey] = amount;
+        $.claimed[eraIndex][operatorKey] = amount;
 
         // operatorShare% of the rewards to the operator
         uint256 operatorAmount = amount.mulDiv($.operatorShare, MAX_PERCENTAGE);
