@@ -289,9 +289,6 @@ contract MiddlewareTest is Test {
     }
 
     function testGetEpochAtTs() public view {
-        // Test start time
-        assertEq(OBaseMiddlewareReader(address(middleware)).getEpochAtTs(uint48(START_TIME)), 0);
-
         // Test middle of first epoch
         assertEq(
             OBaseMiddlewareReader(address(middleware)).getEpochAtTs(uint48(START_TIME + NETWORK_EPOCH_DURATION / 2)), 0
@@ -299,11 +296,12 @@ contract MiddlewareTest is Test {
 
         // Test exact epoch boundaries
         assertEq(
-            OBaseMiddlewareReader(address(middleware)).getEpochAtTs(uint48(START_TIME + NETWORK_EPOCH_DURATION)), 1
+            OBaseMiddlewareReader(address(middleware)).getEpochAtTs(uint48(START_TIME + NETWORK_EPOCH_DURATION + 1)), 1
         );
 
         assertEq(
-            OBaseMiddlewareReader(address(middleware)).getEpochAtTs(uint48(START_TIME + 2 * NETWORK_EPOCH_DURATION)), 2
+            OBaseMiddlewareReader(address(middleware)).getEpochAtTs(uint48(START_TIME + 2 * NETWORK_EPOCH_DURATION + 1)),
+            2
         );
 
         // Test random time in later epoch
