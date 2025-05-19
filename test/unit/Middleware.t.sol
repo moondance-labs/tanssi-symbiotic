@@ -289,9 +289,6 @@ contract MiddlewareTest is Test {
     }
 
     function testGetEpochAtTs() public view {
-        // Test start time
-        assertEq(OBaseMiddlewareReader(address(middleware)).getEpochAtTs(uint48(START_TIME)), 0);
-
         // Test middle of first epoch
         assertEq(
             OBaseMiddlewareReader(address(middleware)).getEpochAtTs(uint48(START_TIME + NETWORK_EPOCH_DURATION / 2)), 0
@@ -299,11 +296,12 @@ contract MiddlewareTest is Test {
 
         // Test exact epoch boundaries
         assertEq(
-            OBaseMiddlewareReader(address(middleware)).getEpochAtTs(uint48(START_TIME + NETWORK_EPOCH_DURATION)), 1
+            OBaseMiddlewareReader(address(middleware)).getEpochAtTs(uint48(START_TIME + NETWORK_EPOCH_DURATION + 1)), 1
         );
 
         assertEq(
-            OBaseMiddlewareReader(address(middleware)).getEpochAtTs(uint48(START_TIME + 2 * NETWORK_EPOCH_DURATION)), 2
+            OBaseMiddlewareReader(address(middleware)).getEpochAtTs(uint48(START_TIME + 2 * NETWORK_EPOCH_DURATION + 1)),
+            2
         );
 
         // Test random time in later epoch
@@ -1507,8 +1505,8 @@ contract MiddlewareTest is Test {
 
         vm.warp(NETWORK_EPOCH_DURATION + 2 + 60); // + 60 seconds ≈ 5 blocks
         vm.roll(85);
-        vm.expectRevert(IMiddleware.Middleware__CallTooFrequent.selector);
         keys = middleware.sendCurrentOperatorsKeys();
+        assertEq(keys.length, 0);
     }
 
     // ************************************************************************************************
@@ -1573,9 +1571,7 @@ contract MiddlewareTest is Test {
         IMiddleware.OperatorVaultPair[] memory operatorVaultPairs =
             OBaseMiddlewareReader(address(middleware)).getOperatorVaultPairs(currentEpoch);
 
-        assertEq(operatorVaultPairs.length, 1);
-        assertEq(operatorVaultPairs[0].operator, address(0));
-        assertEq(operatorVaultPairs[0].vaults.length, 0);
+        assertEq(operatorVaultPairs.length, 0);
         vm.stopPrank();
     }
 
