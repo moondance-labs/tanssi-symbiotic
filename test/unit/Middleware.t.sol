@@ -1505,8 +1505,8 @@ contract MiddlewareTest is Test {
 
         vm.warp(NETWORK_EPOCH_DURATION + 2 + 60); // + 60 seconds ≈ 5 blocks
         vm.roll(85);
-        vm.expectRevert(IMiddleware.Middleware__CallTooFrequent.selector);
         keys = middleware.sendCurrentOperatorsKeys();
+        assertEq(keys.length, 0);
     }
 
     // ************************************************************************************************

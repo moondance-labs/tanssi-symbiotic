@@ -292,7 +292,7 @@ contract Middleware is
     function sendCurrentOperatorsKeys() external returns (bytes32[] memory sortedKeys) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
         if (block.number < $.lastExecutionBlock + MIN_INTERVAL_TO_SEND_OPERATOR_KEYS) {
-            revert Middleware__CallTooFrequent();
+            return sortedKeys;
         }
 
         address gateway = getGateway();
