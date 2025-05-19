@@ -416,11 +416,13 @@ contract ODefaultOperatorRewards is
     ) private {
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         for (uint256 i; i < totalVaults;) {
-            address stakerRewardsForVault = $.vaultToStakerRewardsContract[operatorVaults[i]];
-            IERC20(tokenAddress).approve(stakerRewardsForVault, amountPerVault[i]);
-            IODefaultStakerRewards(stakerRewardsForVault).distributeRewards(
-                epoch, eraIndex, amountPerVault[i], tokenAddress, data
-            );
+            if (amountPerVault[i] != 0) {
+                address stakerRewardsForVault = $.vaultToStakerRewardsContract[operatorVaults[i]];
+                IERC20(tokenAddress).approve(stakerRewardsForVault, amountPerVault[i]);
+                IODefaultStakerRewards(stakerRewardsForVault).distributeRewards(
+                    epoch, eraIndex, amountPerVault[i], tokenAddress, data
+                );
+            }
 
             unchecked {
                 ++i;
