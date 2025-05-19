@@ -14,8 +14,8 @@
 
 pragma solidity ^0.8.0;
 
-interface IODefaultOperatorRewards {
-    error ODefaultOperatorRewards__AlreadyClaimed();
+interface IODefaultOperatorRewardsOld {
+    error ODefaultOperatorRewards__InsufficientTotalClaimable();
     error ODefaultOperatorRewards__InsufficientTransfer();
     error ODefaultOperatorRewards__RootNotSet();
     error ODefaultOperatorRewards__InvalidProof();
@@ -36,7 +36,7 @@ interface IODefaultOperatorRewards {
         uint48 indexed epoch,
         uint48 indexed eraIndex,
         address indexed tokenAddress,
-        uint256 points,
+        uint256 tokensPerPoint,
         uint256 amount,
         bytes32 root
     );
@@ -80,27 +80,10 @@ interface IODefaultOperatorRewards {
      * @param root Merkle root of the rewards distribution
      * @param tokenAddress address of the reward token
      */
-    struct OldEraRoot {
-        uint48 epoch;
-        uint256 amount;
-        uint256 tokensPerPoint;
-        bytes32 root;
-        address tokenAddress;
-    }
-
-    /**
-     * @notice Struct to store the data related to rewards distribution per Starlight's era.
-     * @param epoch network epoch of the middleware
-     * @param amount amount of tokens received per eraIndex
-     * @param totalPoints total amount of points for the reward distribution
-     * @param totalAmount total amount of tokens for the reward distribution
-     * @param root Merkle root of the rewards distribution
-     * @param tokenAddress address of the reward token
-     */
     struct EraRoot {
         uint48 epoch;
         uint256 amount;
-        uint256 totalPoints;
+        uint256 tokensPerPoint;
         bytes32 root;
         address tokenAddress;
     }
@@ -160,10 +143,10 @@ interface IODefaultOperatorRewards {
     /**
      * @notice Get a claimed amount of rewards for a particular account and epoch
      * @param eraIndex era index of Starlight's rewards distribution
-     * @param account operator key of the rewards' recipient
+     * @param account address of the claimer
      * @return amount claimed amount of tokens
      */
-    function claimed(uint48 eraIndex, bytes32 account) external view returns (uint256 amount);
+    function claimed(uint48 eraIndex, address account) external view returns (uint256 amount);
 
     /**
      * @notice Get the staker rewards contract's address for a particular vault
@@ -179,7 +162,7 @@ interface IODefaultOperatorRewards {
      * @param epoch network epoch of the middleware
      * @param eraIndex era index of Starlight's rewards distribution
      * @param amount amount of tokens to distribute
-     * @param totalPoints total amount of points for the reward distribution
+     * @param totalPointsToken total amount of points for the reward distribution
      * @param root Merkle root of the reward distribution
      * @param tokenAddress address of the reward token
      * @dev Emit DistributeRewards event.
@@ -188,7 +171,7 @@ interface IODefaultOperatorRewards {
         uint48 epoch,
         uint48 eraIndex,
         uint256 amount,
-        uint256 totalPoints,
+        uint256 totalPointsToken,
         bytes32 root,
         address tokenAddress
     ) external;
