@@ -38,7 +38,8 @@ contract HelperConfig is Script {
         address wstETH;
         address rETH;
         address cbETH;
-        address WBTC;
+        address swETH;
+        address wBETH;
     }
 
     struct VaultTrifecta {
@@ -48,10 +49,17 @@ contract HelperConfig is Script {
     }
 
     struct VaultsConfig {
-        VaultTrifecta vaultWstETH;
-        VaultTrifecta vaultRETH;
-        VaultTrifecta vaultCbETH;
-        VaultTrifecta vaultWBTC;
+        VaultTrifecta mevRestakedETH;
+        VaultTrifecta mevCapitalETH;
+        VaultTrifecta hashKeyCloudETH;
+        VaultTrifecta renzoRestakedETH;
+        VaultTrifecta re7LabsETH;
+        VaultTrifecta cp0xLrtETH;
+        VaultTrifecta gauntletRestakedWstETH;
+        VaultTrifecta gauntletRestakedCbETH;
+        VaultTrifecta gauntletRestakedSwETH;
+        VaultTrifecta gauntletRestakedRETH;
+        VaultTrifecta gauntletRestakedWBETH;
     }
 
     uint256 public DEFAULT_ANVIL_PRIVATE_KEY = 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6;
@@ -62,6 +70,10 @@ contract HelperConfig is Script {
         } else {
             (activeNetworkConfig, activeTokensConfig, activeVaultsConfig) = getChainConfig();
         }
+    }
+
+    function getActiveVaultsConfig() external view returns (VaultsConfig memory) {
+        return activeVaultsConfig;
     }
 
     function getChainConfig()
@@ -79,32 +91,51 @@ contract HelperConfig is Script {
         string memory jsonPath = string.concat("$.", vm.toString(chainId));
 
         networkConfig.vaultConfigurator =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, "vaultConfigurator")), (address));
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".vaultConfigurator")), (address));
         networkConfig.operatorRegistry =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, "operatorRegistry")), (address));
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".operatorRegistry")), (address));
         networkConfig.networkRegistry =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, "networkRegistry")), (address));
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".networkRegistry")), (address));
 
-        networkConfig.vaultRegistry = abi.decode(vm.parseJson(json, string.concat(jsonPath, "vaultFactory")), (address));
+        networkConfig.vaultRegistry =
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".vaultFactory")), (address));
 
         networkConfig.operatorNetworkOptIn =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, "operatorNetworkOptInService")), (address));
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".operatorNetworkOptInService")), (address));
         networkConfig.operatorVaultOptInService =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, "operatorVaultOptInService")), (address));
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".operatorVaultOptInService")), (address));
         networkConfig.networkMiddlewareService =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, "networkMiddlewareService")), (address));
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".networkMiddlewareService")), (address));
 
         networkConfig.collateral =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, "defaultCollateralFactory")), (address));
-        networkConfig.readHelper = abi.decode(vm.parseJson(json, string.concat(jsonPath, "readHelper")), (address));
-        tokensConfig.wstETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, "wstETH")), (address));
-        tokensConfig.rETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, "rETH")), (address));
-        tokensConfig.cbETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, "cbETH")), (address));
-        tokensConfig.WBTC = abi.decode(vm.parseJson(json, string.concat(jsonPath, "WBTC")), (address));
-        vaultsConfig.vaultWstETH = _loadVaultTrifectaData(json, jsonPath, "wstETH");
-        vaultsConfig.vaultRETH = _loadVaultTrifectaData(json, jsonPath, "rETH");
-        vaultsConfig.vaultCbETH = _loadVaultTrifectaData(json, jsonPath, "cbETH");
-        vaultsConfig.vaultWBTC = _loadVaultTrifectaData(json, jsonPath, "WBTC");
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".defaultCollateralFactory")), (address));
+        networkConfig.readHelper = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".readHelper")), (address));
+        tokensConfig.wstETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".wstETHCollateral")), (address));
+        if (chainId == 1) {
+            tokensConfig.rETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".rETHCollateral")), (address));
+            tokensConfig.cbETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".cbETHCollateral")), (address));
+            tokensConfig.swETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".swETHCollateral")), (address));
+            tokensConfig.wBETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".wBETHCollateral")), (address));
+            vaultsConfig.mevRestakedETH = _loadVaultTrifectaData(json, jsonPath, ".mevRestakedETH");
+            vaultsConfig.mevCapitalETH = _loadVaultTrifectaData(json, jsonPath, ".mevCapitalETH");
+            vaultsConfig.hashKeyCloudETH = _loadVaultTrifectaData(json, jsonPath, ".hashKeyCloudETH");
+            vaultsConfig.renzoRestakedETH = _loadVaultTrifectaData(json, jsonPath, ".renzoRestakedETH");
+            vaultsConfig.re7LabsETH = _loadVaultTrifectaData(json, jsonPath, ".re7LabsETH");
+            vaultsConfig.cp0xLrtETH = _loadVaultTrifectaData(json, jsonPath, ".cp0xLrtETH");
+            vaultsConfig.gauntletRestakedWstETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedWstETH");
+
+            // cbETH vaults
+            vaultsConfig.gauntletRestakedCbETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedCbETH");
+
+            // swETH vaults
+            vaultsConfig.gauntletRestakedSwETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedSwETH");
+
+            // rETH vaults
+            vaultsConfig.gauntletRestakedRETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedRETH");
+
+            // wBETH vaults
+            vaultsConfig.gauntletRestakedWBETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedWBETH");
+        }
     }
 
     function _loadVaultTrifectaData(
@@ -140,6 +171,12 @@ contract HelperConfig is Script {
             readHelper: address(0)
         });
 
-        tokensConfig = TokensConfig({wstETH: address(0), rETH: address(0), cbETH: address(0), WBTC: address(0)});
+        tokensConfig = TokensConfig({
+            wstETH: address(0),
+            rETH: address(0),
+            cbETH: address(0),
+            swETH: address(0),
+            wBETH: address(0)
+        });
     }
 }

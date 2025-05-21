@@ -95,7 +95,8 @@ contract DeployTanssiEcosystem is Script {
         address stETHCollateralAddress;
         address rETHCollateralAddress;
         address cbETHCollateralAddress;
-        address WBTCCollateralAddress;
+        address swETHCollateralAddress;
+        address wBETHCollateralAddress;
     }
 
     struct TokensAddresses {
@@ -240,16 +241,37 @@ contract DeployTanssiEcosystem is Script {
         });
         if (block.chainid == 1) {
             ecosystemEntities.middleware.registerSharedVault(
-                vaultsAddressesDeployed.vaultWstETH.vault, stakerRewardsParams
+                vaultsAddressesDeployed.mevRestakedETH.vault, stakerRewardsParams
             );
             ecosystemEntities.middleware.registerSharedVault(
-                vaultsAddressesDeployed.vaultRETH.vault, stakerRewardsParams
+                vaultsAddressesDeployed.mevCapitalETH.vault, stakerRewardsParams
             );
             ecosystemEntities.middleware.registerSharedVault(
-                vaultsAddressesDeployed.vaultCbETH.vault, stakerRewardsParams
+                vaultsAddressesDeployed.hashKeyCloudETH.vault, stakerRewardsParams
             );
             ecosystemEntities.middleware.registerSharedVault(
-                vaultsAddressesDeployed.vaultWBTC.vault, stakerRewardsParams
+                vaultsAddressesDeployed.renzoRestakedETH.vault, stakerRewardsParams
+            );
+            ecosystemEntities.middleware.registerSharedVault(
+                vaultsAddressesDeployed.re7LabsETH.vault, stakerRewardsParams
+            );
+            ecosystemEntities.middleware.registerSharedVault(
+                vaultsAddressesDeployed.cp0xLrtETH.vault, stakerRewardsParams
+            );
+            ecosystemEntities.middleware.registerSharedVault(
+                vaultsAddressesDeployed.gauntletRestakedWstETH.vault, stakerRewardsParams
+            );
+            ecosystemEntities.middleware.registerSharedVault(
+                vaultsAddressesDeployed.gauntletRestakedCbETH.vault, stakerRewardsParams
+            );
+            ecosystemEntities.middleware.registerSharedVault(
+                vaultsAddressesDeployed.gauntletRestakedSwETH.vault, stakerRewardsParams
+            );
+            ecosystemEntities.middleware.registerSharedVault(
+                vaultsAddressesDeployed.gauntletRestakedRETH.vault, stakerRewardsParams
+            );
+            ecosystemEntities.middleware.registerSharedVault(
+                vaultsAddressesDeployed.gauntletRestakedWBETH.vault, stakerRewardsParams
             );
         } else {
             if (block.chainid == 31_337 || isTest) {
@@ -275,7 +297,7 @@ contract DeployTanssiEcosystem is Script {
     function _deployCollateralFactory() private {
         (,,,,,,, address defaultCollateralFactoryAddress,) = contractScripts.helperConfig.activeNetworkConfig();
 
-        (address stETHAddress, address rETHAddress, address cbETHAddress, address WBTCAddress) =
+        (address stETHAddress, address rETHAddress, address cbETHAddress, address swETHAddress, address wBETHAddress) =
             contractScripts.helperConfig.activeTokensConfig();
 
         if (block.chainid != 31_337) {
@@ -283,13 +305,14 @@ contract DeployTanssiEcosystem is Script {
                 ecosystemEntities.stETHCollateralAddress = stETHAddress;
                 ecosystemEntities.rETHCollateralAddress = rETHAddress;
                 ecosystemEntities.cbETHCollateralAddress = cbETHAddress;
-                ecosystemEntities.WBTCCollateralAddress = WBTCAddress;
+                ecosystemEntities.swETHCollateralAddress = swETHAddress;
+                ecosystemEntities.wBETHCollateralAddress = wBETHAddress;
             } else {
                 if (defaultCollateralFactoryAddress == address(0)) {
                     defaultCollateralFactoryAddress = address(new DefaultCollateralFactory());
                 }
 
-                ecosystemEntities.defaultCollateralAddress = IDefaultCollateralFactory(defaultCollateralFactoryAddress)
+                ecosystemEntities.stETHCollateralAddress = IDefaultCollateralFactory(defaultCollateralFactoryAddress)
                     .create(address(stETHAddress), 10_000 ether, address(0));
             }
         }
@@ -329,12 +352,7 @@ contract DeployTanssiEcosystem is Script {
             deployVaults();
             _setDelegatorConfigs();
         } else {
-            (
-                vaultsAddressesDeployed.vaultWstETH,
-                vaultsAddressesDeployed.vaultRETH,
-                vaultsAddressesDeployed.vaultCbETH,
-                vaultsAddressesDeployed.vaultWBTC
-            ) = contractScripts.helperConfig.activeVaultsConfig();
+            vaultsAddressesDeployed = contractScripts.helperConfig.getActiveVaultsConfig();
         }
 
         if (!isTest) {
