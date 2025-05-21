@@ -493,8 +493,8 @@ contract MiddlewareTest is Test {
         ecosystemEntities.middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
         vm.warp(block.timestamp + VETO_DURATION);
-        vm.prank(address(ecosystemEntities.middleware));
-        ecosystemEntities.vetoSlasher.executeSlash(0, hex"");
+        ecosystemEntities.middleware.executeSlash(address(ecosystemEntities.vaultVetoed), 0, hex"");
+
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = ecosystemEntities.middleware.getCurrentEpoch();
         validators = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(newEpoch);
@@ -545,8 +545,7 @@ contract MiddlewareTest is Test {
         ecosystemEntities.middleware.slash(currentEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
 
         vm.warp(block.timestamp + VETO_DURATION);
-        vm.prank(address(ecosystemEntities.middleware));
-        ecosystemEntities.vetoSlasher.executeSlash(0, hex"");
+        ecosystemEntities.middleware.executeSlash(address(ecosystemEntities.vaultVetoed), 0, hex"");
 
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = ecosystemEntities.middleware.getCurrentEpoch();

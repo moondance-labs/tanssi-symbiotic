@@ -42,7 +42,14 @@ import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol"
  * @dev This contract serves as a foundation for building custom middleware by providing essential
  * management capabilities that can be extended with additional functionality.
  */
-contract OBaseMiddlewareReader is MiddlewareStorage, EpochCapture, VaultManager, OperatorManager, KeyManager256 {
+contract OBaseMiddlewareReader is
+    // IOBaseMiddlewareReader, not included since multiple methods collide with other inherited contracts
+    MiddlewareStorage,
+    EpochCapture,
+    VaultManager,
+    OperatorManager,
+    KeyManager256
+{
     using QuickSort for IMiddleware.ValidatorData[];
     using PauseableEnumerableSet for PauseableEnumerableSet.AddressSet;
     using PauseableEnumerableSet for PauseableEnumerableSet.Status;
@@ -504,6 +511,10 @@ contract OBaseMiddlewareReader is MiddlewareStorage, EpochCapture, VaultManager,
                 ++i;
             }
         }
+
+        assembly ("memory-safe") {
+            mstore(operatorVaultPairs, valIdx)
+        }
     }
 
     /**
@@ -525,7 +536,7 @@ contract OBaseMiddlewareReader is MiddlewareStorage, EpochCapture, VaultManager,
      */
     function sortOperatorsByPower(
         uint48 epoch
-    ) public view returns (bytes32[] memory sortedKeys) {
+    ) external view returns (bytes32[] memory sortedKeys) {
         IMiddleware.ValidatorData[] memory validatorSet = getValidatorSet(epoch);
         if (validatorSet.length == 0) return sortedKeys;
         validatorSet = validatorSet.quickSort(0, int256(validatorSet.length - 1));
@@ -583,7 +594,7 @@ contract OBaseMiddlewareReader is MiddlewareStorage, EpochCapture, VaultManager,
      */
     function getTotalStake(
         uint48 epoch
-    ) public view returns (uint256 totalStake) {
+    ) external view returns (uint256 totalStake) {
         uint48 epochStartTs = getEpochStart(epoch);
 
         address[] memory operators = _activeOperatorsAt(epochStartTs);
@@ -636,7 +647,8 @@ contract OBaseMiddlewareReader is MiddlewareStorage, EpochCapture, VaultManager,
             }
             bytes32 key = abi.decode(getOperatorKeyAt(operator, epochStartTs), (bytes32));
             uint256 power = _getOperatorPowerAt(epochStartTs, operator);
-            if (power > 0) {
+
+            if (key != bytes32(0)) {
                 validatorSet[len++] = IMiddleware.ValidatorData(power, key);
             }
         }
@@ -654,8 +666,8 @@ contract OBaseMiddlewareReader is MiddlewareStorage, EpochCapture, VaultManager,
      */
     function getEpochAtTs(
         uint48 timestamp
-    ) public view returns (uint48 epoch) {
+    ) external view returns (uint48 epoch) {
         EpochCaptureStorage storage $ = _getEpochCaptureStorage();
-        return (timestamp - $.startTimestamp) / $.epochDuration;
+        return (timestamp - $.startTimestamp - 1) / $.epochDuration;
     }
 }

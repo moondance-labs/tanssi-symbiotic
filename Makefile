@@ -45,11 +45,11 @@ coverage :; forge coverage --nmp "test/fork/*"
 
 coverage-fork :; forge coverage --mp "test/fork/*" --fork-url ${FORK_RPC_URL}
 
-dcoverage :; forge coverage --nmp test/fork/* --report debug > coverage.txt
+dcoverage :; forge coverage --nmp "test/fork/*" --report debug > coverage.txt
 
-hcoverage:; forge coverage  --nmp test/fork/* --report lcov && genhtml lcov.info -o report --branch-coverage
+hcoverage:; forge coverage  --nmp "test/fork/*" --report lcov && genhtml lcov.info -o report --branch-coverage
 
-snapshot :; forge snapshot --nmp test/fork/*
+snapshot :; forge snapshot --nmp "test/fork/*"
 
 format :; forge fmt
 
@@ -116,3 +116,14 @@ upgrade-staker-rewards:
 	@echo "📡 Upgrading Staker Rewards..."
 	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "upgradeStakerRewards(address,address,address,address)" $(STAKER_REWARDS_PROXY_ADDRESS) $(NETWORK_MIDDLEWARE_SERVICE) $(VAULT_ADDRESS) $(NETWORK) -vv
 	@echo "✅ Staker Rewards upgrade completed"
+
+
+upgrade-operator-rewards:
+	@echo "📡 Upgrading Operator Rewards..."
+	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "upgradeAndMigrateOperatorRewards(address,address,address,address,address,uint48)" $(OPERATOR_REWARDS_ADDRESS) $(NETWORK) $(NETWORK_MIDDLEWARE_SERVICE) $(MIDDLEWARE_ADDRESS) 0x0000000000000000000000000000000000000000 30 -vv
+	@echo "✅ Operator Rewards upgrade and migration completed"
+
+deploy-reader:
+	@echo "📡 Deploying Reader..."
+	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem $(NETWORK_ARGS) --sig "deployReader()"
+	@echo "✅ Reader deployment completed"

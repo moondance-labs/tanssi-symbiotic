@@ -21,7 +21,6 @@ interface IODefaultStakerRewards {
     error ODefaultStakerRewards__InsufficientReward();
     error ODefaultStakerRewards__InvalidAddress();
     error ODefaultStakerRewards__InvalidAdminFee();
-    error ODefaultStakerRewards__InvalidHintsLength();
     error ODefaultStakerRewards__InvalidRecipient();
     error ODefaultStakerRewards__InvalidRewardTimestamp();
     error ODefaultStakerRewards__MissingRoles();
@@ -67,9 +66,10 @@ interface IODefaultStakerRewards {
      * @notice Emitted when an admin fee is claimed.
      * @param recipient account that received the fee
      * @param tokenAddress address of the reward token
+     * @param epoch epoch of the claimed fee
      * @param amount amount of the fee claimed
      */
-    event ClaimAdminFee(address indexed recipient, address indexed tokenAddress, uint256 amount);
+    event ClaimAdminFee(address indexed recipient, address indexed tokenAddress, uint48 indexed epoch, uint256 amount);
 
     /**
      * @notice Emitted when an admin fee is set.
@@ -227,10 +227,10 @@ interface IODefaultStakerRewards {
 
     /**
      * @notice Set an admin fee.
-     * @param adminFee admin fee (up to ADMIN_FEE_BASE inclusively)
+     * @param adminFee_ admin fee (up to ADMIN_FEE_BASE inclusively)
      * @dev Only the ADMIN_FEE_SET_ROLE holder can call this function.
      */
     function setAdminFee(
-        uint256 adminFee
+        uint256 adminFee_
     ) external;
 }
