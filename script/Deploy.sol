@@ -19,7 +19,6 @@ import {Script, console2} from "forge-std/Script.sol";
 //**************************************************************************************************
 //                                      SYMBIOTIC
 //**************************************************************************************************
-import {INetworkRegistry} from "@symbiotic/interfaces/INetworkRegistry.sol";
 import {INetworkMiddlewareService} from "@symbiotic/interfaces/service/INetworkMiddlewareService.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
@@ -48,6 +47,7 @@ contract Deploy is Script {
     HelperConfig public helperConfig;
     DeployRewards public deployRewards;
     Middleware middleware;
+    address initialAdmin;
 
     struct Entities {
         address admin;
@@ -62,7 +62,7 @@ contract Deploy is Script {
         (
             ,
             address operatorRegistryAddress,
-            , // address networkRegistryAddress,
+            ,
             address vaultRegistryAddress,
             address operatorNetworkOptInServiceAddress,
             ,
@@ -73,14 +73,14 @@ contract Deploy is Script {
 
         // Deploy rewards takes care of starting and ending broadcast
         address operatorRewardsAddress = deployRewards.deployOperatorRewardsContract(
-            entities.tanssi, networkMiddlewareServiceAddress, OPERATOR_SHARE, entities.admin
+            entities.tanssi, networkMiddlewareServiceAddress, OPERATOR_SHARE, initialAdmin
         );
         address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
             vaultRegistryAddress, networkMiddlewareServiceAddress, operatorRewardsAddress, entities.tanssi
         );
 
         if (!isTest) {
-            vm.startBroadcast(ownerPrivateKey);
+            vm.startBroadcast(ownerPrivateKey); // This is also the initial admin when running on production
         }
 
         address reader = address(new OBaseMiddlewareReader());
@@ -89,7 +89,7 @@ contract Deploy is Script {
             operatorRegistry: operatorRegistryAddress,
             vaultRegistry: vaultRegistryAddress,
             operatorNetworkOptIn: operatorNetworkOptInServiceAddress,
-            owner: entities.admin,
+            owner: initialAdmin,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
             reader: reader
@@ -100,29 +100,31 @@ contract Deploy is Script {
         middleware.initialize(params);
 
         // All these needs to be called by the admin, we could make ourselves admins initially to do so:
-        // middleware.setForwarder(entities.forwarder);
-        // middleware.setGateway(entities.gateway);
+        middleware.setForwarder(entities.forwarder);
+        middleware.setGateway(entities.gateway);
+        middleware.grantRole(middleware.DEFAULT_ADMIN_ROLE(), entities.admin);
 
-        // ODefaultOperatorRewards operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
-        // operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
-        // operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware));
+        ODefaultOperatorRewards operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
+        operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
+        operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware));
+        operatorRewards.grantRole(operatorRewards.DEFAULT_ADMIN_ROLE(), entities.admin);
 
         if (!isTest) {
             vm.stopBroadcast();
         }
 
-        // This needs to be called as the network, so probably only doable from multisig:
-        // INetworkMiddlewareService networkMiddlewareService = INetworkMiddlewareService(networkMiddlewareServiceAddress);
+        // This needs to be called as the network, must be done from multisig:
         // if (!INetworkRegistry(networkRegistryAddress).isEntity(entities.tanssi)) {
         //     INetworkRegistry(networkRegistryAddress).registerNetwork();
         // }
 
-        // This needs to be called as the network, so probably only doable from multisig:
-        // networkMiddlewareService.setMiddleware(address(middleware));
+        // This needs to be called as the network, must be done from multisig:
+        // INetworkMiddlewareService(networkMiddlewareServiceAddress).setMiddleware(address(middleware));
 
         if (!isTest) {
-            console2.log("Tanssi: ", entities.tanssi);
-            console2.log("Admin: ", entities.admin);
+            console2.log("Tanssi (Safe): ", entities.tanssi);
+            console2.log("Admin (Safe): ", entities.admin);
+            console2.log("Initial Admin: ", initialAdmin);
             console2.log("Gateway: ", entities.gateway);
             console2.log("Forwarder: ", entities.forwarder);
             console2.log("Middleware: ", address(middleware));
@@ -133,12 +135,12 @@ contract Deploy is Script {
         }
     }
 
-    function testDeploy(HelperConfig _helperConfig, Entities memory _entities) external {
+    function testDeploy(HelperConfig _helperConfig, Entities memory _entities, address _initialAdmin) external {
         helperConfig = _helperConfig;
         deployRewards = new DeployRewards();
         deployRewards.setIsTest(true);
         entities = _entities;
-
+        initialAdmin = _initialAdmin;
         _deploy(true);
     }
 
@@ -147,6 +149,7 @@ contract Deploy is Script {
         deployRewards = new DeployRewards();
         deployRewards.setIsTest(false);
         _loadEntities();
+        initialAdmin = vm.addr(ownerPrivateKey);
 
         _deploy(false);
     }
