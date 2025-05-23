@@ -56,7 +56,7 @@ contract DeployProduction is Script {
         address forwarder;
     }
 
-    function testDeploy(
+    function localDeploy(
         HelperConfig _helperConfig,
         Entities memory _entities,
         address _initialAdmin

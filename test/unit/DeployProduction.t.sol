@@ -67,7 +67,7 @@ contract DeployProductionTest is Test {
             DeployProduction.Entities({admin: admin, tanssi: tanssi, gateway: gateway, forwarder: forwarder});
 
         (address middlewareAddress, address operatorRewardsAddress, address stakerRewardsFactoryAddress) =
-            deployProduction.testDeploy(helperConfig, entities, initialAdmin);
+            deployProduction.localDeploy(helperConfig, entities, initialAdmin);
 
         _checkAddressesAndRoles(
             middlewareAddress, operatorRewardsAddress, stakerRewardsFactoryAddress, entities, initialAdmin
