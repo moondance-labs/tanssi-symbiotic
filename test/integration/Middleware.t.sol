@@ -652,6 +652,23 @@ contract MiddlewareTest is Test {
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
 
+        console2.log("totalPowerVaultSlashable: ", totalPowerVaultSlashable);
+        console2.log("totalFullRestakePower: ", totalFullRestakePower);
+        console2.log("totalPowerVaultSlashable - slashingPower: ", totalPowerVaultSlashable - slashingPower);
+        console2.log(
+            "Operator withdrawl after slash: ",
+            IVault(vaultSlashable).withdrawalsOf(IVault(vaultSlashable).currentEpoch() - 1, operator2)
+        );
+        console2.log(
+            "Operator stake after:",
+            IBaseDelegator(IVault(vaultSlashable).delegator()).stakeAt(
+                OBaseMiddlewareReader(address(middleware)).NETWORK().subnetwork(0),
+                operator2,
+                uint48(block.timestamp),
+                ""
+            )
+        );
+
         (uint256 totalOperator2PowerAfter,) = _calculateOperatorPower(
             totalPowerVaultSlashable - powerWithdrawnAmount, totalFullRestakePower, slashingPower
         );
