@@ -425,18 +425,29 @@ contract Middleware is
         uint256 activeBalanceOfAt =
             IVault(vault).activeBalanceOfAt(params.operator, beforeNextEpochStartTs, new bytes(0));
 
-        console2.log("Current withdrawals: ", currentWithdrawals);
-        console2.log("Next withdrawals: ", nextWithdrawals);
-        console2.log("Active balance: ", activeBalanceOfAt);
-
+        // console2.log("Current withdrawals: ", currentWithdrawals);
         // console2.log("Next withdrawals: ", nextWithdrawals);
-        // console2.log("Vault stake: ", vaultStake);
-        // console2.log("Slashable balance: ", slashableBalance);
+        // console2.log("Active balance: ", activeBalanceOfAt);
 
-        // Slash percentage is already in parts per billion
-        // so we need to divide by a billion
+        // // console2.log("Next withdrawals: ", nextWithdrawals);
+        // // console2.log("Vault stake: ", vaultStake);
+        // // console2.log("Slashable balance: ", slashableBalance);
+
+        // // Slash percentage is already in parts per billion
+        // // so we need to divide by a billion
         uint256 slashAmount =
             params.slashPercentage.mulDiv(activeBalanceOfAt + currentWithdrawals + nextWithdrawals, PARTS_PER_BILLION);
+
+        // 90 => withdraw 30 => 60
+        uint256 operatorVaultStake =
+            IBaseDelegator(IVault(vault).delegator()).stakeAt(subnetwork, params.operator, params.epochStartTs, "");
+
+        // console2.log("Vault stake: ", operatorVaultStake);
+        // 60
+        // Slash percentage is already in parts per billion
+        // so we need to divide by a billion
+        // uint256 slashAmount = params.slashPercentage.mulDiv(operatorVaultStake, PARTS_PER_BILLION);
+
         console2.log("Slash amount: ", slashAmount);
         _slashVault(params.epochStartTs, vault, subnetwork, params.operator, slashAmount);
     }
