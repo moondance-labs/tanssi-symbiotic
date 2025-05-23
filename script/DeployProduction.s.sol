@@ -136,7 +136,7 @@ contract DeployProduction is Script {
         middleware.initialize(params);
 
         // All these needs to be called by the admin, we could make ourselves admins initially to do so:
-        middleware.setForwarder(entities.forwarder);
+        // middleware.setForwarder(entities.forwarder); // Not needed initially
         middleware.setGateway(entities.gateway);
         middleware.grantRole(middleware.DEFAULT_ADMIN_ROLE(), entities.admin);
 
@@ -150,6 +150,8 @@ contract DeployProduction is Script {
         } else {
             vm.stopBroadcast();
         }
+
+        // TODO: Initial admin needs to renounce its admin role once real admin is tested
 
         // This needs to be called as the network, must be done from multisig:
         // if (!INetworkRegistry(networkRegistryAddress).isEntity(entities.tanssi)) {

@@ -82,16 +82,16 @@ contract DeployProductionTest is Test {
         address initialAdmin
     ) internal view {
         Middleware middleware = Middleware(middlewareAddress);
-        assert(middleware.hasRole(keccak256("GATEWAY_ROLE"), entities.gateway));
-        assert(middleware.hasRole(keccak256("FORWARDER_ROLE"), entities.forwarder));
-        assert(middleware.hasRole(middleware.DEFAULT_ADMIN_ROLE(), entities.admin));
-        assert(middleware.hasRole(middleware.DEFAULT_ADMIN_ROLE(), initialAdmin));
+        assertTrue(middleware.hasRole(keccak256("GATEWAY_ROLE"), entities.gateway));
+        // assertTrue(middleware.hasRole(keccak256("FORWARDER_ROLE"), entities.forwarder)); // Not needed initially
+        assertTrue(middleware.hasRole(middleware.DEFAULT_ADMIN_ROLE(), entities.admin));
+        assertTrue(middleware.hasRole(middleware.DEFAULT_ADMIN_ROLE(), initialAdmin));
 
         ODefaultOperatorRewards operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
-        assert(operatorRewards.hasRole(operatorRewards.MIDDLEWARE_ROLE(), middlewareAddress));
-        assert(operatorRewards.hasRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), middlewareAddress));
-        assert(operatorRewards.hasRole(operatorRewards.DEFAULT_ADMIN_ROLE(), entities.admin));
-        assert(operatorRewards.hasRole(operatorRewards.DEFAULT_ADMIN_ROLE(), initialAdmin));
+        assertTrue(operatorRewards.hasRole(operatorRewards.MIDDLEWARE_ROLE(), middlewareAddress));
+        assertTrue(operatorRewards.hasRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), middlewareAddress));
+        assertTrue(operatorRewards.hasRole(operatorRewards.DEFAULT_ADMIN_ROLE(), entities.admin));
+        assertTrue(operatorRewards.hasRole(operatorRewards.DEFAULT_ADMIN_ROLE(), initialAdmin));
 
         assertNotEq(stakerRewardsFactoryAddress, address(0));
     }
