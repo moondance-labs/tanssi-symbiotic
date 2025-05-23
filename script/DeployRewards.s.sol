@@ -60,14 +60,14 @@ contract DeployRewards is Script {
         address network,
         address networkMiddlewareService,
         uint48 operatorShare,
-        address owner
+        address admin
     ) public returns (address) {
         if (!isTest) {
             vm.startBroadcast(ownerPrivateKey);
         }
         ODefaultOperatorRewards operatorRewardsImpl = new ODefaultOperatorRewards(network, networkMiddlewareService);
         operatorRewards = ODefaultOperatorRewards(address(new ERC1967Proxy(address(operatorRewardsImpl), "")));
-        operatorRewards.initialize(operatorShare, owner);
+        operatorRewards.initialize(operatorShare, admin);
         console2.log("Operator rewards contract deployed at address: ", address(operatorRewards));
         if (!isTest) {
             vm.stopBroadcast();
