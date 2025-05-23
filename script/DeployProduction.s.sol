@@ -34,7 +34,7 @@ import {DeployRewards} from "./DeployRewards.s.sol";
 // Slashing window: 2d
 // Vault epoch: 7d
 
-contract Deploy is Script {
+contract DeployProduction is Script {
     uint48 public constant VAULT_EPOCH_DURATION = 7 days;
     uint48 public constant NETWORK_EPOCH_DURATION = 1 days;
     uint48 public constant SLASHING_WINDOW = 2 days;
@@ -56,9 +56,42 @@ contract Deploy is Script {
         address forwarder;
     }
 
+    function testDeploy(
+        HelperConfig _helperConfig,
+        Entities memory _entities,
+        address _initialAdmin
+    )
+        external
+        returns (address middlewareAddress, address operatorRewardsAddress, address stakerRewardsFactoryAddress)
+    {
+        helperConfig = _helperConfig;
+        deployRewards = new DeployRewards();
+        deployRewards.setIsTest(true);
+        entities = _entities;
+        initialAdmin = _initialAdmin;
+
+        (middlewareAddress, operatorRewardsAddress, stakerRewardsFactoryAddress) = _deploy(true);
+    }
+
+    function deploy()
+        external
+        returns (address middlewareAddress, address operatorRewardsAddress, address stakerRewardsFactoryAddress)
+    {
+        helperConfig = new HelperConfig();
+        deployRewards = new DeployRewards();
+        deployRewards.setIsTest(false);
+        _loadEntities();
+        initialAdmin = vm.addr(ownerPrivateKey);
+
+        (middlewareAddress, operatorRewardsAddress, stakerRewardsFactoryAddress) = _deploy(false);
+    }
+
     function _deploy(
         bool isTest
-    ) private {
+    )
+        private
+        returns (address middlewareAddress, address operatorRewardsAddress, address stakerRewardsFactoryAddress)
+    {
         (
             ,
             address operatorRegistryAddress,
@@ -72,14 +105,16 @@ contract Deploy is Script {
         ) = helperConfig.activeNetworkConfig();
 
         // Deploy rewards takes care of starting and ending broadcast
-        address operatorRewardsAddress = deployRewards.deployOperatorRewardsContract(
+        operatorRewardsAddress = deployRewards.deployOperatorRewardsContract(
             entities.tanssi, networkMiddlewareServiceAddress, OPERATOR_SHARE, initialAdmin
         );
-        address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
+        stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
             vaultRegistryAddress, networkMiddlewareServiceAddress, operatorRewardsAddress, entities.tanssi
         );
 
-        if (!isTest) {
+        if (isTest) {
+            vm.startPrank(initialAdmin);
+        } else {
             vm.startBroadcast(ownerPrivateKey); // This is also the initial admin when running on production
         }
 
@@ -96,7 +131,8 @@ contract Deploy is Script {
         });
 
         Middleware middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
-        middleware = Middleware(address(new MiddlewareProxy(address(middlewareImpl), "")));
+        middlewareAddress = address(new MiddlewareProxy(address(middlewareImpl), ""));
+        middleware = Middleware(middlewareAddress);
         middleware.initialize(params);
 
         // All these needs to be called by the admin, we could make ourselves admins initially to do so:
@@ -109,7 +145,9 @@ contract Deploy is Script {
         operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware));
         operatorRewards.grantRole(operatorRewards.DEFAULT_ADMIN_ROLE(), entities.admin);
 
-        if (!isTest) {
+        if (isTest) {
+            vm.stopPrank();
+        } else {
             vm.stopBroadcast();
         }
 
@@ -133,25 +171,6 @@ contract Deploy is Script {
             console2.log("OperatorRewards: ", operatorRewardsAddress);
             console2.log("StakerRewardsFactory: ", stakerRewardsFactoryAddress);
         }
-    }
-
-    function testDeploy(HelperConfig _helperConfig, Entities memory _entities, address _initialAdmin) external {
-        helperConfig = _helperConfig;
-        deployRewards = new DeployRewards();
-        deployRewards.setIsTest(true);
-        entities = _entities;
-        initialAdmin = _initialAdmin;
-        _deploy(true);
-    }
-
-    function deploy() external {
-        helperConfig = new HelperConfig();
-        deployRewards = new DeployRewards();
-        deployRewards.setIsTest(false);
-        _loadEntities();
-        initialAdmin = vm.addr(ownerPrivateKey);
-
-        _deploy(false);
     }
 
     function _loadEntities() private {
