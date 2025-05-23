@@ -14,6 +14,7 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
+import {console2} from "forge-std/console2.sol";
 //**************************************************************************************************
 //                                      CHAINLINK
 //**************************************************************************************************
@@ -350,6 +351,21 @@ contract Middleware is
     }
 
     /**
+     * @dev Execute a slash with a given slash index using hints.
+     * @param vault The vault address, must have a veto slasher
+     * @param slashIndex index of the slash request
+     * @param hints hints for checkpoints' indexes
+     * @return slashedAmount virtual amount of the collateral slashed
+     */
+    function executeSlash(
+        address vault,
+        uint256 slashIndex,
+        bytes calldata hints
+    ) external returns (uint256 slashedAmount) {
+        slashedAmount = _executeSlash(vault, slashIndex, hints);
+    }
+
+    /**
      * @inheritdoc IMiddleware
      */
     function slash(uint48 epoch, bytes32 operatorKey, uint256 percentage) external checkAccess {
@@ -382,7 +398,7 @@ contract Middleware is
         // simple pro-rata slasher
         uint256 vaultsLength = vaults.length;
         for (uint256 i; i < vaultsLength;) {
-            _processVaultSlashing(vaults[i], params);
+            _processVaultSlashing(vaults[i], epoch, params);
             unchecked {
                 ++i;
             }
@@ -390,38 +406,48 @@ contract Middleware is
     }
 
     /**
-     * @dev Execute a slash with a given slash index using hints.
-     * @param vault The vault address, must have a veto slasher
-     * @param slashIndex index of the slash request
-     * @param hints hints for checkpoints' indexes
-     * @return slashedAmount virtual amount of the collateral slashed
-     */
-    function executeSlash(
-        address vault,
-        uint256 slashIndex,
-        bytes calldata hints
-    ) external returns (uint256 slashedAmount) {
-        slashedAmount = _executeSlash(vault, slashIndex, hints);
-    }
-
-    /**
      * @dev Get vault stake and calculate slashing amount.
      * @param vault The vault address to calculate its stake
      * @param params Struct containing slashing parameters
      */
-    function _processVaultSlashing(address vault, SlashParams memory params) private {
+    function _processVaultSlashing(address vault, uint48 epoch, SlashParams memory params) private {
         // Tanssi will use only one subnetwork so we only check the first
         bytes32 subnetwork = _NETWORK().subnetwork(0);
 
-        uint256 vaultStake = IBaseDelegator(IVault(vault).delegator()).stakeAt(
-            subnetwork, params.operator, params.epochStartTs, new bytes(0)
-        );
+        uint48 vaultEpoch = uint48(IVault(vault).epochAt(params.epochStartTs));
+
+        uint48 beforeNextEpochStartTs = IOBaseMiddlewareReader(address(this)).getEpochStart(epoch + 1);
+
+        uint256 currentWithdrawals = IVault(vault).withdrawalsOf(vaultEpoch, params.operator);
+
+        uint256 nextWithdrawals = IVault(vault).withdrawalsOf(vaultEpoch + 1, params.operator);
+
+        uint256 activeBalanceOfAt =
+            IVault(vault).activeBalanceOfAt(params.operator, beforeNextEpochStartTs, new bytes(0));
+
+        console2.log("Current withdrawals: ", currentWithdrawals);
+        console2.log("Next withdrawals: ", nextWithdrawals);
+        console2.log("Active balance: ", activeBalanceOfAt);
+
+        // console2.log("Next withdrawals: ", nextWithdrawals);
+        // console2.log("Vault stake: ", vaultStake);
+        // console2.log("Slashable balance: ", slashableBalance);
+
         // Slash percentage is already in parts per billion
         // so we need to divide by a billion
-        uint256 slashAmount = params.slashPercentage.mulDiv(vaultStake, PARTS_PER_BILLION);
-
+        uint256 slashAmount =
+            params.slashPercentage.mulDiv(activeBalanceOfAt + currentWithdrawals + nextWithdrawals, PARTS_PER_BILLION);
+        console2.log("Slash amount: ", slashAmount);
         _slashVault(params.epochStartTs, vault, subnetwork, params.operator, slashAmount);
     }
+
+    // Without withdrawals less slash
+    // 1023750000000000000000000
+    // 1066500000000000000000000
+
+    // With withdrawals more slash
+    // 1020000000000000000000000
+    // 1066500000000000000000000
 
     /**
      * @dev Slashes a vault's stake for a specific operator. Middleware SDK already provides _slashVault function but  custom version is needed to avoid revert in specific scenarios for the gateway message passing.
