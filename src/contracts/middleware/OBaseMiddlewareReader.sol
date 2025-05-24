@@ -500,7 +500,7 @@ contract OBaseMiddlewareReader is
 
         uint256 valIdx = 0;
         uint256 operatorsLength_ = operators.length;
-        for (uint256 i; i < operatorsLength_;) {
+        for (uint256 i = 0; i < operatorsLength_;) {
             address operator = operators[i];
             (uint256 vaultIdx, address[] memory _vaults) = getOperatorVaults(operator, epochStartTs);
 
@@ -566,7 +566,7 @@ contract OBaseMiddlewareReader is
         vaults = new address[](operatorVaults.length);
         vaultIdx = 0;
         uint256 operatorVaultsLength_ = operatorVaults.length;
-        for (uint256 j; j < operatorVaultsLength_;) {
+        for (uint256 j = 0; j < operatorVaultsLength_;) {
             address _vault = operatorVaults[j];
             // Tanssi will use probably only one subnetwork, so we can skip this loop
             // for (uint96 k = 0; k < _subnetworksLength(); ++k) {
@@ -599,7 +599,7 @@ contract OBaseMiddlewareReader is
 
         address[] memory operators = _activeOperatorsAt(epochStartTs);
         uint256 operatorsLength_ = operators.length;
-        for (uint256 i; i < operatorsLength_;) {
+        for (uint256 i = 0; i < operatorsLength_;) {
             uint256 operatorStake = _getOperatorPowerAt(epochStartTs, operators[i]);
             totalStake += operatorStake;
             unchecked {
@@ -640,7 +640,7 @@ contract OBaseMiddlewareReader is
 
         uint256 len = 0;
         uint256 operatorsLength_ = operators.length;
-        for (uint256 i; i < operatorsLength_;) {
+        for (uint256 i = 0; i < operatorsLength_;) {
             address operator = operators[i];
             unchecked {
                 ++i;

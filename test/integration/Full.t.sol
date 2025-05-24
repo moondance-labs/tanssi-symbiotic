@@ -1354,10 +1354,9 @@ contract MiddlewareTest is Test {
     function testCannotReclaimRewardsIfEvmKeyChangesForOperator() public {
         uint48 eraIndex = 1;
         uint256 amountToDistribute = 100 ether;
-        uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
+        _prepareRewardsDistribution(eraIndex, amountToDistribute);
 
-        uint256 expectedRewardsForStakers =
-            _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR2_KEY, operator2, 2, true);
+        _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR2_KEY, operator2, 2, true);
 
         address operator2New = makeAddr("operator2New");
 
@@ -1405,7 +1404,7 @@ contract MiddlewareTest is Test {
         assertEq(keyFromOperator, abi.encode(0));
 
         // Try to claim anyway, it will revert with already claimed
-        (,, bytes32[] memory proof, uint32 points, uint32 totalPoints) = _loadRewardsRootAndProof(eraIndex, 2);
+        (,, bytes32[] memory proof, uint32 points,) = _loadRewardsRootAndProof(eraIndex, 2);
         bytes memory additionalData = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
         IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
             operatorKey: OPERATOR2_KEY,
@@ -1422,14 +1421,9 @@ contract MiddlewareTest is Test {
     function testCannotReclaimRewardsAfterMultipleKeyChangesForOperator() public {
         uint48 eraIndex = 1;
         uint256 amountToDistribute = 100 ether;
-        uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
+        _prepareRewardsDistribution(eraIndex, amountToDistribute);
 
-        uint256 previousBalanceOp2 = STAR.balanceOf(operator2);
-        uint256 previousBalanceOp1 = STAR.balanceOf(operator1);
         _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR2_KEY, operator2, 2, true);
-
-        uint256 newBalanceOp2 = STAR.balanceOf(operator2);
-        uint256 newBalanceOp1 = STAR.balanceOf(operator1);
 
         // WE WILL USE EXISTING OPERATOR - OPERATOR #1
         vm.startPrank(owner);
@@ -1463,7 +1457,7 @@ contract MiddlewareTest is Test {
         assertEq(keyFromOperator, abi.encode(0));
 
         // TRY CLAIM
-        (,, bytes32[] memory proof, uint32 points, uint32 totalPoints) = _loadRewardsRootAndProof(eraIndex, 2);
+        (,, bytes32[] memory proof, uint32 points,) = _loadRewardsRootAndProof(eraIndex, 2);
         bytes memory additionalData = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
         IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
             operatorKey: OPERATOR2_KEY,
@@ -1480,10 +1474,9 @@ contract MiddlewareTest is Test {
     function testOperatorCannotDoubleClaimRewardsEvenAfterUnregistering() public {
         uint48 eraIndex = 1;
         uint256 amountToDistribute = 100 ether;
-        uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
+        _prepareRewardsDistribution(eraIndex, amountToDistribute);
 
-        uint256 expectedRewardsForStakers =
-            _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR2_KEY, operator2, 2, true);
+        _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR2_KEY, operator2, 2, true);
 
         // Owner pauses and unregisters operator
         vm.startPrank(owner);
@@ -1500,7 +1493,7 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
 
         // Try to claim, since substrate key still points to the original EVM address, claim is valid.
-        (,, bytes32[] memory proof, uint32 points, uint32 totalPoints) = _loadRewardsRootAndProof(eraIndex, 2);
+        (,, bytes32[] memory proof, uint32 points,) = _loadRewardsRootAndProof(eraIndex, 2);
         bytes memory additionalData = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
         IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
             operatorKey: OPERATOR2_KEY,
@@ -1614,6 +1607,7 @@ contract MiddlewareTest is Test {
         uint256 withdrawAmount = OPERATOR7_STAKE_V5_STETH / 2;
         _withdrawFromVault(vaultsData.v5.vault, operator7, withdrawAmount);
 
+        //TODO Like this fails because the withdraw is available next , but after warp works.
         uint48 slashingEpoch = middleware.getCurrentEpoch();
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
 
@@ -1630,7 +1624,7 @@ contract MiddlewareTest is Test {
 
     function _checkStakesAfterVetoSlashing(
         uint256 withdrawAmount
-    ) private {
+    ) private view {
         uint256 expectedActualWithdrawAmount =
             withdrawAmount.mulDiv(PARTS_PER_BILLION - SLASHING_FRACTION, PARTS_PER_BILLION);
         uint256 operator7Vault5SlashedStake = OPERATOR7_STAKE_V5_STETH.mulDiv(SLASHING_FRACTION, PARTS_PER_BILLION);
@@ -1648,7 +1642,7 @@ contract MiddlewareTest is Test {
         assertEq(currentWithdrawals, expectedActualWithdrawAmount);
     }
 
-    function _checkStakesAfterIntantSlashing() private {
+    function _checkStakesAfterIntantSlashing() private view {
         Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
 
         // ---------------------

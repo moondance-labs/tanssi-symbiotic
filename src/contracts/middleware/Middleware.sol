@@ -14,7 +14,6 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
-import {console2} from "forge-std/console2.sol";
 //**************************************************************************************************
 //                                      CHAINLINK
 //**************************************************************************************************
@@ -397,7 +396,7 @@ contract Middleware is
         address[] memory vaults = _activeVaultsAt(epochStartTs, operator);
         // simple pro-rata slasher
         uint256 vaultsLength = vaults.length;
-        for (uint256 i; i < vaultsLength;) {
+        for (uint256 i = 0; i < vaultsLength;) {
             _processVaultSlashing(vaults[i], epoch, params);
             unchecked {
                 ++i;
@@ -415,50 +414,23 @@ contract Middleware is
         bytes32 subnetwork = _NETWORK().subnetwork(0);
 
         uint48 vaultEpoch = uint48(IVault(vault).epochAt(params.epochStartTs));
-
         uint48 beforeNextEpochStartTs = IOBaseMiddlewareReader(address(this)).getEpochStart(epoch + 1);
 
+        // Mimics slashableBalanceOf but has more flexibility because can be used for any timestamp
+        // The idea is that the slashing amount is calculated based on the active balance of the operator at the time of slashing plus the current and next withdrawals.
+        // Adding only the `withdrawalsOf` to the previous `stakeAt` would result in a wrong slashing amount because there would be a double counting of the current withdrawals.
         uint256 currentWithdrawals = IVault(vault).withdrawalsOf(vaultEpoch, params.operator);
-
         uint256 nextWithdrawals = IVault(vault).withdrawalsOf(vaultEpoch + 1, params.operator);
 
-        uint256 activeBalanceOfAt =
-            IVault(vault).activeBalanceOfAt(params.operator, beforeNextEpochStartTs, new bytes(0));
+        uint256 activeBalanceOfAt = IVault(vault).activeBalanceOfAt(params.operator, params.epochStartTs, new bytes(0));
 
-        // console2.log("Current withdrawals: ", currentWithdrawals);
-        // console2.log("Next withdrawals: ", nextWithdrawals);
-        // console2.log("Active balance: ", activeBalanceOfAt);
-
-        // // console2.log("Next withdrawals: ", nextWithdrawals);
-        // // console2.log("Vault stake: ", vaultStake);
-        // // console2.log("Slashable balance: ", slashableBalance);
-
-        // // Slash percentage is already in parts per billion
-        // // so we need to divide by a billion
+        // Slash percentage is already in parts per billion
+        // so we need to divide by a billion
         uint256 slashAmount =
             params.slashPercentage.mulDiv(activeBalanceOfAt + currentWithdrawals + nextWithdrawals, PARTS_PER_BILLION);
 
-        // 90 => withdraw 30 => 60
-        uint256 operatorVaultStake =
-            IBaseDelegator(IVault(vault).delegator()).stakeAt(subnetwork, params.operator, params.epochStartTs, "");
-
-        // console2.log("Vault stake: ", operatorVaultStake);
-        // 60
-        // Slash percentage is already in parts per billion
-        // so we need to divide by a billion
-        // uint256 slashAmount = params.slashPercentage.mulDiv(operatorVaultStake, PARTS_PER_BILLION);
-
-        console2.log("Slash amount: ", slashAmount);
         _slashVault(params.epochStartTs, vault, subnetwork, params.operator, slashAmount);
     }
-
-    // Without withdrawals less slash
-    // 1023750000000000000000000
-    // 1066500000000000000000000
-
-    // With withdrawals more slash
-    // 1020000000000000000000000
-    // 1066500000000000000000000
 
     /**
      * @dev Slashes a vault's stake for a specific operator. Middleware SDK already provides _slashVault function but  custom version is needed to avoid revert in specific scenarios for the gateway message passing.

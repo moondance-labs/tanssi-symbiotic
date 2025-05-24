@@ -600,29 +600,6 @@ contract MiddlewareTest is Test {
         assertEq(validators[2].power, totalOperator3PowerAfter);
     }
 
-    function testWithdrawStrange() public {
-        vm.warp(NETWORK_EPOCH_DURATION + 2);
-        uint48 currentEpoch = middleware.getCurrentEpoch();
-        Middleware.ValidatorData[] memory validators =
-            OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
-        assertEq(validators.length, 3);
-        uint256 powerOperator2Before = validators[1].power;
-        for (uint256 i = 0; i < validators.length; i++) {
-            console2.log("Validator: ", i);
-            console2.log("Power: ", validators[i].power);
-        }
-        vm.prank(operator2);
-        vaultSlashable.withdraw(operator2, DEFAULT_WITHDRAW_AMOUNT);
-        uint256 powerWithdrawnAmount =
-            (DEFAULT_WITHDRAW_AMOUNT * uint256(ORACLE_CONVERSION_R_ETH)) / 10 ** ORACLE_DECIMALS;
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 2);
-        currentEpoch = middleware.getCurrentEpoch();
-
-        validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
-        assertEq(validators.length, 3);
-        assertEq(validators[1].power, powerOperator2Before - powerWithdrawnAmount / 2);
-    }
-
     function testSlashingOnOperator2AndVetoingSlashWithWithdraws() public {
         vm.prank(operator2);
         vaultSlashable.withdraw(operator2, DEFAULT_WITHDRAW_AMOUNT);
@@ -635,14 +612,6 @@ contract MiddlewareTest is Test {
         uint256 powerWithdrawnAmount =
             (DEFAULT_WITHDRAW_AMOUNT * uint256(ORACLE_CONVERSION_R_ETH)) / 10 ** ORACLE_DECIMALS;
 
-        //TODO Improve math
-        uint256 slashedWithdrawPower = (
-            (PARTS_PER_BILLION - SLASHING_FRACTION / 2)
-                * _calculateRemainingStake(OPERATOR_SHARE, TOTAL_NETWORK_SHARES, powerWithdrawnAmount)
-        ) / PARTS_PER_BILLION; // This is the amount that will be slashed from the operator
-
-        console2.log("Slashed withdraw power: ", slashedWithdrawPower);
-        console2.log("Slashing power: ", slashingPower);
         vm.prank(gateway);
         middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
@@ -652,23 +621,7 @@ contract MiddlewareTest is Test {
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
 
-        console2.log("totalPowerVaultSlashable: ", totalPowerVaultSlashable);
-        console2.log("totalFullRestakePower: ", totalFullRestakePower);
-        console2.log("totalPowerVaultSlashable - slashingPower: ", totalPowerVaultSlashable - slashingPower);
-        console2.log(
-            "Operator withdrawl after slash: ",
-            IVault(vaultSlashable).withdrawalsOf(IVault(vaultSlashable).currentEpoch() - 1, operator2)
-        );
-        console2.log(
-            "Operator stake after:",
-            IBaseDelegator(IVault(vaultSlashable).delegator()).stakeAt(
-                OBaseMiddlewareReader(address(middleware)).NETWORK().subnetwork(0),
-                operator2,
-                uint48(block.timestamp),
-                ""
-            )
-        );
-
+        // We need to subtract the power withdrawn from the operator2 and operator3 since it's being withdrawn and won't be counted in the stake
         (uint256 totalOperator2PowerAfter,) = _calculateOperatorPower(
             totalPowerVaultSlashable - powerWithdrawnAmount, totalFullRestakePower, slashingPower
         );
