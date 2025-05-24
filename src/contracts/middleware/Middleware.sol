@@ -371,15 +371,10 @@ contract Middleware is
         uint48 epochStartTs = IOBaseMiddlewareReader(address(this)).getEpochStart(epoch);
         address operator = operatorByKey(abi.encode(operatorKey));
 
-        if (epochStartTs + _SLASHING_WINDOW() < Time.timestamp()) {
-            revert Middleware__TooOldEpoch();
-        }
-
-        if (epochStartTs > Time.timestamp()) {
+        if (epochStartTs + _SLASHING_WINDOW() < Time.timestamp() || epochStartTs > Time.timestamp()) {
             revert Middleware__InvalidEpoch();
         }
 
-        // If address is 0, then we should return
         if (operator == address(0)) {
             revert Middleware__OperatorNotFound(operatorKey, epoch);
         }
@@ -388,48 +383,35 @@ contract Middleware is
         if (percentage > PARTS_PER_BILLION) {
             revert Middleware__SlashPercentageTooBig(epoch, operator, percentage);
         }
-        SlashParams memory params;
-        params.epochStartTs = epochStartTs;
-        params.operator = operator;
-        params.slashPercentage = percentage;
 
         address[] memory vaults = _activeVaultsAt(epochStartTs, operator);
-        // simple pro-rata slasher
+
+        // Tanssi will use only one subnetwork so we only check the first
+        bytes32 subnetwork = _NETWORK().subnetwork(0);
+
         uint256 vaultsLength = vaults.length;
+        // simple pro-rata slasher
         for (uint256 i = 0; i < vaultsLength;) {
-            _processVaultSlashing(vaults[i], epoch, params);
+            address vault = vaults[i];
+            uint48 vaultEpoch = uint48(IVault(vault).epochAt(epochStartTs));
+
+            // Mimics slashableBalanceOf but has more flexibility because can be used for any timestamp
+            // The idea is that the slashing amount is calculated based on the active balance of the operator at the time of slashing plus the current and next withdrawals.
+            // Adding only the `withdrawalsOf` to the previous `stakeAt` would result in a wrong slashing amount because there would be a double counting of the current withdrawals.
+            uint256 currentWithdrawals = IVault(vault).withdrawalsOf(vaultEpoch, operator);
+            uint256 nextWithdrawals = IVault(vault).withdrawalsOf(vaultEpoch + 1, operator);
+            uint256 activeBalanceOfAt = IVault(vault).activeBalanceOfAt(operator, epochStartTs, new bytes(0));
+
+            // Slash percentage is already in parts per billion
+            // so we need to divide by a billion
+            uint256 slashAmount =
+                percentage.mulDiv(activeBalanceOfAt + currentWithdrawals + nextWithdrawals, PARTS_PER_BILLION);
+
+            _slashVault(epochStartTs, vault, subnetwork, operator, slashAmount);
             unchecked {
                 ++i;
             }
         }
-    }
-
-    /**
-     * @dev Get vault stake and calculate slashing amount.
-     * @param vault The vault address to calculate its stake
-     * @param params Struct containing slashing parameters
-     */
-    function _processVaultSlashing(address vault, uint48 epoch, SlashParams memory params) private {
-        // Tanssi will use only one subnetwork so we only check the first
-        bytes32 subnetwork = _NETWORK().subnetwork(0);
-
-        uint48 vaultEpoch = uint48(IVault(vault).epochAt(params.epochStartTs));
-        uint48 beforeNextEpochStartTs = IOBaseMiddlewareReader(address(this)).getEpochStart(epoch + 1);
-
-        // Mimics slashableBalanceOf but has more flexibility because can be used for any timestamp
-        // The idea is that the slashing amount is calculated based on the active balance of the operator at the time of slashing plus the current and next withdrawals.
-        // Adding only the `withdrawalsOf` to the previous `stakeAt` would result in a wrong slashing amount because there would be a double counting of the current withdrawals.
-        uint256 currentWithdrawals = IVault(vault).withdrawalsOf(vaultEpoch, params.operator);
-        uint256 nextWithdrawals = IVault(vault).withdrawalsOf(vaultEpoch + 1, params.operator);
-
-        uint256 activeBalanceOfAt = IVault(vault).activeBalanceOfAt(params.operator, params.epochStartTs, new bytes(0));
-
-        // Slash percentage is already in parts per billion
-        // so we need to divide by a billion
-        uint256 slashAmount =
-            params.slashPercentage.mulDiv(activeBalanceOfAt + currentWithdrawals + nextWithdrawals, PARTS_PER_BILLION);
-
-        _slashVault(params.epochStartTs, vault, subnetwork, params.operator, slashAmount);
     }
 
     /**

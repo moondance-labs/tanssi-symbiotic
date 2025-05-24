@@ -1047,7 +1047,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(gateway);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
-        vm.expectRevert(IMiddleware.Middleware__TooOldEpoch.selector);
+        vm.expectRevert(IMiddleware.Middleware__InvalidEpoch.selector);
         middleware.slash(currentEpoch, OPERATOR_KEY, OPERATOR_STAKE);
         vm.stopPrank();
     }
