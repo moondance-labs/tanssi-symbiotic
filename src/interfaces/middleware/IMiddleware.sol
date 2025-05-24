@@ -44,6 +44,7 @@ interface IMiddleware {
     // Errors
     error Middleware__GatewayNotSet();
     error Middleware__AlreadySet();
+    error Middleware__TooOldEpoch();
     error Middleware__InvalidEpoch();
     error Middleware__InvalidEpochDuration();
     error Middleware__InvalidAddress();

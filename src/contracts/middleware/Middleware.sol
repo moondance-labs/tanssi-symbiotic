@@ -371,7 +371,11 @@ contract Middleware is
         uint48 epochStartTs = IOBaseMiddlewareReader(address(this)).getEpochStart(epoch);
         address operator = operatorByKey(abi.encode(operatorKey));
 
-        if (epochStartTs + _SLASHING_WINDOW() < Time.timestamp() || epochStartTs > Time.timestamp()) {
+        if (epochStartTs + _SLASHING_WINDOW() < Time.timestamp()) {
+            revert Middleware__TooOldEpoch();
+        }
+
+        if (epochStartTs > Time.timestamp()) {
             revert Middleware__InvalidEpoch();
         }
 
