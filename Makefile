@@ -116,9 +116,3 @@ upgrade-staker-rewards:
 	@echo "📡 Upgrading Staker Rewards..."
 	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "upgradeStakerRewards(address,address,address,address)" $(STAKER_REWARDS_PROXY_ADDRESS) $(NETWORK_MIDDLEWARE_SERVICE) $(VAULT_ADDRESS) $(NETWORK) -vv
 	@echo "✅ Staker Rewards upgrade completed"
-
-
-upgrade-operator-rewards:
-	@echo "📡 Upgrading Operator Rewards..."
-	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "upgradeAndMigrateOperatorRewards(address,address,address,address,address,uint48)" $(OPERATOR_REWARDS_ADDRESS) $(NETWORK) $(NETWORK_MIDDLEWARE_SERVICE) $(MIDDLEWARE_ADDRESS) 0x0000000000000000000000000000000000000000 30 -vv
-	@echo "✅ Operator Rewards upgrade and migration completed"
