@@ -471,12 +471,4 @@ contract DeployTanssiEcosystem is Script {
         (address vaultConfiguratorAddress,,,,,,,,,) = _helperConfig.activeNetworkConfig();
         ecosystemEntities.vaultConfigurator = IVaultConfigurator(vaultConfiguratorAddress);
     }
-
-    function deployReader() external returns (address) {
-        vm.startBroadcast(ownerPrivateKey);
-        OBaseMiddlewareReader reader = new OBaseMiddlewareReader();
-        console2.log("OBaseMiddlewareReader deployed to: ", address(reader));
-        vm.stopBroadcast();
-        return address(reader);
-    }
 }
