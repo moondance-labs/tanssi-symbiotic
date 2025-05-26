@@ -1575,7 +1575,7 @@ contract MiddlewareTest is Test {
 
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
 
-        _checkStakesAfterVetoSlashing(0);
+        _checkStakesAfterVetoSlashing(0, 0);
     }
 
     function testVetoSlashingOperator7WithdrawingAfterSlash() public {
@@ -1596,7 +1596,7 @@ contract MiddlewareTest is Test {
         middleware.executeSlash(address(vaultsData.v5.vault), 0, hex"");
 
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
-        _checkStakesAfterVetoSlashing(withdrawAmount);
+        _checkStakesAfterVetoSlashing(withdrawAmount, 0);
     }
 
     function testVetoSlashingOperator7WithdrawingBeforeSlash() public {
@@ -1619,18 +1619,90 @@ contract MiddlewareTest is Test {
         middleware.executeSlash(address(vaultsData.v5.vault), 0, hex"");
 
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
-        _checkStakesAfterVetoSlashing(withdrawAmount);
+        _checkStakesAfterVetoSlashing(withdrawAmount, 0);
     }
 
-    function _checkStakesAfterVetoSlashing(
-        uint256 withdrawAmount
-    ) private view {
+    function testVetoSlashingOperator7WithAdditionalStakers() public {
+        address staker1 = makeAddr("staker1");
+        uint256 staker1Stake = 20 * 10 ** TOKEN_DECIMALS_ETH;
+        _depositToVault(vaultsData.v5.vault, staker1, staker1Stake, stETH, true);
+
+        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        vm.warp(VAULT_EPOCH_DURATION + 2);
+        uint48 slashingEpoch = middleware.getCurrentEpoch();
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+
+        vm.startPrank(gateway);
+        middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + VETO_DURATION);
+        middleware.executeSlash(address(vaultsData.v5.vault), 0, hex"");
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+
+        _checkStakesAfterVetoSlashing(0, staker1Stake);
+    }
+
+    function testVetoSlashingOperator7WithAdditionalStakersWithdrawingAfterSlash() public {
+        address staker1 = makeAddr("staker1");
+        uint256 staker1Stake = 20 * 10 ** TOKEN_DECIMALS_ETH;
+        _depositToVault(vaultsData.v5.vault, staker1, staker1Stake, stETH, true);
+
+        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        vm.warp(VAULT_EPOCH_DURATION + 2);
+        uint48 slashingEpoch = middleware.getCurrentEpoch();
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+
+        vm.startPrank(gateway);
+        middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
+        vm.stopPrank();
+
+        // Withdraw just after the slash trying to avoid it, shouldn't affect his slashed amount
+        uint256 withdrawAmount = OPERATOR7_STAKE_V5_STETH / 2;
+        _withdrawFromVault(vaultsData.v5.vault, operator7, withdrawAmount);
+
+        vm.warp(block.timestamp + VETO_DURATION);
+        middleware.executeSlash(address(vaultsData.v5.vault), 0, hex"");
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        _checkStakesAfterVetoSlashing(withdrawAmount, staker1Stake);
+    }
+
+    function testVetoSlashingOperator7WithAdditionalStakersWithdrawingBeforeSlash() public {
+        address staker1 = makeAddr("staker1");
+        uint256 staker1Stake = 20 * 10 ** TOKEN_DECIMALS_ETH;
+        _depositToVault(vaultsData.v5.vault, staker1, staker1Stake, stETH, true);
+        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        vm.warp(VAULT_EPOCH_DURATION + 2);
+
+        // Withdraw just before the slash, shouldn't affect his slashed amount
+        uint256 withdrawAmount = OPERATOR7_STAKE_V5_STETH / 2;
+        _withdrawFromVault(vaultsData.v5.vault, operator7, withdrawAmount);
+
+        //TODO Like this fails because the withdraw is available next , but after warp works.
+        uint48 slashingEpoch = middleware.getCurrentEpoch();
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+
+        vm.startPrank(gateway);
+        middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + VETO_DURATION);
+        middleware.executeSlash(address(vaultsData.v5.vault), 0, hex"");
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        _checkStakesAfterVetoSlashing(withdrawAmount, staker1Stake);
+    }
+
+    function _checkStakesAfterVetoSlashing(uint256 withdrawAmount, uint256 additionalStake) private view {
         uint256 expectedActualWithdrawAmount =
             withdrawAmount.mulDiv(PARTS_PER_BILLION - SLASHING_FRACTION, PARTS_PER_BILLION);
-        uint256 operator7Vault5SlashedStake = OPERATOR7_STAKE_V5_STETH.mulDiv(SLASHING_FRACTION, PARTS_PER_BILLION);
+        uint256 operator7Vault5SlashedStake =
+            (OPERATOR7_STAKE_V5_STETH + additionalStake).mulDiv(SLASHING_FRACTION, PARTS_PER_BILLION);
 
         uint256 operator7PowerVault5 = (
-            OPERATOR7_STAKE_V5_STETH - operator7Vault5SlashedStake - expectedActualWithdrawAmount
+            OPERATOR7_STAKE_V5_STETH + additionalStake - operator7Vault5SlashedStake - expectedActualWithdrawAmount
         ).mulDiv(uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS_ETH);
 
         Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
