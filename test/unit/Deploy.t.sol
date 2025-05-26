@@ -32,8 +32,6 @@ import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol
 import {IBaseSlasher} from "@symbiotic/interfaces/slasher/IBaseSlasher.sol";
 import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 
-import {IDefaultCollateralFactory} from
-    "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateralFactory.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
@@ -738,7 +736,7 @@ contract DeployTest is Test {
 
     function testUpgradeRewardsOperator() public {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
-        (Middleware middleware,,) = deployTanssiEcosystem.ecosystemEntities();
+        deployTanssiEcosystem.ecosystemEntities();
         address operatorRewards =
             deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20, tanssi);
 
@@ -747,7 +745,7 @@ contract DeployTest is Test {
 
     function testUpgradeRewardsOperatorWithBroadcast() public {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
-        (Middleware middleware,,) = deployTanssiEcosystem.ecosystemEntities();
+        deployTanssiEcosystem.ecosystemEntities();
         deployRewards.setIsTest(false);
 
         address operatorRewards =

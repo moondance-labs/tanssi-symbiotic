@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.25;
+pragma solidity 0.8.25;
 
 import {BaseMiddleware} from "@symbiotic-middleware/middleware/BaseMiddleware.sol";
 import {IOSharedVaults} from "src/interfaces/extensions/IOSharedVaults.sol";
