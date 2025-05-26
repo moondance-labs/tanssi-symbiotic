@@ -1599,6 +1599,45 @@ contract MiddlewareTest is Test {
         _checkStakesAfterVetoSlashing(withdrawAmount, 0);
     }
 
+    function testVetoSlashingOperator7OnEpochAfterWithdrawl() public {
+        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        vm.warp(VAULT_EPOCH_DURATION + 2);
+
+        // Withdraw just before the slash, shouldn't affect his slashed amount
+        uint256 withdrawAmount = OPERATOR7_STAKE_V5_STETH / 2;
+        _withdrawFromVault(vaultsData.v5.vault, operator7, withdrawAmount);
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        uint48 slashingEpoch = middleware.getCurrentEpoch();
+
+        vm.startPrank(gateway);
+        middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + VETO_DURATION);
+        middleware.executeSlash(address(vaultsData.v5.vault), 0, hex"");
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+
+        // The withdraw is in the past, so the slash is not applied to it
+        uint256 operator7Vault5SlashedStake =
+            (OPERATOR7_STAKE_V5_STETH - withdrawAmount).mulDiv(SLASHING_FRACTION, PARTS_PER_BILLION);
+        // However, since the withdrawl is in process, half of the slashing is actually taken from it
+        uint256 expectedActualWithdrawAmount = withdrawAmount - operator7Vault5SlashedStake / 2;
+        // The other half is taken from active stake. In the end, the total slash was the fraction over the stake after withdrawl.
+        uint256 operator7PowerVault5 = (
+            OPERATOR7_STAKE_V5_STETH - operator7Vault5SlashedStake - expectedActualWithdrawAmount
+        ).mulDiv(uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS_ETH);
+
+        Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+
+        uint48 currentVaultEpoch = uint48(vaultsData.v5.vault.currentEpoch());
+        uint256 currentWithdrawals = vaultsData.v5.vault.withdrawalsOf(currentVaultEpoch + 1, operator7);
+
+        assertEq(validators[6].power, operator7PowerVault5);
+        assertEq(currentWithdrawals, expectedActualWithdrawAmount);
+    }
+
     function testVetoSlashingOperator7WithdrawingBeforeSlash() public {
         // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
         vm.warp(VAULT_EPOCH_DURATION + 2);
@@ -1607,7 +1646,6 @@ contract MiddlewareTest is Test {
         uint256 withdrawAmount = OPERATOR7_STAKE_V5_STETH / 2;
         _withdrawFromVault(vaultsData.v5.vault, operator7, withdrawAmount);
 
-        //TODO Like this fails because the withdraw is available next , but after warp works.
         uint48 slashingEpoch = middleware.getCurrentEpoch();
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
 
@@ -1680,7 +1718,6 @@ contract MiddlewareTest is Test {
         uint256 withdrawAmount = OPERATOR7_STAKE_V5_STETH / 2;
         _withdrawFromVault(vaultsData.v5.vault, operator7, withdrawAmount);
 
-        //TODO Like this fails because the withdraw is available next , but after warp works.
         uint48 slashingEpoch = middleware.getCurrentEpoch();
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
 
