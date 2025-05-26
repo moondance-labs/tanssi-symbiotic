@@ -82,7 +82,7 @@ contract DeployProductionTest is Test {
         address initialAdmin
     ) internal view {
         Middleware middleware = Middleware(middlewareAddress);
-        assertTrue(middleware.hasRole(keccak256("GATEWAY_ROLE"), entities.gateway));
+        // assertTrue(middleware.hasRole(keccak256("GATEWAY_ROLE"), entities.gateway)); // Not needed initially
         // assertTrue(middleware.hasRole(keccak256("FORWARDER_ROLE"), entities.forwarder)); // Not needed initially
         assertTrue(middleware.hasRole(middleware.DEFAULT_ADMIN_ROLE(), entities.admin));
         assertTrue(middleware.hasRole(middleware.DEFAULT_ADMIN_ROLE(), initialAdmin));

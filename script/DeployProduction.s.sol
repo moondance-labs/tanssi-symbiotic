@@ -137,7 +137,7 @@ contract DeployProduction is Script {
 
         // All these needs to be called by the admin, we could make ourselves admins initially to do so:
         // middleware.setForwarder(entities.forwarder); // Not needed initially
-        middleware.setGateway(entities.gateway);
+        // middleware.setGateway(entities.gateway); // Not needed initially
         middleware.grantRole(middleware.DEFAULT_ADMIN_ROLE(), entities.admin);
 
         ODefaultOperatorRewards operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
