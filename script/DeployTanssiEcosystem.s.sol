@@ -239,41 +239,7 @@ contract DeployTanssiEcosystem is Script {
             adminFeeClaimRoleHolder: tanssi,
             adminFeeSetRoleHolder: tanssi
         });
-        if (block.chainid == 1) {
-            ecosystemEntities.middleware.registerSharedVault(
-                vaultsAddressesDeployed.mevRestakedETH.vault, stakerRewardsParams
-            );
-            ecosystemEntities.middleware.registerSharedVault(
-                vaultsAddressesDeployed.mevCapitalETH.vault, stakerRewardsParams
-            );
-            ecosystemEntities.middleware.registerSharedVault(
-                vaultsAddressesDeployed.hashKeyCloudETH.vault, stakerRewardsParams
-            );
-            ecosystemEntities.middleware.registerSharedVault(
-                vaultsAddressesDeployed.renzoRestakedETH.vault, stakerRewardsParams
-            );
-            ecosystemEntities.middleware.registerSharedVault(
-                vaultsAddressesDeployed.re7LabsETH.vault, stakerRewardsParams
-            );
-            ecosystemEntities.middleware.registerSharedVault(
-                vaultsAddressesDeployed.cp0xLrtETH.vault, stakerRewardsParams
-            );
-            ecosystemEntities.middleware.registerSharedVault(
-                vaultsAddressesDeployed.gauntletRestakedWstETH.vault, stakerRewardsParams
-            );
-            ecosystemEntities.middleware.registerSharedVault(
-                vaultsAddressesDeployed.gauntletRestakedCbETH.vault, stakerRewardsParams
-            );
-            ecosystemEntities.middleware.registerSharedVault(
-                vaultsAddressesDeployed.gauntletRestakedSwETH.vault, stakerRewardsParams
-            );
-            ecosystemEntities.middleware.registerSharedVault(
-                vaultsAddressesDeployed.gauntletRestakedRETH.vault, stakerRewardsParams
-            );
-            ecosystemEntities.middleware.registerSharedVault(
-                vaultsAddressesDeployed.gauntletRestakedWBETH.vault, stakerRewardsParams
-            );
-        } else {
+        if (block.chainid != 1) {
             if (block.chainid == 31_337 || isTest) {
                 ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
                 ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsParams);

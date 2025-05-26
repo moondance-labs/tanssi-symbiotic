@@ -636,6 +636,8 @@ contract OBaseMiddlewareReader is
     ) public view returns (IMiddleware.ValidatorData[] memory validatorSet) {
         uint48 epochStartTs = getEpochStart(epoch);
         address[] memory operators = _activeOperatorsAt(epochStartTs);
+        console2.log("Operators: ", operators.length);
+        console2.log("Epoch start timestamp: ", epochStartTs);
         validatorSet = new IMiddleware.ValidatorData[](operators.length);
 
         uint256 len = 0;
