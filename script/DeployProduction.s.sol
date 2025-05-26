@@ -35,7 +35,6 @@ import {DeployRewards} from "./DeployRewards.s.sol";
 // Vault epoch: 7d
 
 contract DeployProduction is Script {
-    uint48 public constant VAULT_EPOCH_DURATION = 7 days;
     uint48 public constant NETWORK_EPOCH_DURATION = 1 days;
     uint48 public constant SLASHING_WINDOW = 2 days;
     uint48 public constant OPERATOR_SHARE = 2000;
