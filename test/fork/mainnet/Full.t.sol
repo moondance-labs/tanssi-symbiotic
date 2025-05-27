@@ -103,9 +103,9 @@ contract FullTest is Test {
     uint256 public constant TOTAL_SHARES_HASH_KEY_CLOUD = 1;
     uint256 public constant TOTAL_SHARES_RENZO_RESTAKED = 1;
     uint256 public constant TOTAL_SHARES_RE7_LABS = 1;
+    uint256 public constant TOTAL_SHARES_RE7_LABS_RESTAKING = 1;
     uint256 public constant TOTAL_SHARES_CP0X_LRT = 1;
     uint256 public constant TOTAL_SHARES_GAUNTLET_RESTAKED_WSTETH = 1;
-    uint256 public constant TOTAL_SHARES_GAUNTLET_RESTAKED_CBETH = 1;
     uint256 public constant TOTAL_SHARES_GAUNTLET_RESTAKED_SWETH = 1;
     uint256 public constant TOTAL_SHARES_GAUNTLET_RESTAKED_RETH = 2;
     uint256 public constant TOTAL_SHARES_GAUNTLET_RESTAKED_WBETH = 2;
@@ -193,9 +193,9 @@ contract FullTest is Test {
         uint256 totalHashKeyCloudETHPower;
         uint256 totalRenzoRestakedETHPower;
         uint256 totalRe7LabsETHPower;
+        uint256 totalre7LabsRestakingETHPower;
         uint256 totalCp0xLrtETHPower;
         uint256 totalGauntletRestakedWstETHPower;
-        uint256 totalGauntletRestakedCbETHPower;
         uint256 totalGauntletRestakedSwETHPower;
         uint256 totalGauntletRestakedRETHPower;
         uint256 totalGauntletRestakedWBETHPower;
@@ -203,13 +203,8 @@ contract FullTest is Test {
 
     struct EcosystemEntity {
         Middleware middleware;
-        IVault mevRestakedETHVault;
-        IVault mevCapitalETHVault;
-        IVault hashKeyCloudETH;
-        IVault vaultWBTC;
         IDefaultCollateral wstETH;
         IDefaultCollateral rETH;
-        IDefaultCollateral cbETH;
         IDefaultCollateral swETH;
         IDefaultCollateral wBETH;
     }
@@ -231,7 +226,6 @@ contract FullTest is Test {
         vm.startPrank(tanssi);
         ecosystemEntities.middleware.setCollateralToOracle(address(ecosystemEntities.wstETH), oracle);
         ecosystemEntities.middleware.setCollateralToOracle(address(ecosystemEntities.rETH), oracle);
-        ecosystemEntities.middleware.setCollateralToOracle(address(ecosystemEntities.cbETH), oracle);
         ecosystemEntities.middleware.setCollateralToOracle(address(ecosystemEntities.swETH), oracle);
         ecosystemEntities.middleware.setCollateralToOracle(address(ecosystemEntities.wBETH), oracle);
         vm.stopPrank();
@@ -247,7 +241,6 @@ contract FullTest is Test {
         deployTanssi.deployTanssiEcosystem(helperConfig);
         address stETHCollateralAddress;
         address rETHCollateralAddress;
-        address cbETHCollateralAddress;
         address swETHCollateralAddress;
         address wBETHCollateralAddress;
         (
@@ -255,13 +248,11 @@ contract FullTest is Test {
             ,
             stETHCollateralAddress,
             rETHCollateralAddress,
-            cbETHCollateralAddress,
             swETHCollateralAddress,
             wBETHCollateralAddress
         ) = deployTanssi.ecosystemEntities();
         ecosystemEntities.wstETH = IDefaultCollateral(stETHCollateralAddress);
         ecosystemEntities.rETH = IDefaultCollateral(rETHCollateralAddress);
-        ecosystemEntities.cbETH = IDefaultCollateral(cbETHCollateralAddress);
         ecosystemEntities.swETH = IDefaultCollateral(swETHCollateralAddress);
         ecosystemEntities.wBETH = IDefaultCollateral(wBETHCollateralAddress);
 
@@ -275,7 +266,7 @@ contract FullTest is Test {
         deal(address(ecosystemEntities.rETH), operator2, OPERATOR_INITIAL_BALANCE);
         deal(address(ecosystemEntities.wBETH), operator2, OPERATOR_INITIAL_BALANCE);
 
-        deal(address(ecosystemEntities.cbETH), operator3, OPERATOR_INITIAL_BALANCE);
+        deal(address(ecosystemEntities.wstETH), operator3, OPERATOR_INITIAL_BALANCE);
         deal(address(ecosystemEntities.rETH), operator3, OPERATOR_INITIAL_BALANCE);
 
         deal(address(ecosystemEntities.swETH), operator4, OPERATOR_INITIAL_BALANCE);
@@ -300,7 +291,12 @@ contract FullTest is Test {
         _registerOperator(operator2, tanssi, vaultsAddressesDeployed.gauntletRestakedRETH.vault, address(0));
         _registerOperator(operator2, tanssi, vaultsAddressesDeployed.gauntletRestakedWBETH.vault, address(0));
 
-        _registerOperator(operator3, tanssi, vaultsAddressesDeployed.gauntletRestakedCbETH.vault, address(0));
+        _registerOperator(
+            operator3,
+            tanssi,
+            vaultsAddressesDeployed.re7LabsRestakingETH.vault,
+            0x9437B2a8cF3b69D782a61f9814baAbc172f72003
+        );
         _registerOperator(operator3, tanssi, vaultsAddressesDeployed.gauntletRestakedRETH.vault, address(0));
 
         _registerOperator(operator4, tanssi, vaultsAddressesDeployed.gauntletRestakedSwETH.vault, address(0));
@@ -352,10 +348,10 @@ contract FullTest is Test {
             // Scoped to help with stack depth
             vm.startPrank(operator3);
             _depositToVault(
-                IVault(vaultsAddressesDeployed.gauntletRestakedCbETH.vault),
+                IVault(vaultsAddressesDeployed.re7LabsRestakingETH.vault),
                 operator3,
                 OPERATOR_STAKE,
-                ecosystemEntities.cbETH
+                ecosystemEntities.wstETH
             );
             _depositToVault(
                 IVault(vaultsAddressesDeployed.gauntletRestakedRETH.vault),
@@ -404,8 +400,8 @@ contract FullTest is Test {
             // vaultTotalStake.totalCp0xLrtETHPower = (IVault(vaultsAddressesDeployed.cp0xLrtETH.vault).activeStake()  * uint256(ORACLE_CONVERSION_TOKEN)) / 10 ** ORACLE_DECIMALS;
             // vaultTotalStake.totalGauntletRestakedWstETHPower = (IVault(vaultsAddressesDeployed.gauntletRestakedWstETH.vault).activeStake()  * uint256(ORACLE_CONVERSION_TOKEN)) / 10 ** ORACLE_DECIMALS;
 
-            vaultTotalStake.totalGauntletRestakedCbETHPower = (
-                IVault(vaultsAddressesDeployed.gauntletRestakedCbETH.vault).activeStake()
+            vaultTotalStake.totalre7LabsRestakingETHPower = (
+                IVault(vaultsAddressesDeployed.re7LabsRestakingETH.vault).activeStake()
                     * uint256(ORACLE_CONVERSION_TOKEN)
             ) / 10 ** ORACLE_DECIMALS;
             vaultTotalStake.totalGauntletRestakedSwETHPower = (
@@ -457,7 +453,7 @@ contract FullTest is Test {
             vaultsAddressesDeployed.gauntletRestakedWstETH.vault, stakerRewardsParams
         );
         ecosystemEntities.middleware.registerSharedVault(
-            vaultsAddressesDeployed.gauntletRestakedCbETH.vault, stakerRewardsParams
+            vaultsAddressesDeployed.re7LabsRestakingETH.vault, stakerRewardsParams
         );
         ecosystemEntities.middleware.registerSharedVault(
             vaultsAddressesDeployed.gauntletRestakedSwETH.vault, stakerRewardsParams
@@ -549,7 +545,7 @@ contract FullTest is Test {
         INetworkRestakeDelegator(vaultsAddressesDeployed.gauntletRestakedWstETH.delegator).setMaxNetworkLimit(
             0, MAX_NETWORK_LIMIT
         );
-        INetworkRestakeDelegator(vaultsAddressesDeployed.gauntletRestakedCbETH.delegator).setMaxNetworkLimit(
+        INetworkRestakeDelegator(vaultsAddressesDeployed.re7LabsRestakingETH.delegator).setMaxNetworkLimit(
             0, MAX_NETWORK_LIMIT
         );
         INetworkRestakeDelegator(vaultsAddressesDeployed.gauntletRestakedSwETH.delegator).setMaxNetworkLimit(
@@ -597,8 +593,8 @@ contract FullTest is Test {
         //     tanssi.subnetwork(0), OPERATOR_NETWORK_LIMIT
         // );
 
-        vm.startPrank(0x059Ae3F8a1EaDDAAb34D0A74E8Eb752c848062d1);
-        INetworkRestakeDelegator(vaultsAddressesDeployed.gauntletRestakedCbETH.delegator).setNetworkLimit(
+        vm.startPrank(0xE86399fE6d7007FdEcb08A2ee1434Ee677a04433);
+        INetworkRestakeDelegator(vaultsAddressesDeployed.re7LabsRestakingETH.delegator).setNetworkLimit(
             tanssi.subnetwork(0), OPERATOR_NETWORK_LIMIT
         );
 
@@ -657,9 +653,9 @@ contract FullTest is Test {
         //     tanssi.subnetwork(0), operators[i], OPERATOR_SHARE
         // );
 
-        // Vault Manager for gauntletRestakedCbETH
-        vm.startPrank(0x059Ae3F8a1EaDDAAb34D0A74E8Eb752c848062d1);
-        INetworkRestakeDelegator(vaultsAddressesDeployed.gauntletRestakedCbETH.delegator).setOperatorNetworkShares(
+        // Vault Manager for re7LabsRestakingETH
+        vm.startPrank(0xE86399fE6d7007FdEcb08A2ee1434Ee677a04433);
+        INetworkRestakeDelegator(vaultsAddressesDeployed.re7LabsRestakingETH.delegator).setOperatorNetworkShares(
             tanssi.subnetwork(0), operator3, OPERATOR_SHARE
         );
 
@@ -733,7 +729,7 @@ contract FullTest is Test {
         vaultStakeBeforeDeposit.gauntletRestakedWstStakeBeforeDeposit =
             IVault(vaultsAddressesDeployed.gauntletRestakedWstETH.vault).activeStake();
         vaultStakeBeforeDeposit.gauntletRestakedCbStakeBeforeDeposit =
-            IVault(vaultsAddressesDeployed.gauntletRestakedCbETH.vault).activeStake();
+            IVault(vaultsAddressesDeployed.re7LabsRestakingETH.vault).activeStake();
         vaultStakeBeforeDeposit.gauntletRestakedSwStakeBeforeDeposit =
             IVault(vaultsAddressesDeployed.gauntletRestakedSwETH.vault).activeStake();
         vaultStakeBeforeDeposit.gauntletRestakedRETHStakeBeforeDeposit =
@@ -806,10 +802,10 @@ contract FullTest is Test {
         operatorPower3 = (
             OPERATOR_SHARE.mulDiv(
                 _getMaximumAvailableStakeForVault(
-                    vaultsAddressesDeployed.gauntletRestakedCbETH.delegator,
+                    vaultsAddressesDeployed.re7LabsRestakingETH.delegator,
                     vaultStakeBeforeDeposit.gauntletRestakedCbStakeBeforeDeposit + OPERATOR_STAKE
                 ),
-                TOTAL_SHARES_GAUNTLET_RESTAKED_CBETH
+                TOTAL_SHARES_RE7_LABS_RESTAKING
             )
                 + OPERATOR_SHARE.mulDiv(
                     _getMaximumAvailableStakeForVault(
@@ -1005,34 +1001,34 @@ contract FullTest is Test {
 
     function testWithdrawForOperator3() public {
         IVault vaultGauntletRestaked = IVault(vaultsAddressesDeployed.gauntletRestakedRETH.vault);
-        IVault vaultGauntletRestakedCbETH = IVault(vaultsAddressesDeployed.gauntletRestakedCbETH.vault);
+        IVault vaultRe7LabsRestaked = IVault(vaultsAddressesDeployed.re7LabsRestakingETH.vault);
 
         uint256 currentEpochGauntletRestaked = vaultGauntletRestaked.currentEpoch();
-        uint256 currentEpochGauntletRestakedCbETH = vaultGauntletRestakedCbETH.currentEpoch();
+        uint256 currentEpochRe7LabsRestaked = vaultRe7LabsRestaked.currentEpoch();
 
         uint256 currentEpochGauntletRestakedEpochDuration = vaultGauntletRestaked.epochDuration();
-        uint256 currentEpochGauntletRestakedCbETHEpochDuration = vaultGauntletRestakedCbETH.epochDuration();
+        uint256 currentEpochRe7LabsRestakedEpochDuration = vaultRe7LabsRestaked.epochDuration();
 
         uint256 currentTimestamp = block.timestamp;
 
         vm.startPrank(operator3);
         vaultGauntletRestaked.withdraw(operator3, DEFAULT_WITHDRAW_AMOUNT);
-        vaultGauntletRestakedCbETH.withdraw(operator3, DEFAULT_WITHDRAW_AMOUNT);
+        vaultRe7LabsRestaked.withdraw(operator3, DEFAULT_WITHDRAW_AMOUNT);
 
         vm.warp(currentTimestamp + currentEpochGauntletRestakedEpochDuration * 2 + 1);
         currentEpochGauntletRestaked = vaultGauntletRestaked.currentEpoch();
         vaultGauntletRestaked.claim(operator3, currentEpochGauntletRestaked - 1);
 
-        vm.warp(currentTimestamp + currentEpochGauntletRestakedCbETHEpochDuration * 2 + 1);
-        currentEpochGauntletRestakedCbETHEpochDuration = vaultGauntletRestakedCbETH.currentEpoch();
-        vaultGauntletRestakedCbETH.claim(operator3, currentEpochGauntletRestakedCbETHEpochDuration - 1);
+        vm.warp(currentTimestamp + currentEpochRe7LabsRestakedEpochDuration * 2 + 1);
+        currentEpochRe7LabsRestakedEpochDuration = vaultRe7LabsRestaked.currentEpoch();
+        vaultRe7LabsRestaked.claim(operator3, currentEpochRe7LabsRestakedEpochDuration - 1);
 
         assertEq(
             ecosystemEntities.rETH.balanceOf(operator3),
             OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE + DEFAULT_WITHDRAW_AMOUNT
         );
         assertEq(
-            ecosystemEntities.cbETH.balanceOf(operator3),
+            ecosystemEntities.wstETH.balanceOf(operator3),
             OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE + DEFAULT_WITHDRAW_AMOUNT
         );
     }

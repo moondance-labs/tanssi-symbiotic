@@ -94,7 +94,6 @@ contract DeployTanssiEcosystem is Script {
         IVaultConfigurator vaultConfigurator;
         address stETHCollateralAddress;
         address rETHCollateralAddress;
-        address cbETHCollateralAddress;
         address swETHCollateralAddress;
         address wBETHCollateralAddress;
     }
@@ -115,21 +114,6 @@ contract DeployTanssiEcosystem is Script {
         address vaultVetoed;
         address delegatorVetoed;
         address slasherVetoed;
-    }
-
-    struct VaultAddressesMainnet {
-        address vaultStETH;
-        address delegatorStETH;
-        address slasherStETH;
-        address vaultRETH;
-        address delegatorRETH;
-        address slasherRETH;
-        address vaultCbETH;
-        address delegatorCbETH;
-        address slasherCbETH;
-        address vaultWBTC;
-        address delegatorWBTC;
-        address slasherWBTC;
     }
 
     function deployTokens(
@@ -263,14 +247,13 @@ contract DeployTanssiEcosystem is Script {
     function _deployCollateralFactory() private {
         (,,,,,,, address defaultCollateralFactoryAddress,) = contractScripts.helperConfig.activeNetworkConfig();
 
-        (address stETHAddress, address rETHAddress, address cbETHAddress, address swETHAddress, address wBETHAddress) =
+        (address stETHAddress, address rETHAddress, address swETHAddress, address wBETHAddress) =
             contractScripts.helperConfig.activeTokensConfig();
 
         if (block.chainid != 31_337) {
             if (block.chainid == 1) {
                 ecosystemEntities.stETHCollateralAddress = stETHAddress;
                 ecosystemEntities.rETHCollateralAddress = rETHAddress;
-                ecosystemEntities.cbETHCollateralAddress = cbETHAddress;
                 ecosystemEntities.swETHCollateralAddress = swETHAddress;
                 ecosystemEntities.wBETHCollateralAddress = wBETHAddress;
             } else {
