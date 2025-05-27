@@ -340,6 +340,46 @@ contract Middleware is
     }
 
     /**
+     * @inheritdoc IMiddleware
+     */
+    function slash(uint48 epoch, bytes32 operatorKey, uint256 percentage) external checkAccess {
+        uint48 epochStartTs = IOBaseMiddlewareReader(address(this)).getEpochStart(epoch);
+        address operator = operatorByKey(abi.encode(operatorKey));
+
+        if (epochStartTs + _SLASHING_WINDOW() < Time.timestamp()) {
+            revert Middleware__TooOldEpoch();
+        }
+
+        if (epochStartTs > Time.timestamp()) {
+            revert Middleware__InvalidEpoch();
+        }
+
+        // If address is 0, then we should return
+        if (operator == address(0)) {
+            revert Middleware__OperatorNotFound(operatorKey, epoch);
+        }
+
+        // Sanitization: check percentage is below 100% (or 1 billion in other words)
+        if (percentage > PARTS_PER_BILLION) {
+            revert Middleware__SlashPercentageTooBig(epoch, operator, percentage);
+        }
+        SlashParams memory params;
+        params.epochStartTs = epochStartTs;
+        params.operator = operator;
+        params.slashPercentage = percentage;
+
+        address[] memory vaults = _activeVaultsAt(epochStartTs, operator);
+        // simple pro-rata slasher
+        uint256 vaultsLength = vaults.length;
+        for (uint256 i; i < vaultsLength;) {
+            _processVaultSlashing(vaults[i], params);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /**
      * @dev Execute a slash with a given slash index using hints.
      * @param vault The vault address, must have a veto slasher
      * @param slashIndex index of the slash request
@@ -355,57 +395,22 @@ contract Middleware is
     }
 
     /**
-     * @inheritdoc IMiddleware
+     * @dev Get vault stake and calculate slashing amount.
+     * @param vault The vault address to calculate its stake
+     * @param params Struct containing slashing parameters
      */
-    function slash(uint48 epoch, bytes32 operatorKey, uint256 percentage) external checkAccess {
-        uint48 epochStartTs = IOBaseMiddlewareReader(address(this)).getEpochStart(epoch);
-        address operator = operatorByKey(abi.encode(operatorKey));
-
-        if (epochStartTs + _SLASHING_WINDOW() < Time.timestamp()) {
-            revert Middleware__TooOldEpoch();
-        }
-
-        if (epochStartTs > Time.timestamp()) {
-            revert Middleware__InvalidEpoch();
-        }
-
-        if (operator == address(0)) {
-            revert Middleware__OperatorNotFound(operatorKey, epoch);
-        }
-
-        // Sanitization: check percentage is below 100% (or 1 billion in other words)
-        if (percentage > PARTS_PER_BILLION) {
-            revert Middleware__SlashPercentageTooBig(epoch, operator, percentage);
-        }
-
-        address[] memory vaults = _activeVaultsAt(epochStartTs, operator);
-
+    function _processVaultSlashing(address vault, SlashParams memory params) private {
         // Tanssi will use only one subnetwork so we only check the first
         bytes32 subnetwork = _NETWORK().subnetwork(0);
 
-        uint256 vaultsLength = vaults.length;
-        // simple pro-rata slasher
-        for (uint256 i = 0; i < vaultsLength;) {
-            address vault = vaults[i];
-            uint48 vaultEpoch = uint48(IVault(vault).epochAt(epochStartTs));
+        uint256 vaultStake = IBaseDelegator(IVault(vault).delegator()).stakeAt(
+            subnetwork, params.operator, params.epochStartTs, new bytes(0)
+        );
+        // Slash percentage is already in parts per billion
+        // so we need to divide by a billion
+        uint256 slashAmount = params.slashPercentage.mulDiv(vaultStake, PARTS_PER_BILLION);
 
-            // Mimics slashableBalanceOf but has more flexibility because can be used for any timestamp
-            // The idea is that the slashing amount is calculated based on the active balance of the operator at the time of slashing plus the current and next withdrawals.
-            // Adding only the `withdrawalsOf` to the previous `stakeAt` would result in a wrong slashing amount because there would be a double counting of the current withdrawals.
-            uint256 currentWithdrawals = IVault(vault).withdrawalsOf(vaultEpoch, operator);
-            uint256 nextWithdrawals = IVault(vault).withdrawalsOf(vaultEpoch + 1, operator);
-            uint256 activeBalanceOfAt = IVault(vault).activeBalanceOfAt(operator, epochStartTs, new bytes(0));
-
-            // Slash percentage is already in parts per billion
-            // so we need to divide by a billion
-            uint256 slashAmount =
-                percentage.mulDiv(activeBalanceOfAt + currentWithdrawals + nextWithdrawals, PARTS_PER_BILLION);
-
-            _slashVault(epochStartTs, vault, subnetwork, operator, slashAmount);
-            unchecked {
-                ++i;
-            }
-        }
+        _slashVault(params.epochStartTs, vault, subnetwork, params.operator, slashAmount);
     }
 
     /**
