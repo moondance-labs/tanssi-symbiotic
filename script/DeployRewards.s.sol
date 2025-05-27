@@ -60,14 +60,14 @@ contract DeployRewards is Script {
         address network,
         address networkMiddlewareService,
         uint48 operatorShare,
-        address owner
+        address admin
     ) public returns (address) {
         if (!isTest) {
             vm.startBroadcast(ownerPrivateKey);
         }
         ODefaultOperatorRewards operatorRewardsImpl = new ODefaultOperatorRewards(network, networkMiddlewareService);
         operatorRewards = ODefaultOperatorRewards(address(new ERC1967Proxy(address(operatorRewardsImpl), "")));
-        operatorRewards.initialize(operatorShare, owner);
+        operatorRewards.initialize(operatorShare, admin);
         console2.log("Operator rewards contract deployed at address: ", address(operatorRewards));
         if (!isTest) {
             vm.stopBroadcast();
@@ -143,49 +143,6 @@ contract DeployRewards is Script {
         ODefaultOperatorRewards implementation = new ODefaultOperatorRewards(network, networkMiddlewareService);
         console2.log("New Operator Rewards Implementation: ", address(implementation));
         proxy.upgradeToAndCall(address(implementation), hex"");
-        console2.log("Operator Rewards Upgraded");
-        if (!isTest) {
-            vm.stopBroadcast();
-        } else {
-            vm.stopPrank();
-        }
-    }
-
-    function upgradeAndMigrateOperatorRewards(
-        address proxyAddress,
-        address network,
-        address networkMiddlewareService,
-        address middleware,
-        address owner,
-        uint48 maxEpochsToMigrate
-    ) external {
-        if (!isTest) {
-            vm.startBroadcast(ownerPrivateKey);
-        } else {
-            vm.startPrank(owner);
-        }
-
-        ODefaultOperatorRewards proxy = ODefaultOperatorRewards(proxyAddress);
-        ODefaultOperatorRewards implementation = new ODefaultOperatorRewards(network, networkMiddlewareService);
-        console2.log("New Operator Rewards Implementation: ", address(implementation));
-        uint48 lastEpoch = Middleware(middleware).getCurrentEpoch();
-        // Current number of epochs cannot be migrated in a single call, so we need to migrate in chunks.
-        // We are certain that the migration can run in 2 chunks even if upgrade is delayed for a few weeks, so we don't implement a more complex logic to adjust number of chunks according to last epoch.
-        if (lastEpoch > maxEpochsToMigrate) {
-            uint256 currentGas = gasleft();
-            bytes memory data = abi.encodeWithSelector(ODefaultOperatorRewards.migrate.selector, 1, maxEpochsToMigrate);
-            proxy.upgradeToAndCall(address(implementation), data);
-            uint256 newGas = gasleft();
-            console2.log("Gas on upgrade and first migrate: ", currentGas - newGas);
-            currentGas = gasleft();
-            proxy.migrate(maxEpochsToMigrate + 1, lastEpoch);
-            newGas = gasleft();
-            console2.log("Gas on second migrate: ", currentGas - newGas);
-        } else {
-            bytes memory data = abi.encodeWithSelector(ODefaultOperatorRewards.migrate.selector, 1, lastEpoch);
-            proxy.upgradeToAndCall(address(implementation), data);
-        }
-
         console2.log("Operator Rewards Upgraded");
         if (!isTest) {
             vm.stopBroadcast();
