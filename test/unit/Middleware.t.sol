@@ -1151,7 +1151,7 @@ contract MiddlewareTest is Test {
         currentEpoch = middleware.getCurrentEpoch();
         uint256 totalStake = OBaseMiddlewareReader(address(middleware)).getTotalStake(currentEpoch);
 
-        uint256 expectedStake = (OPERATOR_STAKE/2) * uint256(ORACLE_CONVERSION_TOKEN) / 10 ** ORACLE_DECIMALS;
+        uint256 expectedStake = (OPERATOR_STAKE / 2) * uint256(ORACLE_CONVERSION_TOKEN) / 10 ** ORACLE_DECIMALS;
         assertEq(totalStake, expectedStake); //Because it slashes the operator everywhere, but the operator has stake only in vault2, since the first vault is paused
         vm.stopPrank();
     }
