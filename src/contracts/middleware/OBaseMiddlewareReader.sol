@@ -500,7 +500,7 @@ contract OBaseMiddlewareReader is
 
         uint256 valIdx = 0;
         uint256 operatorsLength_ = operators.length;
-        for (uint256 i = 0; i < operatorsLength_;) {
+        for (uint256 i; i < operatorsLength_;) {
             address operator = operators[i];
             (uint256 vaultIdx, address[] memory _vaults) = getOperatorVaults(operator, epochStartTs);
 
@@ -599,7 +599,7 @@ contract OBaseMiddlewareReader is
 
         address[] memory operators = _activeOperatorsAt(epochStartTs);
         uint256 operatorsLength_ = operators.length;
-        for (uint256 i = 0; i < operatorsLength_;) {
+        for (uint256 i; i < operatorsLength_;) {
             uint256 operatorStake = _getOperatorPowerAt(epochStartTs, operators[i]);
             totalStake += operatorStake;
             unchecked {
@@ -640,7 +640,7 @@ contract OBaseMiddlewareReader is
 
         uint256 len = 0;
         uint256 operatorsLength_ = operators.length;
-        for (uint256 i = 0; i < operatorsLength_;) {
+        for (uint256 i; i < operatorsLength_;) {
             address operator = operators[i];
             unchecked {
                 ++i;
