@@ -1734,16 +1734,18 @@ contract FullTest is Test {
         uint48 currentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validators =
             OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(currentEpoch);
-        console2.log("Current Epoch: ", currentEpoch);
         vm.startPrank(tanssi);
         ecosystemEntities.middleware.pauseOperator(operator);
-
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
 
         ecosystemEntities.middleware.unregisterOperator(operator);
-        // currentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
         validators = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(currentEpoch);
         assertEq(validators.length, 9); // One less operator
+
+        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        ecosystemEntities.middleware.registerOperator(operator, abi.encode(bytes32(uint256(12))), address(0));
+        validators = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(currentEpoch);
+        assertEq(validators.length, 10); // One less operator
     }
 
     function testPauseAndUnpausingOperator() public {

@@ -1036,11 +1036,16 @@ contract MiddlewareTest is Test {
             _registerOperatorAndOptIn(_operator, tanssi, address(_vault), true);
             vm.startPrank(_operator);
             uint256 depositAmount = 0.001 ether * (i + 1);
-            _depositToVault(Vault(_vault), _operator, 0.001 ether * (i + 1), token);
+            _depositToVault(Vault(_vault), _operator, depositAmount, token);
+
             vm.startPrank(owner);
             if (i % 3 != 1) {
                 INetworkRestakeDelegator(_delegator).setOperatorNetworkShares(
-                    tanssi.subnetwork(0), _operator, depositAmount
+                    tanssi.subnetwork(0), _operator, OPERATOR_SHARE
+                );
+            } else {
+                IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
+                    tanssi.subnetwork(0), _operator, 1 ether
                 );
             }
             bytes32 operatorKey = bytes32(uint256(i + 4));

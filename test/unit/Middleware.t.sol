@@ -371,11 +371,9 @@ contract MiddlewareTest is Test {
         vm.warp(NETWORK_EPOCH_DURATION + 2);
         // Get validator set for current epoch
         uint48 currentEpoch = middleware.getCurrentEpoch();
-        Middleware.ValidatorData[] memory validators =
-            OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
+        bool isOperatorRegistered = OBaseMiddlewareReader(address(middleware)).isOperatorRegistered(operator);
 
-        assertEq(validators.length, 1);
-        assertEq(validators[0].key, OPERATOR_KEY);
+        assertEq(isOperatorRegistered, true);
         vm.stopPrank();
     }
 
@@ -463,11 +461,9 @@ contract MiddlewareTest is Test {
         vm.warp(NETWORK_EPOCH_DURATION + 2);
         // Get validator set for current epoch
         uint48 currentEpoch = middleware.getCurrentEpoch();
-        Middleware.ValidatorData[] memory validators =
-            OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
+        bytes memory operatorKey = middleware.operatorKey(operator);
 
-        assertEq(validators.length, 1);
-        assertEq(validators[0].key, newKey);
+        assertEq(operatorKey, abi.encode(newKey));
         vm.stopPrank();
     }
 
@@ -1422,11 +1418,20 @@ contract MiddlewareTest is Test {
 
     function testSendCurrentOperatorKeys() public {
         _registerOperatorToNetwork(operator, address(vault), false, false);
+        _registerVaultToNetwork(address(vault), false, 0);
 
         vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
         vm.startPrank(owner);
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
 
+        vault.setSlasher(address(slasher));
+        vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
+        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+
+        vm.startPrank(operator);
+        vault.deposit(operator, OPERATOR_STAKE);
+
+        vm.startPrank(owner);
         vm.warp(NETWORK_EPOCH_DURATION + 2);
         vm.roll(80);
         bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
@@ -1493,10 +1498,20 @@ contract MiddlewareTest is Test {
 
     function testSendCurrentOperatorKeysButIsLimitedByMinIntervalBlock() public {
         _registerOperatorToNetwork(operator, address(vault), false, false);
+        _registerVaultToNetwork(address(vault), false, 0);
 
         vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
         vm.startPrank(owner);
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+
+        vault.setSlasher(address(slasher));
+        vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
+        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+
+        vm.startPrank(operator);
+        vault.deposit(operator, OPERATOR_STAKE);
+
+        vm.startPrank(owner);
 
         vm.warp(NETWORK_EPOCH_DURATION + 2);
         vm.roll(80);
@@ -2808,10 +2823,21 @@ contract MiddlewareTest is Test {
 
         _registerOperatorToNetwork(operator, address(vault), false, false);
         _registerOperatorToNetwork(operator2, address(vault), false, false);
+        _registerVaultToNetwork(address(vault), false, 0);
 
         vm.startPrank(owner);
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         middleware.registerOperator(operator2, abi.encode(OPERATOR2_KEY), address(0));
+
+        vault.setSlasher(address(slasher));
+        vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
+        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        vm.stopPrank();
+
+        vm.startPrank(operator);
+        vault.deposit(operator, OPERATOR_STAKE);
+        vm.startPrank(operator2);
+        vault.deposit(operator2, OPERATOR_STAKE);
         vm.stopPrank();
 
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
