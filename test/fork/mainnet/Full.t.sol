@@ -338,14 +338,19 @@ contract FullTest is Test {
             vaultsAddressesDeployed.renzoRestakedETH.vault,
             0x9437B2a8cF3b69D782a61f9814baAbc172f72003
         );
-        _registerOperator(operator7, tanssi, vaultsAddressesDeployed.re7LabsRestakingETH.vault, address(0));
+        _registerOperator(
+            operator7,
+            tanssi,
+            vaultsAddressesDeployed.re7LabsRestakingETH.vault,
+            0x9437B2a8cF3b69D782a61f9814baAbc172f72003
+        );
         _registerOperator(operator7, tanssi, vaultsAddressesDeployed.gauntletRestakedRETH.vault, address(0));
 
         // ******************
         //    OPERATOR 8
         // ******************
         deal(address(ecosystemEntities.wBETH), operator8, OPERATOR_INITIAL_BALANCE);
-        deal(address(ecosystemEntities.rETH), operator8, OPERATOR_INITIAL_BALANCE);
+        deal(address(ecosystemEntities.wstETH), operator8, OPERATOR_INITIAL_BALANCE);
         deal(address(ecosystemEntities.swETH), operator8, OPERATOR_INITIAL_BALANCE);
         _registerOperator(operator8, tanssi, vaultsAddressesDeployed.gauntletRestakedWstETH.vault, address(0));
         _registerOperator(operator8, tanssi, vaultsAddressesDeployed.gauntletRestakedSwETH.vault, address(0));
@@ -358,7 +363,9 @@ contract FullTest is Test {
         deal(address(ecosystemEntities.rETH), operator9, OPERATOR_INITIAL_BALANCE);
         deal(address(ecosystemEntities.wBETH), operator9, OPERATOR_INITIAL_BALANCE);
         deal(address(ecosystemEntities.swETH), operator9, OPERATOR_INITIAL_BALANCE);
-        _registerOperator(operator9, tanssi, vaultsAddressesDeployed.cp0xLrtETH.vault, address(0));
+        _registerOperator(
+            operator9, tanssi, vaultsAddressesDeployed.cp0xLrtETH.vault, 0x9437B2a8cF3b69D782a61f9814baAbc172f72003
+        );
         _registerOperator(operator9, tanssi, vaultsAddressesDeployed.gauntletRestakedRETH.vault, address(0));
         _registerOperator(operator9, tanssi, vaultsAddressesDeployed.gauntletRestakedWBETH.vault, address(0));
         _registerOperator(operator9, tanssi, vaultsAddressesDeployed.gauntletRestakedSwETH.vault, address(0));
@@ -384,7 +391,12 @@ contract FullTest is Test {
             operator10, tanssi, vaultsAddressesDeployed.cp0xLrtETH.vault, 0x9437B2a8cF3b69D782a61f9814baAbc172f72003
         );
         _registerOperator(operator10, tanssi, vaultsAddressesDeployed.gauntletRestakedWstETH.vault, address(0));
-        _registerOperator(operator10, tanssi, vaultsAddressesDeployed.re7LabsRestakingETH.vault, address(0));
+        _registerOperator(
+            operator10,
+            tanssi,
+            vaultsAddressesDeployed.re7LabsRestakingETH.vault,
+            0x9437B2a8cF3b69D782a61f9814baAbc172f72003
+        );
         _registerOperator(
             operator10, tanssi, vaultsAddressesDeployed.re7LabsETH.vault, 0x9437B2a8cF3b69D782a61f9814baAbc172f72003
         );
