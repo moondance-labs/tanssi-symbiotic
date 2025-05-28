@@ -566,7 +566,7 @@ contract OBaseMiddlewareReader is
         vaults = new address[](operatorVaults.length);
         vaultIdx = 0;
         uint256 operatorVaultsLength_ = operatorVaults.length;
-        for (uint256 j = 0; j < operatorVaultsLength_;) {
+        for (uint256 j; j < operatorVaultsLength_;) {
             address _vault = operatorVaults[j];
             // Tanssi will use probably only one subnetwork, so we can skip this loop
             // for (uint96 k = 0; k < _subnetworksLength(); ++k) {
