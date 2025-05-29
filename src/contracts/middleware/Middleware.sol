@@ -395,6 +395,20 @@ contract Middleware is
     }
 
     /**
+     * @dev Set the reader address.
+     * @param reader The MiddlewareReader address
+     */
+    function setReader(
+        address reader
+    ) external checkAccess notZeroAddress(reader) {
+        // From BaseMiddleware.sol
+        bytes32 ReaderStorageLocation = 0xfd87879bc98f37af7578af722aecfbe5843e5ad354da2d1e70cb5157c4ec8800;
+        assembly {
+            sstore(ReaderStorageLocation, reader)
+        }
+    }
+
+    /**
      * @dev Get vault stake and calculate slashing amount.
      * @param vault The vault address to calculate its stake
      * @param params Struct containing slashing parameters
