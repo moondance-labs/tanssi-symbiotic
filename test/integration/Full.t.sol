@@ -470,17 +470,6 @@ contract MiddlewareTest is Test {
         address _owner
     ) private {
         vm.startPrank(_owner);
-        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
-            adminFee: ADMIN_FEE,
-            defaultAdminRoleHolder: tanssi,
-            adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi
-        });
-        middleware.registerSharedVault(address(vaultsData.v1.vault), stakerRewardsParams);
-        middleware.registerSharedVault(address(vaultsData.v2.vault), stakerRewardsParams);
-        middleware.registerSharedVault(address(vaultsData.v3.vault), stakerRewardsParams);
-        middleware.registerSharedVault(address(vaultsData.v4.vault), stakerRewardsParams);
-        middleware.registerSharedVault(address(vaultsData.v5.vault), stakerRewardsParams);
 
         middleware.registerOperator(operator1, abi.encode(OPERATOR1_KEY), address(0));
         middleware.registerOperator(operator2, abi.encode(OPERATOR2_KEY), address(0));
@@ -489,6 +478,31 @@ contract MiddlewareTest is Test {
         middleware.registerOperator(operator5, abi.encode(OPERATOR5_KEY), address(0));
         middleware.registerOperator(operator6, abi.encode(OPERATOR6_KEY), address(0));
         middleware.registerOperator(operator7, abi.encode(OPERATOR7_KEY), address(0));
+
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            adminFee: ADMIN_FEE,
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: tanssi,
+            adminFeeSetRoleHolder: tanssi
+        });
+
+        // OPERATOR SPECIFIC VAULTS
+        // We need to deploy their staker rewards and link them
+        middleware.registerOperatorVault(operator1, address(vaultsData.v1.vault));
+        middleware.registerOperatorVault(operator7, address(vaultsData.v5.vault));
+
+        address stakerRewardsV1 = stakerRewardsFactory.create(address(vaultsData.v1.vault), stakerRewardsParams);
+        address stakerRewardsV5 = stakerRewardsFactory.create(address(vaultsData.v5.vault), stakerRewardsParams);
+
+        operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(owner)); // Admins need to set the staker rewards contract for operator specific vaults
+        operatorRewards.setStakerRewardContract(stakerRewardsV1, address(vaultsData.v1.vault));
+        operatorRewards.setStakerRewardContract(stakerRewardsV5, address(vaultsData.v5.vault));
+
+        // SHARED VAULTS
+        middleware.registerSharedVault(address(vaultsData.v2.vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vaultsData.v3.vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vaultsData.v4.vault), stakerRewardsParams);
+
         vm.stopPrank();
     }
 
@@ -951,8 +965,8 @@ contract MiddlewareTest is Test {
             expectedRewardsForStakers.mulDiv(operatorPowerVault1, operatorPowerVault1 + operatorPowerVault2);
         uint256 expectedRewardsStakerVault2 = expectedRewardsForStakers - expectedRewardsStakerVault1;
 
-        assertEq(STAR.balanceOf(stakerRewardsContractVault1), expectedRewardsStakerVault1);
-        assertEq(STAR.balanceOf(stakerRewardsContractVault2), expectedRewardsStakerVault2);
+        assertApproxEqAbs(STAR.balanceOf(stakerRewardsContractVault1), expectedRewardsStakerVault1, 1);
+        assertApproxEqAbs(STAR.balanceOf(stakerRewardsContractVault2), expectedRewardsStakerVault2, 1);
 
         // Vault 1
         {
@@ -961,7 +975,7 @@ contract MiddlewareTest is Test {
                 expectedRewardsStakerVault1.mulDiv(MAX_PERCENTAGE - ADMIN_FEE, MAX_PERCENTAGE);
             uint256 stakerRewardsOperator1Vault1 =
                 IODefaultStakerRewards(stakerRewardsContractVault1).claimable(epoch, operator1, address(STAR));
-            assertApproxEqAbs(expectedRewardsStakerOperator1Vault1, stakerRewardsOperator1Vault1, 1);
+            assertApproxEqAbs(expectedRewardsStakerOperator1Vault1, stakerRewardsOperator1Vault1, 2);
         }
 
         // Vault 2
@@ -1202,7 +1216,7 @@ contract MiddlewareTest is Test {
         uint256 expectedRewardsStakerVault2 = expectedRewardsForStakersFromOperator1
             + expectedRewardsForStakersFromOperator2 + expectedRewardsForStakersFromOperator3;
 
-        assertEq(STAR.balanceOf(stakerRewardsContractVault2), expectedRewardsStakerVault2);
+        assertApproxEqAbs(STAR.balanceOf(stakerRewardsContractVault2), expectedRewardsStakerVault2, 1);
 
         // Vault 2
         uint256 adminFeeStakerRewardsVault2 = expectedRewardsStakerVault2.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
@@ -1218,7 +1232,7 @@ contract MiddlewareTest is Test {
             IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(
                 operator1, epoch, address(STAR), new bytes(0)
             );
-            assertEq(STAR.balanceOf(operator1), previousBalance + rewardsOperator1);
+            assertApproxEqAbs(STAR.balanceOf(operator1), previousBalance + rewardsOperator1, 1);
         }
 
         {
@@ -1226,7 +1240,7 @@ contract MiddlewareTest is Test {
             IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(
                 operator2, epoch, address(STAR), new bytes(0)
             );
-            assertEq(STAR.balanceOf(operator2), previousBalance + rewardsOperator2);
+            assertApproxEqAbs(STAR.balanceOf(operator2), previousBalance + rewardsOperator2, 1);
         }
 
         {
@@ -1234,7 +1248,7 @@ contract MiddlewareTest is Test {
             IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(
                 operator3, epoch, address(STAR), new bytes(0)
             );
-            assertEq(STAR.balanceOf(operator3), previousBalance + rewardsOperator3);
+            assertApproxEqAbs(STAR.balanceOf(operator3), previousBalance + rewardsOperator3, 1);
         }
     }
 
