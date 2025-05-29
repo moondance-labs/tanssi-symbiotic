@@ -7,7 +7,7 @@ libs = ["lib"]
 fs_permissions = [{ access = "read-write", path = "./" }]
 gas_reports = ["*"]
 optimizer = true
-optimizer_runs = 900
+optimizer_runs = 800
 cache_path = "forge-cache"
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
