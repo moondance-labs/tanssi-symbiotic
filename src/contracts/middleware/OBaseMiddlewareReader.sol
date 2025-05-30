@@ -650,7 +650,7 @@ contract OBaseMiddlewareReader is
             bytes32 key = abi.decode(getOperatorKeyAt(operator, epochStartTs), (bytes32));
             uint256 power = _getOperatorPowerAt(epochStartTs, operator);
 
-            if (key != bytes32(0)) {
+            if (key != bytes32(0) && power != 0) {
                 validatorSet[len++] = IMiddleware.ValidatorData(power, key);
             }
         }
