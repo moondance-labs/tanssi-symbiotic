@@ -146,9 +146,9 @@ contract MiddlewareTest is Test {
         helperConfig = new HelperConfig();
         deployTanssi.deployTanssiEcosystem(helperConfig);
 
-        address defaultCollateralAddress;
-        (ecosystemEntities.middleware,, defaultCollateralAddress) = deployTanssi.ecosystemEntities();
-        ecosystemEntities.stETH = IDefaultCollateral(defaultCollateralAddress);
+        address stETHCollateralAddress;
+        (ecosystemEntities.middleware,, stETHCollateralAddress,,,) = deployTanssi.ecosystemEntities();
+        ecosystemEntities.stETH = IDefaultCollateral(stETHCollateralAddress);
 
         _setVaultAddresses(deployTanssi);
         _initializeVaults();
@@ -218,7 +218,7 @@ contract MiddlewareTest is Test {
     }
 
     function _handleDeposits() private {
-        (,,,,, address operatorVaultOptInServiceAddress,,,,) = helperConfig.activeNetworkConfig();
+        (,,,,, address operatorVaultOptInServiceAddress,,,) = helperConfig.activeNetworkConfig();
 
         IOptInService operatorVaultOptInService = IOptInService(operatorVaultOptInServiceAddress);
 
@@ -280,7 +280,6 @@ contract MiddlewareTest is Test {
             ,
             address operatorNetworkOptInServiceAddress,
             address operatorVaultOptInServiceAddress,
-            ,
             ,
             ,
         ) = helperConfig.activeNetworkConfig();
@@ -370,7 +369,7 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function testInitialState() public view {
-        (, address operatorRegistryAddress,, address vaultFactoryAddress,,,,,,) = helperConfig.activeNetworkConfig();
+        (, address operatorRegistryAddress,, address vaultFactoryAddress,,,,,) = helperConfig.activeNetworkConfig();
 
         assertEq(OBaseMiddlewareReader(address(ecosystemEntities.middleware)).NETWORK(), tanssi);
         assertEq(
@@ -613,7 +612,6 @@ contract MiddlewareTest is Test {
             address operatorNetworkOptInServiceAddress,
             ,
             address networkMiddlewareServiceAddress,
-            ,
             ,
         ) = helperConfig.activeNetworkConfig();
 

@@ -636,10 +636,12 @@ contract OBaseMiddlewareReader is
     ) public view returns (IMiddleware.ValidatorData[] memory validatorSet) {
         uint48 epochStartTs = getEpochStart(epoch);
         address[] memory operators = _activeOperatorsAt(epochStartTs);
-        validatorSet = new IMiddleware.ValidatorData[](operators.length);
 
         uint256 len = 0;
         uint256 operatorsLength_ = operators.length;
+
+        validatorSet = new IMiddleware.ValidatorData[](operatorsLength_);
+
         for (uint256 i; i < operatorsLength_;) {
             address operator = operators[i];
             unchecked {
@@ -647,6 +649,7 @@ contract OBaseMiddlewareReader is
             }
             bytes32 key = abi.decode(getOperatorKeyAt(operator, epochStartTs), (bytes32));
             uint256 power = _getOperatorPowerAt(epochStartTs, operator);
+
             if (key != bytes32(0) && power != 0) {
                 validatorSet[len++] = IMiddleware.ValidatorData(power, key);
             }

@@ -99,7 +99,7 @@ contract DeployTanssiEcosystem is Script {
     struct EcosystemEntity {
         Middleware middleware;
         IVaultConfigurator vaultConfigurator;
-        address defaultCollateralAddress;
+        address stETHCollateralAddress;
     }
 
     struct TokensAddresses {
@@ -169,8 +169,8 @@ contract DeployTanssiEcosystem is Script {
             delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
             shouldBroadcast: !isTest,
             vaultConfigurator: address(ecosystemEntities.vaultConfigurator),
-            collateral: ecosystemEntities.defaultCollateralAddress != address(0)
-                ? ecosystemEntities.defaultCollateralAddress
+            collateral: ecosystemEntities.stETHCollateralAddress != address(0)
+                ? ecosystemEntities.stETHCollateralAddress
                 : address(tokensAddresses.stETHToken),
             owner: tanssi,
             operator: address(0),

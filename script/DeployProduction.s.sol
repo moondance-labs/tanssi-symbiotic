@@ -100,7 +100,6 @@ contract DeployProduction is Script {
             ,
             address networkMiddlewareServiceAddress,
             ,
-            ,
         ) = helperConfig.activeNetworkConfig();
 
         // Deploy rewards takes care of starting and ending broadcast

@@ -77,6 +77,7 @@ contract DeployTanssiEcosystem is Script {
 
     bool public isTest = false;
     VaultAddresses public vaultAddresses;
+    HelperConfig.VaultsConfig public vaultsAddressesDeployed;
     TokensAddresses public tokensAddresses;
     EcosystemEntity public ecosystemEntities;
     ContractScripts public contractScripts;
@@ -91,7 +92,10 @@ contract DeployTanssiEcosystem is Script {
     struct EcosystemEntity {
         Middleware middleware;
         IVaultConfigurator vaultConfigurator;
-        address defaultCollateralAddress;
+        address stETHCollateralAddress;
+        address rETHCollateralAddress;
+        address swETHCollateralAddress;
+        address wBETHCollateralAddress;
     }
 
     struct TokensAddresses {
@@ -141,8 +145,8 @@ contract DeployTanssiEcosystem is Script {
             delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
             shouldBroadcast: !isTest,
             vaultConfigurator: address(ecosystemEntities.vaultConfigurator),
-            collateral: ecosystemEntities.defaultCollateralAddress != address(0)
-                ? ecosystemEntities.defaultCollateralAddress
+            collateral: ecosystemEntities.stETHCollateralAddress != address(0)
+                ? ecosystemEntities.stETHCollateralAddress
                 : address(tokensAddresses.stETHToken),
             owner: tanssi,
             operator: address(0),
@@ -219,11 +223,13 @@ contract DeployTanssiEcosystem is Script {
             adminFeeClaimRoleHolder: tanssi,
             adminFeeSetRoleHolder: tanssi
         });
-        if (block.chainid == 31_337 || isTest) {
-            ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
-            ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsParams);
+        if (block.chainid != 1) {
+            if (block.chainid == 31_337 || isTest) {
+                ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
+                ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsParams);
+            }
+            ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsParams);
         }
-        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsParams);
     }
 
     function _transferTokensToOperators() private {
@@ -239,16 +245,25 @@ contract DeployTanssiEcosystem is Script {
     }
 
     function _deployCollateralFactory() private {
-        (,,,,,,, address defaultCollateralFactoryAddress, address stETHAddress,) =
-            contractScripts.helperConfig.activeNetworkConfig();
+        (,,,,,,, address defaultCollateralFactoryAddress,) = contractScripts.helperConfig.activeNetworkConfig();
+
+        (address stETHAddress, address rETHAddress, address swETHAddress, address wBETHAddress) =
+            contractScripts.helperConfig.activeTokensConfig();
 
         if (block.chainid != 31_337) {
-            if (defaultCollateralFactoryAddress == address(0)) {
-                defaultCollateralFactoryAddress = address(new DefaultCollateralFactory());
-            }
+            if (block.chainid == 1) {
+                ecosystemEntities.stETHCollateralAddress = stETHAddress;
+                ecosystemEntities.rETHCollateralAddress = rETHAddress;
+                ecosystemEntities.swETHCollateralAddress = swETHAddress;
+                ecosystemEntities.wBETHCollateralAddress = wBETHAddress;
+            } else {
+                if (defaultCollateralFactoryAddress == address(0)) {
+                    defaultCollateralFactoryAddress = address(new DefaultCollateralFactory());
+                }
 
-            ecosystemEntities.defaultCollateralAddress = IDefaultCollateralFactory(defaultCollateralFactoryAddress)
-                .create(address(stETHAddress), 10_000 ether, address(0));
+                ecosystemEntities.stETHCollateralAddress = IDefaultCollateralFactory(defaultCollateralFactoryAddress)
+                    .create(address(stETHAddress), 10_000 ether, address(0));
+            }
         }
 
         if (!isTest) {
@@ -267,7 +282,6 @@ contract DeployTanssiEcosystem is Script {
             address operatorVaultOptInServiceAddress,
             address networkMiddlewareServiceAddress,
             ,
-            ,
         ) = contractScripts.helperConfig.activeNetworkConfig();
 
         _deployCollateralFactory();
@@ -283,8 +297,12 @@ contract DeployTanssiEcosystem is Script {
                 INetworkRegistry(networkRegistryAddress).registerNetwork();
             }
         }
-        deployVaults();
-        _setDelegatorConfigs();
+        if (block.chainid != 1) {
+            deployVaults();
+            _setDelegatorConfigs();
+        } else {
+            vaultsAddressesDeployed = contractScripts.helperConfig.getActiveVaultsConfig();
+        }
 
         if (!isTest) {
             vm.stopBroadcast();
@@ -330,7 +348,7 @@ contract DeployTanssiEcosystem is Script {
             console2.log("NetworkMiddlewareService: ", networkMiddlewareServiceAddress);
             console2.log("OperatorNetworkOptInService: ", operatorNetworkOptInServiceAddress);
             console2.log("OperatorVaultOptInService: ", operatorVaultOptInServiceAddress);
-            console2.log("DefaultCollateral: ", ecosystemEntities.defaultCollateralAddress);
+            console2.log("DefaultCollateral: ", ecosystemEntities.stETHCollateralAddress);
             console2.log("Middleware: ", address(ecosystemEntities.middleware));
             console2.log("OperatorRewards: ", operatorRewardsAddress);
             console2.log("Vault: ", vaultAddresses.vault);
@@ -468,7 +486,7 @@ contract DeployTanssiEcosystem is Script {
         contractScripts.deployRewards = new DeployRewards();
         contractScripts.deployRewards.setIsTest(isTest);
 
-        (address vaultConfiguratorAddress,,,,,,,,,) = _helperConfig.activeNetworkConfig();
+        (address vaultConfiguratorAddress,,,,,,,,) = _helperConfig.activeNetworkConfig();
         ecosystemEntities.vaultConfigurator = IVaultConfigurator(vaultConfiguratorAddress);
     }
 }
