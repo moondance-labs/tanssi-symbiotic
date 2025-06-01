@@ -393,7 +393,7 @@ contract DeployTanssiEcosystem is Script {
         console2.log("NetworkMiddlewareService: ", address(networkMiddlewareService));
         console2.log("OperatorNetworkOptInService: ", address(operatorNetworkOptInService));
         console2.log("OperatorVaultOptInService: ", address(operatorVaultOptInService));
-        console2.log("DefaultCollateral: ", ecosystemEntities.defaultCollateralAddress);
+        console2.log("stETHCollateralAddress: ", ecosystemEntities.stETHCollateralAddress);
         console2.log("Middleware: ", address(ecosystemEntities.middleware));
         console2.log("Vault: ", vaultAddresses.vault);
         console2.log("Delegator: ", vaultAddresses.delegator);
