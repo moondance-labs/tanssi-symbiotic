@@ -940,6 +940,68 @@ contract MiddlewareTest is Test {
         assertEq(validators[0].power, expectedOperatorPower1);
     }
 
+    function testOperatorCanParticipateWithoutSelfStake() public {
+        address operator8 = makeAddr("operator8");
+        uint256 NETWORK_LIMIT = 100 ether;
+
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            adminFee: ADMIN_FEE,
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: tanssi,
+            adminFeeSetRoleHolder: tanssi
+        });
+
+        vm.startPrank(tanssi);
+        DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
+            epochDuration: VAULT_EPOCH_DURATION,
+            depositWhitelist: false,
+            depositLimit: 0,
+            delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
+            shouldBroadcast: false,
+            vaultConfigurator: address(vaultConfigurator),
+            collateral: address(wBTC),
+            owner: owner,
+            operator: address(0),
+            network: address(0)
+        });
+        (address vault, address delegator,) = deployVault.createSlashableVault(params);
+
+        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        INetworkRestakeDelegator(delegator).setOperatorNetworkShares(tanssi.subnetwork(0), operator8, 1);
+        INetworkRestakeDelegator(delegator).setMaxNetworkLimit(0, NETWORK_LIMIT);
+        INetworkRestakeDelegator(delegator).setNetworkLimit(tanssi.subnetwork(0), NETWORK_LIMIT);
+        vm.stopPrank();
+
+        _registerOperatorAndOptIn(operator8, tanssi, vault, true);
+
+        {
+            address staker1 = makeAddr("staker1");
+            address staker2 = makeAddr("staker2");
+
+            // Deposit a lot so the operator is on first place for checks
+            _depositToVault(IVault(vault), staker1, 50 ether, wBTC, true);
+            _depositToVault(IVault(vault), staker2, 50 ether, wBTC, true);
+        }
+
+        vm.startPrank(tanssi);
+        middleware.registerOperator(operator8, abi.encode(OPERATOR8_KEY), address(0));
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + VAULT_EPOCH_DURATION);
+
+        Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+
+        // Check it is active and has expected power coming only from stakers
+        uint256 len = validators.length;
+        assertEq(validators[len - 1].key, OPERATOR8_KEY);
+        uint256 expectedPower = uint256(100 ether).mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+        assertEq(validators[len - 1].power, expectedPower);
+
+        // Check it is the top one
+        bytes32[] memory sortedKeys = middlewareReader.sortOperatorsByPower(middleware.getCurrentEpoch());
+        assertEq(sortedKeys[0], OPERATOR8_KEY);
+    }
+
     // ************************************************************************************************
     // *                                       REWARDS DISTRIBUTION
     // ************************************************************************************************
