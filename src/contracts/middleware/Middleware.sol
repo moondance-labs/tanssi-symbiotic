@@ -473,14 +473,14 @@ contract Middleware is
 
         IODefaultOperatorRewards(i_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
 
-        _checkVaultAndSetCollateral(sharedVault);
+        _setVaultToCollateral(sharedVault);
     }
 
     /**
      * @inheritdoc BaseOperators
      */
     function _beforeRegisterOperatorVault(address, /* operator */ address vault) internal override {
-        _checkVaultAndSetCollateral(vault);
+        _setVaultToCollateral(vault);
     }
 
     /**
@@ -505,28 +505,11 @@ contract Middleware is
         _updateKey(operator, abi.encode(bytes32(0)));
     }
 
-    function _checkVaultAndSetCollateral(
+    function _setVaultToCollateral(
         address vault
     ) private {
         StorageMiddleware storage $ = _getMiddlewareStorage();
-        IVault vaultContract = IVault(vault);
-
-        uint256 networkEpochDuration = $.interval;
-        uint48 vaultEpochDuration = vaultContract.epochDuration();
-        address slasher = vaultContract.slasher();
-
-        if (slasher != address(0)) {
-            // Check if slasher is a veto slasher
-            if (IEntity(slasher).TYPE() == uint256(SlasherType.VETO)) {
-                uint48 vetoDuration = IVetoSlasher(slasher).vetoDuration();
-                // If this condition is true, then slashing might revert if done towards the end of the network epoch. We prevent the case directly on registration.
-                if (networkEpochDuration >= vaultEpochDuration - vetoDuration) {
-                    revert Middleware__VaultEpochDurationTooShort();
-                }
-            }
-        }
-
-        address collateral = vaultContract.collateral();
+        address collateral = IVault(vault).collateral();
         _checkNotZeroAddress(collateral);
         $.vaultToCollateral[vault] = collateral;
     }

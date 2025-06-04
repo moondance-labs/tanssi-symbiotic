@@ -1919,6 +1919,75 @@ contract MiddlewareTest is Test {
     }
 
     // ************************************************************************************************
+    // *                                       Other
+    // ************************************************************************************************
+
+    function testCannotRegisterOperatorVaultWithDurationShorterThanNetworkDuration() public {
+        // Network Duration : 2d
+        uint48 vaultEpochDuration = 7 days;
+        uint48 vetoDuration = 5 days + 1;
+
+        vm.startPrank(tanssi);
+        DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
+            epochDuration: vaultEpochDuration,
+            depositWhitelist: false,
+            depositLimit: 0,
+            delegatorIndex: VaultManager.DelegatorType.OPERATOR_SPECIFIC,
+            shouldBroadcast: false,
+            vaultConfigurator: address(vaultConfigurator),
+            collateral: address(usdc),
+            owner: owner,
+            operator: operator1,
+            network: address(0)
+        });
+
+        (address vault,, address slasher) = deployVault.createVaultVetoed(params, vetoDuration);
+
+        IVetoSlasher(slasher).setResolver(0, resolver1, hex"");
+
+        vm.expectRevert(VaultManager.VaultEpochTooShort.selector);
+        middleware.registerOperatorVault(operator1, address(vault));
+
+        vm.stopPrank();
+    }
+
+    function testCannotRegisterSharedVaultWithDurationShorterThanNetworkDuration() public {
+        // Network Duration : 2d
+        uint48 vaultEpochDuration = 7 days;
+        uint48 vetoDuration = 5 days + 1;
+
+        vm.startPrank(tanssi);
+        DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
+            epochDuration: vaultEpochDuration,
+            depositWhitelist: false,
+            depositLimit: 0,
+            delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
+            shouldBroadcast: false,
+            vaultConfigurator: address(vaultConfigurator),
+            collateral: address(usdc),
+            owner: owner,
+            operator: address(0),
+            network: address(0)
+        });
+
+        (address vault,, address slasher) = deployVault.createVaultVetoed(params, vetoDuration);
+
+        IVetoSlasher(slasher).setResolver(0, resolver1, hex"");
+
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            adminFee: ADMIN_FEE,
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: tanssi,
+            adminFeeSetRoleHolder: tanssi
+        });
+
+        vm.expectRevert(VaultManager.VaultEpochTooShort.selector);
+        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+
+        vm.stopPrank();
+    }
+
+    // ************************************************************************************************
     // *                                       GAS LIMITS
     // ************************************************************************************************
 
