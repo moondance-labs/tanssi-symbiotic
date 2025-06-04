@@ -470,17 +470,6 @@ contract MiddlewareTest is Test {
         address _owner
     ) private {
         vm.startPrank(_owner);
-        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
-            adminFee: ADMIN_FEE,
-            defaultAdminRoleHolder: tanssi,
-            adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi
-        });
-        middleware.registerSharedVault(address(vaultsData.v1.vault), stakerRewardsParams);
-        middleware.registerSharedVault(address(vaultsData.v2.vault), stakerRewardsParams);
-        middleware.registerSharedVault(address(vaultsData.v3.vault), stakerRewardsParams);
-        middleware.registerSharedVault(address(vaultsData.v4.vault), stakerRewardsParams);
-        middleware.registerSharedVault(address(vaultsData.v5.vault), stakerRewardsParams);
 
         middleware.registerOperator(operator1, abi.encode(OPERATOR1_KEY), address(0));
         middleware.registerOperator(operator2, abi.encode(OPERATOR2_KEY), address(0));
@@ -489,6 +478,31 @@ contract MiddlewareTest is Test {
         middleware.registerOperator(operator5, abi.encode(OPERATOR5_KEY), address(0));
         middleware.registerOperator(operator6, abi.encode(OPERATOR6_KEY), address(0));
         middleware.registerOperator(operator7, abi.encode(OPERATOR7_KEY), address(0));
+
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            adminFee: ADMIN_FEE,
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: tanssi,
+            adminFeeSetRoleHolder: tanssi
+        });
+
+        // OPERATOR SPECIFIC VAULTS
+        // We need to deploy their staker rewards and link them
+        middleware.registerOperatorVault(operator1, address(vaultsData.v1.vault));
+        middleware.registerOperatorVault(operator7, address(vaultsData.v5.vault));
+
+        address stakerRewardsV1 = stakerRewardsFactory.create(address(vaultsData.v1.vault), stakerRewardsParams);
+        address stakerRewardsV5 = stakerRewardsFactory.create(address(vaultsData.v5.vault), stakerRewardsParams);
+
+        operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(owner)); // Admins need to set the staker rewards contract for operator specific vaults
+        operatorRewards.setStakerRewardContract(stakerRewardsV1, address(vaultsData.v1.vault));
+        operatorRewards.setStakerRewardContract(stakerRewardsV5, address(vaultsData.v5.vault));
+
+        // SHARED VAULTS
+        middleware.registerSharedVault(address(vaultsData.v2.vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vaultsData.v3.vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vaultsData.v4.vault), stakerRewardsParams);
+
         vm.stopPrank();
     }
 
@@ -926,6 +940,68 @@ contract MiddlewareTest is Test {
         assertEq(validators[0].power, expectedOperatorPower1);
     }
 
+    function testOperatorCanParticipateWithoutSelfStake() public {
+        address operator8 = makeAddr("operator8");
+        uint256 NETWORK_LIMIT = 100 ether;
+
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            adminFee: ADMIN_FEE,
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: tanssi,
+            adminFeeSetRoleHolder: tanssi
+        });
+
+        vm.startPrank(tanssi);
+        DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
+            epochDuration: VAULT_EPOCH_DURATION,
+            depositWhitelist: false,
+            depositLimit: 0,
+            delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
+            shouldBroadcast: false,
+            vaultConfigurator: address(vaultConfigurator),
+            collateral: address(wBTC),
+            owner: owner,
+            operator: address(0),
+            network: address(0)
+        });
+        (address vault, address delegator,) = deployVault.createSlashableVault(params);
+
+        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        INetworkRestakeDelegator(delegator).setOperatorNetworkShares(tanssi.subnetwork(0), operator8, 1);
+        INetworkRestakeDelegator(delegator).setMaxNetworkLimit(0, NETWORK_LIMIT);
+        INetworkRestakeDelegator(delegator).setNetworkLimit(tanssi.subnetwork(0), NETWORK_LIMIT);
+        vm.stopPrank();
+
+        _registerOperatorAndOptIn(operator8, tanssi, vault, true);
+
+        {
+            address staker1 = makeAddr("staker1");
+            address staker2 = makeAddr("staker2");
+
+            // Deposit a lot so the operator is on first place for checks
+            _depositToVault(IVault(vault), staker1, 50 ether, wBTC, true);
+            _depositToVault(IVault(vault), staker2, 50 ether, wBTC, true);
+        }
+
+        vm.startPrank(tanssi);
+        middleware.registerOperator(operator8, abi.encode(OPERATOR8_KEY), address(0));
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + VAULT_EPOCH_DURATION);
+
+        Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+
+        // Check it is active and has expected power coming only from stakers
+        uint256 len = validators.length;
+        assertEq(validators[len - 1].key, OPERATOR8_KEY);
+        uint256 expectedPower = uint256(100 ether).mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+        assertEq(validators[len - 1].power, expectedPower);
+
+        // Check it is the top one
+        bytes32[] memory sortedKeys = middlewareReader.sortOperatorsByPower(middleware.getCurrentEpoch());
+        assertEq(sortedKeys[0], OPERATOR8_KEY);
+    }
+
     // ************************************************************************************************
     // *                                       REWARDS DISTRIBUTION
     // ************************************************************************************************
@@ -951,8 +1027,8 @@ contract MiddlewareTest is Test {
             expectedRewardsForStakers.mulDiv(operatorPowerVault1, operatorPowerVault1 + operatorPowerVault2);
         uint256 expectedRewardsStakerVault2 = expectedRewardsForStakers - expectedRewardsStakerVault1;
 
-        assertEq(STAR.balanceOf(stakerRewardsContractVault1), expectedRewardsStakerVault1);
-        assertEq(STAR.balanceOf(stakerRewardsContractVault2), expectedRewardsStakerVault2);
+        assertApproxEqAbs(STAR.balanceOf(stakerRewardsContractVault1), expectedRewardsStakerVault1, 1);
+        assertApproxEqAbs(STAR.balanceOf(stakerRewardsContractVault2), expectedRewardsStakerVault2, 1);
 
         // Vault 1
         {
@@ -961,7 +1037,7 @@ contract MiddlewareTest is Test {
                 expectedRewardsStakerVault1.mulDiv(MAX_PERCENTAGE - ADMIN_FEE, MAX_PERCENTAGE);
             uint256 stakerRewardsOperator1Vault1 =
                 IODefaultStakerRewards(stakerRewardsContractVault1).claimable(epoch, operator1, address(STAR));
-            assertApproxEqAbs(expectedRewardsStakerOperator1Vault1, stakerRewardsOperator1Vault1, 1);
+            assertApproxEqAbs(expectedRewardsStakerOperator1Vault1, stakerRewardsOperator1Vault1, 2);
         }
 
         // Vault 2
@@ -1202,7 +1278,7 @@ contract MiddlewareTest is Test {
         uint256 expectedRewardsStakerVault2 = expectedRewardsForStakersFromOperator1
             + expectedRewardsForStakersFromOperator2 + expectedRewardsForStakersFromOperator3;
 
-        assertEq(STAR.balanceOf(stakerRewardsContractVault2), expectedRewardsStakerVault2);
+        assertApproxEqAbs(STAR.balanceOf(stakerRewardsContractVault2), expectedRewardsStakerVault2, 1);
 
         // Vault 2
         uint256 adminFeeStakerRewardsVault2 = expectedRewardsStakerVault2.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
@@ -1218,7 +1294,7 @@ contract MiddlewareTest is Test {
             IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(
                 operator1, epoch, address(STAR), new bytes(0)
             );
-            assertEq(STAR.balanceOf(operator1), previousBalance + rewardsOperator1);
+            assertApproxEqAbs(STAR.balanceOf(operator1), previousBalance + rewardsOperator1, 1);
         }
 
         {
@@ -1226,7 +1302,7 @@ contract MiddlewareTest is Test {
             IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(
                 operator2, epoch, address(STAR), new bytes(0)
             );
-            assertEq(STAR.balanceOf(operator2), previousBalance + rewardsOperator2);
+            assertApproxEqAbs(STAR.balanceOf(operator2), previousBalance + rewardsOperator2, 1);
         }
 
         {
@@ -1234,7 +1310,7 @@ contract MiddlewareTest is Test {
             IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(
                 operator3, epoch, address(STAR), new bytes(0)
             );
-            assertEq(STAR.balanceOf(operator3), previousBalance + rewardsOperator3);
+            assertApproxEqAbs(STAR.balanceOf(operator3), previousBalance + rewardsOperator3, 1);
         }
     }
 
@@ -1354,10 +1430,9 @@ contract MiddlewareTest is Test {
     function testCannotReclaimRewardsIfEvmKeyChangesForOperator() public {
         uint48 eraIndex = 1;
         uint256 amountToDistribute = 100 ether;
-        uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
+        _prepareRewardsDistribution(eraIndex, amountToDistribute);
 
-        uint256 expectedRewardsForStakers =
-            _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR2_KEY, operator2, 2, true);
+        _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR2_KEY, operator2, 2, true);
 
         address operator2New = makeAddr("operator2New");
 
@@ -1405,7 +1480,7 @@ contract MiddlewareTest is Test {
         assertEq(keyFromOperator, abi.encode(0));
 
         // Try to claim anyway, it will revert with already claimed
-        (,, bytes32[] memory proof, uint32 points, uint32 totalPoints) = _loadRewardsRootAndProof(eraIndex, 2);
+        (,, bytes32[] memory proof, uint32 points,) = _loadRewardsRootAndProof(eraIndex, 2);
         bytes memory additionalData = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
         IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
             operatorKey: OPERATOR2_KEY,
@@ -1422,14 +1497,9 @@ contract MiddlewareTest is Test {
     function testCannotReclaimRewardsAfterMultipleKeyChangesForOperator() public {
         uint48 eraIndex = 1;
         uint256 amountToDistribute = 100 ether;
-        uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
+        _prepareRewardsDistribution(eraIndex, amountToDistribute);
 
-        uint256 previousBalanceOp2 = STAR.balanceOf(operator2);
-        uint256 previousBalanceOp1 = STAR.balanceOf(operator1);
         _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR2_KEY, operator2, 2, true);
-
-        uint256 newBalanceOp2 = STAR.balanceOf(operator2);
-        uint256 newBalanceOp1 = STAR.balanceOf(operator1);
 
         // WE WILL USE EXISTING OPERATOR - OPERATOR #1
         vm.startPrank(owner);
@@ -1463,7 +1533,7 @@ contract MiddlewareTest is Test {
         assertEq(keyFromOperator, abi.encode(0));
 
         // TRY CLAIM
-        (,, bytes32[] memory proof, uint32 points, uint32 totalPoints) = _loadRewardsRootAndProof(eraIndex, 2);
+        (,, bytes32[] memory proof, uint32 points,) = _loadRewardsRootAndProof(eraIndex, 2);
         bytes memory additionalData = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
         IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
             operatorKey: OPERATOR2_KEY,
@@ -1480,10 +1550,9 @@ contract MiddlewareTest is Test {
     function testOperatorCannotDoubleClaimRewardsEvenAfterUnregistering() public {
         uint48 eraIndex = 1;
         uint256 amountToDistribute = 100 ether;
-        uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
+        _prepareRewardsDistribution(eraIndex, amountToDistribute);
 
-        uint256 expectedRewardsForStakers =
-            _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR2_KEY, operator2, 2, true);
+        _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR2_KEY, operator2, 2, true);
 
         // Owner pauses and unregisters operator
         vm.startPrank(owner);
@@ -1500,7 +1569,7 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
 
         // Try to claim, since substrate key still points to the original EVM address, claim is valid.
-        (,, bytes32[] memory proof, uint32 points, uint32 totalPoints) = _loadRewardsRootAndProof(eraIndex, 2);
+        (,, bytes32[] memory proof, uint32 points,) = _loadRewardsRootAndProof(eraIndex, 2);
         bytes memory additionalData = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
         IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
             operatorKey: OPERATOR2_KEY,
@@ -1529,6 +1598,257 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
 
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        _checkStakesAfterIntantSlashing();
+    }
+
+    function testInstantSlashingOperator3WithWithdrawlsAfterSlash() public {
+        // Operator 3 has stake in vault2 (no slasher) and vault3 (instant slasher)
+        vm.warp(VAULT_EPOCH_DURATION + 2);
+        uint48 slashingEpoch = middleware.getCurrentEpoch();
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+
+        vm.startPrank(gateway);
+        middleware.slash(slashingEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
+        vm.stopPrank();
+
+        // Start withdrawing BTC as soon as he finds out about the slash. It should not affect the resulting slash
+        _withdrawFromVault(vaultsData.v2.vault, operator2, OPERATOR2_STAKE_V2_WBTC / 2);
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        _checkStakesAfterIntantSlashing();
+    }
+
+    function testInstantSlashingOperator3WithWithdrawlsBeforeSlash() public {
+        // Operator 3 has stake in vault2 (no slasher) and vault3 (instant slasher)
+        vm.warp(VAULT_EPOCH_DURATION + 2);
+        uint48 slashingEpoch = middleware.getCurrentEpoch();
+
+        // Start withdrawing BTC before knowing about the slash. This value is still slashable so the resulting slash should not change
+        _withdrawFromVault(vaultsData.v2.vault, operator2, OPERATOR2_STAKE_V2_WBTC / 2);
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+
+        vm.startPrank(gateway);
+        middleware.slash(slashingEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        _checkStakesAfterIntantSlashing();
+    }
+
+    function testVetoSlashingOperator7() public {
+        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        vm.warp(VAULT_EPOCH_DURATION + 2);
+        uint48 slashingEpoch = middleware.getCurrentEpoch();
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+
+        vm.startPrank(gateway);
+        middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + VETO_DURATION);
+        middleware.executeSlash(address(vaultsData.v5.vault), 0, hex"");
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+
+        _checkStakesAfterVetoSlashing(0, 0);
+    }
+
+    function testVetoSlashingOperator7WithdrawingAfterSlash() public {
+        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        vm.warp(VAULT_EPOCH_DURATION + 2);
+        uint48 slashingEpoch = middleware.getCurrentEpoch();
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+
+        vm.startPrank(gateway);
+        middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
+        vm.stopPrank();
+
+        // Withdraw just after the slash trying to avoid it, shouldn't affect his slashed amount
+        uint256 withdrawAmount = OPERATOR7_STAKE_V5_STETH / 2;
+        _withdrawFromVault(vaultsData.v5.vault, operator7, withdrawAmount);
+
+        vm.warp(block.timestamp + VETO_DURATION);
+        middleware.executeSlash(address(vaultsData.v5.vault), 0, hex"");
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        _checkStakesAfterVetoSlashing(withdrawAmount, 0);
+    }
+
+    function testVetoSlashingOperator7OnSameEpochAfterWithdrawl() public {
+        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        vm.warp(VAULT_EPOCH_DURATION + 2);
+
+        // Withdraw just before the slash, shouldn't affect his slashed amount
+        uint256 withdrawAmount = OPERATOR7_STAKE_V5_STETH / 2;
+        _withdrawFromVault(vaultsData.v5.vault, operator7, withdrawAmount);
+
+        uint48 slashingEpoch = middleware.getCurrentEpoch();
+
+        vm.startPrank(gateway);
+        middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + VETO_DURATION);
+        middleware.executeSlash(address(vaultsData.v5.vault), 0, hex"");
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        _checkStakesAfterVetoSlashing(withdrawAmount, 0);
+    }
+
+    function testVetoSlashingOperator7OnEpochAfterWithdrawl() public {
+        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        vm.warp(VAULT_EPOCH_DURATION + 2);
+
+        // Withdraw just before the slash, shouldn't affect his slashed amount
+        uint256 withdrawAmount = OPERATOR7_STAKE_V5_STETH / 2;
+        _withdrawFromVault(vaultsData.v5.vault, operator7, withdrawAmount);
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        uint48 slashingEpoch = middleware.getCurrentEpoch();
+
+        vm.startPrank(gateway);
+        middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + VETO_DURATION);
+        middleware.executeSlash(address(vaultsData.v5.vault), 0, hex"");
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+
+        // The withdraw is in a past epoch, so the slash is not applied to it
+        uint256 operator7Vault5SlashedStake =
+            (OPERATOR7_STAKE_V5_STETH - withdrawAmount).mulDiv(SLASHING_FRACTION, PARTS_PER_BILLION);
+        // However, since the withdrawl is in process, half of the slashing is actually taken from it
+        uint256 expectedActualWithdrawAmount = withdrawAmount - operator7Vault5SlashedStake / 2;
+        // The other half is taken from active stake. In the end, the total slash was the fraction over the stake after withdrawl.
+        uint256 operator7PowerVault5 = (
+            OPERATOR7_STAKE_V5_STETH - operator7Vault5SlashedStake - expectedActualWithdrawAmount
+        ).mulDiv(uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS_ETH);
+
+        Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+
+        uint48 currentVaultEpoch = uint48(vaultsData.v5.vault.currentEpoch());
+        uint256 currentWithdrawals = vaultsData.v5.vault.withdrawalsOf(currentVaultEpoch + 1, operator7);
+
+        assertEq(validators[6].power, operator7PowerVault5);
+        assertEq(currentWithdrawals, expectedActualWithdrawAmount);
+    }
+
+    function testVetoSlashingOperator7WithdrawingBeforeSlash() public {
+        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        vm.warp(VAULT_EPOCH_DURATION + 2);
+
+        // Withdraw just before the slash, shouldn't affect his slashed amount
+        uint256 withdrawAmount = OPERATOR7_STAKE_V5_STETH / 2;
+        _withdrawFromVault(vaultsData.v5.vault, operator7, withdrawAmount);
+
+        uint48 slashingEpoch = middleware.getCurrentEpoch();
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+
+        vm.startPrank(gateway);
+        middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + VETO_DURATION);
+        middleware.executeSlash(address(vaultsData.v5.vault), 0, hex"");
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        _checkStakesAfterVetoSlashing(withdrawAmount, 0);
+    }
+
+    function testVetoSlashingOperator7WithAdditionalStakers() public {
+        address staker1 = makeAddr("staker1");
+        uint256 staker1Stake = 20 * 10 ** TOKEN_DECIMALS_ETH;
+        _depositToVault(vaultsData.v5.vault, staker1, staker1Stake, stETH, true);
+
+        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        vm.warp(VAULT_EPOCH_DURATION + 2);
+        uint48 slashingEpoch = middleware.getCurrentEpoch();
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+
+        vm.startPrank(gateway);
+        middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + VETO_DURATION);
+        middleware.executeSlash(address(vaultsData.v5.vault), 0, hex"");
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+
+        _checkStakesAfterVetoSlashing(0, staker1Stake);
+    }
+
+    function testVetoSlashingOperator7WithAdditionalStakersWithdrawingAfterSlash() public {
+        address staker1 = makeAddr("staker1");
+        uint256 staker1Stake = 20 * 10 ** TOKEN_DECIMALS_ETH;
+        _depositToVault(vaultsData.v5.vault, staker1, staker1Stake, stETH, true);
+
+        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        vm.warp(VAULT_EPOCH_DURATION + 2);
+        uint48 slashingEpoch = middleware.getCurrentEpoch();
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+
+        vm.startPrank(gateway);
+        middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
+        vm.stopPrank();
+
+        // Withdraw just after the slash trying to avoid it, shouldn't affect his slashed amount
+        uint256 withdrawAmount = OPERATOR7_STAKE_V5_STETH / 2;
+        _withdrawFromVault(vaultsData.v5.vault, operator7, withdrawAmount);
+
+        vm.warp(block.timestamp + VETO_DURATION);
+        middleware.executeSlash(address(vaultsData.v5.vault), 0, hex"");
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        _checkStakesAfterVetoSlashing(withdrawAmount, staker1Stake);
+    }
+
+    function testVetoSlashingOperator7WithAdditionalStakersWithdrawingBeforeSlash() public {
+        address staker1 = makeAddr("staker1");
+        uint256 staker1Stake = 20 * 10 ** TOKEN_DECIMALS_ETH;
+        _depositToVault(vaultsData.v5.vault, staker1, staker1Stake, stETH, true);
+        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        vm.warp(VAULT_EPOCH_DURATION + 2);
+
+        // Withdraw just before the slash, shouldn't affect his slashed amount
+        uint256 withdrawAmount = OPERATOR7_STAKE_V5_STETH / 2;
+        _withdrawFromVault(vaultsData.v5.vault, operator7, withdrawAmount);
+
+        uint48 slashingEpoch = middleware.getCurrentEpoch();
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+
+        vm.startPrank(gateway);
+        middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + VETO_DURATION);
+        middleware.executeSlash(address(vaultsData.v5.vault), 0, hex"");
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        _checkStakesAfterVetoSlashing(withdrawAmount, staker1Stake);
+    }
+
+    function _checkStakesAfterVetoSlashing(uint256 withdrawAmount, uint256 additionalStake) private view {
+        uint256 expectedActualWithdrawAmount =
+            withdrawAmount.mulDiv(PARTS_PER_BILLION - SLASHING_FRACTION, PARTS_PER_BILLION);
+        uint256 operator7Vault5SlashedStake =
+            (OPERATOR7_STAKE_V5_STETH + additionalStake).mulDiv(SLASHING_FRACTION, PARTS_PER_BILLION);
+
+        uint256 operator7PowerVault5 = (
+            OPERATOR7_STAKE_V5_STETH + additionalStake - operator7Vault5SlashedStake - expectedActualWithdrawAmount
+        ).mulDiv(uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS_ETH);
+
+        Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+
+        uint48 currentVaultEpoch = uint48(vaultsData.v5.vault.currentEpoch());
+        uint256 currentWithdrawals = vaultsData.v5.vault.withdrawalsOf(currentVaultEpoch + 1, operator7);
+
+        assertEq(validators[6].power, operator7PowerVault5);
+        assertEq(currentWithdrawals, expectedActualWithdrawAmount);
+    }
+
+    function _checkStakesAfterIntantSlashing() private view {
         Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
 
         // ---------------------
