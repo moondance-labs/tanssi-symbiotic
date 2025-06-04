@@ -55,6 +55,7 @@ interface IMiddleware {
     error Middleware__SlashingWindowTooShort();
     error Middleware__OperatorNotFound(bytes32 operatorKey, uint48 epoch);
     error Middleware__SlashPercentageTooBig(uint48 epoch, address operator, uint256 percentage);
+    error Middleware__VaultEpochDurationTooShort();
 
     /**
      * @notice Validator data structure containing stake and key
