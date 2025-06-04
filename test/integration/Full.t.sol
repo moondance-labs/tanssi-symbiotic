@@ -1637,7 +1637,7 @@ contract MiddlewareTest is Test {
     }
 
     function testVetoSlashingOperator7() public {
-        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        // Operator 7 has stake in vault5 (veto slasher) only
         vm.warp(VAULT_EPOCH_DURATION + 2);
         uint48 slashingEpoch = middleware.getCurrentEpoch();
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
@@ -1655,7 +1655,7 @@ contract MiddlewareTest is Test {
     }
 
     function testVetoSlashingOperator7WithdrawingAfterSlash() public {
-        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        // Operator 7 has stake in vault5 (veto slasher) only
         vm.warp(VAULT_EPOCH_DURATION + 2);
         uint48 slashingEpoch = middleware.getCurrentEpoch();
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
@@ -1676,7 +1676,7 @@ contract MiddlewareTest is Test {
     }
 
     function testVetoSlashingOperator7OnSameEpochAfterWithdrawl() public {
-        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        // Operator 7 has stake in vault5 (veto slasher) only
         vm.warp(VAULT_EPOCH_DURATION + 2);
 
         // Withdraw just before the slash, shouldn't affect his slashed amount
@@ -1697,7 +1697,7 @@ contract MiddlewareTest is Test {
     }
 
     function testVetoSlashingOperator7OnEpochAfterWithdrawl() public {
-        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        // Operator 7 has stake in vault5 (veto slasher) only
         vm.warp(VAULT_EPOCH_DURATION + 2);
 
         // Withdraw just before the slash, shouldn't affect his slashed amount
@@ -1736,7 +1736,7 @@ contract MiddlewareTest is Test {
     }
 
     function testVetoSlashingOperator7WithdrawingBeforeSlash() public {
-        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        // Operator 7 has stake in vault5 (veto slasher) only
         vm.warp(VAULT_EPOCH_DURATION + 2);
 
         // Withdraw just before the slash, shouldn't affect his slashed amount
@@ -1762,7 +1762,7 @@ contract MiddlewareTest is Test {
         uint256 staker1Stake = 20 * 10 ** TOKEN_DECIMALS_ETH;
         _depositToVault(vaultsData.v5.vault, staker1, staker1Stake, stETH, true);
 
-        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        // Operator 7 has stake in vault5 (veto slasher) only
         vm.warp(VAULT_EPOCH_DURATION + 2);
         uint48 slashingEpoch = middleware.getCurrentEpoch();
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
@@ -1784,7 +1784,7 @@ contract MiddlewareTest is Test {
         uint256 staker1Stake = 20 * 10 ** TOKEN_DECIMALS_ETH;
         _depositToVault(vaultsData.v5.vault, staker1, staker1Stake, stETH, true);
 
-        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        // Operator 7 has stake in vault5 (veto slasher) only
         vm.warp(VAULT_EPOCH_DURATION + 2);
         uint48 slashingEpoch = middleware.getCurrentEpoch();
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
@@ -1808,7 +1808,7 @@ contract MiddlewareTest is Test {
         address staker1 = makeAddr("staker1");
         uint256 staker1Stake = 20 * 10 ** TOKEN_DECIMALS_ETH;
         _depositToVault(vaultsData.v5.vault, staker1, staker1Stake, stETH, true);
-        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        // Operator 7 has stake in vault5 (veto slasher) only
         vm.warp(VAULT_EPOCH_DURATION + 2);
 
         // Withdraw just before the slash, shouldn't affect his slashed amount

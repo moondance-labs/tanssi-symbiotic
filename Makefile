@@ -116,3 +116,8 @@ upgrade-staker-rewards:
 	@echo "📡 Upgrading Staker Rewards..."
 	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "upgradeStakerRewards(address,address,address,address)" $(STAKER_REWARDS_PROXY_ADDRESS) $(NETWORK_MIDDLEWARE_SERVICE) $(VAULT_ADDRESS) $(NETWORK) -vv
 	@echo "✅ Staker Rewards upgrade completed"
+
+check-durations:
+	@echo "📡 Checking durations..."
+	@forge script script/deploy/Check.s.sol:CheckScript --rpc-url ${RPC_URL} --sig "checkDurations()" -vv
+	@echo "✅ Durations check completed"
