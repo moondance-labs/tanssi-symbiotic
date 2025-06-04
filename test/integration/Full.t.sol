@@ -1637,7 +1637,7 @@ contract MiddlewareTest is Test {
     }
 
     function testVetoSlashingOperator7() public {
-        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        // Operator 7 has stake in vault5 (veto slasher) only
         vm.warp(VAULT_EPOCH_DURATION + 2);
         uint48 slashingEpoch = middleware.getCurrentEpoch();
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
@@ -1655,7 +1655,7 @@ contract MiddlewareTest is Test {
     }
 
     function testVetoSlashingOperator7WithdrawingAfterSlash() public {
-        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        // Operator 7 has stake in vault5 (veto slasher) only
         vm.warp(VAULT_EPOCH_DURATION + 2);
         uint48 slashingEpoch = middleware.getCurrentEpoch();
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
@@ -1676,7 +1676,7 @@ contract MiddlewareTest is Test {
     }
 
     function testVetoSlashingOperator7OnSameEpochAfterWithdrawl() public {
-        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        // Operator 7 has stake in vault5 (veto slasher) only
         vm.warp(VAULT_EPOCH_DURATION + 2);
 
         // Withdraw just before the slash, shouldn't affect his slashed amount
@@ -1697,7 +1697,7 @@ contract MiddlewareTest is Test {
     }
 
     function testVetoSlashingOperator7OnEpochAfterWithdrawl() public {
-        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        // Operator 7 has stake in vault5 (veto slasher) only
         vm.warp(VAULT_EPOCH_DURATION + 2);
 
         // Withdraw just before the slash, shouldn't affect his slashed amount
@@ -1736,7 +1736,7 @@ contract MiddlewareTest is Test {
     }
 
     function testVetoSlashingOperator7WithdrawingBeforeSlash() public {
-        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        // Operator 7 has stake in vault5 (veto slasher) only
         vm.warp(VAULT_EPOCH_DURATION + 2);
 
         // Withdraw just before the slash, shouldn't affect his slashed amount
@@ -1762,7 +1762,7 @@ contract MiddlewareTest is Test {
         uint256 staker1Stake = 20 * 10 ** TOKEN_DECIMALS_ETH;
         _depositToVault(vaultsData.v5.vault, staker1, staker1Stake, stETH, true);
 
-        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        // Operator 7 has stake in vault5 (veto slasher) only
         vm.warp(VAULT_EPOCH_DURATION + 2);
         uint48 slashingEpoch = middleware.getCurrentEpoch();
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
@@ -1784,7 +1784,7 @@ contract MiddlewareTest is Test {
         uint256 staker1Stake = 20 * 10 ** TOKEN_DECIMALS_ETH;
         _depositToVault(vaultsData.v5.vault, staker1, staker1Stake, stETH, true);
 
-        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        // Operator 7 has stake in vault5 (veto slasher) only
         vm.warp(VAULT_EPOCH_DURATION + 2);
         uint48 slashingEpoch = middleware.getCurrentEpoch();
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
@@ -1808,7 +1808,7 @@ contract MiddlewareTest is Test {
         address staker1 = makeAddr("staker1");
         uint256 staker1Stake = 20 * 10 ** TOKEN_DECIMALS_ETH;
         _depositToVault(vaultsData.v5.vault, staker1, staker1Stake, stETH, true);
-        // Operator 6 has stake in vault3 (instant slasher) and vault3 (veto slasher)
+        // Operator 7 has stake in vault5 (veto slasher) only
         vm.warp(VAULT_EPOCH_DURATION + 2);
 
         // Withdraw just before the slash, shouldn't affect his slashed amount
@@ -1916,6 +1916,75 @@ contract MiddlewareTest is Test {
 
             assertEq(validators[4].power, operator5PowerVault4 + operator5PowerVault3);
         }
+    }
+
+    // ************************************************************************************************
+    // *                                       Other
+    // ************************************************************************************************
+
+    function testCannotRegisterOperatorVaultWithDurationShorterThanNetworkDuration() public {
+        // Network Duration : 2d
+        uint48 vaultEpochDuration = 7 days;
+        uint48 vetoDuration = 5 days + 1;
+
+        vm.startPrank(tanssi);
+        DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
+            epochDuration: vaultEpochDuration,
+            depositWhitelist: false,
+            depositLimit: 0,
+            delegatorIndex: VaultManager.DelegatorType.OPERATOR_SPECIFIC,
+            shouldBroadcast: false,
+            vaultConfigurator: address(vaultConfigurator),
+            collateral: address(usdc),
+            owner: owner,
+            operator: operator1,
+            network: address(0)
+        });
+
+        (address vault,, address slasher) = deployVault.createVaultVetoed(params, vetoDuration);
+
+        IVetoSlasher(slasher).setResolver(0, resolver1, hex"");
+
+        vm.expectRevert(VaultManager.VaultEpochTooShort.selector);
+        middleware.registerOperatorVault(operator1, address(vault));
+
+        vm.stopPrank();
+    }
+
+    function testCannotRegisterSharedVaultWithDurationShorterThanNetworkDuration() public {
+        // Network Duration : 2d
+        uint48 vaultEpochDuration = 7 days;
+        uint48 vetoDuration = 5 days + 1;
+
+        vm.startPrank(tanssi);
+        DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
+            epochDuration: vaultEpochDuration,
+            depositWhitelist: false,
+            depositLimit: 0,
+            delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
+            shouldBroadcast: false,
+            vaultConfigurator: address(vaultConfigurator),
+            collateral: address(usdc),
+            owner: owner,
+            operator: address(0),
+            network: address(0)
+        });
+
+        (address vault,, address slasher) = deployVault.createVaultVetoed(params, vetoDuration);
+
+        IVetoSlasher(slasher).setResolver(0, resolver1, hex"");
+
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            adminFee: ADMIN_FEE,
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: tanssi,
+            adminFeeSetRoleHolder: tanssi
+        });
+
+        vm.expectRevert(VaultManager.VaultEpochTooShort.selector);
+        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+
+        vm.stopPrank();
     }
 
     // ************************************************************************************************
