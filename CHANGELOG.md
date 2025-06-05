@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [1.1.0] - 2025-06-04
 
-Commit: 4886d16a42a7f33f51ba9328a0f4566feb0c92d3
+Commit: [4886d16a42a7f33f51ba9328a0f4566feb0c92d3](https://github.com/moondance-labs/tanssi-symbiotic/commit/4886d16a42a7f33f51ba9328a0f4566feb0c92d3)
 
 ### Added
 
@@ -24,7 +24,7 @@ Commit: 4886d16a42a7f33f51ba9328a0f4566feb0c92d3
 
 Migration code removed.
 
-Commit: 341db12320916c01efc81a64c6106b3f5ed8c9cd
+Commit: [341db12320916c01efc81a64c6106b3f5ed8c9cd](https://github.com/moondance-labs/tanssi-symbiotic/commit/341db12320916c01efc81a64c6106b3f5ed8c9cd)
 
 ### Added
 
@@ -38,7 +38,7 @@ Commit: 341db12320916c01efc81a64c6106b3f5ed8c9cd
 
 ## [1.0.0] - 2025-05-26.
 
-Commit: 4c9ea084d0183b8c9e5fb81e65e5f369d824fa67
+Commit: [4c9ea084d0183b8c9e5fb81e65e5f369d824fa67](https://github.com/moondance-labs/tanssi-symbiotic/commit/4c9ea084d0183b8c9e5fb81e65e5f369d824fa67)
 
 Most important audit findings fixed. Includes breaking changes and migration code.
 
