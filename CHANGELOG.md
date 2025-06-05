@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [1.1.0] - 2025-06-04
 
+Commit: 4886d16a42a7f33f51ba9328a0f4566feb0c92d3
+
 ### Added
 
   - On Middleware. We can now register operator specific vaults. The vault to collateral is now set via `_beforeRegisterOperatorVault` hook. We still need to deploy the staker rewards contract manually for operator specific vaults and set it on middleware.
@@ -18,9 +20,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   - Getting sorted operators ignores the ones with power zero.
 
 
-## [1.0.1] - 2025-05-27.
+## [1.0.1] - 2025-05-28.
 
 Migration code removed.
+
+Commit: 341db12320916c01efc81a64c6106b3f5ed8c9cd
 
 ### Added
 
@@ -33,6 +37,8 @@ Migration code removed.
   - Previous temporary versions of OperatorRewards.
 
 ## [1.0.0] - 2025-05-26.
+
+Commit: 4c9ea084d0183b8c9e5fb81e65e5f369d824fa67
 
 Most important audit findings fixed. Includes breaking changes and migration code.
 
