@@ -205,6 +205,8 @@ contract FullTest is Test {
         IDefaultCollateral rETH;
         IDefaultCollateral swETH;
         IDefaultCollateral wBETH;
+        IDefaultCollateral LsETH;
+        IDefaultCollateral cbETH;
     }
 
     HelperConfig.VaultsConfig public vaultsAddressesDeployed;
@@ -221,11 +223,7 @@ contract FullTest is Test {
         _setupGateway();
         _saveStakeBeforeDepositing();
 
-        // vm.startPrank(tanssi);
-        // ecosystemEntities.middleware.setCollateralToOracle(address(ecosystemEntities.wstETH), oracle);
-        // ecosystemEntities.middleware.setCollateralToOracle(address(ecosystemEntities.rETH), oracle);
-        // ecosystemEntities.middleware.setCollateralToOracle(address(ecosystemEntities.swETH), oracle);
-        // ecosystemEntities.middleware.setCollateralToOracle(address(ecosystemEntities.wBETH), oracle);
+        /// ecosystemEntities.middleware.setCollateralToOracle(xxx, oracle); Called for each collateral: wstETH, rETH, swETH, wBETH, LsETH, cbETH
         vm.stopPrank();
 
         _handleDeposits();
@@ -239,12 +237,15 @@ contract FullTest is Test {
         HelperConfig.TokensConfig memory tokensConfig;
         (, tokensConfig, vaultsAddressesDeployed) = helperConfig.getChainConfig();
 
+        // TODO: Take it from chain_data.json
         ecosystemEntities.middleware = Middleware(0x1bbd37E4325d931Aef5fEDEF1f87e8343835acE4);
 
         ecosystemEntities.wstETH = IDefaultCollateral(tokensConfig.wstETH);
         ecosystemEntities.rETH = IDefaultCollateral(tokensConfig.rETH);
         ecosystemEntities.swETH = IDefaultCollateral(tokensConfig.swETH);
         ecosystemEntities.wBETH = IDefaultCollateral(tokensConfig.wBETH);
+        ecosystemEntities.LsETH = IDefaultCollateral(tokensConfig.LsETH);
+        ecosystemEntities.cbETH = IDefaultCollateral(tokensConfig.cbETH);
     }
 
     function _setupOperators() private {

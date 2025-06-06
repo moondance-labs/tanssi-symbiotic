@@ -63,7 +63,16 @@
     "wBETHCollateral": "0xa2E3356610840701BDf5611a53974510Ae27E2e1",
     "gauntletRestakedWBETHVault": "0x81bb35c4152B605574BAbD320f8EABE2871CE8C6",
     "gauntletRestakedWBETHDelegator": "0xC575D92568eF438552b97A24D8923FB6dd6f4C29",
-    "gauntletRestakedWBETHSlasher": "0x42AEb222f7069E73Cb166c9C57F1110916a6Cc47"
+    "gauntletRestakedWBETHSlasher": "0x42AEb222f7069E73Cb166c9C57F1110916a6Cc47",
+
+    "etherfiwstETHVault": "0x450a90fdEa8B87a6448Ca1C87c88Ff65676aC45b",
+    "etherfiwstETHDelegator": "0xd6c4b4267BFB908BBdf8C9BDa7d0Ae517aA145b0",
+    "etherfiwstETHSlasher": "0xdA14110C2B9e120354d36eAcB1bEdf84d532E831",
+
+    "LsETHCollateral": "0x8c1BEd5b9a0928467c9B1341Da1D7BD5e10b6549",
+    "restakedLsETHVaultVault": "0xEa0F2EA61998346aD39dddeF7513ae90915AFb3c",
+    "restakedLsETHVaultDelegator": "0x978F96A24bCA1ac13129C85F5BEdBA49b01e9335",
+    "restakedLsETHVaultSlasher": "0xC1c5aed50F817d161b72c34942497C3f77B0Ec36"
   },
   "17000": {
     "defaultCollateralFactory": "0x0000000000000000000000000000000000000000",

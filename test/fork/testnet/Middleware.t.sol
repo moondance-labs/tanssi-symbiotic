@@ -146,9 +146,8 @@ contract MiddlewareTest is Test {
         helperConfig = new HelperConfig();
         deployTanssi.deployTanssiEcosystem(helperConfig);
 
-        address stETHCollateralAddress;
-        (ecosystemEntities.middleware,, stETHCollateralAddress,,,) = deployTanssi.ecosystemEntities();
-        ecosystemEntities.stETH = IDefaultCollateral(stETHCollateralAddress);
+        (ecosystemEntities.middleware,) = deployTanssi.ecosystemEntities();
+        ecosystemEntities.stETH = IDefaultCollateral(deployTanssi.getStETHCollateralAddress());
 
         _setVaultAddresses(deployTanssi);
         _initializeVaults();

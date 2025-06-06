@@ -39,6 +39,8 @@ contract HelperConfig is Script {
         address rETH;
         address swETH;
         address wBETH;
+        address LsETH;
+        address cbETH;
     }
 
     struct VaultTrifecta {
@@ -60,6 +62,8 @@ contract HelperConfig is Script {
         VaultTrifecta gauntletRestakedRETH;
         VaultTrifecta gauntletRestakedWBETH;
     }
+    // VaultTrifecta etherfiwstETH;
+    // VaultTrifecta restakedLsETHVault;
 
     uint256 public DEFAULT_ANVIL_PRIVATE_KEY = 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6;
 
@@ -81,6 +85,7 @@ contract HelperConfig is Script {
         returns (NetworkConfig memory networkConfig, TokensConfig memory tokensConfig, VaultsConfig memory vaultsConfig)
     {
         string memory root = vm.projectRoot();
+        // TODO: load from chain-addresses/tanssi.json
         string memory path = string.concat(root, "/script/chain_data.json");
         string memory json = vm.readFile(path);
 
@@ -114,12 +119,16 @@ contract HelperConfig is Script {
             tokensConfig.rETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".rETHCollateral")), (address));
             tokensConfig.swETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".swETHCollateral")), (address));
             tokensConfig.wBETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".wBETHCollateral")), (address));
+            tokensConfig.LsETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".LsETHCollateral")), (address));
+            tokensConfig.cbETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".cbETHCollateral")), (address));
             vaultsConfig.mevRestakedETH = _loadVaultTrifectaData(json, jsonPath, ".mevRestakedETH");
             vaultsConfig.mevCapitalETH = _loadVaultTrifectaData(json, jsonPath, ".mevCapitalETH");
             vaultsConfig.hashKeyCloudETH = _loadVaultTrifectaData(json, jsonPath, ".hashKeyCloudETH");
             vaultsConfig.renzoRestakedETH = _loadVaultTrifectaData(json, jsonPath, ".renzoRestakedETH");
             vaultsConfig.re7LabsETH = _loadVaultTrifectaData(json, jsonPath, ".re7LabsETH");
             vaultsConfig.cp0xLrtETH = _loadVaultTrifectaData(json, jsonPath, ".cp0xLrtETH");
+            // vaultsConfig.etherfiwstETH = _loadVaultTrifectaData(json, jsonPath, ".etherfiwstETH");
+            // vaultsConfig.restakedLsETHVault = _loadVaultTrifectaData(json, jsonPath, ".restakedLsETHVault");
             vaultsConfig.gauntletRestakedWstETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedWstETH");
             vaultsConfig.re7LabsRestakingETH = _loadVaultTrifectaData(json, jsonPath, ".re7LabsRestakingETH");
 
@@ -167,6 +176,13 @@ contract HelperConfig is Script {
             readHelper: address(0)
         });
 
-        tokensConfig = TokensConfig({wstETH: address(0), rETH: address(0), swETH: address(0), wBETH: address(0)});
+        tokensConfig = TokensConfig({
+            wstETH: address(0),
+            rETH: address(0),
+            swETH: address(0),
+            wBETH: address(0),
+            LsETH: address(0),
+            cbETH: address(0)
+        });
     }
 }
