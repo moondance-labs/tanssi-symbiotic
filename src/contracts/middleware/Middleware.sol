@@ -473,16 +473,14 @@ contract Middleware is
 
         IODefaultOperatorRewards(i_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
 
-        address collateral = IVault(sharedVault).collateral();
-        _setVaultToCollateral(sharedVault, collateral);
+        _setVaultToCollateral(sharedVault);
     }
 
     /**
      * @inheritdoc BaseOperators
      */
     function _beforeRegisterOperatorVault(address, /* operator */ address vault) internal override {
-        address collateral = IVault(vault).collateral();
-        _setVaultToCollateral(vault, collateral);
+        _setVaultToCollateral(vault);
     }
 
     /**
@@ -507,8 +505,12 @@ contract Middleware is
         _updateKey(operator, abi.encode(bytes32(0)));
     }
 
-    function _setVaultToCollateral(address vault, address collateral) private notZeroAddress(collateral) {
+    function _setVaultToCollateral(
+        address vault
+    ) private {
         StorageMiddleware storage $ = _getMiddlewareStorage();
+        address collateral = IVault(vault).collateral();
+        _checkNotZeroAddress(collateral);
         $.vaultToCollateral[vault] = collateral;
     }
 
