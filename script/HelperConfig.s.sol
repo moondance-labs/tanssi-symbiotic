@@ -20,7 +20,8 @@ import {DeploySymbiotic} from "./DeploySymbiotic.s.sol";
 contract HelperConfig is Script {
     NetworkConfig public activeNetworkConfig;
     TokensConfig public activeTokensConfig;
-    VaultsConfig public activeVaultsConfig;
+    VaultsConfigA public activeVaultsConfigA;
+    VaultsConfigB public activeVaultsConfigB;
 
     struct NetworkConfig {
         address vaultConfigurator;
@@ -49,7 +50,7 @@ contract HelperConfig is Script {
         address slasher;
     }
 
-    struct VaultsConfig {
+    struct VaultsConfigA {
         VaultTrifecta mevRestakedETH;
         VaultTrifecta mevCapitalETH;
         VaultTrifecta hashKeyCloudETH;
@@ -60,29 +61,37 @@ contract HelperConfig is Script {
         VaultTrifecta gauntletRestakedWstETH;
         VaultTrifecta gauntletRestakedSwETH;
         VaultTrifecta gauntletRestakedRETH;
-        VaultTrifecta gauntletRestakedWBETH;
     }
-    // VaultTrifecta etherfiwstETH;
-    // VaultTrifecta restakedLsETHVault;
+
+    struct VaultsConfigB {
+        VaultTrifecta gauntletRestakedWBETH;
+        VaultTrifecta etherfiwstETH;
+        VaultTrifecta restakedLsETHVault;
+    }
 
     uint256 public DEFAULT_ANVIL_PRIVATE_KEY = 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6;
 
     constructor() {
         if (block.chainid == 31_337) {
-            (activeNetworkConfig, activeTokensConfig, activeVaultsConfig) = getAnvilEthConfig();
+            (activeNetworkConfig, activeTokensConfig, activeVaultsConfigA, activeVaultsConfigB) = getAnvilEthConfig();
         } else {
-            (activeNetworkConfig, activeTokensConfig, activeVaultsConfig) = getChainConfig();
+            (activeNetworkConfig, activeTokensConfig, activeVaultsConfigA, activeVaultsConfigB) = getChainConfig();
         }
     }
 
-    function getActiveVaultsConfig() external view returns (VaultsConfig memory) {
-        return activeVaultsConfig;
+    function getActiveVaultsConfig() external view returns (VaultsConfigA memory, VaultsConfigB memory) {
+        return (activeVaultsConfigA, activeVaultsConfigB);
     }
 
     function getChainConfig()
         public
         view
-        returns (NetworkConfig memory networkConfig, TokensConfig memory tokensConfig, VaultsConfig memory vaultsConfig)
+        returns (
+            NetworkConfig memory networkConfig,
+            TokensConfig memory tokensConfig,
+            VaultsConfigA memory vaultsConfigA,
+            VaultsConfigB memory vaultsConfigB
+        )
     {
         string memory root = vm.projectRoot();
         // TODO: load from chain-addresses/tanssi.json
@@ -121,25 +130,26 @@ contract HelperConfig is Script {
             tokensConfig.wBETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".wBETHCollateral")), (address));
             tokensConfig.LsETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".LsETHCollateral")), (address));
             tokensConfig.cbETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".cbETHCollateral")), (address));
-            vaultsConfig.mevRestakedETH = _loadVaultTrifectaData(json, jsonPath, ".mevRestakedETH");
-            vaultsConfig.mevCapitalETH = _loadVaultTrifectaData(json, jsonPath, ".mevCapitalETH");
-            vaultsConfig.hashKeyCloudETH = _loadVaultTrifectaData(json, jsonPath, ".hashKeyCloudETH");
-            vaultsConfig.renzoRestakedETH = _loadVaultTrifectaData(json, jsonPath, ".renzoRestakedETH");
-            vaultsConfig.re7LabsETH = _loadVaultTrifectaData(json, jsonPath, ".re7LabsETH");
-            vaultsConfig.cp0xLrtETH = _loadVaultTrifectaData(json, jsonPath, ".cp0xLrtETH");
-            // vaultsConfig.etherfiwstETH = _loadVaultTrifectaData(json, jsonPath, ".etherfiwstETH");
-            // vaultsConfig.restakedLsETHVault = _loadVaultTrifectaData(json, jsonPath, ".restakedLsETHVault");
-            vaultsConfig.gauntletRestakedWstETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedWstETH");
-            vaultsConfig.re7LabsRestakingETH = _loadVaultTrifectaData(json, jsonPath, ".re7LabsRestakingETH");
+            vaultsConfigA.mevRestakedETH = _loadVaultTrifectaData(json, jsonPath, ".mevRestakedETH");
+            vaultsConfigA.mevCapitalETH = _loadVaultTrifectaData(json, jsonPath, ".mevCapitalETH");
+            vaultsConfigA.hashKeyCloudETH = _loadVaultTrifectaData(json, jsonPath, ".hashKeyCloudETH");
+            vaultsConfigA.renzoRestakedETH = _loadVaultTrifectaData(json, jsonPath, ".renzoRestakedETH");
+            vaultsConfigA.re7LabsETH = _loadVaultTrifectaData(json, jsonPath, ".re7LabsETH");
+            vaultsConfigA.cp0xLrtETH = _loadVaultTrifectaData(json, jsonPath, ".cp0xLrtETH");
+            vaultsConfigA.gauntletRestakedWstETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedWstETH");
+            vaultsConfigA.re7LabsRestakingETH = _loadVaultTrifectaData(json, jsonPath, ".re7LabsRestakingETH");
 
             // swETH vaults
-            vaultsConfig.gauntletRestakedSwETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedSwETH");
+            vaultsConfigA.gauntletRestakedSwETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedSwETH");
 
             // rETH vaults
-            vaultsConfig.gauntletRestakedRETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedRETH");
+            vaultsConfigA.gauntletRestakedRETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedRETH");
 
             // wBETH vaults
-            vaultsConfig.gauntletRestakedWBETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedWBETH");
+            vaultsConfigB.gauntletRestakedWBETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedWBETH");
+
+            vaultsConfigB.etherfiwstETH = _loadVaultTrifectaData(json, jsonPath, ".etherfiwstETH");
+            vaultsConfigB.restakedLsETHVault = _loadVaultTrifectaData(json, jsonPath, ".restakedLsETHVault");
         }
     }
 
@@ -158,7 +168,12 @@ contract HelperConfig is Script {
 
     function getAnvilEthConfig()
         public
-        returns (NetworkConfig memory networkConfig, TokensConfig memory tokensConfig, VaultsConfig memory vaultConfig)
+        returns (
+            NetworkConfig memory networkConfig,
+            TokensConfig memory tokensConfig,
+            VaultsConfigA memory vaultConfigA,
+            VaultsConfigB memory vaultConfigB
+        )
     {
         DeploySymbiotic deploySymbiotic = new DeploySymbiotic();
 

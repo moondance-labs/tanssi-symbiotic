@@ -77,7 +77,8 @@ contract DeployTanssiEcosystem is Script {
 
     bool public isTest = false;
     VaultAddresses public vaultAddresses; // For testing only
-    HelperConfig.VaultsConfig public vaultsAddressesDeployed;
+    HelperConfig.VaultsConfigA public vaultsAddressesDeployedA;
+    HelperConfig.VaultsConfigB public vaultsAddressesDeployedB;
     EcosystemEntity public ecosystemEntities;
     CollateralAddresses public collateralAddresses;
     TestCollateralAddresses public testCollateralAddresses;
@@ -316,7 +317,7 @@ contract DeployTanssiEcosystem is Script {
             deployVaults();
             _setDelegatorConfigs();
         } else {
-            vaultsAddressesDeployed = contractScripts.helperConfig.getActiveVaultsConfig();
+            (vaultsAddressesDeployedA, vaultsAddressesDeployedB) = contractScripts.helperConfig.getActiveVaultsConfig();
         }
 
         if (!isTest) {
