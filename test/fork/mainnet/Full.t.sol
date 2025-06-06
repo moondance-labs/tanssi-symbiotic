@@ -68,7 +68,6 @@ import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareRea
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
-import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
 import {MiddlewareV2} from "test/unit/utils/MiddlewareV2.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
@@ -118,10 +117,8 @@ contract FullTest is Test {
     uint8 public constant ORACLE_DECIMALS = 2;
     int256 public constant ORACLE_CONVERSION_TOKEN = 2000;
 
-    uint256 ownerPrivateKey =
-        vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
-    address public owner = vm.addr(ownerPrivateKey);
-    address tanssi = owner;
+    address public admin = 0xaE5D4E70CB5910bea21E06d33B10F2bD6C95daaE;
+    address public tanssi = 0x8c1a46D032B7b30D9AB4F30e51D8139CC3E85Ce3;
 
     address public operator = makeAddr("operator");
     address public operator2 = makeAddr("operator2");
@@ -216,48 +213,38 @@ contract FullTest is Test {
     VaultStakeBeforeDeposit public vaultStakeBeforeDeposit;
 
     function setUp() public {
-        _deployBaseInfrastructure();
+        _getBaseInfrastructure();
         _setLimitsAndShares(tanssi);
         _setupOperators();
 
-        _registerEntitiesToMiddleware(owner);
+        _registerEntitiesToMiddleware(admin);
         _setupGateway();
         _saveStakeBeforeDepositing();
 
-        vm.startPrank(tanssi);
-        ecosystemEntities.middleware.setCollateralToOracle(address(ecosystemEntities.wstETH), oracle);
-        ecosystemEntities.middleware.setCollateralToOracle(address(ecosystemEntities.rETH), oracle);
-        ecosystemEntities.middleware.setCollateralToOracle(address(ecosystemEntities.swETH), oracle);
-        ecosystemEntities.middleware.setCollateralToOracle(address(ecosystemEntities.wBETH), oracle);
+        // vm.startPrank(tanssi);
+        // ecosystemEntities.middleware.setCollateralToOracle(address(ecosystemEntities.wstETH), oracle);
+        // ecosystemEntities.middleware.setCollateralToOracle(address(ecosystemEntities.rETH), oracle);
+        // ecosystemEntities.middleware.setCollateralToOracle(address(ecosystemEntities.swETH), oracle);
+        // ecosystemEntities.middleware.setCollateralToOracle(address(ecosystemEntities.wBETH), oracle);
         vm.stopPrank();
 
         _handleDeposits();
     }
 
-    function _deployBaseInfrastructure() private {
+    function _getBaseInfrastructure() private {
         // Check if it's good for mainnet
         vm.allowCheatcodes(address(0x6B5CF024365D5d5d0786673780CA7E3F07f85B63));
-        DeployTanssiEcosystem deployTanssi = new DeployTanssiEcosystem();
         helperConfig = new HelperConfig();
-        deployTanssi.deployTanssiEcosystem(helperConfig);
-        address stETHCollateralAddress;
-        address rETHCollateralAddress;
-        address swETHCollateralAddress;
-        address wBETHCollateralAddress;
-        (
-            ecosystemEntities.middleware,
-            ,
-            stETHCollateralAddress,
-            rETHCollateralAddress,
-            swETHCollateralAddress,
-            wBETHCollateralAddress
-        ) = deployTanssi.ecosystemEntities();
-        ecosystemEntities.wstETH = IDefaultCollateral(stETHCollateralAddress);
-        ecosystemEntities.rETH = IDefaultCollateral(rETHCollateralAddress);
-        ecosystemEntities.swETH = IDefaultCollateral(swETHCollateralAddress);
-        ecosystemEntities.wBETH = IDefaultCollateral(wBETHCollateralAddress);
 
-        vaultsAddressesDeployed = helperConfig.getActiveVaultsConfig();
+        HelperConfig.TokensConfig memory tokensConfig;
+        (, tokensConfig, vaultsAddressesDeployed) = helperConfig.getChainConfig();
+
+        ecosystemEntities.middleware = Middleware(0x1bbd37E4325d931Aef5fEDEF1f87e8343835acE4);
+
+        ecosystemEntities.wstETH = IDefaultCollateral(tokensConfig.wstETH);
+        ecosystemEntities.rETH = IDefaultCollateral(tokensConfig.rETH);
+        ecosystemEntities.swETH = IDefaultCollateral(tokensConfig.swETH);
+        ecosystemEntities.wBETH = IDefaultCollateral(tokensConfig.wBETH);
     }
 
     function _setupOperators() private {
@@ -729,35 +716,35 @@ contract FullTest is Test {
         });
 
         vm.startPrank(_owner);
-        ecosystemEntities.middleware.registerSharedVault(
-            vaultsAddressesDeployed.mevRestakedETH.vault, stakerRewardsParams
-        );
-        ecosystemEntities.middleware.registerSharedVault(
-            vaultsAddressesDeployed.mevCapitalETH.vault, stakerRewardsParams
-        );
-        ecosystemEntities.middleware.registerSharedVault(
-            vaultsAddressesDeployed.hashKeyCloudETH.vault, stakerRewardsParams
-        );
-        ecosystemEntities.middleware.registerSharedVault(
-            vaultsAddressesDeployed.renzoRestakedETH.vault, stakerRewardsParams
-        );
-        ecosystemEntities.middleware.registerSharedVault(vaultsAddressesDeployed.re7LabsETH.vault, stakerRewardsParams);
-        ecosystemEntities.middleware.registerSharedVault(vaultsAddressesDeployed.cp0xLrtETH.vault, stakerRewardsParams);
-        ecosystemEntities.middleware.registerSharedVault(
-            vaultsAddressesDeployed.gauntletRestakedWstETH.vault, stakerRewardsParams
-        );
-        ecosystemEntities.middleware.registerSharedVault(
-            vaultsAddressesDeployed.re7LabsRestakingETH.vault, stakerRewardsParams
-        );
-        ecosystemEntities.middleware.registerSharedVault(
-            vaultsAddressesDeployed.gauntletRestakedSwETH.vault, stakerRewardsParams
-        );
-        ecosystemEntities.middleware.registerSharedVault(
-            vaultsAddressesDeployed.gauntletRestakedRETH.vault, stakerRewardsParams
-        );
-        ecosystemEntities.middleware.registerSharedVault(
-            vaultsAddressesDeployed.gauntletRestakedWBETH.vault, stakerRewardsParams
-        );
+        // ecosystemEntities.middleware.registerSharedVault(
+        //     vaultsAddressesDeployed.mevRestakedETH.vault, stakerRewardsParams
+        // );
+        // ecosystemEntities.middleware.registerSharedVault(
+        //     vaultsAddressesDeployed.mevCapitalETH.vault, stakerRewardsParams
+        // );
+        // ecosystemEntities.middleware.registerSharedVault(
+        //     vaultsAddressesDeployed.hashKeyCloudETH.vault, stakerRewardsParams
+        // );
+        // ecosystemEntities.middleware.registerSharedVault(
+        //     vaultsAddressesDeployed.renzoRestakedETH.vault, stakerRewardsParams
+        // );
+        // ecosystemEntities.middleware.registerSharedVault(vaultsAddressesDeployed.re7LabsETH.vault, stakerRewardsParams);
+        // ecosystemEntities.middleware.registerSharedVault(vaultsAddressesDeployed.cp0xLrtETH.vault, stakerRewardsParams);
+        // ecosystemEntities.middleware.registerSharedVault(
+        //     vaultsAddressesDeployed.gauntletRestakedWstETH.vault, stakerRewardsParams
+        // );
+        // ecosystemEntities.middleware.registerSharedVault(
+        //     vaultsAddressesDeployed.re7LabsRestakingETH.vault, stakerRewardsParams
+        // );
+        // ecosystemEntities.middleware.registerSharedVault(
+        //     vaultsAddressesDeployed.gauntletRestakedSwETH.vault, stakerRewardsParams
+        // );
+        // ecosystemEntities.middleware.registerSharedVault(
+        //     vaultsAddressesDeployed.gauntletRestakedRETH.vault, stakerRewardsParams
+        // );
+        // ecosystemEntities.middleware.registerSharedVault(
+        //     vaultsAddressesDeployed.gauntletRestakedWBETH.vault, stakerRewardsParams
+        // );
         ecosystemEntities.middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         ecosystemEntities.middleware.registerOperator(operator2, abi.encode(OPERATOR2_KEY), address(0));
         ecosystemEntities.middleware.registerOperator(operator3, abi.encode(OPERATOR3_KEY), address(0));
@@ -805,7 +792,7 @@ contract FullTest is Test {
     function _setLimitsAndShares(
         address _owner
     ) private {
-        _setMaxNetworkLimits();
+        // _setMaxNetworkLimits();
         _setNetworkLimits();
         _setOperatorShares();
 
@@ -820,65 +807,65 @@ contract FullTest is Test {
         );
     }
 
-    function _setMaxNetworkLimits() private {
-        vm.startPrank(tanssi);
-        INetworkRestakeDelegator(vaultsAddressesDeployed.mevRestakedETH.delegator).setMaxNetworkLimit(
-            0, MAX_NETWORK_LIMIT
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployed.mevCapitalETH.delegator).setMaxNetworkLimit(
-            0, MAX_NETWORK_LIMIT
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployed.hashKeyCloudETH.delegator).setMaxNetworkLimit(
-            0, MAX_NETWORK_LIMIT
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployed.renzoRestakedETH.delegator).setMaxNetworkLimit(
-            0, MAX_NETWORK_LIMIT
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployed.re7LabsETH.delegator).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
-        INetworkRestakeDelegator(vaultsAddressesDeployed.cp0xLrtETH.delegator).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
-        INetworkRestakeDelegator(vaultsAddressesDeployed.gauntletRestakedWstETH.delegator).setMaxNetworkLimit(
-            0, MAX_NETWORK_LIMIT
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployed.re7LabsRestakingETH.delegator).setMaxNetworkLimit(
-            0, MAX_NETWORK_LIMIT
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployed.gauntletRestakedSwETH.delegator).setMaxNetworkLimit(
-            0, MAX_NETWORK_LIMIT
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployed.gauntletRestakedRETH.delegator).setMaxNetworkLimit(
-            0, MAX_NETWORK_LIMIT
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployed.gauntletRestakedWBETH.delegator).setMaxNetworkLimit(
-            0, MAX_NETWORK_LIMIT
-        );
-        vm.stopPrank();
-    }
+    // function _setMaxNetworkLimits() private {
+    //     vm.startPrank(tanssi);
+    //     INetworkRestakeDelegator(vaultsAddressesDeployed.mevRestakedETH.delegator).setMaxNetworkLimit(
+    //         0, MAX_NETWORK_LIMIT
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployed.mevCapitalETH.delegator).setMaxNetworkLimit(
+    //         0, MAX_NETWORK_LIMIT
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployed.hashKeyCloudETH.delegator).setMaxNetworkLimit(
+    //         0, MAX_NETWORK_LIMIT
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployed.renzoRestakedETH.delegator).setMaxNetworkLimit(
+    //         0, MAX_NETWORK_LIMIT
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployed.re7LabsETH.delegator).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
+    //     INetworkRestakeDelegator(vaultsAddressesDeployed.cp0xLrtETH.delegator).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
+    //     INetworkRestakeDelegator(vaultsAddressesDeployed.gauntletRestakedWstETH.delegator).setMaxNetworkLimit(
+    //         0, MAX_NETWORK_LIMIT
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployed.re7LabsRestakingETH.delegator).setMaxNetworkLimit(
+    //         0, MAX_NETWORK_LIMIT
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployed.gauntletRestakedSwETH.delegator).setMaxNetworkLimit(
+    //         0, MAX_NETWORK_LIMIT
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployed.gauntletRestakedRETH.delegator).setMaxNetworkLimit(
+    //         0, MAX_NETWORK_LIMIT
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployed.gauntletRestakedWBETH.delegator).setMaxNetworkLimit(
+    //         0, MAX_NETWORK_LIMIT
+    //     );
+    //     vm.stopPrank();
+    // }
 
     function _setNetworkLimits() private {
-        vm.startPrank(0xA1E38210B06A05882a7e7Bfe167Cd67F07FA234A);
-        INetworkRestakeDelegator(vaultsAddressesDeployed.mevRestakedETH.delegator).setNetworkLimit(
-            tanssi.subnetwork(0), OPERATOR_NETWORK_LIMIT
-        );
+        //     vm.startPrank(0xA1E38210B06A05882a7e7Bfe167Cd67F07FA234A);
+        //     INetworkRestakeDelegator(vaultsAddressesDeployed.mevRestakedETH.delegator).setNetworkLimit(
+        //         tanssi.subnetwork(0), OPERATOR_NETWORK_LIMIT
+        //     );
 
-        vm.startPrank(0x8989e3f949df80e8eFcbf3372F082699b93E5C09);
-        INetworkRestakeDelegator(vaultsAddressesDeployed.mevCapitalETH.delegator).setNetworkLimit(
-            tanssi.subnetwork(0), OPERATOR_NETWORK_LIMIT
-        );
+        //     vm.startPrank(0x8989e3f949df80e8eFcbf3372F082699b93E5C09);
+        //     INetworkRestakeDelegator(vaultsAddressesDeployed.mevCapitalETH.delegator).setNetworkLimit(
+        //         tanssi.subnetwork(0), OPERATOR_NETWORK_LIMIT
+        //     );
 
-        vm.startPrank(0x323B1370eC7D17D0c70b2CbebE052b9ed0d8A289);
-        INetworkRestakeDelegator(vaultsAddressesDeployed.hashKeyCloudETH.delegator).setNetworkLimit(
-            tanssi.subnetwork(0), OPERATOR_NETWORK_LIMIT
-        );
+        //     vm.startPrank(0x323B1370eC7D17D0c70b2CbebE052b9ed0d8A289);
+        //     INetworkRestakeDelegator(vaultsAddressesDeployed.hashKeyCloudETH.delegator).setNetworkLimit(
+        //         tanssi.subnetwork(0), OPERATOR_NETWORK_LIMIT
+        //     );
 
-        vm.startPrank(0x6e5CaD73D00Bc8340f38afb61Fc5E34f7193F599);
-        INetworkRestakeDelegator(vaultsAddressesDeployed.renzoRestakedETH.delegator).setNetworkLimit(
-            tanssi.subnetwork(0), OPERATOR_NETWORK_LIMIT
-        );
+        //     vm.startPrank(0x6e5CaD73D00Bc8340f38afb61Fc5E34f7193F599);
+        //     INetworkRestakeDelegator(vaultsAddressesDeployed.renzoRestakedETH.delegator).setNetworkLimit(
+        //         tanssi.subnetwork(0), OPERATOR_NETWORK_LIMIT
+        //     );
 
-        vm.startPrank(0xE86399fE6d7007FdEcb08A2ee1434Ee677a04433);
-        INetworkRestakeDelegator(vaultsAddressesDeployed.re7LabsETH.delegator).setNetworkLimit(
-            tanssi.subnetwork(0), OPERATOR_NETWORK_LIMIT
-        );
+        //     vm.startPrank(0xE86399fE6d7007FdEcb08A2ee1434Ee677a04433);
+        //     INetworkRestakeDelegator(vaultsAddressesDeployed.re7LabsETH.delegator).setNetworkLimit(
+        //         tanssi.subnetwork(0), OPERATOR_NETWORK_LIMIT
+        //     );
         vm.startPrank(0xD1f59ba974E828dF68cB2592C16b967B637cB4e4);
         IVault cp0xVault = IVault(vaultsAddressesDeployed.cp0xLrtETH.vault);
         INetworkRestakeDelegator(vaultsAddressesDeployed.cp0xLrtETH.delegator).setNetworkLimit(
@@ -888,30 +875,30 @@ contract FullTest is Test {
             cp0xVault.setDepositLimit(cp0xVault.depositLimit() * 10);
         }
 
-        vm.startPrank(0x059Ae3F8a1EaDDAAb34D0A74E8Eb752c848062d1);
-        INetworkRestakeDelegator(vaultsAddressesDeployed.gauntletRestakedWstETH.delegator).setNetworkLimit(
-            tanssi.subnetwork(0), OPERATOR_NETWORK_LIMIT
-        );
+        //     vm.startPrank(0x059Ae3F8a1EaDDAAb34D0A74E8Eb752c848062d1);
+        //     INetworkRestakeDelegator(vaultsAddressesDeployed.gauntletRestakedWstETH.delegator).setNetworkLimit(
+        //         tanssi.subnetwork(0), OPERATOR_NETWORK_LIMIT
+        //     );
 
-        vm.startPrank(0xE86399fE6d7007FdEcb08A2ee1434Ee677a04433);
-        INetworkRestakeDelegator(vaultsAddressesDeployed.re7LabsRestakingETH.delegator).setNetworkLimit(
-            tanssi.subnetwork(0), OPERATOR_NETWORK_LIMIT
-        );
+        //     vm.startPrank(0xE86399fE6d7007FdEcb08A2ee1434Ee677a04433);
+        //     INetworkRestakeDelegator(vaultsAddressesDeployed.re7LabsRestakingETH.delegator).setNetworkLimit(
+        //         tanssi.subnetwork(0), OPERATOR_NETWORK_LIMIT
+        //     );
 
-        vm.startPrank(0x059Ae3F8a1EaDDAAb34D0A74E8Eb752c848062d1);
-        INetworkRestakeDelegator(vaultsAddressesDeployed.gauntletRestakedSwETH.delegator).setNetworkLimit(
-            tanssi.subnetwork(0), OPERATOR_NETWORK_LIMIT
-        );
+        //     vm.startPrank(0x059Ae3F8a1EaDDAAb34D0A74E8Eb752c848062d1);
+        //     INetworkRestakeDelegator(vaultsAddressesDeployed.gauntletRestakedSwETH.delegator).setNetworkLimit(
+        //         tanssi.subnetwork(0), OPERATOR_NETWORK_LIMIT
+        //     );
 
-        vm.startPrank(0x059Ae3F8a1EaDDAAb34D0A74E8Eb752c848062d1);
-        INetworkRestakeDelegator(vaultsAddressesDeployed.gauntletRestakedRETH.delegator).setNetworkLimit(
-            tanssi.subnetwork(0), OPERATOR_NETWORK_LIMIT
-        );
+        //     vm.startPrank(0x059Ae3F8a1EaDDAAb34D0A74E8Eb752c848062d1);
+        //     INetworkRestakeDelegator(vaultsAddressesDeployed.gauntletRestakedRETH.delegator).setNetworkLimit(
+        //         tanssi.subnetwork(0), OPERATOR_NETWORK_LIMIT
+        //     );
 
-        vm.startPrank(0x059Ae3F8a1EaDDAAb34D0A74E8Eb752c848062d1);
-        INetworkRestakeDelegator(vaultsAddressesDeployed.gauntletRestakedWBETH.delegator).setNetworkLimit(
-            tanssi.subnetwork(0), OPERATOR_NETWORK_LIMIT
-        );
+        //     vm.startPrank(0x059Ae3F8a1EaDDAAb34D0A74E8Eb752c848062d1);
+        //     INetworkRestakeDelegator(vaultsAddressesDeployed.gauntletRestakedWBETH.delegator).setNetworkLimit(
+        //         tanssi.subnetwork(0), OPERATOR_NETWORK_LIMIT
+        //     );
     }
 
     function _setOperatorShares() private {
@@ -1083,7 +1070,7 @@ contract FullTest is Test {
         MockGateway(address(gateway)).setOperatingModePublic(abi.encode(params));
 
         IOGateway(address(gateway)).setMiddleware(address(ecosystemEntities.middleware));
-        vm.prank(tanssi);
+        vm.prank(admin);
         ecosystemEntities.middleware.setGateway(address(gateway));
     }
 
@@ -1734,7 +1721,7 @@ contract FullTest is Test {
         uint48 currentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validators =
             OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(currentEpoch);
-        vm.startPrank(tanssi);
+        vm.startPrank(admin);
         ecosystemEntities.middleware.pauseOperator(operator);
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
 
@@ -1754,7 +1741,7 @@ contract FullTest is Test {
         Middleware.ValidatorData[] memory validators =
             OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(currentEpoch);
 
-        vm.startPrank(tanssi);
+        vm.startPrank(admin);
         ecosystemEntities.middleware.pauseOperator(operator);
 
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
@@ -1771,7 +1758,7 @@ contract FullTest is Test {
     }
 
     function testUpkeep() public {
-        vm.prank(owner);
+        vm.prank(admin);
         ecosystemEntities.middleware.setForwarder(forwarder);
         // It's not needed, it's just for explaining and showing the flow
         address offlineKeepers = makeAddr("offlineKeepers");
@@ -1803,7 +1790,7 @@ contract FullTest is Test {
         address stakerRewardsFactoryAddress = makeAddr("stakerRewardsFactory");
         Middleware middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
 
-        vm.startPrank(owner);
+        vm.startPrank(admin);
         assertEq(ecosystemEntities.middleware.VERSION(), 1);
 
         MiddlewareV2 middlewareImplV2 = new MiddlewareV2();
