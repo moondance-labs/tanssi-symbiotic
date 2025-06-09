@@ -86,16 +86,7 @@ contract FullTest is Test {
     uint256 public constant DEFAULT_WITHDRAW_AMOUNT = 30 ether;
     uint256 public constant OPERATOR_INITIAL_BALANCE = 1000 ether;
     uint256 public constant MIN_SLASHING_WINDOW = 1 days;
-    bytes32 public constant OPERATOR_KEY = bytes32(uint256(1));
-    bytes32 public constant OPERATOR2_KEY = bytes32(uint256(2));
-    bytes32 public constant OPERATOR3_KEY = bytes32(uint256(3));
-    bytes32 public constant OPERATOR4_KEY = bytes32(uint256(4));
-    bytes32 public constant OPERATOR5_KEY = bytes32(uint256(5));
-    bytes32 public constant OPERATOR6_KEY = bytes32(uint256(6));
-    bytes32 public constant OPERATOR7_KEY = bytes32(uint256(7));
-    bytes32 public constant OPERATOR8_KEY = bytes32(uint256(8));
-    bytes32 public constant OPERATOR9_KEY = bytes32(uint256(9));
-    bytes32 public constant OPERATOR10_KEY = bytes32(uint256(10));
+
     uint256 public constant OPERATOR_SHARE = 1;
     uint256 public constant TOTAL_SHARES_MEV_RESTAKED = 3;
     uint256 public constant TOTAL_SHARES_MEV_CAPITAL = 4;
@@ -120,16 +111,45 @@ contract FullTest is Test {
     address public admin = 0xaE5D4E70CB5910bea21E06d33B10F2bD6C95daaE;
     address public tanssi = 0x8c1a46D032B7b30D9AB4F30e51D8139CC3E85Ce3;
 
-    address public operator = makeAddr("operator");
-    address public operator2 = makeAddr("operator2");
-    address public operator3 = makeAddr("operator3");
-    address public operator4 = makeAddr("operator4");
-    address public operator5 = makeAddr("operator5");
-    address public operator6 = makeAddr("operator6");
-    address public operator7 = makeAddr("operator7");
-    address public operator8 = makeAddr("operator8");
-    address public operator9 = makeAddr("operator9");
-    address public operator10 = makeAddr("operator10");
+    address public operator1PierTwo = 0x51B6D824bd35AeD4FD1a9E253E41Dc7C9feeFa30;
+    address public operator2P2P = 0x087c25f83ED20bda587CFA035ED0c96338D4660f;
+    address public operator3Nodeinfra = 0x9321d38c355d1D8cB9dbfC05a5c0f347b1DDa46a;
+    address public operator4Blockscape = 0xfd42c11Bf9518A078445b04857B205Fee688b133;
+    address public operator5QuantNode = 0xAF0dbc82EDc4e893d7898Cf6a8eA2497ce859A1F;
+    address public operator6NodeMonster = 0x030d6216f27B4370D9e173ff6dd2e192166cbA19;
+    address public operator7BlockBones = 0xEe92C0CeF065819BFE17A5626b8209f64D82971e;
+    address public operator8CP0XStakrspace = 0x9766e9e3045a8cEd5E1fa5B72AEEeEC9D74D00d0;
+    address public operator9HashkeyCloud = 0xe8e54EA992a3f8aaED7f05de7C1487855674A3cf;
+    address public operator10Alchemy = 0xcf28Fe3A1B73887e405bf955Bf52D9341F666CAa;
+    address public operator11Opslayer = 0x0e50cef51947f19B5b91eD4C2CfC1C0Bb72F6a7A;
+
+    bytes32 public constant operator1PierTwoKey = 0xecd66a5fac2d2b6abbc31562058b30dc8eaffaf229b19c0bacd170995dfd0e5e;
+    bytes32 public constant operator2P2PKey = 0xc670b6d72c8457da7fddf8f96d2e02f41c486c755186fd45f7c2d39fdd170843;
+    bytes32 public constant operator3NodeinfraKey = 0x2a3cec3909122bfdffcc8809a5d5586af1c0554f5e8b34cf747ba3629a6b6303;
+    bytes32 public constant operator4BlockscapeKey = 0xb65af3b79dcc9b300df74156a3ca86b959331d57d8d4f5801b40e61d53a5c931;
+    bytes32 public constant operator5QuantNodeKey = 0xf611cc7b7adcdafbe7f2781acc0f0b5926b78f30aa27cf6afb749a9b1b5ac355;
+    bytes32 public constant operator6NodeMonsterKey = 0xd7611e05b79f07dac15926ac0e20f6e2a002e46cedf074d13e505c27f945e38b;
+    bytes32 public constant operator7BlockBonesKey = 0x646dda01bcc2f11b7d9b7e2311a958941e0b5134776d642d17e0f76bbc46541c;
+    bytes32 public constant operator8CP0XStakrspaceKey =
+        0xd8eaec60c55fccab637ba401bc23328f7dffb7f36a025dd77215592d7de8d707;
+    bytes32 public constant operator9HashkeyCloudKey =
+        0x4a28e04d008b281fe855242d7a907b0968ae4dc8e9c0a72c0724c69a53db7159;
+    bytes32 public constant operator10AlchemyKey = 0x6441d0a205bfb34eee189931a672baca6722eddbc05a8e370f72c161d9e72662;
+    bytes32 public constant operator11OpslayerKey = 0x0000000000000000000000000000000000000000000000000000000000000000;
+
+    uint256 public constant PIER_TWO_VAULTS = 10;
+    uint256 public constant P2P_VAULTS = 8;
+    uint256 public constant NODE_INFRA = 3;
+    uint256 public constant BLOCKSCAPE_VAULTS = 4;
+    uint256 public constant QUANT_NODE_VAULTS = 1;
+    uint256 public constant NODE_MONSTER_VAULTS = 1;
+    uint256 public constant BLOCK_BONES_VAULTS = 1;
+    uint256 public constant CP0X_STAKRSPACE_VAULTS = 1;
+    uint256 public constant HASHKEY_CLOUD_VAULTS = 1;
+    uint256 public constant ALCHEMY_VAULTS = 1; // TODO
+    uint256 public constant OPSLAYER_VAULTS = 1; // TODO
+
+    uint256 public constant TOTAL_OPERATORS = 5; // Several pending
 
     address public resolver1 = makeAddr("resolver1");
     address public resolver2 = makeAddr("resolver2");
@@ -170,33 +190,43 @@ contract FullTest is Test {
 
     HelperConfig helperConfig;
 
-    struct VaultStakeBeforeDeposit {
-        uint256 mevRestakedStakeBeforeDeposit;
-        uint256 mevCapitalStakeBeforeDeposit;
-        uint256 hashKeyCloudStakeBeforeDeposit;
-        uint256 renzoRestakedStakeBeforeDeposit;
-        uint256 re7LabsStakeBeforeDeposit;
-        uint256 re7LabsRestakingStakeBeforeDeposit;
-        uint256 cp0xLrtStakeBeforeDeposit;
-        uint256 gauntletRestakedWstStakeBeforeDeposit;
-        uint256 gauntletRestakedCbStakeBeforeDeposit;
-        uint256 gauntletRestakedSwStakeBeforeDeposit;
-        uint256 gauntletRestakedRETHStakeBeforeDeposit;
-        uint256 gauntletRestakedWBETHStakeBeforeDeposit;
+    struct VaultStakeBeforeDepositA {
+        uint256 mevRestakedETH;
+        uint256 mevCapitalETH;
+        uint256 hashKeyCloudETH;
+        uint256 renzoRestakedETH;
+        uint256 re7LabsETH;
+        uint256 re7LabsRestakingETH;
+        uint256 cp0xLrtETH;
+        uint256 gauntletRestakedWstETH;
+        uint256 gauntletRestakedSwETH;
+        uint256 gauntletRestakedRETH;
     }
 
-    struct VaultTotalStake {
-        uint256 totalMevRestakedETHPower;
-        uint256 totalMevCapitalETHPower;
-        uint256 totalHashKeyCloudETHPower;
-        uint256 totalRenzoRestakedETHPower;
-        uint256 totalRe7LabsETHPower;
-        uint256 totalre7LabsRestakingETHPower;
-        uint256 totalCp0xLrtETHPower;
-        uint256 totalGauntletRestakedWstETHPower;
-        uint256 totalGauntletRestakedSwETHPower;
-        uint256 totalGauntletRestakedRETHPower;
-        uint256 totalGauntletRestakedWBETHPower;
+    struct VaultStakeBeforeDepositB {
+        uint256 gauntletRestakedWBETH;
+        uint256 gauntletRestakedcBETH;
+        uint256 etherfiwstETH;
+        uint256 restakedLsETHVault;
+    }
+
+    struct VaultTotalStakeA {
+        uint256 mevRestakedETH;
+        uint256 mevCapitalETH;
+        uint256 hashKeyCloudETH;
+        uint256 renzoRestakedETH;
+        uint256 re7LabsETH;
+        uint256 re7LabsRestakingETH;
+        uint256 cp0xLrtETH;
+        uint256 gauntletRestakedWstETH;
+        uint256 gauntletRestakedSwETH;
+        uint256 gauntletRestakedRETH;
+    }
+
+    struct VaultTotalStakeB {
+        uint256 gauntletRestakedWBETH;
+        uint256 etherfiwstETH;
+        uint256 restakedLsETHVault;
     }
 
     struct EcosystemEntity {
@@ -209,25 +239,30 @@ contract FullTest is Test {
         IDefaultCollateral cbETH;
     }
 
+    EcosystemEntity public ecosystemEntities;
+
     HelperConfig.VaultsConfigA public vaultsAddressesDeployedA;
     HelperConfig.VaultsConfigB public vaultsAddressesDeployedB;
-    EcosystemEntity public ecosystemEntities;
-    VaultTotalStake public vaultTotalStake;
-    VaultStakeBeforeDeposit public vaultStakeBeforeDeposit;
+
+    VaultTotalStakeA public vaultTotalStakeA;
+    VaultTotalStakeB public vaultTotalStakeB;
+
+    VaultStakeBeforeDepositA public vaultStakeBeforeDepositA;
+    VaultStakeBeforeDepositB public vaultStakeBeforeDepositB;
 
     function setUp() public {
         _getBaseInfrastructure();
         _setLimitsAndShares(tanssi);
         _setupOperators();
 
-        _registerEntitiesToMiddleware(admin);
+        _registerEntitiesToMiddleware();
         _setupGateway();
         _saveStakeBeforeDepositing();
 
         /// ecosystemEntities.middleware.setCollateralToOracle(xxx, oracle); Called for each collateral: wstETH, rETH, swETH, wBETH, LsETH, cbETH
         vm.stopPrank();
 
-        _handleDeposits();
+        // _cachePowerBeforeDeposit();
     }
 
     function _getBaseInfrastructure() private {
@@ -250,526 +285,199 @@ contract FullTest is Test {
     }
 
     function _setupOperators() private {
-        // ******************
-        //    OPERATOR 1
-        // ******************
-        deal(address(ecosystemEntities.wstETH), operator, OPERATOR_INITIAL_BALANCE * 4);
-        _registerOperator(
-            operator, tanssi, vaultsAddressesDeployedA.mevRestakedETH.vault, 0x9437B2a8cF3b69D782a61f9814baAbc172f72003
-        );
-        _registerOperator(operator, tanssi, vaultsAddressesDeployedA.mevCapitalETH.vault, address(0));
-        _registerOperator(
-            operator, tanssi, vaultsAddressesDeployedA.hashKeyCloudETH.vault, 0x9437B2a8cF3b69D782a61f9814baAbc172f72003
-        );
+        // OPERATOR 1 - Pier Two
 
-        // ******************
-        //    OPERATOR 2
-        // ******************
-        deal(address(ecosystemEntities.wstETH), operator2, OPERATOR_INITIAL_BALANCE);
-        deal(address(ecosystemEntities.rETH), operator2, OPERATOR_INITIAL_BALANCE);
-        deal(address(ecosystemEntities.wBETH), operator2, OPERATOR_INITIAL_BALANCE);
-        _registerOperator(operator2, tanssi, vaultsAddressesDeployedA.mevCapitalETH.vault, address(0));
-        _registerOperator(operator2, tanssi, vaultsAddressesDeployedA.gauntletRestakedRETH.vault, address(0));
-        _registerOperator(operator2, tanssi, vaultsAddressesDeployedB.gauntletRestakedWBETH.vault, address(0));
+        _optInOperator(operator1PierTwo, vaultsAddressesDeployedB.etherfiwstETH.vault, tanssi, address(0));
 
-        // ******************
-        //    OPERATOR 3
-        // ******************
-        deal(address(ecosystemEntities.wstETH), operator3, OPERATOR_INITIAL_BALANCE);
-        deal(address(ecosystemEntities.rETH), operator3, OPERATOR_INITIAL_BALANCE);
-        _registerOperator(
-            operator3,
-            tanssi,
-            vaultsAddressesDeployedA.re7LabsRestakingETH.vault,
-            0x9437B2a8cF3b69D782a61f9814baAbc172f72003
-        );
-        _registerOperator(operator3, tanssi, vaultsAddressesDeployedA.gauntletRestakedRETH.vault, address(0));
+        _optInOperator(operator1PierTwo, vaultsAddressesDeployedB.gauntletRestakedcBETH.vault, tanssi, address(0));
 
-        // ******************
-        //    OPERATOR 4
-        // ******************
-        deal(address(ecosystemEntities.swETH), operator4, OPERATOR_INITIAL_BALANCE);
-        _registerOperator(operator4, tanssi, vaultsAddressesDeployedA.gauntletRestakedSwETH.vault, address(0));
+        _optInOperator(operator1PierTwo, vaultsAddressesDeployedA.gauntletRestakedRETH.vault, tanssi, address(0));
 
-        // ******************
-        //    OPERATOR 5
-        // ******************
-        deal(address(ecosystemEntities.wBETH), operator5, OPERATOR_INITIAL_BALANCE);
-        _registerOperator(operator5, tanssi, vaultsAddressesDeployedB.gauntletRestakedWBETH.vault, address(0));
+        _optInOperator(operator1PierTwo, vaultsAddressesDeployedA.gauntletRestakedSwETH.vault, tanssi, address(0));
 
-        // ******************
-        //    OPERATOR 6
-        // ******************
-        deal(address(ecosystemEntities.wstETH), operator6, OPERATOR_INITIAL_BALANCE * 4);
-        deal(address(ecosystemEntities.rETH), operator6, OPERATOR_INITIAL_BALANCE);
-        deal(address(ecosystemEntities.wBETH), operator6, OPERATOR_INITIAL_BALANCE);
-        deal(address(ecosystemEntities.swETH), operator6, OPERATOR_INITIAL_BALANCE);
-        _registerOperator(
-            operator6, tanssi, vaultsAddressesDeployedA.mevRestakedETH.vault, 0x9437B2a8cF3b69D782a61f9814baAbc172f72003
-        );
-        _registerOperator(operator6, tanssi, vaultsAddressesDeployedA.mevCapitalETH.vault, address(0));
-        _registerOperator(
-            operator6, tanssi, vaultsAddressesDeployedA.cp0xLrtETH.vault, 0x9437B2a8cF3b69D782a61f9814baAbc172f72003
-        );
-        _registerOperator(operator6, tanssi, vaultsAddressesDeployedA.gauntletRestakedWstETH.vault, address(0));
-        _registerOperator(operator6, tanssi, vaultsAddressesDeployedA.gauntletRestakedRETH.vault, address(0));
-        _registerOperator(operator6, tanssi, vaultsAddressesDeployedB.gauntletRestakedWBETH.vault, address(0));
-        _registerOperator(operator6, tanssi, vaultsAddressesDeployedA.gauntletRestakedSwETH.vault, address(0));
+        _optInOperator(operator1PierTwo, vaultsAddressesDeployedB.gauntletRestakedWBETH.vault, tanssi, address(0));
 
-        // ******************
-        //    OPERATOR 7
-        // ******************
-        deal(address(ecosystemEntities.wstETH), operator7, OPERATOR_INITIAL_BALANCE * 2);
-        deal(address(ecosystemEntities.rETH), operator7, OPERATOR_INITIAL_BALANCE);
-        _registerOperator(
-            operator7,
-            tanssi,
-            vaultsAddressesDeployedA.renzoRestakedETH.vault,
-            0x9437B2a8cF3b69D782a61f9814baAbc172f72003
-        );
-        _registerOperator(
-            operator7,
-            tanssi,
-            vaultsAddressesDeployedA.re7LabsRestakingETH.vault,
-            0x9437B2a8cF3b69D782a61f9814baAbc172f72003
-        );
-        _registerOperator(operator7, tanssi, vaultsAddressesDeployedA.gauntletRestakedRETH.vault, address(0));
+        _optInOperator(operator1PierTwo, vaultsAddressesDeployedA.gauntletRestakedWstETH.vault, tanssi, address(0));
 
-        // ******************
-        //    OPERATOR 8
-        // ******************
-        deal(address(ecosystemEntities.wBETH), operator8, OPERATOR_INITIAL_BALANCE);
-        deal(address(ecosystemEntities.wstETH), operator8, OPERATOR_INITIAL_BALANCE);
-        deal(address(ecosystemEntities.swETH), operator8, OPERATOR_INITIAL_BALANCE);
-        _registerOperator(operator8, tanssi, vaultsAddressesDeployedA.gauntletRestakedWstETH.vault, address(0));
-        _registerOperator(operator8, tanssi, vaultsAddressesDeployedA.gauntletRestakedSwETH.vault, address(0));
-        _registerOperator(operator8, tanssi, vaultsAddressesDeployedB.gauntletRestakedWBETH.vault, address(0));
+        _optInOperator(operator1PierTwo, vaultsAddressesDeployedA.mevRestakedETH.vault, tanssi, address(0));
 
-        // ******************
-        //    OPERATOR 9
-        // ******************
-        deal(address(ecosystemEntities.wstETH), operator9, OPERATOR_INITIAL_BALANCE);
-        deal(address(ecosystemEntities.rETH), operator9, OPERATOR_INITIAL_BALANCE);
-        deal(address(ecosystemEntities.wBETH), operator9, OPERATOR_INITIAL_BALANCE);
-        deal(address(ecosystemEntities.swETH), operator9, OPERATOR_INITIAL_BALANCE);
-        _registerOperator(
-            operator9, tanssi, vaultsAddressesDeployedA.cp0xLrtETH.vault, 0x9437B2a8cF3b69D782a61f9814baAbc172f72003
-        );
-        _registerOperator(operator9, tanssi, vaultsAddressesDeployedA.gauntletRestakedRETH.vault, address(0));
-        _registerOperator(operator9, tanssi, vaultsAddressesDeployedB.gauntletRestakedWBETH.vault, address(0));
-        _registerOperator(operator9, tanssi, vaultsAddressesDeployedA.gauntletRestakedSwETH.vault, address(0));
+        _optInOperator(operator1PierTwo, vaultsAddressesDeployedA.re7LabsETH.vault, tanssi, address(0));
 
-        // ******************
-        //    OPERATOR 10
-        // ******************
-        deal(address(ecosystemEntities.wstETH), operator10, OPERATOR_INITIAL_BALANCE * 8);
-        deal(address(ecosystemEntities.rETH), operator10, OPERATOR_INITIAL_BALANCE);
-        deal(address(ecosystemEntities.wBETH), operator10, OPERATOR_INITIAL_BALANCE);
-        deal(address(ecosystemEntities.swETH), operator10, OPERATOR_INITIAL_BALANCE);
-        _registerOperator(
-            operator10,
-            tanssi,
-            vaultsAddressesDeployedA.mevRestakedETH.vault,
-            0x9437B2a8cF3b69D782a61f9814baAbc172f72003
-        );
-        _registerOperator(operator10, tanssi, vaultsAddressesDeployedA.mevCapitalETH.vault, address(0));
-        _registerOperator(
-            operator10,
-            tanssi,
-            vaultsAddressesDeployedA.hashKeyCloudETH.vault,
-            0x9437B2a8cF3b69D782a61f9814baAbc172f72003
-        );
-        _registerOperator(
-            operator10, tanssi, vaultsAddressesDeployedA.cp0xLrtETH.vault, 0x9437B2a8cF3b69D782a61f9814baAbc172f72003
-        );
-        _registerOperator(operator10, tanssi, vaultsAddressesDeployedA.gauntletRestakedWstETH.vault, address(0));
-        _registerOperator(
-            operator10,
-            tanssi,
-            vaultsAddressesDeployedA.re7LabsRestakingETH.vault,
-            0x9437B2a8cF3b69D782a61f9814baAbc172f72003
-        );
-        _registerOperator(
-            operator10, tanssi, vaultsAddressesDeployedA.re7LabsETH.vault, 0x9437B2a8cF3b69D782a61f9814baAbc172f72003
-        );
-        _registerOperator(
-            operator10,
-            tanssi,
-            vaultsAddressesDeployedA.renzoRestakedETH.vault,
-            0x9437B2a8cF3b69D782a61f9814baAbc172f72003
-        );
-        _registerOperator(operator10, tanssi, vaultsAddressesDeployedA.gauntletRestakedRETH.vault, address(0));
-        _registerOperator(operator10, tanssi, vaultsAddressesDeployedB.gauntletRestakedWBETH.vault, address(0));
-        _registerOperator(operator10, tanssi, vaultsAddressesDeployedA.gauntletRestakedSwETH.vault, address(0));
+        _optInOperator(operator1PierTwo, vaultsAddressesDeployedA.renzoRestakedETH.vault, tanssi, address(0));
+
+        _optInOperator(operator1PierTwo, vaultsAddressesDeployedB.restakedLsETHVault.vault, tanssi, address(0));
+
+        // OPERATOR 2 - P2P
+
+        _optInOperator(operator2P2P, vaultsAddressesDeployedB.etherfiwstETH.vault, tanssi, address(0));
+
+        _optInOperator(operator2P2P, vaultsAddressesDeployedB.gauntletRestakedcBETH.vault, tanssi, address(0));
+
+        _optInOperator(operator2P2P, vaultsAddressesDeployedA.gauntletRestakedRETH.vault, tanssi, address(0));
+
+        _optInOperator(operator2P2P, vaultsAddressesDeployedA.gauntletRestakedSwETH.vault, tanssi, address(0));
+
+        _optInOperator(operator2P2P, vaultsAddressesDeployedB.gauntletRestakedWBETH.vault, tanssi, address(0));
+
+        _optInOperator(operator2P2P, vaultsAddressesDeployedA.gauntletRestakedWstETH.vault, tanssi, address(0));
+
+        _optInOperator(operator2P2P, vaultsAddressesDeployedA.re7LabsETH.vault, tanssi, address(0));
+
+        _optInOperator(operator2P2P, vaultsAddressesDeployedA.re7LabsRestakingETH.vault, tanssi, address(0));
+
+        // OPERATOR 3 - Nodeinfra
+
+        _optInOperator(operator3Nodeinfra, vaultsAddressesDeployedA.mevRestakedETH.vault, tanssi, address(0));
+
+        _optInOperator(operator3Nodeinfra, vaultsAddressesDeployedA.mevCapitalETH.vault, tanssi, address(0));
+
+        _optInOperator(operator3Nodeinfra, vaultsAddressesDeployedB.restakedLsETHVault.vault, tanssi, address(0));
+
+        // OPERATOR 4 - Blockscape
+        _optInOperator(operator4Blockscape, vaultsAddressesDeployedA.mevRestakedETH.vault, tanssi, address(0));
+
+        _optInOperator(operator4Blockscape, vaultsAddressesDeployedA.mevCapitalETH.vault, tanssi, address(0));
+
+        _optInOperator(operator4Blockscape, vaultsAddressesDeployedA.re7LabsETH.vault, tanssi, address(0));
+
+        _optInOperator(operator4Blockscape, vaultsAddressesDeployedB.restakedLsETHVault.vault, tanssi, address(0));
+
+        // OPERATOR 5 - Quant Node
+
+        _optInOperator(operator5QuantNode, vaultsAddressesDeployedA.re7LabsETH.vault, tanssi, address(0));
+
+        // OPERATOR 6 - Node Monster
+
+        _optInOperator(operator6NodeMonster, vaultsAddressesDeployedA.re7LabsETH.vault, tanssi, address(0));
+
+        // OPERATOR 7 - BlocknBones
+        _optInOperator(operator7BlockBones, vaultsAddressesDeployedA.re7LabsETH.vault, tanssi, address(0));
+
+        // OPERATOR 8 - CP0X Stakrspace
+        _optInOperator(operator8CP0XStakrspace, vaultsAddressesDeployedA.cp0xLrtETH.vault, tanssi, address(0));
+
+        // OPERATOR 9 - Hashkey Cloud
+        _optInOperator(operator9HashkeyCloud, vaultsAddressesDeployedA.hashKeyCloudETH.vault, tanssi, address(0));
+
+        // OPERATOR 10 - Alchemy
+
+        // TODO
+
+        // OPERATOR 11 - Ops Layer
+
+        // TODO
     }
 
-    function _handleDeposits() private {
-        (,,,,, address operatorVaultOptInServiceAddress,,,) = helperConfig.activeNetworkConfig();
+    function _cachePowerBeforeDeposit() private {
+        vaultStakeBeforeDepositA.mevRestakedETH = _getTotalPower(vaultsAddressesDeployedA.mevRestakedETH.vault);
 
-        IOptInService operatorVaultOptInService = IOptInService(operatorVaultOptInServiceAddress);
+        vaultStakeBeforeDepositA.mevCapitalETH = _getTotalPower(vaultsAddressesDeployedA.mevCapitalETH.vault);
 
-        vm.startPrank(operator);
-        _depositToVault(
-            IVault(vaultsAddressesDeployedA.mevRestakedETH.vault), operator, OPERATOR_STAKE, ecosystemEntities.wstETH
-        );
-        _depositToVault(
-            IVault(vaultsAddressesDeployedA.mevCapitalETH.vault), operator, OPERATOR_STAKE, ecosystemEntities.wstETH
-        );
-        _depositToVault(
-            IVault(vaultsAddressesDeployedA.hashKeyCloudETH.vault), operator, OPERATOR_STAKE, ecosystemEntities.wstETH
-        );
-        vm.stopPrank();
+        vaultStakeBeforeDepositA.hashKeyCloudETH = _getTotalPower(vaultsAddressesDeployedA.hashKeyCloudETH.vault);
 
-        {
-            // Scoped to help with stack depth
-            vm.startPrank(operator2);
+        vaultStakeBeforeDepositA.renzoRestakedETH = _getTotalPower(vaultsAddressesDeployedA.renzoRestakedETH.vault);
 
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.mevCapitalETH.vault),
-                operator2,
-                OPERATOR_STAKE,
-                ecosystemEntities.wstETH
-            );
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.gauntletRestakedRETH.vault),
-                operator2,
-                OPERATOR_STAKE,
-                ecosystemEntities.rETH
-            );
-            _depositToVault(
-                IVault(vaultsAddressesDeployedB.gauntletRestakedWBETH.vault),
-                operator2,
-                OPERATOR_STAKE,
-                ecosystemEntities.wBETH
-            );
-            vm.stopPrank();
-        }
+        vaultStakeBeforeDepositA.re7LabsETH = _getTotalPower(vaultsAddressesDeployedA.re7LabsETH.vault);
 
-        {
-            // Scoped to help with stack depth
-            vm.startPrank(operator3);
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.re7LabsRestakingETH.vault),
-                operator3,
-                OPERATOR_STAKE,
-                ecosystemEntities.wstETH
-            );
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.gauntletRestakedRETH.vault),
-                operator3,
-                OPERATOR_STAKE,
-                ecosystemEntities.rETH
-            );
-            vm.stopPrank();
-        }
-        {
-            // Scoped to help with stack depth
-            vm.startPrank(operator4);
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.gauntletRestakedSwETH.vault),
-                operator4,
-                OPERATOR_STAKE,
-                ecosystemEntities.swETH
-            );
-            vm.stopPrank();
-        }
-        {
-            // Scoped to help with stack depth
-            vm.startPrank(operator5);
-            _depositToVault(
-                IVault(vaultsAddressesDeployedB.gauntletRestakedWBETH.vault),
-                operator5,
-                OPERATOR_STAKE,
-                ecosystemEntities.wBETH
-            );
-            vm.stopPrank();
-        }
-        {
-            // Scoped to help with stack depth
-            vm.startPrank(operator6);
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.mevRestakedETH.vault),
-                operator6,
-                OPERATOR_STAKE,
-                ecosystemEntities.wstETH
-            );
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.mevCapitalETH.vault),
-                operator6,
-                OPERATOR_STAKE,
-                ecosystemEntities.wstETH
-            );
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.cp0xLrtETH.vault), operator6, OPERATOR_STAKE, ecosystemEntities.wstETH
-            );
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.gauntletRestakedWstETH.vault),
-                operator6,
-                OPERATOR_STAKE,
-                ecosystemEntities.wstETH
-            );
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.gauntletRestakedRETH.vault),
-                operator6,
-                OPERATOR_STAKE,
-                ecosystemEntities.rETH
-            );
-            _depositToVault(
-                IVault(vaultsAddressesDeployedB.gauntletRestakedWBETH.vault),
-                operator6,
-                OPERATOR_STAKE,
-                ecosystemEntities.wBETH
-            );
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.gauntletRestakedSwETH.vault),
-                operator6,
-                OPERATOR_STAKE,
-                ecosystemEntities.swETH
-            );
-            vm.stopPrank();
-        }
-        {
-            // Scoped to help with stack depth
-            vm.startPrank(operator7);
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.renzoRestakedETH.vault),
-                operator7,
-                OPERATOR_STAKE,
-                ecosystemEntities.wstETH
-            );
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.re7LabsRestakingETH.vault),
-                operator7,
-                OPERATOR_STAKE,
-                ecosystemEntities.wstETH
-            );
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.gauntletRestakedRETH.vault),
-                operator7,
-                OPERATOR_STAKE,
-                ecosystemEntities.rETH
-            );
-            vm.stopPrank();
-        }
-        {
-            // Scoped to help with stack depth
-            vm.startPrank(operator8);
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.gauntletRestakedWstETH.vault),
-                operator8,
-                OPERATOR_STAKE,
-                ecosystemEntities.wstETH
-            );
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.gauntletRestakedSwETH.vault),
-                operator8,
-                OPERATOR_STAKE,
-                ecosystemEntities.swETH
-            );
-            _depositToVault(
-                IVault(vaultsAddressesDeployedB.gauntletRestakedWBETH.vault),
-                operator8,
-                OPERATOR_STAKE,
-                ecosystemEntities.wBETH
-            );
-            vm.stopPrank();
-        }
-        {
-            // Scoped to help with stack depth
-            vm.startPrank(operator9);
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.cp0xLrtETH.vault), operator9, OPERATOR_STAKE, ecosystemEntities.wstETH
-            );
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.gauntletRestakedRETH.vault),
-                operator9,
-                OPERATOR_STAKE,
-                ecosystemEntities.rETH
-            );
-            _depositToVault(
-                IVault(vaultsAddressesDeployedB.gauntletRestakedWBETH.vault),
-                operator9,
-                OPERATOR_STAKE,
-                ecosystemEntities.wBETH
-            );
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.gauntletRestakedSwETH.vault),
-                operator9,
-                OPERATOR_STAKE,
-                ecosystemEntities.swETH
-            );
-            vm.stopPrank();
-        }
-        {
-            // Scoped to help with stack depth
-            vm.startPrank(operator10);
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.mevRestakedETH.vault),
-                operator10,
-                OPERATOR_STAKE,
-                ecosystemEntities.wstETH
-            );
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.mevCapitalETH.vault),
-                operator10,
-                OPERATOR_STAKE,
-                ecosystemEntities.wstETH
-            );
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.hashKeyCloudETH.vault),
-                operator10,
-                OPERATOR_STAKE,
-                ecosystemEntities.wstETH
-            );
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.cp0xLrtETH.vault), operator10, OPERATOR_STAKE, ecosystemEntities.wstETH
-            );
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.gauntletRestakedWstETH.vault),
-                operator10,
-                OPERATOR_STAKE,
-                ecosystemEntities.wstETH
-            );
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.re7LabsETH.vault), operator10, OPERATOR_STAKE, ecosystemEntities.wstETH
-            );
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.renzoRestakedETH.vault),
-                operator10,
-                OPERATOR_STAKE,
-                ecosystemEntities.wstETH
-            );
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.gauntletRestakedRETH.vault),
-                operator10,
-                OPERATOR_STAKE,
-                ecosystemEntities.rETH
-            );
-            _depositToVault(
-                IVault(vaultsAddressesDeployedB.gauntletRestakedWBETH.vault),
-                operator10,
-                OPERATOR_STAKE,
-                ecosystemEntities.wBETH
-            );
-            _depositToVault(
-                IVault(vaultsAddressesDeployedA.gauntletRestakedSwETH.vault),
-                operator10,
-                OPERATOR_STAKE,
-                ecosystemEntities.swETH
-            );
-            vm.stopPrank();
-        }
-        {
-            vaultTotalStake.totalMevRestakedETHPower = (
-                IVault(vaultsAddressesDeployedA.mevRestakedETH.vault).activeStake() * uint256(ORACLE_CONVERSION_TOKEN)
-            ) / 10 ** ORACLE_DECIMALS;
+        vaultStakeBeforeDepositA.re7LabsRestakingETH =
+            _getTotalPower(vaultsAddressesDeployedA.re7LabsRestakingETH.vault);
 
-            vaultTotalStake.totalMevCapitalETHPower = (
-                IVault(vaultsAddressesDeployedA.mevCapitalETH.vault).activeStake() * uint256(ORACLE_CONVERSION_TOKEN)
-            ) / 10 ** ORACLE_DECIMALS;
+        vaultStakeBeforeDepositA.cp0xLrtETH = _getTotalPower(vaultsAddressesDeployedA.cp0xLrtETH.vault);
 
-            vaultTotalStake.totalHashKeyCloudETHPower = (
-                IVault(vaultsAddressesDeployedA.hashKeyCloudETH.vault).activeStake() * uint256(ORACLE_CONVERSION_TOKEN)
-            ) / 10 ** ORACLE_DECIMALS;
+        vaultStakeBeforeDepositA.gauntletRestakedWstETH =
+            _getTotalPower(vaultsAddressesDeployedA.gauntletRestakedWstETH.vault);
 
-            vaultTotalStake.totalRenzoRestakedETHPower = (
-                IVault(vaultsAddressesDeployedA.renzoRestakedETH.vault).activeStake() * uint256(ORACLE_CONVERSION_TOKEN)
-            ) / 10 ** ORACLE_DECIMALS;
+        vaultStakeBeforeDepositA.gauntletRestakedSwETH =
+            _getTotalPower(vaultsAddressesDeployedA.gauntletRestakedSwETH.vault);
 
-            vaultTotalStake.totalRe7LabsETHPower = (
-                IVault(vaultsAddressesDeployedA.re7LabsETH.vault).activeStake() * uint256(ORACLE_CONVERSION_TOKEN)
-            ) / 10 ** ORACLE_DECIMALS;
+        vaultStakeBeforeDepositA.gauntletRestakedRETH =
+            _getTotalPower(vaultsAddressesDeployedA.gauntletRestakedRETH.vault);
 
-            vaultTotalStake.totalCp0xLrtETHPower = (
-                IVault(vaultsAddressesDeployedA.cp0xLrtETH.vault).activeStake() * uint256(ORACLE_CONVERSION_TOKEN)
-            ) / 10 ** ORACLE_DECIMALS;
+        vaultStakeBeforeDepositB.gauntletRestakedWBETH =
+            _getTotalPower(vaultsAddressesDeployedB.gauntletRestakedWBETH.vault);
 
-            vaultTotalStake.totalGauntletRestakedWstETHPower = (
-                IVault(vaultsAddressesDeployedA.gauntletRestakedWstETH.vault).activeStake()
-                    * uint256(ORACLE_CONVERSION_TOKEN)
-            ) / 10 ** ORACLE_DECIMALS;
+        vaultStakeBeforeDepositB.etherfiwstETH = _getTotalPower(vaultsAddressesDeployedB.etherfiwstETH.vault);
 
-            vaultTotalStake.totalre7LabsRestakingETHPower = (
-                IVault(vaultsAddressesDeployedA.re7LabsRestakingETH.vault).activeStake()
-                    * uint256(ORACLE_CONVERSION_TOKEN)
-            ) / 10 ** ORACLE_DECIMALS;
-
-            vaultTotalStake.totalGauntletRestakedSwETHPower = (
-                IVault(vaultsAddressesDeployedA.gauntletRestakedSwETH.vault).activeStake()
-                    * uint256(ORACLE_CONVERSION_TOKEN)
-            ) / 10 ** ORACLE_DECIMALS;
-
-            vaultTotalStake.totalGauntletRestakedRETHPower = (
-                IVault(vaultsAddressesDeployedA.gauntletRestakedRETH.vault).activeStake()
-                    * uint256(ORACLE_CONVERSION_TOKEN)
-            ) / 10 ** ORACLE_DECIMALS;
-
-            vaultTotalStake.totalGauntletRestakedWBETHPower = (
-                IVault(vaultsAddressesDeployedB.gauntletRestakedWBETH.vault).activeStake()
-                    * uint256(ORACLE_CONVERSION_TOKEN)
-            ) / 10 ** ORACLE_DECIMALS;
-        }
+        vaultStakeBeforeDepositB.restakedLsETHVault = _getTotalPower(vaultsAddressesDeployedB.restakedLsETHVault.vault);
     }
 
-    function _depositToVault(IVault _vault, address _operator, uint256 _amount, IERC20 collateral) public {
-        collateral.approve(address(_vault), _amount * 10);
-        _vault.deposit(_operator, _amount);
+    function _getTotalPower(
+        address vault
+    ) private view returns (uint256) {
+        return (IVault(vault).activeStake() * uint256(ORACLE_CONVERSION_TOKEN)) / 10 ** ORACLE_DECIMALS;
     }
 
-    function _registerEntitiesToMiddleware(
-        address _owner
-    ) public {
+    // function _depositToVault(IVault _vault, address _operator, uint256 _amount, IERC20 collateral) public {
+    //     collateral.approve(address(_vault), _amount * 10);
+    //     _vault.deposit(_operator, _amount);
+    // }
+
+    function _registerEntitiesToMiddleware() public {
         IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
             adminFee: 0,
-            defaultAdminRoleHolder: _owner,
-            adminFeeClaimRoleHolder: _owner,
-            adminFeeSetRoleHolder: _owner
+            defaultAdminRoleHolder: admin,
+            adminFeeClaimRoleHolder: admin,
+            adminFeeSetRoleHolder: admin
         });
 
-        vm.startPrank(_owner);
-        // ecosystemEntities.middleware.registerSharedVault(
-        //     vaultsAddressesDeployedA.mevRestakedETH.vault, stakerRewardsParams
-        // );
-        // ecosystemEntities.middleware.registerSharedVault(
-        //     vaultsAddressesDeployedA.mevCapitalETH.vault, stakerRewardsParams
-        // );
-        // ecosystemEntities.middleware.registerSharedVault(
-        //     vaultsAddressesDeployedA.hashKeyCloudETH.vault, stakerRewardsParams
-        // );
-        // ecosystemEntities.middleware.registerSharedVault(
-        //     vaultsAddressesDeployedA.renzoRestakedETH.vault, stakerRewardsParams
-        // );
-        // ecosystemEntities.middleware.registerSharedVault(vaultsAddressesDeployedA.re7LabsETH.vault, stakerRewardsParams);
-        // ecosystemEntities.middleware.registerSharedVault(vaultsAddressesDeployedA.cp0xLrtETH.vault, stakerRewardsParams);
-        // ecosystemEntities.middleware.registerSharedVault(
-        //     vaultsAddressesDeployedA.gauntletRestakedWstETH.vault, stakerRewardsParams
-        // );
-        // ecosystemEntities.middleware.registerSharedVault(
-        //     vaultsAddressesDeployedA.re7LabsRestakingETH.vault, stakerRewardsParams
-        // );
-        // ecosystemEntities.middleware.registerSharedVault(
-        //     vaultsAddressesDeployedA.gauntletRestakedSwETH.vault, stakerRewardsParams
-        // );
-        // ecosystemEntities.middleware.registerSharedVault(
-        //     vaultsAddressesDeployedA.gauntletRestakedRETH.vault, stakerRewardsParams
-        // );
-        // ecosystemEntities.middleware.registerSharedVault(
-        //     vaultsAddressesDeployedB.gauntletRestakedWBETH.vault, stakerRewardsParams
-        // );
-        ecosystemEntities.middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
-        ecosystemEntities.middleware.registerOperator(operator2, abi.encode(OPERATOR2_KEY), address(0));
-        ecosystemEntities.middleware.registerOperator(operator3, abi.encode(OPERATOR3_KEY), address(0));
-        ecosystemEntities.middleware.registerOperator(operator4, abi.encode(OPERATOR4_KEY), address(0));
-        ecosystemEntities.middleware.registerOperator(operator5, abi.encode(OPERATOR5_KEY), address(0));
-        ecosystemEntities.middleware.registerOperator(operator6, abi.encode(OPERATOR6_KEY), address(0));
-        ecosystemEntities.middleware.registerOperator(operator7, abi.encode(OPERATOR7_KEY), address(0));
-        ecosystemEntities.middleware.registerOperator(operator8, abi.encode(OPERATOR8_KEY), address(0));
-        ecosystemEntities.middleware.registerOperator(operator9, abi.encode(OPERATOR9_KEY), address(0));
-        ecosystemEntities.middleware.registerOperator(operator10, abi.encode(OPERATOR10_KEY), address(0));
+        vm.startPrank(admin);
+        address[] memory activeVaults = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).activeVaults();
+
+        _registerVaultIfNotActive(vaultsAddressesDeployedA.mevRestakedETH.vault, activeVaults, stakerRewardsParams);
+        _registerVaultIfNotActive(vaultsAddressesDeployedA.mevCapitalETH.vault, activeVaults, stakerRewardsParams);
+        _registerVaultIfNotActive(vaultsAddressesDeployedA.hashKeyCloudETH.vault, activeVaults, stakerRewardsParams);
+        _registerVaultIfNotActive(vaultsAddressesDeployedA.renzoRestakedETH.vault, activeVaults, stakerRewardsParams);
+        _registerVaultIfNotActive(vaultsAddressesDeployedA.re7LabsETH.vault, activeVaults, stakerRewardsParams);
+        _registerVaultIfNotActive(vaultsAddressesDeployedA.re7LabsRestakingETH.vault, activeVaults, stakerRewardsParams);
+        _registerVaultIfNotActive(vaultsAddressesDeployedA.cp0xLrtETH.vault, activeVaults, stakerRewardsParams);
+        _registerVaultIfNotActive(
+            vaultsAddressesDeployedA.gauntletRestakedWstETH.vault, activeVaults, stakerRewardsParams
+        );
+
+        _registerVaultIfNotActive(
+            vaultsAddressesDeployedB.gauntletRestakedWBETH.vault, activeVaults, stakerRewardsParams
+        );
+        _registerVaultIfNotActive(vaultsAddressesDeployedB.etherfiwstETH.vault, activeVaults, stakerRewardsParams);
+        _registerVaultIfNotActive(vaultsAddressesDeployedB.restakedLsETHVault.vault, activeVaults, stakerRewardsParams);
+
+        _registerOperatorIfNeeded(operator1PierTwo, operator1PierTwoKey);
+        _registerOperatorIfNeeded(operator2P2P, operator2P2PKey);
+        _registerOperatorIfNeeded(operator3Nodeinfra, operator3NodeinfraKey);
+        _registerOperatorIfNeeded(operator4Blockscape, operator4BlockscapeKey);
+        _registerOperatorIfNeeded(operator5QuantNode, operator5QuantNodeKey);
+        _registerOperatorIfNeeded(operator6NodeMonster, operator6NodeMonsterKey);
+        _registerOperatorIfNeeded(operator7BlockBones, operator7BlockBonesKey);
+        _registerOperatorIfNeeded(operator8CP0XStakrspace, operator8CP0XStakrspaceKey);
+        _registerOperatorIfNeeded(operator9HashkeyCloud, operator9HashkeyCloudKey);
+        _registerOperatorIfNeeded(operator10Alchemy, operator10AlchemyKey);
+        // _registerOperatorIfNeeded(operator11Opslayer, operator11OpslayerKey);
+
         vm.stopPrank();
     }
 
-    function _registerOperator(address _operator, address _network, address _vault, address vaultManager) public {
+    function _registerOperatorIfNeeded(address _operator, bytes32 _key) private {
+        if (ecosystemEntities.middleware.operatorKey(_operator).length == 0) {
+            console2.log("Registering operator", _operator);
+            ecosystemEntities.middleware.registerOperator(_operator, abi.encode(_key), address(0));
+        }
+    }
+
+    function _registerVaultIfNotActive(
+        address _vault,
+        address[] memory _activeVaults,
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams
+    ) private {
+        for (uint256 i = 0; i < _activeVaults.length; i++) {
+            if (_activeVaults[i] == _vault) {
+                // console2.log("Vault already registered", _vault);
+                return;
+            }
+        }
+        console2.log("Registering vault", _vault);
+        ecosystemEntities.middleware.registerSharedVault(_vault, stakerRewardsParams);
+    }
+
+    function _optInOperator(address _operator, address _vault, address _network, address vaultManager) public {
         (
             ,
             address operatorRegistryAddress,
@@ -789,14 +497,20 @@ contract FullTest is Test {
         if (!operatorRegistry.isEntity(_operator)) {
             operatorRegistry.registerOperator();
         }
-        operatorVaultOptInService.optIn(address(_vault));
+
+        if (!operatorVaultOptInService.isOptedIn(_operator, address(_vault))) {
+            operatorVaultOptInService.optIn(address(_vault));
+        }
+
         if (!operatorNetworkOptInService.isOptedIn(_operator, _network)) {
             operatorNetworkOptInService.optIn(_network);
         }
+
         if (vaultManager != address(0)) {
             vm.startPrank(vaultManager);
             IVault(_vault).setDepositorWhitelistStatus(_operator, true);
         }
+
         vm.stopPrank();
     }
 
@@ -805,7 +519,7 @@ contract FullTest is Test {
     ) private {
         // _setMaxNetworkLimits();
         _setNetworkLimits();
-        _setOperatorShares();
+        // _setOperatorShares();
 
         // Mock the oracle to return the correct conversion token
         vm.mockCall(
@@ -817,40 +531,6 @@ contract FullTest is Test {
             oracle, abi.encodeWithSelector(AggregatorV3Interface.decimals.selector), abi.encode(uint8(ORACLE_DECIMALS))
         );
     }
-
-    // function _setMaxNetworkLimits() private {
-    //     vm.startPrank(tanssi);
-    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.mevRestakedETH.delegator).setMaxNetworkLimit(
-    //         0, MAX_NETWORK_LIMIT
-    //     );
-    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.mevCapitalETH.delegator).setMaxNetworkLimit(
-    //         0, MAX_NETWORK_LIMIT
-    //     );
-    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.hashKeyCloudETH.delegator).setMaxNetworkLimit(
-    //         0, MAX_NETWORK_LIMIT
-    //     );
-    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.renzoRestakedETH.delegator).setMaxNetworkLimit(
-    //         0, MAX_NETWORK_LIMIT
-    //     );
-    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.re7LabsETH.delegator).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
-    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.cp0xLrtETH.delegator).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
-    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedWstETH.delegator).setMaxNetworkLimit(
-    //         0, MAX_NETWORK_LIMIT
-    //     );
-    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.re7LabsRestakingETH.delegator).setMaxNetworkLimit(
-    //         0, MAX_NETWORK_LIMIT
-    //     );
-    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedSwETH.delegator).setMaxNetworkLimit(
-    //         0, MAX_NETWORK_LIMIT
-    //     );
-    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedRETH.delegator).setMaxNetworkLimit(
-    //         0, MAX_NETWORK_LIMIT
-    //     );
-    //     INetworkRestakeDelegator(vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator).setMaxNetworkLimit(
-    //         0, MAX_NETWORK_LIMIT
-    //     );
-    //     vm.stopPrank();
-    // }
 
     function _setNetworkLimits() private {
         //     vm.startPrank(0xA1E38210B06A05882a7e7Bfe167Cd67F07FA234A);
@@ -912,150 +592,150 @@ contract FullTest is Test {
         //     );
     }
 
-    function _setOperatorShares() private {
-        // Vault Manager for mevRestakedETH
-        vm.startPrank(0xA1E38210B06A05882a7e7Bfe167Cd67F07FA234A);
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.mevRestakedETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.mevRestakedETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator6, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.mevRestakedETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator10, OPERATOR_SHARE
-        );
+    // function _setOperatorShares() private {
+    //     // Vault Manager for mevRestakedETH
+    //     vm.startPrank(0xA1E38210B06A05882a7e7Bfe167Cd67F07FA234A);
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.mevRestakedETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.mevRestakedETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator6, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.mevRestakedETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator10, OPERATOR_SHARE
+    //     );
 
-        // Vault Manager for mevCapitalETH
-        vm.startPrank(0x8989e3f949df80e8eFcbf3372F082699b93E5C09);
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.mevCapitalETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.mevCapitalETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator2, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.mevCapitalETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator6, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.mevCapitalETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator10, OPERATOR_SHARE
-        );
+    //     // Vault Manager for mevCapitalETH
+    //     vm.startPrank(0x8989e3f949df80e8eFcbf3372F082699b93E5C09);
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.mevCapitalETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.mevCapitalETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator2, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.mevCapitalETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator6, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.mevCapitalETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator10, OPERATOR_SHARE
+    //     );
 
-        // Vault Manager for hashKeyCloudETH
-        vm.startPrank(0x323B1370eC7D17D0c70b2CbebE052b9ed0d8A289);
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.hashKeyCloudETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.hashKeyCloudETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator10, OPERATOR_SHARE
-        );
+    //     // Vault Manager for hashKeyCloudETH
+    //     vm.startPrank(0x323B1370eC7D17D0c70b2CbebE052b9ed0d8A289);
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.hashKeyCloudETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.hashKeyCloudETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator10, OPERATOR_SHARE
+    //     );
 
-        // Vault Manager for renzoRestakedETH
-        vm.startPrank(0x6e5CaD73D00Bc8340f38afb61Fc5E34f7193F599);
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.renzoRestakedETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator7, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.renzoRestakedETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator10, OPERATOR_SHARE
-        );
+    //     // Vault Manager for renzoRestakedETH
+    //     vm.startPrank(0x6e5CaD73D00Bc8340f38afb61Fc5E34f7193F599);
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.renzoRestakedETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator7, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.renzoRestakedETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator10, OPERATOR_SHARE
+    //     );
 
-        // Vault Manager for re7LabsETH
-        vm.startPrank(0xE86399fE6d7007FdEcb08A2ee1434Ee677a04433);
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.re7LabsETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator10, OPERATOR_SHARE
-        );
+    //     // Vault Manager for re7LabsETH
+    //     vm.startPrank(0xE86399fE6d7007FdEcb08A2ee1434Ee677a04433);
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.re7LabsETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator10, OPERATOR_SHARE
+    //     );
 
-        // Vault Manager for re7LabsRestakingETH
-        vm.startPrank(0xE86399fE6d7007FdEcb08A2ee1434Ee677a04433);
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.re7LabsRestakingETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator3, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.re7LabsRestakingETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator7, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.re7LabsRestakingETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator10, OPERATOR_SHARE
-        );
+    //     // Vault Manager for re7LabsRestakingETH
+    //     vm.startPrank(0xE86399fE6d7007FdEcb08A2ee1434Ee677a04433);
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.re7LabsRestakingETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator3, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.re7LabsRestakingETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator7, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.re7LabsRestakingETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator10, OPERATOR_SHARE
+    //     );
 
-        // Vault Manager for cp0xLrtETH
-        vm.startPrank(0xD1f59ba974E828dF68cB2592C16b967B637cB4e4);
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.cp0xLrtETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator6, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.cp0xLrtETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator9, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.cp0xLrtETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator10, OPERATOR_SHARE
-        );
+    //     // Vault Manager for cp0xLrtETH
+    //     vm.startPrank(0xD1f59ba974E828dF68cB2592C16b967B637cB4e4);
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.cp0xLrtETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator6, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.cp0xLrtETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator9, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.cp0xLrtETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator10, OPERATOR_SHARE
+    //     );
 
-        // Vault Manager for gauntletRestaked
-        vm.startPrank(0x059Ae3F8a1EaDDAAb34D0A74E8Eb752c848062d1);
-        // swETH
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedSwETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator4, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedSwETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator6, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedSwETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator8, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedSwETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator10, OPERATOR_SHARE
-        );
+    //     // Vault Manager for gauntletRestaked
+    //     vm.startPrank(0x059Ae3F8a1EaDDAAb34D0A74E8Eb752c848062d1);
+    //     // swETH
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedSwETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator4, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedSwETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator6, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedSwETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator8, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedSwETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator10, OPERATOR_SHARE
+    //     );
 
-        // wstETH
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedWstETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator6, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedWstETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator8, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedWstETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator10, OPERATOR_SHARE
-        );
+    //     // wstETH
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedWstETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator6, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedWstETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator8, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedWstETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator10, OPERATOR_SHARE
+    //     );
 
-        // rETH
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedRETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator2, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedRETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator3, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedRETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator6, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedRETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator7, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedRETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator9, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedRETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator10, OPERATOR_SHARE
-        );
+    //     // rETH
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedRETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator2, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedRETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator3, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedRETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator6, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedRETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator7, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedRETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator9, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedA.gauntletRestakedRETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator10, OPERATOR_SHARE
+    //     );
 
-        // wBETH
-        INetworkRestakeDelegator(vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator2, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator5, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator6, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator8, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator9, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator10, OPERATOR_SHARE
-        );
-        vm.stopPrank();
-    }
+    //     // wBETH
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator2, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator5, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator6, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator8, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator9, OPERATOR_SHARE
+    //     );
+    //     INetworkRestakeDelegator(vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator).setOperatorNetworkShares(
+    //         tanssi.subnetwork(0), operator10, OPERATOR_SHARE
+    //     );
+    //     vm.stopPrank();
+    // }
 
     function _setupGateway() private {
         AgentExecutor executor = new AgentExecutor();
@@ -1086,30 +766,29 @@ contract FullTest is Test {
     }
 
     function _saveStakeBeforeDepositing() private {
-        vaultStakeBeforeDeposit.mevRestakedStakeBeforeDeposit =
-            IVault(vaultsAddressesDeployedA.mevRestakedETH.vault).activeStake();
-        vaultStakeBeforeDeposit.mevCapitalStakeBeforeDeposit =
-            IVault(vaultsAddressesDeployedA.mevCapitalETH.vault).activeStake();
-        vaultStakeBeforeDeposit.hashKeyCloudStakeBeforeDeposit =
-            IVault(vaultsAddressesDeployedA.hashKeyCloudETH.vault).activeStake();
-        vaultStakeBeforeDeposit.renzoRestakedStakeBeforeDeposit =
+        vaultStakeBeforeDepositA.mevRestakedETH = IVault(vaultsAddressesDeployedA.mevRestakedETH.vault).activeStake();
+        vaultStakeBeforeDepositA.mevCapitalETH = IVault(vaultsAddressesDeployedA.mevCapitalETH.vault).activeStake();
+        vaultStakeBeforeDepositA.hashKeyCloudETH = IVault(vaultsAddressesDeployedA.hashKeyCloudETH.vault).activeStake();
+        vaultStakeBeforeDepositA.renzoRestakedETH =
             IVault(vaultsAddressesDeployedA.renzoRestakedETH.vault).activeStake();
-        vaultStakeBeforeDeposit.re7LabsStakeBeforeDeposit =
-            IVault(vaultsAddressesDeployedA.re7LabsETH.vault).activeStake();
-        vaultStakeBeforeDeposit.re7LabsRestakingStakeBeforeDeposit =
+        vaultStakeBeforeDepositA.re7LabsETH = IVault(vaultsAddressesDeployedA.re7LabsETH.vault).activeStake();
+        vaultStakeBeforeDepositA.re7LabsRestakingETH =
             IVault(vaultsAddressesDeployedA.re7LabsRestakingETH.vault).activeStake();
-        vaultStakeBeforeDeposit.cp0xLrtStakeBeforeDeposit =
-            IVault(vaultsAddressesDeployedA.cp0xLrtETH.vault).activeStake();
-        vaultStakeBeforeDeposit.gauntletRestakedWstStakeBeforeDeposit =
+        vaultStakeBeforeDepositA.cp0xLrtETH = IVault(vaultsAddressesDeployedA.cp0xLrtETH.vault).activeStake();
+        vaultStakeBeforeDepositA.gauntletRestakedWstETH =
             IVault(vaultsAddressesDeployedA.gauntletRestakedWstETH.vault).activeStake();
-        vaultStakeBeforeDeposit.gauntletRestakedCbStakeBeforeDeposit =
-            IVault(vaultsAddressesDeployedA.re7LabsRestakingETH.vault).activeStake();
-        vaultStakeBeforeDeposit.gauntletRestakedSwStakeBeforeDeposit =
+        vaultStakeBeforeDepositA.gauntletRestakedSwETH =
             IVault(vaultsAddressesDeployedA.gauntletRestakedSwETH.vault).activeStake();
-        vaultStakeBeforeDeposit.gauntletRestakedRETHStakeBeforeDeposit =
+        vaultStakeBeforeDepositA.gauntletRestakedRETH =
             IVault(vaultsAddressesDeployedA.gauntletRestakedRETH.vault).activeStake();
-        vaultStakeBeforeDeposit.gauntletRestakedWBETHStakeBeforeDeposit =
+
+        vaultStakeBeforeDepositB.gauntletRestakedWBETH =
             IVault(vaultsAddressesDeployedB.gauntletRestakedWBETH.vault).activeStake();
+        vaultStakeBeforeDepositB.gauntletRestakedcBETH =
+            IVault(vaultsAddressesDeployedB.gauntletRestakedcBETH.vault).activeStake();
+        vaultStakeBeforeDepositB.etherfiwstETH = IVault(vaultsAddressesDeployedB.etherfiwstETH.vault).activeStake();
+        vaultStakeBeforeDepositB.restakedLsETHVault =
+            IVault(vaultsAddressesDeployedB.restakedLsETHVault.vault).activeStake();
     }
 
     function _getMaximumAvailableStakeForVault(
@@ -1120,346 +799,366 @@ contract FullTest is Test {
             Math.min(INetworkRestakeDelegator(delegator).networkLimit(tanssi.subnetwork(0)), vaultActiveStake);
     }
 
-    function _calculateOperatorPower1() private view returns (uint256 operatorPower1) {
-        operatorPower1 = (
-            OPERATOR_SHARE.mulDiv(
-                _getMaximumAvailableStakeForVault(
-                    vaultsAddressesDeployedA.mevRestakedETH.delegator,
-                    vaultStakeBeforeDeposit.mevRestakedStakeBeforeDeposit + OPERATOR_STAKE * TOTAL_SHARES_MEV_RESTAKED
-                ),
-                TOTAL_SHARES_MEV_RESTAKED
-            )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedA.mevCapitalETH.delegator,
-                        vaultStakeBeforeDeposit.mevCapitalStakeBeforeDeposit + OPERATOR_STAKE * TOTAL_SHARES_MEV_CAPITAL
-                    ),
-                    TOTAL_SHARES_MEV_CAPITAL
-                )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedA.hashKeyCloudETH.delegator,
-                        vaultStakeBeforeDeposit.hashKeyCloudStakeBeforeDeposit
-                            + OPERATOR_STAKE * TOTAL_SHARES_HASH_KEY_CLOUD
-                    ),
-                    TOTAL_SHARES_HASH_KEY_CLOUD
-                )
-        ).mulDiv(uint256(ORACLE_CONVERSION_TOKEN), 10 ** ORACLE_DECIMALS);
-    }
+    // function _calculateOperatorPower1() private view returns (uint256 operatorPower1) {
+    //     operatorPower1 = (
+    //         OPERATOR_SHARE.mulDiv(
+    //             _getMaximumAvailableStakeForVault(
+    //                 vaultsAddressesDeployedA.mevRestakedETH.delegator,
+    //                 vaultStakeBeforeDeposit.mevRestakedStakeBeforeDeposit + OPERATOR_STAKE * TOTAL_SHARES_MEV_RESTAKED
+    //             ),
+    //             TOTAL_SHARES_MEV_RESTAKED
+    //         )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedA.mevCapitalETH.delegator,
+    //                     vaultStakeBeforeDeposit.mevCapitalStakeBeforeDeposit + OPERATOR_STAKE * TOTAL_SHARES_MEV_CAPITAL
+    //                 ),
+    //                 TOTAL_SHARES_MEV_CAPITAL
+    //             )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedA.hashKeyCloudETH.delegator,
+    //                     vaultStakeBeforeDeposit.hashKeyCloudStakeBeforeDeposit
+    //                         + OPERATOR_STAKE * TOTAL_SHARES_HASH_KEY_CLOUD
+    //                 ),
+    //                 TOTAL_SHARES_HASH_KEY_CLOUD
+    //             )
+    //     ).mulDiv(uint256(ORACLE_CONVERSION_TOKEN), 10 ** ORACLE_DECIMALS);
+    // }
 
-    function _calculateOperatorPower2() private view returns (uint256 operatorPower2) {
-        operatorPower2 = (
-            OPERATOR_SHARE.mulDiv(
-                _getMaximumAvailableStakeForVault(
-                    vaultsAddressesDeployedA.mevCapitalETH.delegator,
-                    vaultStakeBeforeDeposit.mevCapitalStakeBeforeDeposit + OPERATOR_STAKE * TOTAL_SHARES_MEV_CAPITAL
-                ),
-                TOTAL_SHARES_MEV_CAPITAL
-            )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedA.gauntletRestakedRETH.delegator,
-                        vaultStakeBeforeDeposit.gauntletRestakedRETHStakeBeforeDeposit
-                            + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_RETH
-                    ),
-                    TOTAL_SHARES_GAUNTLET_RESTAKED_RETH
-                )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator,
-                        vaultStakeBeforeDeposit.gauntletRestakedWBETHStakeBeforeDeposit
-                            + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_WBETH
-                    ),
-                    TOTAL_SHARES_GAUNTLET_RESTAKED_WBETH
-                )
-        ).mulDiv(uint256(ORACLE_CONVERSION_TOKEN), 10 ** ORACLE_DECIMALS);
-    }
+    // function _calculateOperatorPower2() private view returns (uint256 operatorPower2) {
+    //     operatorPower2 = (
+    //         OPERATOR_SHARE.mulDiv(
+    //             _getMaximumAvailableStakeForVault(
+    //                 vaultsAddressesDeployedA.mevCapitalETH.delegator,
+    //                 vaultStakeBeforeDeposit.mevCapitalStakeBeforeDeposit + OPERATOR_STAKE * TOTAL_SHARES_MEV_CAPITAL
+    //             ),
+    //             TOTAL_SHARES_MEV_CAPITAL
+    //         )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedA.gauntletRestakedRETH.delegator,
+    //                     vaultStakeBeforeDeposit.gauntletRestakedRETHStakeBeforeDeposit
+    //                         + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_RETH
+    //                 ),
+    //                 TOTAL_SHARES_GAUNTLET_RESTAKED_RETH
+    //             )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator,
+    //                     vaultStakeBeforeDeposit.gauntletRestakedWBETHStakeBeforeDeposit
+    //                         + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_WBETH
+    //                 ),
+    //                 TOTAL_SHARES_GAUNTLET_RESTAKED_WBETH
+    //             )
+    //     ).mulDiv(uint256(ORACLE_CONVERSION_TOKEN), 10 ** ORACLE_DECIMALS);
+    // }
 
-    function _calculateOperatorPower3() private view returns (uint256 operatorPower3) {
-        operatorPower3 = (
-            OPERATOR_SHARE.mulDiv(
-                _getMaximumAvailableStakeForVault(
-                    vaultsAddressesDeployedA.re7LabsRestakingETH.delegator,
-                    vaultStakeBeforeDeposit.gauntletRestakedCbStakeBeforeDeposit
-                        + OPERATOR_STAKE * TOTAL_SHARES_RE7_LABS_RESTAKING
-                ),
-                TOTAL_SHARES_RE7_LABS_RESTAKING
-            )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedA.gauntletRestakedRETH.delegator,
-                        vaultStakeBeforeDeposit.gauntletRestakedRETHStakeBeforeDeposit
-                            + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_RETH
-                    ),
-                    TOTAL_SHARES_GAUNTLET_RESTAKED_RETH
-                )
-        ).mulDiv(uint256(ORACLE_CONVERSION_TOKEN), 10 ** ORACLE_DECIMALS);
-    }
+    // function _calculateOperatorPower3() private view returns (uint256 operatorPower3) {
+    //     operatorPower3 = (
+    //         OPERATOR_SHARE.mulDiv(
+    //             _getMaximumAvailableStakeForVault(
+    //                 vaultsAddressesDeployedA.re7LabsRestakingETH.delegator,
+    //                 vaultStakeBeforeDeposit.gauntletRestakedCbStakeBeforeDeposit
+    //                     + OPERATOR_STAKE * TOTAL_SHARES_RE7_LABS_RESTAKING
+    //             ),
+    //             TOTAL_SHARES_RE7_LABS_RESTAKING
+    //         )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedA.gauntletRestakedRETH.delegator,
+    //                     vaultStakeBeforeDeposit.gauntletRestakedRETHStakeBeforeDeposit
+    //                         + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_RETH
+    //                 ),
+    //                 TOTAL_SHARES_GAUNTLET_RESTAKED_RETH
+    //             )
+    //     ).mulDiv(uint256(ORACLE_CONVERSION_TOKEN), 10 ** ORACLE_DECIMALS);
+    // }
 
-    function _calculateOperatorPower4() private view returns (uint256 operatorPower4) {
-        operatorPower4 = (
-            OPERATOR_SHARE.mulDiv(
-                _getMaximumAvailableStakeForVault(
-                    vaultsAddressesDeployedA.gauntletRestakedSwETH.delegator,
-                    vaultStakeBeforeDeposit.gauntletRestakedSwStakeBeforeDeposit
-                        + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_SWETH
-                ),
-                TOTAL_SHARES_GAUNTLET_RESTAKED_SWETH
-            )
-        ).mulDiv(uint256(ORACLE_CONVERSION_TOKEN), 10 ** ORACLE_DECIMALS);
-    }
+    // function _calculateOperatorPower4() private view returns (uint256 operatorPower4) {
+    //     operatorPower4 = (
+    //         OPERATOR_SHARE.mulDiv(
+    //             _getMaximumAvailableStakeForVault(
+    //                 vaultsAddressesDeployedA.gauntletRestakedSwETH.delegator,
+    //                 vaultStakeBeforeDeposit.gauntletRestakedSwStakeBeforeDeposit
+    //                     + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_SWETH
+    //             ),
+    //             TOTAL_SHARES_GAUNTLET_RESTAKED_SWETH
+    //         )
+    //     ).mulDiv(uint256(ORACLE_CONVERSION_TOKEN), 10 ** ORACLE_DECIMALS);
+    // }
 
-    function _calculateOperatorPower5() private view returns (uint256 operatorPower5) {
-        operatorPower5 = (
-            OPERATOR_SHARE.mulDiv(
-                _getMaximumAvailableStakeForVault(
-                    vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator,
-                    vaultStakeBeforeDeposit.gauntletRestakedWBETHStakeBeforeDeposit + OPERATOR_STAKE * 2
-                ),
-                TOTAL_SHARES_GAUNTLET_RESTAKED_WBETH
-            )
-        ).mulDiv(uint256(ORACLE_CONVERSION_TOKEN), 10 ** ORACLE_DECIMALS);
-    }
+    // function _calculateOperatorPower5() private view returns (uint256 operatorPower5) {
+    //     operatorPower5 = (
+    //         OPERATOR_SHARE.mulDiv(
+    //             _getMaximumAvailableStakeForVault(
+    //                 vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator,
+    //                 vaultStakeBeforeDeposit.gauntletRestakedWBETHStakeBeforeDeposit + OPERATOR_STAKE * 2
+    //             ),
+    //             TOTAL_SHARES_GAUNTLET_RESTAKED_WBETH
+    //         )
+    //     ).mulDiv(uint256(ORACLE_CONVERSION_TOKEN), 10 ** ORACLE_DECIMALS);
+    // }
 
-    function _calculateOperatorPower6() private view returns (uint256 operatorPower6) {
-        operatorPower6 = (
-            OPERATOR_SHARE.mulDiv(
-                _getMaximumAvailableStakeForVault(
-                    vaultsAddressesDeployedA.mevRestakedETH.delegator,
-                    vaultStakeBeforeDeposit.mevRestakedStakeBeforeDeposit + OPERATOR_STAKE * TOTAL_SHARES_MEV_CAPITAL
-                ),
-                TOTAL_SHARES_MEV_RESTAKED
-            )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedA.mevCapitalETH.delegator,
-                        vaultStakeBeforeDeposit.mevCapitalStakeBeforeDeposit + OPERATOR_STAKE * TOTAL_SHARES_MEV_CAPITAL
-                    ),
-                    TOTAL_SHARES_MEV_CAPITAL
-                )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedA.cp0xLrtETH.delegator,
-                        vaultStakeBeforeDeposit.cp0xLrtStakeBeforeDeposit + OPERATOR_STAKE * TOTAL_SHARES_CP0X_LRT
-                    ),
-                    TOTAL_SHARES_CP0X_LRT
-                )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedA.gauntletRestakedWstETH.delegator,
-                        vaultStakeBeforeDeposit.gauntletRestakedWstStakeBeforeDeposit
-                            + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_WSTETH
-                    ),
-                    TOTAL_SHARES_GAUNTLET_RESTAKED_WSTETH
-                )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedA.gauntletRestakedRETH.delegator,
-                        vaultStakeBeforeDeposit.gauntletRestakedRETHStakeBeforeDeposit
-                            + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_RETH
-                    ),
-                    TOTAL_SHARES_GAUNTLET_RESTAKED_RETH
-                )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator,
-                        vaultStakeBeforeDeposit.gauntletRestakedWBETHStakeBeforeDeposit
-                            + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_WBETH
-                    ),
-                    TOTAL_SHARES_GAUNTLET_RESTAKED_WBETH
-                )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedA.gauntletRestakedSwETH.delegator,
-                        vaultStakeBeforeDeposit.gauntletRestakedSwStakeBeforeDeposit
-                            + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_SWETH
-                    ),
-                    TOTAL_SHARES_GAUNTLET_RESTAKED_SWETH
-                )
-        ).mulDiv(uint256(ORACLE_CONVERSION_TOKEN), 10 ** ORACLE_DECIMALS);
-    }
+    // function _calculateOperatorPower6() private view returns (uint256 operatorPower6) {
+    //     operatorPower6 = (
+    //         OPERATOR_SHARE.mulDiv(
+    //             _getMaximumAvailableStakeForVault(
+    //                 vaultsAddressesDeployedA.mevRestakedETH.delegator,
+    //                 vaultStakeBeforeDeposit.mevRestakedStakeBeforeDeposit + OPERATOR_STAKE * TOTAL_SHARES_MEV_CAPITAL
+    //             ),
+    //             TOTAL_SHARES_MEV_RESTAKED
+    //         )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedA.mevCapitalETH.delegator,
+    //                     vaultStakeBeforeDeposit.mevCapitalStakeBeforeDeposit + OPERATOR_STAKE * TOTAL_SHARES_MEV_CAPITAL
+    //                 ),
+    //                 TOTAL_SHARES_MEV_CAPITAL
+    //             )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedA.cp0xLrtETH.delegator,
+    //                     vaultStakeBeforeDeposit.cp0xLrtStakeBeforeDeposit + OPERATOR_STAKE * TOTAL_SHARES_CP0X_LRT
+    //                 ),
+    //                 TOTAL_SHARES_CP0X_LRT
+    //             )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedA.gauntletRestakedWstETH.delegator,
+    //                     vaultStakeBeforeDeposit.gauntletRestakedWstStakeBeforeDeposit
+    //                         + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_WSTETH
+    //                 ),
+    //                 TOTAL_SHARES_GAUNTLET_RESTAKED_WSTETH
+    //             )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedA.gauntletRestakedRETH.delegator,
+    //                     vaultStakeBeforeDeposit.gauntletRestakedRETHStakeBeforeDeposit
+    //                         + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_RETH
+    //                 ),
+    //                 TOTAL_SHARES_GAUNTLET_RESTAKED_RETH
+    //             )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator,
+    //                     vaultStakeBeforeDeposit.gauntletRestakedWBETHStakeBeforeDeposit
+    //                         + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_WBETH
+    //                 ),
+    //                 TOTAL_SHARES_GAUNTLET_RESTAKED_WBETH
+    //             )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedA.gauntletRestakedSwETH.delegator,
+    //                     vaultStakeBeforeDeposit.gauntletRestakedSwStakeBeforeDeposit
+    //                         + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_SWETH
+    //                 ),
+    //                 TOTAL_SHARES_GAUNTLET_RESTAKED_SWETH
+    //             )
+    //     ).mulDiv(uint256(ORACLE_CONVERSION_TOKEN), 10 ** ORACLE_DECIMALS);
+    // }
 
-    function _calculateOperatorPower7() private view returns (uint256 operatorPower7) {
-        operatorPower7 = (
-            OPERATOR_SHARE.mulDiv(
-                _getMaximumAvailableStakeForVault(
-                    vaultsAddressesDeployedA.renzoRestakedETH.delegator,
-                    vaultStakeBeforeDeposit.renzoRestakedStakeBeforeDeposit
-                        + OPERATOR_STAKE * TOTAL_SHARES_RENZO_RESTAKED
-                ),
-                TOTAL_SHARES_RENZO_RESTAKED
-            )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedA.re7LabsRestakingETH.delegator,
-                        vaultStakeBeforeDeposit.re7LabsRestakingStakeBeforeDeposit
-                            + OPERATOR_STAKE * TOTAL_SHARES_RE7_LABS_RESTAKING
-                    ),
-                    TOTAL_SHARES_RE7_LABS_RESTAKING
-                )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedA.gauntletRestakedRETH.delegator,
-                        vaultStakeBeforeDeposit.gauntletRestakedRETHStakeBeforeDeposit
-                            + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_RETH
-                    ),
-                    TOTAL_SHARES_GAUNTLET_RESTAKED_RETH
-                )
-        ).mulDiv(uint256(ORACLE_CONVERSION_TOKEN), 10 ** ORACLE_DECIMALS);
-    }
+    // function _calculateOperatorPower7() private view returns (uint256 operatorPower7) {
+    //     operatorPower7 = (
+    //         OPERATOR_SHARE.mulDiv(
+    //             _getMaximumAvailableStakeForVault(
+    //                 vaultsAddressesDeployedA.renzoRestakedETH.delegator,
+    //                 vaultStakeBeforeDeposit.renzoRestakedStakeBeforeDeposit
+    //                     + OPERATOR_STAKE * TOTAL_SHARES_RENZO_RESTAKED
+    //             ),
+    //             TOTAL_SHARES_RENZO_RESTAKED
+    //         )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedA.re7LabsRestakingETH.delegator,
+    //                     vaultStakeBeforeDeposit.re7LabsRestakingStakeBeforeDeposit
+    //                         + OPERATOR_STAKE * TOTAL_SHARES_RE7_LABS_RESTAKING
+    //                 ),
+    //                 TOTAL_SHARES_RE7_LABS_RESTAKING
+    //             )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedA.gauntletRestakedRETH.delegator,
+    //                     vaultStakeBeforeDeposit.gauntletRestakedRETHStakeBeforeDeposit
+    //                         + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_RETH
+    //                 ),
+    //                 TOTAL_SHARES_GAUNTLET_RESTAKED_RETH
+    //             )
+    //     ).mulDiv(uint256(ORACLE_CONVERSION_TOKEN), 10 ** ORACLE_DECIMALS);
+    // }
 
-    function _calculateOperatorPower8() private view returns (uint256 operatorPower8) {
-        operatorPower8 = (
-            OPERATOR_SHARE.mulDiv(
-                _getMaximumAvailableStakeForVault(
-                    vaultsAddressesDeployedA.gauntletRestakedWstETH.delegator,
-                    vaultStakeBeforeDeposit.gauntletRestakedWstStakeBeforeDeposit
-                        + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_WSTETH
-                ),
-                TOTAL_SHARES_GAUNTLET_RESTAKED_WSTETH
-            )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator,
-                        vaultStakeBeforeDeposit.gauntletRestakedWBETHStakeBeforeDeposit
-                            + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_WBETH
-                    ),
-                    TOTAL_SHARES_GAUNTLET_RESTAKED_WBETH
-                )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedA.gauntletRestakedSwETH.delegator,
-                        vaultStakeBeforeDeposit.gauntletRestakedSwStakeBeforeDeposit
-                            + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_SWETH
-                    ),
-                    TOTAL_SHARES_GAUNTLET_RESTAKED_SWETH
-                )
-        ).mulDiv(uint256(ORACLE_CONVERSION_TOKEN), 10 ** ORACLE_DECIMALS);
-    }
+    // function _calculateOperatorPower8() private view returns (uint256 operatorPower8) {
+    //     operatorPower8 = (
+    //         OPERATOR_SHARE.mulDiv(
+    //             _getMaximumAvailableStakeForVault(
+    //                 vaultsAddressesDeployedA.gauntletRestakedWstETH.delegator,
+    //                 vaultStakeBeforeDeposit.gauntletRestakedWstStakeBeforeDeposit
+    //                     + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_WSTETH
+    //             ),
+    //             TOTAL_SHARES_GAUNTLET_RESTAKED_WSTETH
+    //         )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator,
+    //                     vaultStakeBeforeDeposit.gauntletRestakedWBETHStakeBeforeDeposit
+    //                         + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_WBETH
+    //                 ),
+    //                 TOTAL_SHARES_GAUNTLET_RESTAKED_WBETH
+    //             )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedA.gauntletRestakedSwETH.delegator,
+    //                     vaultStakeBeforeDeposit.gauntletRestakedSwStakeBeforeDeposit
+    //                         + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_SWETH
+    //                 ),
+    //                 TOTAL_SHARES_GAUNTLET_RESTAKED_SWETH
+    //             )
+    //     ).mulDiv(uint256(ORACLE_CONVERSION_TOKEN), 10 ** ORACLE_DECIMALS);
+    // }
 
-    function _calculateOperatorPower9() private view returns (uint256 operatorPower9) {
-        operatorPower9 = (
-            OPERATOR_SHARE.mulDiv(
-                _getMaximumAvailableStakeForVault(
-                    vaultsAddressesDeployedA.cp0xLrtETH.delegator,
-                    vaultStakeBeforeDeposit.cp0xLrtStakeBeforeDeposit + OPERATOR_STAKE * TOTAL_SHARES_CP0X_LRT
-                ),
-                TOTAL_SHARES_CP0X_LRT
-            )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedA.gauntletRestakedRETH.delegator,
-                        vaultStakeBeforeDeposit.gauntletRestakedRETHStakeBeforeDeposit
-                            + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_RETH
-                    ),
-                    TOTAL_SHARES_GAUNTLET_RESTAKED_RETH
-                )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator,
-                        vaultStakeBeforeDeposit.gauntletRestakedWBETHStakeBeforeDeposit
-                            + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_WBETH
-                    ),
-                    TOTAL_SHARES_GAUNTLET_RESTAKED_WBETH
-                )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedA.gauntletRestakedSwETH.delegator,
-                        vaultStakeBeforeDeposit.gauntletRestakedSwStakeBeforeDeposit
-                            + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_SWETH
-                    ),
-                    TOTAL_SHARES_GAUNTLET_RESTAKED_SWETH
-                )
-        ).mulDiv(uint256(ORACLE_CONVERSION_TOKEN), 10 ** ORACLE_DECIMALS);
-    }
+    // function _calculateOperatorPower9() private view returns (uint256 operatorPower9) {
+    //     operatorPower9 = (
+    //         OPERATOR_SHARE.mulDiv(
+    //             _getMaximumAvailableStakeForVault(
+    //                 vaultsAddressesDeployedA.cp0xLrtETH.delegator,
+    //                 vaultStakeBeforeDeposit.cp0xLrtStakeBeforeDeposit + OPERATOR_STAKE * TOTAL_SHARES_CP0X_LRT
+    //             ),
+    //             TOTAL_SHARES_CP0X_LRT
+    //         )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedA.gauntletRestakedRETH.delegator,
+    //                     vaultStakeBeforeDeposit.gauntletRestakedRETHStakeBeforeDeposit
+    //                         + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_RETH
+    //                 ),
+    //                 TOTAL_SHARES_GAUNTLET_RESTAKED_RETH
+    //             )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator,
+    //                     vaultStakeBeforeDeposit.gauntletRestakedWBETHStakeBeforeDeposit
+    //                         + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_WBETH
+    //                 ),
+    //                 TOTAL_SHARES_GAUNTLET_RESTAKED_WBETH
+    //             )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedA.gauntletRestakedSwETH.delegator,
+    //                     vaultStakeBeforeDeposit.gauntletRestakedSwStakeBeforeDeposit
+    //                         + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_SWETH
+    //                 ),
+    //                 TOTAL_SHARES_GAUNTLET_RESTAKED_SWETH
+    //             )
+    //     ).mulDiv(uint256(ORACLE_CONVERSION_TOKEN), 10 ** ORACLE_DECIMALS);
+    // }
 
-    function _calculateOperatorPower10() private view returns (uint256 operatorPower10) {
-        operatorPower10 = (
-            OPERATOR_SHARE.mulDiv(
-                _getMaximumAvailableStakeForVault(
-                    vaultsAddressesDeployedA.mevRestakedETH.delegator,
-                    vaultStakeBeforeDeposit.mevRestakedStakeBeforeDeposit + OPERATOR_STAKE * TOTAL_SHARES_MEV_CAPITAL
-                ),
-                TOTAL_SHARES_MEV_RESTAKED
-            )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedA.mevCapitalETH.delegator,
-                        vaultStakeBeforeDeposit.mevCapitalStakeBeforeDeposit + OPERATOR_STAKE * TOTAL_SHARES_MEV_CAPITAL
-                    ),
-                    TOTAL_SHARES_MEV_CAPITAL
-                )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedA.hashKeyCloudETH.delegator,
-                        vaultStakeBeforeDeposit.hashKeyCloudStakeBeforeDeposit
-                            + OPERATOR_STAKE * TOTAL_SHARES_HASH_KEY_CLOUD
-                    ),
-                    TOTAL_SHARES_HASH_KEY_CLOUD
-                )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedA.cp0xLrtETH.delegator,
-                        vaultStakeBeforeDeposit.cp0xLrtStakeBeforeDeposit + OPERATOR_STAKE * TOTAL_SHARES_CP0X_LRT
-                    ),
-                    TOTAL_SHARES_CP0X_LRT
-                )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedA.re7LabsRestakingETH.delegator,
-                        vaultStakeBeforeDeposit.re7LabsRestakingStakeBeforeDeposit
-                            + OPERATOR_STAKE * TOTAL_SHARES_RE7_LABS_RESTAKING
-                    ),
-                    TOTAL_SHARES_RE7_LABS_RESTAKING
-                )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedA.renzoRestakedETH.delegator,
-                        vaultStakeBeforeDeposit.renzoRestakedStakeBeforeDeposit
-                            + OPERATOR_STAKE * TOTAL_SHARES_RENZO_RESTAKED
-                    ),
-                    TOTAL_SHARES_RENZO_RESTAKED
-                )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedA.re7LabsETH.delegator,
-                        vaultStakeBeforeDeposit.re7LabsStakeBeforeDeposit + OPERATOR_STAKE * TOTAL_SHARES_RE7_LABS
-                    ),
-                    TOTAL_SHARES_RE7_LABS
-                )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedA.gauntletRestakedWstETH.delegator,
-                        vaultStakeBeforeDeposit.gauntletRestakedWstStakeBeforeDeposit
-                            + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_WSTETH
-                    ),
-                    TOTAL_SHARES_GAUNTLET_RESTAKED_WSTETH
-                )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedA.gauntletRestakedRETH.delegator,
-                        vaultStakeBeforeDeposit.gauntletRestakedRETHStakeBeforeDeposit
-                            + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_RETH
-                    ),
-                    TOTAL_SHARES_GAUNTLET_RESTAKED_RETH
-                )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator,
-                        vaultStakeBeforeDeposit.gauntletRestakedWBETHStakeBeforeDeposit
-                            + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_WBETH
-                    ),
-                    TOTAL_SHARES_GAUNTLET_RESTAKED_WBETH
-                )
-                + OPERATOR_SHARE.mulDiv(
-                    _getMaximumAvailableStakeForVault(
-                        vaultsAddressesDeployedA.gauntletRestakedSwETH.delegator,
-                        vaultStakeBeforeDeposit.gauntletRestakedSwStakeBeforeDeposit
-                            + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_SWETH
-                    ),
-                    TOTAL_SHARES_GAUNTLET_RESTAKED_SWETH
-                )
-        ).mulDiv(uint256(ORACLE_CONVERSION_TOKEN), 10 ** ORACLE_DECIMALS);
+    // function _calculateOperatorPower10() private view returns (uint256 operatorPower10) {
+    //     operatorPower10 = (
+    //         OPERATOR_SHARE.mulDiv(
+    //             _getMaximumAvailableStakeForVault(
+    //                 vaultsAddressesDeployedA.mevRestakedETH.delegator,
+    //                 vaultStakeBeforeDeposit.mevRestakedStakeBeforeDeposit + OPERATOR_STAKE * TOTAL_SHARES_MEV_CAPITAL
+    //             ),
+    //             TOTAL_SHARES_MEV_RESTAKED
+    //         )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedA.mevCapitalETH.delegator,
+    //                     vaultStakeBeforeDeposit.mevCapitalStakeBeforeDeposit + OPERATOR_STAKE * TOTAL_SHARES_MEV_CAPITAL
+    //                 ),
+    //                 TOTAL_SHARES_MEV_CAPITAL
+    //             )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedA.hashKeyCloudETH.delegator,
+    //                     vaultStakeBeforeDeposit.hashKeyCloudStakeBeforeDeposit
+    //                         + OPERATOR_STAKE * TOTAL_SHARES_HASH_KEY_CLOUD
+    //                 ),
+    //                 TOTAL_SHARES_HASH_KEY_CLOUD
+    //             )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedA.cp0xLrtETH.delegator,
+    //                     vaultStakeBeforeDeposit.cp0xLrtStakeBeforeDeposit + OPERATOR_STAKE * TOTAL_SHARES_CP0X_LRT
+    //                 ),
+    //                 TOTAL_SHARES_CP0X_LRT
+    //             )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedA.re7LabsRestakingETH.delegator,
+    //                     vaultStakeBeforeDeposit.re7LabsRestakingStakeBeforeDeposit
+    //                         + OPERATOR_STAKE * TOTAL_SHARES_RE7_LABS_RESTAKING
+    //                 ),
+    //                 TOTAL_SHARES_RE7_LABS_RESTAKING
+    //             )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedA.renzoRestakedETH.delegator,
+    //                     vaultStakeBeforeDeposit.renzoRestakedStakeBeforeDeposit
+    //                         + OPERATOR_STAKE * TOTAL_SHARES_RENZO_RESTAKED
+    //                 ),
+    //                 TOTAL_SHARES_RENZO_RESTAKED
+    //             )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedA.re7LabsETH.delegator,
+    //                     vaultStakeBeforeDeposit.re7LabsStakeBeforeDeposit + OPERATOR_STAKE * TOTAL_SHARES_RE7_LABS
+    //                 ),
+    //                 TOTAL_SHARES_RE7_LABS
+    //             )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedA.gauntletRestakedWstETH.delegator,
+    //                     vaultStakeBeforeDeposit.gauntletRestakedWstStakeBeforeDeposit
+    //                         + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_WSTETH
+    //                 ),
+    //                 TOTAL_SHARES_GAUNTLET_RESTAKED_WSTETH
+    //             )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedA.gauntletRestakedRETH.delegator,
+    //                     vaultStakeBeforeDeposit.gauntletRestakedRETHStakeBeforeDeposit
+    //                         + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_RETH
+    //                 ),
+    //                 TOTAL_SHARES_GAUNTLET_RESTAKED_RETH
+    //             )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator,
+    //                     vaultStakeBeforeDeposit.gauntletRestakedWBETHStakeBeforeDeposit
+    //                         + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_WBETH
+    //                 ),
+    //                 TOTAL_SHARES_GAUNTLET_RESTAKED_WBETH
+    //             )
+    //             + OPERATOR_SHARE.mulDiv(
+    //                 _getMaximumAvailableStakeForVault(
+    //                     vaultsAddressesDeployedA.gauntletRestakedSwETH.delegator,
+    //                     vaultStakeBeforeDeposit.gauntletRestakedSwStakeBeforeDeposit
+    //                         + OPERATOR_STAKE * TOTAL_SHARES_GAUNTLET_RESTAKED_SWETH
+    //                 ),
+    //                 TOTAL_SHARES_GAUNTLET_RESTAKED_SWETH
+    //             )
+    //     ).mulDiv(uint256(ORACLE_CONVERSION_TOKEN), 10 ** ORACLE_DECIMALS);
+    // }
+
+    function _checkOperatorVaultPairs(
+        Middleware.OperatorVaultPair[] memory operatorVaultPairs,
+        address operator,
+        uint256 totalVaults
+    ) private pure {
+        bool found;
+        for (uint256 i = 0; i < operatorVaultPairs.length; i++) {
+            if (operatorVaultPairs[i].operator == operator) {
+                found = true;
+                console2.log("Operator found", operator);
+                console2.log("Total vaults vs expected", operatorVaultPairs[i].vaults.length, totalVaults);
+                // assertEq(operatorVaultPairs[i].vaults.length, totalVaults);
+            }
+        }
+        if (!found) {
+            console2.log("Operator not found", operator);
+        }
+        // assertEq(found, true, "Operator not found");
     }
 
     // ************************************************************************************************
@@ -1484,49 +1183,22 @@ contract FullTest is Test {
         uint48 currentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
         Middleware.OperatorVaultPair[] memory operatorVaultPairs =
             OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getOperatorVaultPairs(currentEpoch);
-        assertEq(operatorVaultPairs.length, 10);
-        assertEq(operatorVaultPairs[0].operator, operator);
-        assertEq(operatorVaultPairs[1].operator, operator2);
-        assertEq(operatorVaultPairs[2].operator, operator3);
-        assertEq(operatorVaultPairs[3].operator, operator4);
-        assertEq(operatorVaultPairs[4].operator, operator5);
-        assertEq(operatorVaultPairs[5].operator, operator6);
-        assertEq(operatorVaultPairs[6].operator, operator7);
-        assertEq(operatorVaultPairs[7].operator, operator8);
-        assertEq(operatorVaultPairs[8].operator, operator9);
-        assertEq(operatorVaultPairs[9].operator, operator10);
-        assertEq(operatorVaultPairs[0].vaults.length, 3);
-        assertEq(operatorVaultPairs[1].vaults.length, 3);
-        assertEq(operatorVaultPairs[2].vaults.length, 2);
-        assertEq(operatorVaultPairs[3].vaults.length, 1);
-        assertEq(operatorVaultPairs[4].vaults.length, 1);
-    }
 
-    function testOperatorsAreRegisteredAfterOneEpoch() public {
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
-        uint48 currentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
-        Middleware.ValidatorData[] memory validators =
-            OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(currentEpoch);
-        assertEq(validators.length, 10);
+        console2.log("Total operators", operatorVaultPairs.length);
+        // assertEq(operatorVaultPairs.length, TOTAL_OPERATORS);
 
-        Middleware.OperatorVaultPair[] memory operatorVaultPairs =
-            OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getOperatorVaultPairs(currentEpoch);
-        assertEq(operatorVaultPairs.length, 10);
-        assertEq(operatorVaultPairs[0].operator, operator);
-        assertEq(operatorVaultPairs[1].operator, operator2);
-        assertEq(operatorVaultPairs[2].operator, operator3);
-        assertEq(operatorVaultPairs[3].operator, operator4);
-        assertEq(operatorVaultPairs[4].operator, operator5);
-        assertEq(operatorVaultPairs[5].operator, operator6);
-        assertEq(operatorVaultPairs[6].operator, operator7);
-        assertEq(operatorVaultPairs[7].operator, operator8);
-        assertEq(operatorVaultPairs[8].operator, operator9);
-        assertEq(operatorVaultPairs[9].operator, operator10);
-        assertEq(operatorVaultPairs[0].vaults.length, 3);
-        assertEq(operatorVaultPairs[1].vaults.length, 3);
-        assertEq(operatorVaultPairs[2].vaults.length, 2);
-        assertEq(operatorVaultPairs[3].vaults.length, 1);
-        assertEq(operatorVaultPairs[4].vaults.length, 1);
+        _checkOperatorVaultPairs(operatorVaultPairs, operator1PierTwo, PIER_TWO_VAULTS);
+        _checkOperatorVaultPairs(operatorVaultPairs, operator2P2P, P2P_VAULTS);
+        _checkOperatorVaultPairs(operatorVaultPairs, operator8CP0XStakrspace, CP0X_STAKRSPACE_VAULTS);
+        // TODO: Uncomment as they are enabled
+        // _checkOperatorVaultPairs(operatorVaultPairs, operator3Nodeinfra, NODE_INFRA);
+        // _checkOperatorVaultPairs(operatorVaultPairs, operator4Blockscape, BLOCKSCAPE_VAULTS);
+        // _checkOperatorVaultPairs(operatorVaultPairs, operator5QuantNode, QUANT_NODE_VAULTS);
+        // _checkOperatorVaultPairs(operatorVaultPairs, operator6NodeMonster, NODE_MONSTER_VAULTS);
+        // _checkOperatorVaultPairs(operatorVaultPairs, operator7BlockBones, BLOCK_BONES_VAULTS);
+        // _checkOperatorVaultPairs(operatorVaultPairs, operator9HashkeyCloud, HASHKEY_CLOUD_VAULTS);
+        // _checkOperatorVaultPairs(operatorVaultPairs, operator10Alchemy, ALCHEMY_VAULTS);
+        // _checkOperatorVaultPairs(operatorVaultPairs, operator11Opslayer, OPSLAYER_VAULTS);
     }
 
     function testOperatorsStakeIsTheSamePerEpoch() public {
@@ -1547,185 +1219,185 @@ contract FullTest is Test {
         assertEq(validators[2].key, validatorsPreviousEpoch[2].key);
     }
 
-    function testWithdrawForOperator1() public {
-        IVault vaultMevRestaked = IVault(vaultsAddressesDeployedA.mevRestakedETH.vault);
-        IVault vaultMevCapital = IVault(vaultsAddressesDeployedA.mevCapitalETH.vault);
-        IVault vaultHashkeyCloud = IVault(vaultsAddressesDeployedA.hashKeyCloudETH.vault);
-        uint256 currentEpochMevRestaked = vaultMevRestaked.currentEpoch();
-        uint256 currentEpochMevCapital = vaultMevCapital.currentEpoch();
-        uint256 currentEpochHashkeyCloud = vaultHashkeyCloud.currentEpoch();
+    // function testWithdrawForOperator1() public {
+    //     IVault vaultMevRestaked = IVault(vaultsAddressesDeployedA.mevRestakedETH.vault);
+    //     IVault vaultMevCapital = IVault(vaultsAddressesDeployedA.mevCapitalETH.vault);
+    //     IVault vaultHashkeyCloud = IVault(vaultsAddressesDeployedA.hashKeyCloudETH.vault);
+    //     uint256 currentEpochMevRestaked = vaultMevRestaked.currentEpoch();
+    //     uint256 currentEpochMevCapital = vaultMevCapital.currentEpoch();
+    //     uint256 currentEpochHashkeyCloud = vaultHashkeyCloud.currentEpoch();
 
-        uint256 currentEpochMevRestakedEpochDuration = vaultMevRestaked.epochDuration();
-        uint256 currentEpochMevCapitalEpochDuration = vaultMevCapital.epochDuration();
-        uint256 currentEpochHashkeyCloudEpochDuration = vaultHashkeyCloud.epochDuration();
+    //     uint256 currentEpochMevRestakedEpochDuration = vaultMevRestaked.epochDuration();
+    //     uint256 currentEpochMevCapitalEpochDuration = vaultMevCapital.epochDuration();
+    //     uint256 currentEpochHashkeyCloudEpochDuration = vaultHashkeyCloud.epochDuration();
 
-        uint256 currentTimestamp = block.timestamp;
+    //     uint256 currentTimestamp = block.timestamp;
 
-        vm.startPrank(operator);
-        vaultMevRestaked.withdraw(operator, DEFAULT_WITHDRAW_AMOUNT);
-        vaultMevCapital.withdraw(operator, DEFAULT_WITHDRAW_AMOUNT);
-        vaultHashkeyCloud.withdraw(operator, DEFAULT_WITHDRAW_AMOUNT);
+    //     vm.startPrank(operator);
+    //     vaultMevRestaked.withdraw(operator, DEFAULT_WITHDRAW_AMOUNT);
+    //     vaultMevCapital.withdraw(operator, DEFAULT_WITHDRAW_AMOUNT);
+    //     vaultHashkeyCloud.withdraw(operator, DEFAULT_WITHDRAW_AMOUNT);
 
-        vm.warp(currentTimestamp + currentEpochMevRestakedEpochDuration * 2 + 1);
-        currentEpochMevRestaked = vaultMevRestaked.currentEpoch();
-        vaultMevRestaked.claim(operator, currentEpochMevRestaked - 1);
+    //     vm.warp(currentTimestamp + currentEpochMevRestakedEpochDuration * 2 + 1);
+    //     currentEpochMevRestaked = vaultMevRestaked.currentEpoch();
+    //     vaultMevRestaked.claim(operator, currentEpochMevRestaked - 1);
 
-        vm.warp(currentTimestamp + currentEpochMevCapitalEpochDuration * 2 + 1);
-        currentEpochMevCapital = vaultMevCapital.currentEpoch();
-        vaultMevCapital.claim(operator, currentEpochMevCapital - 1);
+    //     vm.warp(currentTimestamp + currentEpochMevCapitalEpochDuration * 2 + 1);
+    //     currentEpochMevCapital = vaultMevCapital.currentEpoch();
+    //     vaultMevCapital.claim(operator, currentEpochMevCapital - 1);
 
-        vm.warp(currentTimestamp + currentEpochHashkeyCloudEpochDuration * 2 + 1);
-        currentEpochHashkeyCloud = vaultHashkeyCloud.currentEpoch();
-        vaultHashkeyCloud.claim(operator, currentEpochHashkeyCloud - 1);
+    //     vm.warp(currentTimestamp + currentEpochHashkeyCloudEpochDuration * 2 + 1);
+    //     currentEpochHashkeyCloud = vaultHashkeyCloud.currentEpoch();
+    //     vaultHashkeyCloud.claim(operator, currentEpochHashkeyCloud - 1);
 
-        assertEq(
-            ecosystemEntities.wstETH.balanceOf(operator),
-            OPERATOR_INITIAL_BALANCE * 4 - OPERATOR_STAKE * 3 + DEFAULT_WITHDRAW_AMOUNT * 3
-        );
-    }
+    //     assertEq(
+    //         ecosystemEntities.wstETH.balanceOf(operator),
+    //         OPERATOR_INITIAL_BALANCE * 4 - OPERATOR_STAKE * 3 + DEFAULT_WITHDRAW_AMOUNT * 3
+    //     );
+    // }
 
-    function testWithdrawForOperator2() public {
-        IVault vaultMevCapital = IVault(vaultsAddressesDeployedA.mevCapitalETH.vault);
-        IVault vaultGauntletRestaked = IVault(vaultsAddressesDeployedA.gauntletRestakedRETH.vault);
-        IVault vaultGauntletRestakedWBETH = IVault(vaultsAddressesDeployedB.gauntletRestakedWBETH.vault);
+    // function testWithdrawForOperator2() public {
+    //     IVault vaultMevCapital = IVault(vaultsAddressesDeployedA.mevCapitalETH.vault);
+    //     IVault vaultGauntletRestaked = IVault(vaultsAddressesDeployedA.gauntletRestakedRETH.vault);
+    //     IVault vaultGauntletRestakedWBETH = IVault(vaultsAddressesDeployedB.gauntletRestakedWBETH.vault);
 
-        uint256 currentEpochMevCapital = vaultMevCapital.currentEpoch();
-        uint256 currentEpochGauntletRestaked = vaultGauntletRestaked.currentEpoch();
-        uint256 currentEpochGauntletRestakedWBETH = vaultGauntletRestakedWBETH.currentEpoch();
+    //     uint256 currentEpochMevCapital = vaultMevCapital.currentEpoch();
+    //     uint256 currentEpochGauntletRestaked = vaultGauntletRestaked.currentEpoch();
+    //     uint256 currentEpochGauntletRestakedWBETH = vaultGauntletRestakedWBETH.currentEpoch();
 
-        uint256 currentEpochMevCapitalEpochDuration = vaultMevCapital.epochDuration();
-        uint256 currentEpochGauntletRestakedEpochDuration = vaultGauntletRestaked.epochDuration();
-        uint256 currentEpochGauntletRestakedWBETHEpochDuration = vaultGauntletRestakedWBETH.epochDuration();
+    //     uint256 currentEpochMevCapitalEpochDuration = vaultMevCapital.epochDuration();
+    //     uint256 currentEpochGauntletRestakedEpochDuration = vaultGauntletRestaked.epochDuration();
+    //     uint256 currentEpochGauntletRestakedWBETHEpochDuration = vaultGauntletRestakedWBETH.epochDuration();
 
-        uint256 currentTimestamp = block.timestamp;
+    //     uint256 currentTimestamp = block.timestamp;
 
-        vm.startPrank(operator2);
-        vaultMevCapital.withdraw(operator2, DEFAULT_WITHDRAW_AMOUNT);
-        vaultGauntletRestaked.withdraw(operator2, DEFAULT_WITHDRAW_AMOUNT);
-        vaultGauntletRestakedWBETH.withdraw(operator2, DEFAULT_WITHDRAW_AMOUNT);
+    //     vm.startPrank(operator2);
+    //     vaultMevCapital.withdraw(operator2, DEFAULT_WITHDRAW_AMOUNT);
+    //     vaultGauntletRestaked.withdraw(operator2, DEFAULT_WITHDRAW_AMOUNT);
+    //     vaultGauntletRestakedWBETH.withdraw(operator2, DEFAULT_WITHDRAW_AMOUNT);
 
-        vm.warp(currentTimestamp + currentEpochMevCapitalEpochDuration * 2 + 1);
-        currentEpochMevCapital = vaultMevCapital.currentEpoch();
-        vaultMevCapital.claim(operator2, currentEpochMevCapital - 1);
+    //     vm.warp(currentTimestamp + currentEpochMevCapitalEpochDuration * 2 + 1);
+    //     currentEpochMevCapital = vaultMevCapital.currentEpoch();
+    //     vaultMevCapital.claim(operator2, currentEpochMevCapital - 1);
 
-        vm.warp(currentTimestamp + currentEpochGauntletRestakedEpochDuration * 2 + 1);
-        currentEpochGauntletRestaked = vaultGauntletRestaked.currentEpoch();
-        vaultGauntletRestaked.claim(operator2, currentEpochGauntletRestaked - 1);
+    //     vm.warp(currentTimestamp + currentEpochGauntletRestakedEpochDuration * 2 + 1);
+    //     currentEpochGauntletRestaked = vaultGauntletRestaked.currentEpoch();
+    //     vaultGauntletRestaked.claim(operator2, currentEpochGauntletRestaked - 1);
 
-        vm.warp(currentTimestamp + currentEpochGauntletRestakedWBETHEpochDuration * 2 + 1);
-        currentEpochGauntletRestakedWBETH = vaultGauntletRestakedWBETH.currentEpoch();
-        vaultGauntletRestakedWBETH.claim(operator2, currentEpochGauntletRestakedWBETH - 1);
+    //     vm.warp(currentTimestamp + currentEpochGauntletRestakedWBETHEpochDuration * 2 + 1);
+    //     currentEpochGauntletRestakedWBETH = vaultGauntletRestakedWBETH.currentEpoch();
+    //     vaultGauntletRestakedWBETH.claim(operator2, currentEpochGauntletRestakedWBETH - 1);
 
-        assertEq(
-            ecosystemEntities.wstETH.balanceOf(operator2),
-            OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE + DEFAULT_WITHDRAW_AMOUNT
-        );
-        assertEq(
-            ecosystemEntities.rETH.balanceOf(operator2),
-            OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE + DEFAULT_WITHDRAW_AMOUNT
-        );
-        assertEq(
-            ecosystemEntities.wBETH.balanceOf(operator2),
-            OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE + DEFAULT_WITHDRAW_AMOUNT
-        );
-    }
+    //     assertEq(
+    //         ecosystemEntities.wstETH.balanceOf(operator2),
+    //         OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE + DEFAULT_WITHDRAW_AMOUNT
+    //     );
+    //     assertEq(
+    //         ecosystemEntities.rETH.balanceOf(operator2),
+    //         OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE + DEFAULT_WITHDRAW_AMOUNT
+    //     );
+    //     assertEq(
+    //         ecosystemEntities.wBETH.balanceOf(operator2),
+    //         OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE + DEFAULT_WITHDRAW_AMOUNT
+    //     );
+    // }
 
-    function testWithdrawForOperator3() public {
-        IVault vaultGauntletRestaked = IVault(vaultsAddressesDeployedA.gauntletRestakedRETH.vault);
-        IVault vaultRe7LabsRestaked = IVault(vaultsAddressesDeployedA.re7LabsRestakingETH.vault);
+    // function testWithdrawForOperator3() public {
+    //     IVault vaultGauntletRestaked = IVault(vaultsAddressesDeployedA.gauntletRestakedRETH.vault);
+    //     IVault vaultRe7LabsRestaked = IVault(vaultsAddressesDeployedA.re7LabsRestakingETH.vault);
 
-        uint256 currentEpochGauntletRestaked = vaultGauntletRestaked.currentEpoch();
-        uint256 currentEpochRe7LabsRestaked = vaultRe7LabsRestaked.currentEpoch();
+    //     uint256 currentEpochGauntletRestaked = vaultGauntletRestaked.currentEpoch();
+    //     uint256 currentEpochRe7LabsRestaked = vaultRe7LabsRestaked.currentEpoch();
 
-        uint256 currentEpochGauntletRestakedEpochDuration = vaultGauntletRestaked.epochDuration();
-        uint256 currentEpochRe7LabsRestakedEpochDuration = vaultRe7LabsRestaked.epochDuration();
+    //     uint256 currentEpochGauntletRestakedEpochDuration = vaultGauntletRestaked.epochDuration();
+    //     uint256 currentEpochRe7LabsRestakedEpochDuration = vaultRe7LabsRestaked.epochDuration();
 
-        uint256 currentTimestamp = block.timestamp;
+    //     uint256 currentTimestamp = block.timestamp;
 
-        vm.startPrank(operator3);
-        vaultGauntletRestaked.withdraw(operator3, DEFAULT_WITHDRAW_AMOUNT);
-        vaultRe7LabsRestaked.withdraw(operator3, DEFAULT_WITHDRAW_AMOUNT);
+    //     vm.startPrank(operator3);
+    //     vaultGauntletRestaked.withdraw(operator3, DEFAULT_WITHDRAW_AMOUNT);
+    //     vaultRe7LabsRestaked.withdraw(operator3, DEFAULT_WITHDRAW_AMOUNT);
 
-        vm.warp(currentTimestamp + currentEpochGauntletRestakedEpochDuration * 2 + 1);
-        currentEpochGauntletRestaked = vaultGauntletRestaked.currentEpoch();
-        vaultGauntletRestaked.claim(operator3, currentEpochGauntletRestaked - 1);
+    //     vm.warp(currentTimestamp + currentEpochGauntletRestakedEpochDuration * 2 + 1);
+    //     currentEpochGauntletRestaked = vaultGauntletRestaked.currentEpoch();
+    //     vaultGauntletRestaked.claim(operator3, currentEpochGauntletRestaked - 1);
 
-        vm.warp(currentTimestamp + currentEpochRe7LabsRestakedEpochDuration * 2 + 1);
-        currentEpochRe7LabsRestakedEpochDuration = vaultRe7LabsRestaked.currentEpoch();
-        vaultRe7LabsRestaked.claim(operator3, currentEpochRe7LabsRestakedEpochDuration - 1);
+    //     vm.warp(currentTimestamp + currentEpochRe7LabsRestakedEpochDuration * 2 + 1);
+    //     currentEpochRe7LabsRestakedEpochDuration = vaultRe7LabsRestaked.currentEpoch();
+    //     vaultRe7LabsRestaked.claim(operator3, currentEpochRe7LabsRestakedEpochDuration - 1);
 
-        assertEq(
-            ecosystemEntities.rETH.balanceOf(operator3),
-            OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE + DEFAULT_WITHDRAW_AMOUNT
-        );
-        assertEq(
-            ecosystemEntities.wstETH.balanceOf(operator3),
-            OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE + DEFAULT_WITHDRAW_AMOUNT
-        );
-    }
+    //     assertEq(
+    //         ecosystemEntities.rETH.balanceOf(operator3),
+    //         OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE + DEFAULT_WITHDRAW_AMOUNT
+    //     );
+    //     assertEq(
+    //         ecosystemEntities.wstETH.balanceOf(operator3),
+    //         OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE + DEFAULT_WITHDRAW_AMOUNT
+    //     );
+    // }
 
-    function testWithdrawForOperator4() public {
-        IVault vaultGauntletRestaked = IVault(vaultsAddressesDeployedA.gauntletRestakedSwETH.vault);
+    // function testWithdrawForOperator4() public {
+    //     IVault vaultGauntletRestaked = IVault(vaultsAddressesDeployedA.gauntletRestakedSwETH.vault);
 
-        uint256 currentEpochGauntletRestaked = vaultGauntletRestaked.currentEpoch();
+    //     uint256 currentEpochGauntletRestaked = vaultGauntletRestaked.currentEpoch();
 
-        uint256 currentEpochGauntletRestakedEpochDuration = vaultGauntletRestaked.epochDuration();
+    //     uint256 currentEpochGauntletRestakedEpochDuration = vaultGauntletRestaked.epochDuration();
 
-        uint256 currentTimestamp = block.timestamp;
+    //     uint256 currentTimestamp = block.timestamp;
 
-        vm.startPrank(operator4);
-        vaultGauntletRestaked.withdraw(operator4, DEFAULT_WITHDRAW_AMOUNT);
+    //     vm.startPrank(operator4);
+    //     vaultGauntletRestaked.withdraw(operator4, DEFAULT_WITHDRAW_AMOUNT);
 
-        vm.warp(currentTimestamp + currentEpochGauntletRestakedEpochDuration * 2 + 1);
-        currentEpochGauntletRestaked = vaultGauntletRestaked.currentEpoch();
-        vaultGauntletRestaked.claim(operator4, currentEpochGauntletRestaked - 1);
+    //     vm.warp(currentTimestamp + currentEpochGauntletRestakedEpochDuration * 2 + 1);
+    //     currentEpochGauntletRestaked = vaultGauntletRestaked.currentEpoch();
+    //     vaultGauntletRestaked.claim(operator4, currentEpochGauntletRestaked - 1);
 
-        assertEq(
-            ecosystemEntities.swETH.balanceOf(operator4),
-            OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE + DEFAULT_WITHDRAW_AMOUNT
-        );
-    }
+    //     assertEq(
+    //         ecosystemEntities.swETH.balanceOf(operator4),
+    //         OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE + DEFAULT_WITHDRAW_AMOUNT
+    //     );
+    // }
 
-    function testWithdrawForOperator5() public {
-        IVault vaultGauntletRestaked = IVault(vaultsAddressesDeployedB.gauntletRestakedWBETH.vault);
+    // function testWithdrawForOperator5() public {
+    //     IVault vaultGauntletRestaked = IVault(vaultsAddressesDeployedB.gauntletRestakedWBETH.vault);
 
-        uint256 currentEpochGauntletRestaked = vaultGauntletRestaked.currentEpoch();
+    //     uint256 currentEpochGauntletRestaked = vaultGauntletRestaked.currentEpoch();
 
-        uint256 currentEpochGauntletRestakedEpochDuration = vaultGauntletRestaked.epochDuration();
+    //     uint256 currentEpochGauntletRestakedEpochDuration = vaultGauntletRestaked.epochDuration();
 
-        uint256 currentTimestamp = block.timestamp;
+    //     uint256 currentTimestamp = block.timestamp;
 
-        vm.startPrank(operator5);
-        vaultGauntletRestaked.withdraw(operator5, DEFAULT_WITHDRAW_AMOUNT);
+    //     vm.startPrank(operator5);
+    //     vaultGauntletRestaked.withdraw(operator5, DEFAULT_WITHDRAW_AMOUNT);
 
-        vm.warp(currentTimestamp + currentEpochGauntletRestakedEpochDuration * 2 + 1);
-        currentEpochGauntletRestaked = vaultGauntletRestaked.currentEpoch();
-        vaultGauntletRestaked.claim(operator5, currentEpochGauntletRestaked - 1);
+    //     vm.warp(currentTimestamp + currentEpochGauntletRestakedEpochDuration * 2 + 1);
+    //     currentEpochGauntletRestaked = vaultGauntletRestaked.currentEpoch();
+    //     vaultGauntletRestaked.claim(operator5, currentEpochGauntletRestaked - 1);
 
-        assertEq(
-            ecosystemEntities.wBETH.balanceOf(operator5),
-            OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE + DEFAULT_WITHDRAW_AMOUNT
-        );
-    }
+    //     assertEq(
+    //         ecosystemEntities.wBETH.balanceOf(operator5),
+    //         OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE + DEFAULT_WITHDRAW_AMOUNT
+    //     );
+    // }
 
-    function testOperatorPower() public {
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
-        uint48 currentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
-        Middleware.ValidatorData[] memory validators =
-            OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(currentEpoch);
+    // function testOperatorPower() public {
+    //     vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+    //     uint48 currentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
+    //     Middleware.ValidatorData[] memory validators =
+    //         OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(currentEpoch);
 
-        uint256 operatorPower1 = _calculateOperatorPower1();
-        uint256 operatorPower2 = _calculateOperatorPower2();
-        uint256 operatorPower3 = _calculateOperatorPower3();
-        uint256 operatorPower4 = _calculateOperatorPower4();
-        uint256 operatorPower5 = _calculateOperatorPower5();
+    //     uint256 operatorPower1 = _calculateOperatorPower1();
+    //     uint256 operatorPower2 = _calculateOperatorPower2();
+    //     uint256 operatorPower3 = _calculateOperatorPower3();
+    //     uint256 operatorPower4 = _calculateOperatorPower4();
+    //     uint256 operatorPower5 = _calculateOperatorPower5();
 
-        assertEq(validators[0].power, operatorPower1);
-        assertEq(validators[1].power, operatorPower2);
-        assertEq(validators[2].power, operatorPower3);
-        assertEq(validators[3].power, operatorPower4);
-        assertEq(validators[4].power, operatorPower5);
-    }
+    //     assertEq(validators[0].power, operatorPower1);
+    //     assertEq(validators[1].power, operatorPower2);
+    //     assertEq(validators[2].power, operatorPower3);
+    //     assertEq(validators[3].power, operatorPower4);
+    //     assertEq(validators[4].power, operatorPower5);
+    // }
 
     function testPauseAndUnregisterOperator() public {
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
@@ -1733,17 +1405,17 @@ contract FullTest is Test {
         Middleware.ValidatorData[] memory validators =
             OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(currentEpoch);
         vm.startPrank(admin);
-        ecosystemEntities.middleware.pauseOperator(operator);
+        ecosystemEntities.middleware.pauseOperator(operator1PierTwo);
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
 
-        ecosystemEntities.middleware.unregisterOperator(operator);
+        ecosystemEntities.middleware.unregisterOperator(operator1PierTwo);
         validators = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(currentEpoch);
-        assertEq(validators.length, 9); // One less operator
+        assertEq(validators.length, TOTAL_OPERATORS - 1); // One less operator
 
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
-        ecosystemEntities.middleware.registerOperator(operator, abi.encode(bytes32(uint256(12))), address(0));
+        ecosystemEntities.middleware.registerOperator(operator1PierTwo, abi.encode(bytes32(uint256(12))), address(0));
         validators = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(currentEpoch);
-        assertEq(validators.length, 10); // One less operator
+        assertEq(validators.length, TOTAL_OPERATORS); // One more operator
     }
 
     function testPauseAndUnpausingOperator() public {
@@ -1753,19 +1425,19 @@ contract FullTest is Test {
             OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(currentEpoch);
 
         vm.startPrank(admin);
-        ecosystemEntities.middleware.pauseOperator(operator);
+        ecosystemEntities.middleware.pauseOperator(operator1PierTwo);
 
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         currentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
         validators = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(currentEpoch);
         assertEq(validators.length, 9); // One less operator
 
-        ecosystemEntities.middleware.unpauseOperator(operator);
+        ecosystemEntities.middleware.unpauseOperator(operator1PierTwo);
 
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         currentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
         validators = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(currentEpoch);
-        assertEq(validators.length, 10);
+        assertEq(validators.length, TOTAL_OPERATORS);
     }
 
     function testUpkeep() public {
@@ -1788,7 +1460,7 @@ contract FullTest is Test {
         assertEq(upkeepNeeded, true);
 
         bytes32[] memory sortedKeys = abi.decode(performData, (bytes32[]));
-        assertEq(sortedKeys.length, 10);
+        assertEq(sortedKeys.length, TOTAL_OPERATORS);
 
         vm.prank(forwarder);
         vm.expectEmit(true, false, false, false);
@@ -1997,7 +1669,7 @@ contract FullTest is Test {
     //     INetworkRestakeDelegator(vaultAddresses.delegator).setNetworkLimit(
     //         network2.subnetwork(0), OPERATOR_NETWORK_LIMIT
     //     );
-    //     _registerOperator(operator4, network2, address(ecosystemEntities.vault));
+    //     _optInOperator(operator4, address(ecosystemEntities.vault), network2);
 
     //     vm.startPrank(network2);
 

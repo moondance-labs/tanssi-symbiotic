@@ -65,6 +65,7 @@ contract HelperConfig is Script {
 
     struct VaultsConfigB {
         VaultTrifecta gauntletRestakedWBETH;
+        VaultTrifecta gauntletRestakedcBETH;
         VaultTrifecta etherfiwstETH;
         VaultTrifecta restakedLsETHVault;
     }
@@ -147,6 +148,9 @@ contract HelperConfig is Script {
 
             // wBETH vaults
             vaultsConfigB.gauntletRestakedWBETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedWBETH");
+
+            // cbETH vaults
+            vaultsConfigB.gauntletRestakedcBETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedCbETH");
 
             vaultsConfigB.etherfiwstETH = _loadVaultTrifectaData(json, jsonPath, ".etherfiwstETH");
             vaultsConfigB.restakedLsETHVault = _loadVaultTrifectaData(json, jsonPath, ".restakedLsETHVault");

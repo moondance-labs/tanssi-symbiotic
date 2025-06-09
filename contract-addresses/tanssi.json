@@ -252,7 +252,7 @@
       "name": "Opslayer",
       "substrateAddress": "5Ci8iFesdTYyArcvDc1a13k2Y8TRSEHUwk7xA5k7vQGWrNQS",
       "evmAddress": "0x0e50cef51947f19B5b91eD4C2CfC1C0Bb72F6a7A",
-      "operatorKey": ""
+      "operatorKey": "0x0000000000000000000000000000000000000000000000000000000000000000"
     }
   ]
 }
