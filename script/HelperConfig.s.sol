@@ -51,23 +51,23 @@ contract HelperConfig is Script {
     }
 
     struct VaultsConfigA {
-        VaultTrifecta mevRestakedETH;
-        VaultTrifecta mevCapitalETH;
-        VaultTrifecta hashKeyCloudETH;
-        VaultTrifecta renzoRestakedETH;
-        VaultTrifecta re7LabsETH;
-        VaultTrifecta re7LabsRestakingETH;
-        VaultTrifecta cp0xLrtETH;
-        VaultTrifecta gauntletRestakedWstETH;
-        VaultTrifecta gauntletRestakedSwETH;
-        VaultTrifecta gauntletRestakedRETH;
+        VaultTrifecta mevRestakedETH; // MEV Capital restaked ETH
+        VaultTrifecta mevCapitalETH; // MEV Capital wstETH Vault
+        VaultTrifecta hashKeyCloudETH; // HashKey Cloud Restaked ETH
+        VaultTrifecta renzoRestakedETH; // Renzo Restaked LST
+        VaultTrifecta re7LabsETH; // Re7 Labs LRT Vault
+        VaultTrifecta re7LabsRestakingETH; // Restaking Vault ETH [all Networks]
+        VaultTrifecta cp0xLrtETH; // cp0x LRT Conservative Vault
+        VaultTrifecta etherfiwstETH; // Ether.fi - wstETH
+        VaultTrifecta restakedLsETHVault; // Restaked LsETH Vault
     }
 
     struct VaultsConfigB {
-        VaultTrifecta gauntletRestakedWBETH;
-        VaultTrifecta gauntletRestakedcBETH;
-        VaultTrifecta etherfiwstETH;
-        VaultTrifecta restakedLsETHVault;
+        VaultTrifecta gauntletRestakedWstETH; // Gauntlet Restaked wstETH
+        VaultTrifecta gauntletRestakedSwETH; // Gauntlet Restaked swETH
+        VaultTrifecta gauntletRestakedRETH; // Gauntlet Restaked rETH
+        VaultTrifecta gauntletRestakedWBETH; // Gauntlet Restaked wBETH
+        VaultTrifecta gauntletRestakedcBETH; // Gauntlet Restaked cbETH
     }
 
     uint256 public DEFAULT_ANVIL_PRIVATE_KEY = 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6;
@@ -131,29 +131,34 @@ contract HelperConfig is Script {
             tokensConfig.wBETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".wBETHCollateral")), (address));
             tokensConfig.LsETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".LsETHCollateral")), (address));
             tokensConfig.cbETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".cbETHCollateral")), (address));
+
             vaultsConfigA.mevRestakedETH = _loadVaultTrifectaData(json, jsonPath, ".mevRestakedETH");
+
             vaultsConfigA.mevCapitalETH = _loadVaultTrifectaData(json, jsonPath, ".mevCapitalETH");
+
             vaultsConfigA.hashKeyCloudETH = _loadVaultTrifectaData(json, jsonPath, ".hashKeyCloudETH");
+
             vaultsConfigA.renzoRestakedETH = _loadVaultTrifectaData(json, jsonPath, ".renzoRestakedETH");
+
             vaultsConfigA.re7LabsETH = _loadVaultTrifectaData(json, jsonPath, ".re7LabsETH");
+
             vaultsConfigA.cp0xLrtETH = _loadVaultTrifectaData(json, jsonPath, ".cp0xLrtETH");
-            vaultsConfigA.gauntletRestakedWstETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedWstETH");
+
             vaultsConfigA.re7LabsRestakingETH = _loadVaultTrifectaData(json, jsonPath, ".re7LabsRestakingETH");
 
-            // swETH vaults
-            vaultsConfigA.gauntletRestakedSwETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedSwETH");
+            vaultsConfigA.etherfiwstETH = _loadVaultTrifectaData(json, jsonPath, ".etherfiwstETH");
 
-            // rETH vaults
-            vaultsConfigA.gauntletRestakedRETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedRETH");
+            vaultsConfigA.restakedLsETHVault = _loadVaultTrifectaData(json, jsonPath, ".restakedLsETHVault");
 
-            // wBETH vaults
+            vaultsConfigB.gauntletRestakedWstETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedWstETH");
+
+            vaultsConfigB.gauntletRestakedSwETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedSwETH");
+
+            vaultsConfigB.gauntletRestakedRETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedRETH");
+
             vaultsConfigB.gauntletRestakedWBETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedWBETH");
 
-            // cbETH vaults
             vaultsConfigB.gauntletRestakedcBETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedCbETH");
-
-            vaultsConfigB.etherfiwstETH = _loadVaultTrifectaData(json, jsonPath, ".etherfiwstETH");
-            vaultsConfigB.restakedLsETHVault = _loadVaultTrifectaData(json, jsonPath, ".restakedLsETHVault");
         }
     }
 
