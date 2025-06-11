@@ -1,7 +1,7 @@
 {
   "admin": "0xae5d4e70cb5910bea21e06d33b10f2bd6c95daae",
   "tanssi": "0x8c1a46d032b7b30d9ab4f30e51d8139cc3e85ce3",
-  "rewardsToken": "0x0EC1118D52a2e9B622046c5e0eE0263577721D02",
+  "rewardsToken": "0x0000000000000000000000000000000000000000",
   "beefy": "0x68cfb0df884e488e362690408231c316ed7348af ",
   "forwarder": "0x0000000000000000000000000000000000000000",
   "gateway": "0x0000000000000000000000000000000000000000",
@@ -113,6 +113,15 @@
       "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
       "stakerRewards": "0xca89B022820f0b21db88F38A3b75e4ECBAb277c0",
       "stakerRewardsImplementation": "0x615e39CD45d02d4D2684DFBfe888AfB2AD338e13"
+    },
+    {
+      "name": "Opslayer Vault",
+      "vault": "0xd006d743fcc622486bD971596e39cC55F8c641Ca",
+      "delegator": "0x7AD05f9445484B07dFC778895b8439D9fCE76bAe",
+      "slasher": "0x3f55A74B287359bF0fCc8149817C2C6472d6Ba5d",
+      "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+      "stakerRewards": "0xCD4eFf52E84a335C3A565598b2a647E2E51d8a38",
+      "stakerRewardsImplementation": "0x1e0e60c9977dc16d7a7ddcc4aed99032516e7f77"
     },
     {
       "name": "Gauntlet restaked wstETH",

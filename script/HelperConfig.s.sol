@@ -60,6 +60,7 @@ contract HelperConfig is Script {
         VaultTrifecta cp0xLrtETH; // cp0x LRT Conservative Vault
         VaultTrifecta etherfiwstETH; // Ether.fi - wstETH
         VaultTrifecta restakedLsETHVault; // Restaked LsETH Vault
+        VaultTrifecta opslayer; // Opslayer Vault
     }
 
     struct VaultsConfigB {
@@ -149,6 +150,8 @@ contract HelperConfig is Script {
             vaultsConfigA.etherfiwstETH = _loadVaultTrifectaData(json, jsonPath, ".etherfiwstETH");
 
             vaultsConfigA.restakedLsETHVault = _loadVaultTrifectaData(json, jsonPath, ".restakedLsETHVault");
+
+            vaultsConfigA.opslayer = _loadVaultTrifectaData(json, jsonPath, ".opslayer");
 
             vaultsConfigB.gauntletRestakedWstETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedWstETH");
 
