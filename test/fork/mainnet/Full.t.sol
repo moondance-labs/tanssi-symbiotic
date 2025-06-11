@@ -153,7 +153,7 @@ contract FullTest is Test {
     uint256 public constant QUANT_NODE_VAULTS = 1;
     uint256 public constant NODE_MONSTER_VAULTS = 1;
     uint256 public constant BLOCK_BONES_VAULTS = 1;
-    uint256 public constant CP0X_STAKRSPACE_VAULTS = 1;
+    uint256 public constant CP0X_STAKRSPACE_VAULTS = 2;
     uint256 public constant HASHKEY_CLOUD_VAULTS = 1;
     uint256 public constant ALCHEMY_VAULTS = 8;
     uint256 public constant OPSLAYER_VAULTS = 1;
@@ -393,7 +393,7 @@ contract FullTest is Test {
 
         _optInOperator(operator10Alchemy, vaultsAddressesDeployedA.mevCapitalETH, tanssi, address(0));
 
-        _optInOperator(operator10Alchemy, vaultsAddressesDeployedA.renzoRestakedETH, tanssi, address(0));
+        _optInOperator(operator10Alchemy, vaultsAddressesDeployedA.restakedLsETHVault, tanssi, address(0));
 
         _optInOperator(operator10Alchemy, vaultsAddressesDeployedB.gauntletRestakedWstETH, tanssi, address(0));
 
@@ -1199,13 +1199,8 @@ contract FullTest is Test {
         for (uint256 i = 0; i < operatorVaultPairs.length; i++) {
             if (operatorVaultPairs[i].operator == operator) {
                 found = true;
-                console2.log("Operator found", operator);
-                console2.log("Total vaults vs expected", operatorVaultPairs[i].vaults.length, totalVaults);
                 assertEq(operatorVaultPairs[i].vaults.length, totalVaults);
             }
-        }
-        if (!found) {
-            console2.log("Operator not found", operator);
         }
         assertEq(found, true, "Operator not found");
     }
@@ -1307,14 +1302,14 @@ contract FullTest is Test {
 
         _checkOperatorVaultPairs(operatorVaultPairs, operator1PierTwo, PIER_TWO_VAULTS);
         _checkOperatorVaultPairs(operatorVaultPairs, operator2P2P, P2P_VAULTS);
-        // _checkOperatorVaultPairs(operatorVaultPairs, operator8CP0XStakrspace, CP0X_STAKRSPACE_VAULTS); // TODO: Missing 1 vault
+        _checkOperatorVaultPairs(operatorVaultPairs, operator8CP0XStakrspace, CP0X_STAKRSPACE_VAULTS);
         _checkOperatorVaultPairs(operatorVaultPairs, operator3Nodeinfra, NODE_INFRA);
         _checkOperatorVaultPairs(operatorVaultPairs, operator4Blockscape, BLOCKSCAPE_VAULTS);
         _checkOperatorVaultPairs(operatorVaultPairs, operator5QuantNode, QUANT_NODE_VAULTS);
         _checkOperatorVaultPairs(operatorVaultPairs, operator6NodeMonster, NODE_MONSTER_VAULTS);
         _checkOperatorVaultPairs(operatorVaultPairs, operator7BlockBones, BLOCK_BONES_VAULTS);
         _checkOperatorVaultPairs(operatorVaultPairs, operator9HashkeyCloud, HASHKEY_CLOUD_VAULTS);
-        // _checkOperatorVaultPairs(operatorVaultPairs, operator10Alchemy, ALCHEMY_VAULTS); // TODO: Missing 1 vault
+        _checkOperatorVaultPairs(operatorVaultPairs, operator10Alchemy, ALCHEMY_VAULTS); // TODO: Missing 1 vault
         _checkOperatorVaultPairs(operatorVaultPairs, operator11Opslayer, OPSLAYER_VAULTS);
     }
 
