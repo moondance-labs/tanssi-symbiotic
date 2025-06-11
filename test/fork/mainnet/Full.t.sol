@@ -87,6 +87,7 @@ contract FullTest is Test {
     uint256 public constant DEFAULT_WITHDRAW_AMOUNT = 30 ether;
     uint256 public constant OPERATOR_INITIAL_BALANCE = 1000 ether;
     uint256 public constant MIN_SLASHING_WINDOW = 1 days;
+    uint256 public constant MIN_DEPOSIT = 10 ether; // 10 ETH
 
     uint256 public constant OPERATOR_SHARE = 1;
     uint256 public constant TOTAL_SHARES_MEV_RESTAKED = 3;
@@ -142,7 +143,7 @@ contract FullTest is Test {
         0x4a28e04d008b281fe855242d7a907b0968ae4dc8e9c0a72c0724c69a53db7159;
     bytes32 public constant OPERATOR_10_ALCHEMY_KEY = 0x6441d0a205bfb34eee189931a672baca6722eddbc05a8e370f72c161d9e72662;
     bytes32 public constant OPERATOR_11_OPSLAYER_KEY =
-        0x0000000000000000000000000000000000000000000000000000000000000000;
+        0x1c8bbfc13c5085b9870d34a7db40977a1dc049d3c7d76b58ee9059348ec499cf;
 
     uint256 public constant PIER_TWO_VAULTS = 10;
     uint256 public constant P2P_VAULTS = 8;
@@ -156,7 +157,7 @@ contract FullTest is Test {
     uint256 public constant ALCHEMY_VAULTS = 8;
     uint256 public constant OPSLAYER_VAULTS = 1; // TODO
 
-    uint256 public constant TOTAL_OPERATORS = 10; // 1 Pending
+    uint256 public constant TOTAL_OPERATORS = 11;
 
     address public constant VAULT_MANAGER_COMMON = 0x9437B2a8cF3b69D782a61f9814baAbc172f72003;
 
@@ -167,8 +168,9 @@ contract FullTest is Test {
     address public constant VAULT_MANAGER_RE7LABS = 0xE86399fE6d7007FdEcb08A2ee1434Ee677a04433;
     address public constant VAULT_MANAGER_CP0XLRTETH = 0xD1f59ba974E828dF68cB2592C16b967B637cB4e4;
     address public constant VAULT_MANAGER_GAUNTLET = 0x059Ae3F8a1EaDDAAb34D0A74E8Eb752c848062d1;
-    address public constant VAULT_MANAGER_ETHERFIWSTETH = 0x47482dA197719f2CE0BAeBB7F72D1d7C1D6cc8bD; // TODO: find and set
-    address public constant VAULT_MANAGER_RESTAKEDLSETHVAULT = 0x8989e3f949df80e8eFcbf3372F082699b93E5C09; // TODO: find and set
+    address public constant VAULT_MANAGER_ETHERFIWSTETH = 0x47482dA197719f2CE0BAeBB7F72D1d7C1D6cc8bD;
+    address public constant VAULT_MANAGER_RESTAKEDLSETHVAULT = 0x8989e3f949df80e8eFcbf3372F082699b93E5C09;
+    address public constant VAULT_MANAGER_OPSLAYER = 0xf409021Fa7E769837162346CFA8d1eF4DAa77585;
 
     address public resolver1 = makeAddr("resolver1");
     address public resolver2 = makeAddr("resolver2");
@@ -219,6 +221,7 @@ contract FullTest is Test {
         uint256 cp0xLrtETH;
         uint256 etherfiwstETH;
         uint256 restakedLsETHVault;
+        uint256 opslayer;
     }
 
     struct VaultStakeBeforeDepositB {
@@ -239,6 +242,7 @@ contract FullTest is Test {
         uint256 cp0xLrtETH;
         uint256 etherfiwstETH;
         uint256 restakedLsETHVault;
+        uint256 opslayer;
     }
 
     struct VaultTotalStakeB {
@@ -272,6 +276,10 @@ contract FullTest is Test {
 
     function setUp() public {
         _getBaseInfrastructure();
+        address[] memory activeOperators =
+            OBaseMiddlewareReader(address(ecosystemEntities.middleware)).activeOperators();
+        console2.log("Active operators before set up", activeOperators.length);
+
         _setLimitsAndShares(tanssi);
         _setupOperators();
 
@@ -281,13 +289,10 @@ contract FullTest is Test {
 
         /// ecosystemEntities.middleware.setCollateralToOracle(xxx, oracle); Called for each collateral: wstETH, rETH, swETH, wBETH, LsETH, cbETH
         vm.stopPrank();
-
-        _cachePowerBeforeDeposit();
     }
 
     function _getBaseInfrastructure() private {
         // Check if it's good for mainnet
-        // vm.allowCheatcodes(address(0x6B5CF024365D5d5d0786673780CA7E3F07f85B63));
         helperConfig = new HelperConfig();
 
         HelperConfig.TokensConfig memory tokensConfig;
@@ -307,137 +312,101 @@ contract FullTest is Test {
     function _setupOperators() private {
         // OPERATOR 1 - Pier Two
 
-        _optInOperator(operator1PierTwo, vaultsAddressesDeployedA.etherfiwstETH.vault, tanssi);
+        _optInOperator(operator1PierTwo, vaultsAddressesDeployedA.etherfiwstETH, tanssi, address(0));
 
-        _optInOperator(operator1PierTwo, vaultsAddressesDeployedB.gauntletRestakedcBETH.vault, tanssi);
+        _optInOperator(operator1PierTwo, vaultsAddressesDeployedB.gauntletRestakedcBETH, tanssi, address(0));
 
-        _optInOperator(operator1PierTwo, vaultsAddressesDeployedB.gauntletRestakedRETH.vault, tanssi);
+        _optInOperator(operator1PierTwo, vaultsAddressesDeployedB.gauntletRestakedRETH, tanssi, address(0));
 
-        _optInOperator(operator1PierTwo, vaultsAddressesDeployedB.gauntletRestakedSwETH.vault, tanssi);
+        _optInOperator(operator1PierTwo, vaultsAddressesDeployedB.gauntletRestakedSwETH, tanssi, address(0));
 
-        _optInOperator(operator1PierTwo, vaultsAddressesDeployedB.gauntletRestakedWBETH.vault, tanssi);
+        _optInOperator(operator1PierTwo, vaultsAddressesDeployedB.gauntletRestakedWBETH, tanssi, address(0));
 
-        _optInOperator(operator1PierTwo, vaultsAddressesDeployedB.gauntletRestakedWstETH.vault, tanssi);
+        _optInOperator(operator1PierTwo, vaultsAddressesDeployedB.gauntletRestakedWstETH, tanssi, address(0));
 
-        _optInOperator(operator1PierTwo, vaultsAddressesDeployedA.mevRestakedETH.vault, tanssi);
+        _optInOperator(operator1PierTwo, vaultsAddressesDeployedA.mevRestakedETH, tanssi, address(0));
 
-        _optInOperator(operator1PierTwo, vaultsAddressesDeployedA.re7LabsETH.vault, tanssi);
+        _optInOperator(operator1PierTwo, vaultsAddressesDeployedA.re7LabsETH, tanssi, address(0));
 
-        _optInOperator(operator1PierTwo, vaultsAddressesDeployedA.renzoRestakedETH.vault, tanssi);
+        _optInOperator(operator1PierTwo, vaultsAddressesDeployedA.renzoRestakedETH, tanssi, address(0));
 
-        _optInOperator(operator1PierTwo, vaultsAddressesDeployedA.restakedLsETHVault.vault, tanssi);
+        _optInOperator(operator1PierTwo, vaultsAddressesDeployedA.restakedLsETHVault, tanssi, address(0));
 
         // OPERATOR 2 - P2P
 
-        _optInOperator(operator2P2P, vaultsAddressesDeployedA.etherfiwstETH.vault, tanssi);
+        _optInOperator(operator2P2P, vaultsAddressesDeployedA.etherfiwstETH, tanssi, address(0));
 
-        _optInOperator(operator2P2P, vaultsAddressesDeployedB.gauntletRestakedcBETH.vault, tanssi);
+        _optInOperator(operator2P2P, vaultsAddressesDeployedB.gauntletRestakedcBETH, tanssi, address(0));
 
-        _optInOperator(operator2P2P, vaultsAddressesDeployedB.gauntletRestakedRETH.vault, tanssi);
+        _optInOperator(operator2P2P, vaultsAddressesDeployedB.gauntletRestakedRETH, tanssi, address(0));
 
-        _optInOperator(operator2P2P, vaultsAddressesDeployedB.gauntletRestakedSwETH.vault, tanssi);
+        _optInOperator(operator2P2P, vaultsAddressesDeployedB.gauntletRestakedSwETH, tanssi, address(0));
 
-        _optInOperator(operator2P2P, vaultsAddressesDeployedB.gauntletRestakedWBETH.vault, tanssi);
+        _optInOperator(operator2P2P, vaultsAddressesDeployedB.gauntletRestakedWBETH, tanssi, address(0));
 
-        _optInOperator(operator2P2P, vaultsAddressesDeployedB.gauntletRestakedWstETH.vault, tanssi);
+        _optInOperator(operator2P2P, vaultsAddressesDeployedB.gauntletRestakedWstETH, tanssi, address(0));
 
-        _optInOperator(operator2P2P, vaultsAddressesDeployedA.re7LabsETH.vault, tanssi);
+        _optInOperator(operator2P2P, vaultsAddressesDeployedA.re7LabsETH, tanssi, address(0));
 
-        _optInOperator(operator2P2P, vaultsAddressesDeployedA.re7LabsRestakingETH.vault, tanssi);
+        _optInOperator(operator2P2P, vaultsAddressesDeployedA.re7LabsRestakingETH, tanssi, address(0));
 
         // OPERATOR 3 - Nodeinfra
 
-        _optInOperator(operator3Nodeinfra, vaultsAddressesDeployedA.mevRestakedETH.vault, tanssi);
+        _optInOperator(operator3Nodeinfra, vaultsAddressesDeployedA.mevRestakedETH, tanssi, address(0));
 
-        _optInOperator(operator3Nodeinfra, vaultsAddressesDeployedA.mevCapitalETH.vault, tanssi);
+        _optInOperator(operator3Nodeinfra, vaultsAddressesDeployedA.mevCapitalETH, tanssi, address(0));
 
-        _optInOperator(operator3Nodeinfra, vaultsAddressesDeployedA.restakedLsETHVault.vault, tanssi);
+        _optInOperator(operator3Nodeinfra, vaultsAddressesDeployedA.restakedLsETHVault, tanssi, address(0));
 
         // OPERATOR 4 - Blockscape
-        _optInOperator(operator4Blockscape, vaultsAddressesDeployedA.mevRestakedETH.vault, tanssi);
+        _optInOperator(operator4Blockscape, vaultsAddressesDeployedA.mevRestakedETH, tanssi, address(0));
 
-        _optInOperator(operator4Blockscape, vaultsAddressesDeployedA.mevCapitalETH.vault, tanssi);
+        _optInOperator(operator4Blockscape, vaultsAddressesDeployedA.mevCapitalETH, tanssi, address(0));
 
-        _optInOperator(operator4Blockscape, vaultsAddressesDeployedA.re7LabsETH.vault, tanssi);
+        _optInOperator(operator4Blockscape, vaultsAddressesDeployedA.re7LabsETH, tanssi, address(0));
 
-        _optInOperator(operator4Blockscape, vaultsAddressesDeployedA.restakedLsETHVault.vault, tanssi);
+        _optInOperator(operator4Blockscape, vaultsAddressesDeployedA.restakedLsETHVault, tanssi, address(0));
 
         // OPERATOR 5 - Quant Node
 
-        _optInOperator(operator5QuantNode, vaultsAddressesDeployedA.re7LabsETH.vault, tanssi);
+        _optInOperator(operator5QuantNode, vaultsAddressesDeployedA.re7LabsETH, tanssi, address(0));
 
         // OPERATOR 6 - Node Monster
 
-        _optInOperator(operator6NodeMonster, vaultsAddressesDeployedA.re7LabsETH.vault, tanssi);
+        _optInOperator(operator6NodeMonster, vaultsAddressesDeployedA.re7LabsETH, tanssi, address(0));
 
         // OPERATOR 7 - BlocknBones
-        _optInOperator(operator7BlockBones, vaultsAddressesDeployedA.re7LabsETH.vault, tanssi);
+        _optInOperator(operator7BlockBones, vaultsAddressesDeployedA.re7LabsETH, tanssi, address(0));
 
         // OPERATOR 8 - CP0X Stakrspace
-        _optInOperator(operator8CP0XStakrspace, vaultsAddressesDeployedA.cp0xLrtETH.vault, tanssi);
+        _optInOperator(operator8CP0XStakrspace, vaultsAddressesDeployedA.cp0xLrtETH, tanssi, address(0));
 
-        _optInOperator(operator8CP0XStakrspace, vaultsAddressesDeployedA.mevCapitalETH.vault, tanssi);
+        _optInOperator(operator8CP0XStakrspace, vaultsAddressesDeployedA.mevCapitalETH, tanssi, address(0));
 
         // OPERATOR 9 - Hashkey Cloud
-        _optInOperator(operator9HashkeyCloud, vaultsAddressesDeployedA.hashKeyCloudETH.vault, tanssi);
+        _optInOperator(operator9HashkeyCloud, vaultsAddressesDeployedA.hashKeyCloudETH, tanssi, address(0));
 
         // OPERATOR 10 - Alchemy
 
-        _optInOperator(operator10Alchemy, vaultsAddressesDeployedA.mevRestakedETH.vault, tanssi);
+        _optInOperator(operator10Alchemy, vaultsAddressesDeployedA.mevRestakedETH, tanssi, address(0));
 
-        _optInOperator(operator10Alchemy, vaultsAddressesDeployedA.mevCapitalETH.vault, tanssi);
+        _optInOperator(operator10Alchemy, vaultsAddressesDeployedA.mevCapitalETH, tanssi, address(0));
 
-        _optInOperator(operator10Alchemy, vaultsAddressesDeployedA.renzoRestakedETH.vault, tanssi);
+        _optInOperator(operator10Alchemy, vaultsAddressesDeployedA.renzoRestakedETH, tanssi, address(0));
 
-        _optInOperator(operator10Alchemy, vaultsAddressesDeployedB.gauntletRestakedWstETH.vault, tanssi);
+        _optInOperator(operator10Alchemy, vaultsAddressesDeployedB.gauntletRestakedWstETH, tanssi, address(0));
 
-        _optInOperator(operator10Alchemy, vaultsAddressesDeployedB.gauntletRestakedSwETH.vault, tanssi);
+        _optInOperator(operator10Alchemy, vaultsAddressesDeployedB.gauntletRestakedSwETH, tanssi, address(0));
 
-        _optInOperator(operator10Alchemy, vaultsAddressesDeployedB.gauntletRestakedRETH.vault, tanssi);
+        _optInOperator(operator10Alchemy, vaultsAddressesDeployedB.gauntletRestakedRETH, tanssi, address(0));
 
-        _optInOperator(operator10Alchemy, vaultsAddressesDeployedB.gauntletRestakedWBETH.vault, tanssi);
+        _optInOperator(operator10Alchemy, vaultsAddressesDeployedB.gauntletRestakedWBETH, tanssi, address(0));
 
-        _optInOperator(operator10Alchemy, vaultsAddressesDeployedB.gauntletRestakedcBETH.vault, tanssi);
+        _optInOperator(operator10Alchemy, vaultsAddressesDeployedB.gauntletRestakedcBETH, tanssi, address(0));
 
-        // OPERATOR 11 - Ops Layer TODO
-    }
+        // OPERATOR 11 - Ops Layer
 
-    function _cachePowerBeforeDeposit() private {
-        vaultStakeBeforeDepositA.mevRestakedETH = _getTotalPower(vaultsAddressesDeployedA.mevRestakedETH.vault);
-
-        vaultStakeBeforeDepositA.mevCapitalETH = _getTotalPower(vaultsAddressesDeployedA.mevCapitalETH.vault);
-
-        vaultStakeBeforeDepositA.hashKeyCloudETH = _getTotalPower(vaultsAddressesDeployedA.hashKeyCloudETH.vault);
-
-        vaultStakeBeforeDepositA.renzoRestakedETH = _getTotalPower(vaultsAddressesDeployedA.renzoRestakedETH.vault);
-
-        vaultStakeBeforeDepositA.re7LabsETH = _getTotalPower(vaultsAddressesDeployedA.re7LabsETH.vault);
-        console2.log("re7LabsETH power", vaultStakeBeforeDepositA.re7LabsETH);
-
-        vaultStakeBeforeDepositA.re7LabsRestakingETH =
-            _getTotalPower(vaultsAddressesDeployedA.re7LabsRestakingETH.vault);
-        console2.log("re7LabsRestakingETH power", vaultStakeBeforeDepositA.re7LabsRestakingETH);
-
-        vaultStakeBeforeDepositA.cp0xLrtETH = _getTotalPower(vaultsAddressesDeployedA.cp0xLrtETH.vault);
-
-        vaultStakeBeforeDepositA.etherfiwstETH = _getTotalPower(vaultsAddressesDeployedA.etherfiwstETH.vault);
-
-        vaultStakeBeforeDepositA.restakedLsETHVault = _getTotalPower(vaultsAddressesDeployedA.restakedLsETHVault.vault);
-
-        vaultStakeBeforeDepositB.gauntletRestakedWstETH =
-            _getTotalPower(vaultsAddressesDeployedB.gauntletRestakedWstETH.vault);
-
-        vaultStakeBeforeDepositB.gauntletRestakedSwETH =
-            _getTotalPower(vaultsAddressesDeployedB.gauntletRestakedSwETH.vault);
-
-        vaultStakeBeforeDepositB.gauntletRestakedRETH =
-            _getTotalPower(vaultsAddressesDeployedB.gauntletRestakedRETH.vault);
-
-        vaultStakeBeforeDepositB.gauntletRestakedWBETH =
-            _getTotalPower(vaultsAddressesDeployedB.gauntletRestakedWBETH.vault);
-
-        vaultStakeBeforeDepositB.gauntletRestakedcBETH =
-            _getTotalPower(vaultsAddressesDeployedB.gauntletRestakedcBETH.vault);
+        _optInOperator(operator11Opslayer, vaultsAddressesDeployedA.opslayer, tanssi, VAULT_MANAGER_OPSLAYER);
     }
 
     function _getTotalPower(
@@ -446,10 +415,11 @@ contract FullTest is Test {
         return (IVault(vault).activeStake() * uint256(ORACLE_CONVERSION_TOKEN)) / 10 ** ORACLE_DECIMALS;
     }
 
-    // function _depositToVault(IVault _vault, address _operator, uint256 _amount, IERC20 collateral) public {
-    //     collateral.approve(address(_vault), _amount * 10);
-    //     _vault.deposit(_operator, _amount);
-    // }
+    function _depositToVault(IVault vault, address operator, uint256 amount, IERC20 collateral) public {
+        deal(address(collateral), operator, amount);
+        collateral.approve(address(vault), amount);
+        vault.deposit(operator, amount);
+    }
 
     function _registerEntitiesToMiddleware() public {
         IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
@@ -479,6 +449,8 @@ contract FullTest is Test {
         _registerVaultIfNotActive(vaultsAddressesDeployedA.etherfiwstETH.vault, activeVaults, stakerRewardsParams);
 
         _registerVaultIfNotActive(vaultsAddressesDeployedA.restakedLsETHVault.vault, activeVaults, stakerRewardsParams);
+
+        _registerVaultIfNotActive(vaultsAddressesDeployedA.opslayer.vault, activeVaults, stakerRewardsParams);
 
         _registerVaultIfNotActive(
             vaultsAddressesDeployedB.gauntletRestakedWstETH.vault, activeVaults, stakerRewardsParams
@@ -510,14 +482,14 @@ contract FullTest is Test {
         _registerOperatorIfNeeded(operator8CP0XStakrspace, OPERATOR_8_CP0XSTAKRSPACE_KEY);
         _registerOperatorIfNeeded(operator9HashkeyCloud, OPERATOR_9_HASHKEYCLOUD_KEY);
         _registerOperatorIfNeeded(operator10Alchemy, OPERATOR_10_ALCHEMY_KEY);
-        // _registerOperatorIfNeeded(operator11Opslayer, OPERATOR_11_OPSLAYER_KEY);
+        _registerOperatorIfNeeded(operator11Opslayer, OPERATOR_11_OPSLAYER_KEY);
 
         vm.stopPrank();
     }
 
     function _registerOperatorIfNeeded(address _operator, bytes32 _key) private {
         if (!OBaseMiddlewareReader(address(ecosystemEntities.middleware)).isOperatorRegistered(_operator)) {
-            // console2.log("Registering operator", _operator);
+            console2.log("Registering operator", _operator);
             ecosystemEntities.middleware.registerOperator(_operator, abi.encode(_key), address(0));
         }
     }
@@ -528,12 +500,17 @@ contract FullTest is Test {
         IODefaultStakerRewards.InitParams memory stakerRewardsParams
     ) private {
         if (!OBaseMiddlewareReader(address(ecosystemEntities.middleware)).isVaultRegistered(_vault)) {
-            // console2.log("Registering vault", _vault);
+            console2.log("Registering vault", _vault);
             ecosystemEntities.middleware.registerSharedVault(_vault, stakerRewardsParams);
         }
     }
 
-    function _optInOperator(address _operator, address _vault, address _network) public {
+    function _optInOperator(
+        address operator,
+        HelperConfig.VaultTrifecta memory vaultTrifecta,
+        address network,
+        address vaultManager
+    ) public {
         (
             ,
             address operatorRegistryAddress,
@@ -549,28 +526,44 @@ contract FullTest is Test {
         IOptInService operatorVaultOptInService = IOptInService(operatorVaultOptInServiceAddress);
         IOptInService operatorNetworkOptInService = IOptInService(operatorNetworkOptInServiceAddress);
 
-        vm.startPrank(_operator);
-        if (!operatorRegistry.isEntity(_operator)) {
+        {
+            bytes32 depositorWhitelistRole = 0x9c56d972d63cbb4195b3c1484691dfc220fa96a4c47e7b6613bd82a022029e06;
+
+            if (vaultManager != address(0)) {
+                vm.startPrank(vaultManager);
+                IVault(vaultTrifecta.vault).setDepositorWhitelistStatus(operator, true);
+            }
+            // This is the vault manager for several vaults.
+            else if (IAccessControl(vaultTrifecta.vault).hasRole(depositorWhitelistRole, VAULT_MANAGER_COMMON)) {
+                // console2.log("Setting depositor whitelist status for", _operator, vaultTrifecta.vault);
+                vm.startPrank(VAULT_MANAGER_COMMON);
+                IVault(vaultTrifecta.vault).setDepositorWhitelistStatus(operator, true);
+            }
+        }
+
+        vm.startPrank(operator);
+        if (!operatorRegistry.isEntity(operator)) {
+            console2.log("Registering operator", operator);
             operatorRegistry.registerOperator();
         }
 
-        if (!operatorVaultOptInService.isOptedIn(_operator, address(_vault))) {
-            operatorVaultOptInService.optIn(address(_vault));
+        if (!operatorVaultOptInService.isOptedIn(operator, vaultTrifecta.vault)) {
+            operatorVaultOptInService.optIn(vaultTrifecta.vault);
+            console2.log("Opted in operator", operator, "to vault", vaultTrifecta.vault);
         }
 
-        if (!operatorNetworkOptInService.isOptedIn(_operator, _network)) {
-            operatorNetworkOptInService.optIn(_network);
+        uint256 operatorStake = IBaseDelegator(vaultTrifecta.delegator).stakeAt(
+            tanssi.subnetwork(0), operator, uint48(block.timestamp), new bytes(0)
+        );
+        if (operatorStake == 0) {
+            IVault vault = IVault(vaultTrifecta.vault);
+            console2.log("Operator", operator, "has no stake into vault", vaultTrifecta.vault);
+            _depositToVault(vault, operator, MIN_DEPOSIT, IERC20(vault.collateral()));
         }
-        {
-            bytes32 depositorWhitelistRole = 0x9c56d972d63cbb4195b3c1484691dfc220fa96a4c47e7b6613bd82a022029e06;
-            // This is the vault manager for several vaults.
-            address commonVaultManager = 0x9437B2a8cF3b69D782a61f9814baAbc172f72003;
 
-            if (IAccessControl(_vault).hasRole(depositorWhitelistRole, commonVaultManager)) {
-                // console2.log("Setting depositor whitelist status for", _operator, _vault);
-                vm.startPrank(commonVaultManager);
-                IVault(_vault).setDepositorWhitelistStatus(_operator, true);
-            }
+        if (!operatorNetworkOptInService.isOptedIn(operator, network)) {
+            console2.log("Opting in operator", operator, "to network", network);
+            operatorNetworkOptInService.optIn(network);
         }
 
         vm.stopPrank();
@@ -595,7 +588,7 @@ contract FullTest is Test {
     }
 
     function _setMaxNetworkLimits() private {
-        vm.startPrank(admin);
+        vm.startPrank(tanssi);
 
         _setMaxNetworkLimitIfNeeded(vaultsAddressesDeployedA.mevRestakedETH.delegator, MAX_NETWORK_LIMIT);
 
@@ -615,6 +608,8 @@ contract FullTest is Test {
 
         _setMaxNetworkLimitIfNeeded(vaultsAddressesDeployedA.restakedLsETHVault.delegator, MAX_NETWORK_LIMIT);
 
+        _setMaxNetworkLimitIfNeeded(vaultsAddressesDeployedA.opslayer.delegator, MAX_NETWORK_LIMIT);
+
         _setMaxNetworkLimitIfNeeded(vaultsAddressesDeployedB.gauntletRestakedcBETH.delegator, MAX_NETWORK_LIMIT);
 
         _setMaxNetworkLimitIfNeeded(vaultsAddressesDeployedB.gauntletRestakedRETH.delegator, MAX_NETWORK_LIMIT);
@@ -632,6 +627,7 @@ contract FullTest is Test {
         INetworkRestakeDelegator delegator = INetworkRestakeDelegator(_delegator);
 
         if (delegator.maxNetworkLimit(tanssi.subnetwork(0)) == 0) {
+            console2.log("Setting max network limit for", _delegator);
             delegator.setMaxNetworkLimit(0, _limit);
         }
     }
@@ -672,6 +668,10 @@ contract FullTest is Test {
         );
 
         _setNetworkLimitIfNeeded(
+            VAULT_MANAGER_OPSLAYER, vaultsAddressesDeployedA.opslayer.delegator, OPERATOR_NETWORK_LIMIT
+        );
+
+        _setNetworkLimitIfNeeded(
             VAULT_MANAGER_GAUNTLET, vaultsAddressesDeployedB.gauntletRestakedcBETH.delegator, OPERATOR_NETWORK_LIMIT
         );
 
@@ -697,6 +697,7 @@ contract FullTest is Test {
         INetworkRestakeDelegator delegator = INetworkRestakeDelegator(_delegator);
 
         if (delegator.networkLimit(tanssi.subnetwork(0)) == 0) {
+            console2.log("Setting network limit for", _delegator);
             uint256 maxLimit = delegator.maxNetworkLimit(tanssi.subnetwork(0));
 
             delegator.setNetworkLimit(tanssi.subnetwork(0), Math.min(maxLimit, _limit));
@@ -706,9 +707,7 @@ contract FullTest is Test {
 
     function _setOperatorShares() private {
         vm.startPrank(VAULT_MANAGER_CP0XLRTETH);
-        {
-            _setSharesIfNeeded(vaultsAddressesDeployedA.cp0xLrtETH.delegator, operator8CP0XStakrspace, OPERATOR_SHARE);
-        }
+        _setSharesIfNeeded(vaultsAddressesDeployedA.cp0xLrtETH.delegator, operator8CP0XStakrspace, OPERATOR_SHARE);
 
         vm.startPrank(VAULT_MANAGER_ETHERFIWSTETH);
         _setSharesIfNeeded(vaultsAddressesDeployedA.etherfiwstETH.delegator, operator1PierTwo, OPERATOR_SHARE);
@@ -749,6 +748,9 @@ contract FullTest is Test {
         _setSharesIfNeeded(vaultsAddressesDeployedA.restakedLsETHVault.delegator, operator3Nodeinfra, OPERATOR_SHARE);
         _setSharesIfNeeded(vaultsAddressesDeployedA.restakedLsETHVault.delegator, operator4Blockscape, OPERATOR_SHARE);
 
+        vm.startPrank(VAULT_MANAGER_OPSLAYER);
+        _setSharesIfNeeded(vaultsAddressesDeployedA.opslayer.delegator, operator11Opslayer, OPERATOR_SHARE);
+
         vm.startPrank(VAULT_MANAGER_GAUNTLET);
         _setSharesIfNeeded(vaultsAddressesDeployedB.gauntletRestakedcBETH.delegator, operator10Alchemy, OPERATOR_SHARE);
         _setSharesIfNeeded(vaultsAddressesDeployedB.gauntletRestakedcBETH.delegator, operator1PierTwo, OPERATOR_SHARE);
@@ -776,6 +778,7 @@ contract FullTest is Test {
     function _setSharesIfNeeded(address _delegator, address _operator, uint256 _shares) private {
         INetworkRestakeDelegator delegator = INetworkRestakeDelegator(_delegator);
         if (delegator.operatorNetworkShares(tanssi.subnetwork(0), _operator) == 0) {
+            console2.log("Setting shares for", _delegator, _operator);
             delegator.setOperatorNetworkShares(tanssi.subnetwork(0), _operator, _shares);
         }
     }
@@ -1222,43 +1225,40 @@ contract FullTest is Test {
     }
 
     function testIfOperatorsAreRegisteredInVaults() public {
-        vm.warp(block.timestamp + 14 days + 1); // In 14 days there should be a new vault epoch in all epochs
+        vm.warp(block.timestamp + 7 days + 1); // In 7 days there should be a new vault epoch in all epochs
         uint48 currentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
         Middleware.OperatorVaultPair[] memory operatorVaultPairs =
             OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getOperatorVaultPairs(currentEpoch);
 
         address[] memory activeOperators =
             OBaseMiddlewareReader(address(ecosystemEntities.middleware)).activeOperators();
-        console2.log("Active operators", activeOperators.length);
-        for (uint256 i = 0; i < activeOperators.length; i++) {
-            console2.log("Operator", activeOperators[i]);
-        }
 
+        console2.log("Active operators", activeOperators.length);
         console2.log("Total operators", operatorVaultPairs.length);
-        for (uint256 i = 0; i < operatorVaultPairs.length; i++) {
-            console2.log("Operator", operatorVaultPairs[i].operator);
-            console2.log("Vaults", operatorVaultPairs[i].vaults.length);
-        }
+        // for (uint256 i = 0; i < operatorVaultPairs.length; i++) {
+        //     console2.log("Operator", operatorVaultPairs[i].operator);
+        //     console2.log("Vaults", operatorVaultPairs[i].vaults.length);
+        // }
 
         uint256 epochStartTs = ecosystemEntities.middleware.getEpochStart(currentEpoch);
 
         address[] memory vaults =
             OBaseMiddlewareReader(address(ecosystemEntities.middleware)).activeVaultsAt(uint48(epochStartTs));
         console2.log("Vaults", vaults.length);
-        for (uint256 i = 0; i < vaults.length; i++) {
-            console2.log("Vault", vaults[i]);
-        }
         uint256 totalVaults;
-        (totalVaults, vaults) =
-            OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getOperatorVaults(operator5QuantNode, 0);
+        (totalVaults, vaults) = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getOperatorVaults(
+            operator5QuantNode, uint48(epochStartTs)
+        );
         console2.log("Total vaults operator5QuantNode", totalVaults);
 
-        (totalVaults, vaults) =
-            OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getOperatorVaults(operator6NodeMonster, 0);
+        (totalVaults, vaults) = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getOperatorVaults(
+            operator6NodeMonster, uint48(epochStartTs)
+        );
         console2.log("Total vaults operator6NodeMonster", totalVaults);
 
-        (totalVaults, vaults) =
-            OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getOperatorVaults(operator7BlockBones, 0);
+        (totalVaults, vaults) = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getOperatorVaults(
+            operator7BlockBones, uint48(epochStartTs)
+        );
         console2.log("Total vaults operator7BlockBones", totalVaults);
 
         uint256 stake = IBaseDelegator(vaultsAddressesDeployedA.re7LabsETH.delegator).stakeAt(
@@ -1276,6 +1276,30 @@ contract FullTest is Test {
         );
         console2.log("Stake operator7BlockBones", stake);
 
+        stake = IVault(vaultsAddressesDeployedA.re7LabsETH.vault).activeStakeAt(uint48(epochStartTs), new bytes(0));
+        console2.log("Stake re7LabsETH", stake);
+        uint256 networkLimit = INetworkRestakeDelegator(vaultsAddressesDeployedA.re7LabsETH.delegator).networkLimitAt(
+            tanssi.subnetwork(0), uint48(epochStartTs), new bytes(0)
+        );
+        console2.log("Network limit re7LabsETH", networkLimit);
+
+        uint256 networkShares = INetworkRestakeDelegator(vaultsAddressesDeployedA.re7LabsETH.delegator)
+            .totalOperatorNetworkShares(tanssi.subnetwork(0));
+        console2.log("Network shares re7LabsETH", networkShares);
+
+        networkShares = INetworkRestakeDelegator(vaultsAddressesDeployedA.re7LabsETH.delegator).operatorNetworkSharesAt(
+            tanssi.subnetwork(0), operator5QuantNode, uint48(epochStartTs), new bytes(0)
+        );
+        console2.log("Network shares operator5QuantNode", networkShares);
+        networkShares = INetworkRestakeDelegator(vaultsAddressesDeployedA.re7LabsETH.delegator).operatorNetworkSharesAt(
+            tanssi.subnetwork(0), operator6NodeMonster, uint48(epochStartTs), new bytes(0)
+        );
+        console2.log("Network shares operator6NodeMonster", networkShares);
+        networkShares = INetworkRestakeDelegator(vaultsAddressesDeployedA.re7LabsETH.delegator).operatorNetworkSharesAt(
+            tanssi.subnetwork(0), operator7BlockBones, uint48(epochStartTs), new bytes(0)
+        );
+        console2.log("Network shares operator7BlockBones", networkShares);
+
         assertEq(operatorVaultPairs.length, TOTAL_OPERATORS);
 
         _checkOperatorVaultPairs(operatorVaultPairs, operator1PierTwo, PIER_TWO_VAULTS);
@@ -1288,7 +1312,7 @@ contract FullTest is Test {
         _checkOperatorVaultPairs(operatorVaultPairs, operator7BlockBones, BLOCK_BONES_VAULTS);
         _checkOperatorVaultPairs(operatorVaultPairs, operator9HashkeyCloud, HASHKEY_CLOUD_VAULTS);
         _checkOperatorVaultPairs(operatorVaultPairs, operator10Alchemy, ALCHEMY_VAULTS);
-        // _checkOperatorVaultPairs(operatorVaultPairs, operator11Opslayer, OPSLAYER_VAULTS);
+        _checkOperatorVaultPairs(operatorVaultPairs, operator11Opslayer, OPSLAYER_VAULTS);
     }
 
     function testOperatorsStakeIsTheSamePerEpoch() public {
