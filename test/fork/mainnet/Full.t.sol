@@ -111,8 +111,8 @@ contract FullTest is Test {
     uint8 public constant ORACLE_DECIMALS = 2;
     int256 public constant ORACLE_CONVERSION_TOKEN = 2000;
 
-    address public admin = 0xaE5D4E70CB5910bea21E06d33B10F2bD6C95daaE;
-    address public tanssi = 0x8c1a46D032B7b30D9AB4F30e51D8139CC3E85Ce3;
+    address public admin;
+    address public tanssi;
 
     address public operator1PierTwo = 0x51B6D824bd35AeD4FD1a9E253E41Dc7C9feeFa30;
     address public operator2P2P = 0x087c25f83ED20bda587CFA035ED0c96338D4660f;
@@ -299,8 +299,14 @@ contract FullTest is Test {
         HelperConfig.TokensConfig memory tokensConfig;
         (, tokensConfig, vaultsAddressesDeployedA, vaultsAddressesDeployedB) = helperConfig.getChainConfig();
 
-        // TODO: Take it from chain_data.json
-        ecosystemEntities.middleware = Middleware(0x1bbd37E4325d931Aef5fEDEF1f87e8343835acE4);
+        string memory root = vm.projectRoot();
+        string memory path = string.concat(root, "/contract-addresses/tanssi.json");
+        string memory json = vm.readFile(path);
+
+        admin = abi.decode(vm.parseJson(json, "$.admin"), (address));
+        tanssi = abi.decode(vm.parseJson(json, "$.tanssi"), (address));
+        address middlewareAddress = abi.decode(vm.parseJson(json, "$.middleware"), (address));
+        ecosystemEntities.middleware = Middleware(middlewareAddress);
 
         ecosystemEntities.wstETH = IDefaultCollateral(tokensConfig.wstETH);
         ecosystemEntities.rETH = IDefaultCollateral(tokensConfig.rETH);
@@ -1309,7 +1315,7 @@ contract FullTest is Test {
         _checkOperatorVaultPairs(operatorVaultPairs, operator6NodeMonster, NODE_MONSTER_VAULTS);
         _checkOperatorVaultPairs(operatorVaultPairs, operator7BlockBones, BLOCK_BONES_VAULTS);
         _checkOperatorVaultPairs(operatorVaultPairs, operator9HashkeyCloud, HASHKEY_CLOUD_VAULTS);
-        _checkOperatorVaultPairs(operatorVaultPairs, operator10Alchemy, ALCHEMY_VAULTS); // TODO: Missing 1 vault
+        _checkOperatorVaultPairs(operatorVaultPairs, operator10Alchemy, ALCHEMY_VAULTS);
         _checkOperatorVaultPairs(operatorVaultPairs, operator11Opslayer, OPSLAYER_VAULTS);
     }
 

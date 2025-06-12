@@ -71,6 +71,21 @@ contract HelperConfig is Script {
         VaultTrifecta gauntletRestakedcBETH; // Gauntlet Restaked cbETH
     }
 
+    struct CollateralData {
+        address collateral;
+        address oracle;
+        string name;
+        string symbol;
+    }
+
+    struct VaultData {
+        string name;
+        address vault;
+        address delegator;
+        address slasher;
+        address collateral;
+    }
+
     uint256 public DEFAULT_ANVIL_PRIVATE_KEY = 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6;
 
     constructor() {
@@ -96,14 +111,18 @@ contract HelperConfig is Script {
         )
     {
         string memory root = vm.projectRoot();
-        // TODO: load from chain-addresses/tanssi.json
-        string memory path = string.concat(root, "/script/chain_data.json");
-        string memory json = vm.readFile(path);
+        string memory json;
+        string memory jsonPath;
 
-        //! Make sure chainid is present in the json or this will just revert without giving any information
         uint256 chainId = block.chainid;
-        // Parse based on chainId
-        string memory jsonPath = string.concat("$.", vm.toString(chainId));
+
+        if (chainId == 1) {
+            json = vm.readFile(string.concat(root, "/contract-addresses/tanssi.json"));
+            jsonPath = "$";
+        } else {
+            json = vm.readFile(string.concat(root, "/script/chain_data.json"));
+            jsonPath = string.concat("$.", vm.toString(chainId));
+        }
 
         networkConfig.vaultConfigurator =
             abi.decode(vm.parseJson(json, string.concat(jsonPath, ".vaultConfigurator")), (address));
@@ -121,61 +140,141 @@ contract HelperConfig is Script {
             abi.decode(vm.parseJson(json, string.concat(jsonPath, ".operatorVaultOptInService")), (address));
         networkConfig.networkMiddlewareService =
             abi.decode(vm.parseJson(json, string.concat(jsonPath, ".networkMiddlewareService")), (address));
+        networkConfig.readHelper =
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".middlewareReader")), (address));
 
-        networkConfig.collateral =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".defaultCollateralFactory")), (address));
-        networkConfig.readHelper = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".readHelper")), (address));
-        tokensConfig.wstETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".wstETHCollateral")), (address));
         if (chainId == 1) {
-            tokensConfig.rETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".rETHCollateral")), (address));
-            tokensConfig.swETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".swETHCollateral")), (address));
-            tokensConfig.wBETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".wBETHCollateral")), (address));
-            tokensConfig.LsETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".LsETHCollateral")), (address));
-            tokensConfig.cbETH = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".cbETHCollateral")), (address));
+            uint256 totalCollaterals =
+                abi.decode(vm.parseJson(json, string.concat(jsonPath, ".totalCollaterals")), (uint256));
+            for (uint256 i = 0; i < totalCollaterals; i++) {
+                CollateralData memory collateral =
+                    _loadCollateral(json, string.concat(jsonPath, ".collaterals[", vm.toString(i), "]"));
+                _assignCollateral(collateral, tokensConfig);
+            }
 
-            vaultsConfigA.mevRestakedETH = _loadVaultTrifectaData(json, jsonPath, ".mevRestakedETH");
-
-            vaultsConfigA.mevCapitalETH = _loadVaultTrifectaData(json, jsonPath, ".mevCapitalETH");
-
-            vaultsConfigA.hashKeyCloudETH = _loadVaultTrifectaData(json, jsonPath, ".hashKeyCloudETH");
-
-            vaultsConfigA.renzoRestakedETH = _loadVaultTrifectaData(json, jsonPath, ".renzoRestakedETH");
-
-            vaultsConfigA.re7LabsETH = _loadVaultTrifectaData(json, jsonPath, ".re7LabsETH");
-
-            vaultsConfigA.cp0xLrtETH = _loadVaultTrifectaData(json, jsonPath, ".cp0xLrtETH");
-
-            vaultsConfigA.re7LabsRestakingETH = _loadVaultTrifectaData(json, jsonPath, ".re7LabsRestakingETH");
-
-            vaultsConfigA.etherfiwstETH = _loadVaultTrifectaData(json, jsonPath, ".etherfiwstETH");
-
-            vaultsConfigA.restakedLsETHVault = _loadVaultTrifectaData(json, jsonPath, ".restakedLsETHVault");
-
-            vaultsConfigA.opslayer = _loadVaultTrifectaData(json, jsonPath, ".opslayer");
-
-            vaultsConfigB.gauntletRestakedWstETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedWstETH");
-
-            vaultsConfigB.gauntletRestakedSwETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedSwETH");
-
-            vaultsConfigB.gauntletRestakedRETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedRETH");
-
-            vaultsConfigB.gauntletRestakedWBETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedWBETH");
-
-            vaultsConfigB.gauntletRestakedcBETH = _loadVaultTrifectaData(json, jsonPath, ".gauntletRestakedCbETH");
+            uint256 totalVaults = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".totalVaults")), (uint256));
+            for (uint256 i = 0; i < totalVaults; i++) {
+                console2.log("vaults", i);
+                VaultData memory vault = _loadVault(json, string.concat(jsonPath, ".vaults[", vm.toString(i), "]"));
+                _assignVault(vault, vaultsConfigA, vaultsConfigB);
+            }
+        } else {
+            networkConfig.collateral =
+                abi.decode(vm.parseJson(json, string.concat(jsonPath, ".defaultCollateralFactory")), (address));
+            tokensConfig.wstETH =
+                abi.decode(vm.parseJson(json, string.concat(jsonPath, ".wstETHCollateral")), (address));
         }
     }
 
-    function _loadVaultTrifectaData(
-        string memory json,
-        string memory jsonPath,
-        string memory collateral
-    ) private pure returns (VaultTrifecta memory vaultTrifecta) {
-        vaultTrifecta.vault =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, string.concat(collateral, "Vault"))), (address));
-        vaultTrifecta.delegator =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, string.concat(collateral, "Delegator"))), (address));
-        vaultTrifecta.slasher =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, string.concat(collateral, "Slasher"))), (address));
+    function _loadCollateral(string memory json, string memory path) private pure returns (CollateralData memory) {
+        // Trying to decode the full dictionary as a strict won't work, even if docs suggest it. I suspect it's due to dictionary keys not guaranteed to be in order.
+        string memory name = abi.decode(vm.parseJson(json, string.concat(path, ".name")), (string));
+        string memory symbol = abi.decode(vm.parseJson(json, string.concat(path, ".symbol")), (string));
+        address collateral = abi.decode(vm.parseJson(json, string.concat(path, ".address")), (address));
+        address oracle = abi.decode(vm.parseJson(json, string.concat(path, ".oracle")), (address));
+        return CollateralData({name: name, symbol: symbol, collateral: collateral, oracle: oracle});
+    }
+
+    function _loadVault(string memory json, string memory path) private pure returns (VaultData memory) {
+        string memory name = abi.decode(vm.parseJson(json, string.concat(path, ".name")), (string));
+        address vault = abi.decode(vm.parseJson(json, string.concat(path, ".vault")), (address));
+        address delegator = abi.decode(vm.parseJson(json, string.concat(path, ".delegator")), (address));
+        address slasher = abi.decode(vm.parseJson(json, string.concat(path, ".slasher")), (address));
+        address collateral = abi.decode(vm.parseJson(json, string.concat(path, ".collateral")), (address));
+        return VaultData({name: name, vault: vault, delegator: delegator, slasher: slasher, collateral: collateral});
+    }
+
+    function _assignCollateral(CollateralData memory collateral, TokensConfig memory tokensConfig) private pure {
+        console2.log("collateral", collateral.symbol);
+        if (_sameString(collateral.symbol, "rETH")) {
+            tokensConfig.rETH = collateral.collateral;
+        } else if (_sameString(collateral.symbol, "swETH")) {
+            tokensConfig.swETH = collateral.collateral;
+        } else if (_sameString(collateral.symbol, "wBETH")) {
+            tokensConfig.wBETH = collateral.collateral;
+        } else if (_sameString(collateral.symbol, "LsETH")) {
+            tokensConfig.LsETH = collateral.collateral;
+        } else if (_sameString(collateral.symbol, "cbETH")) {
+            tokensConfig.cbETH = collateral.collateral;
+        } else if (_sameString(collateral.symbol, "wstETH")) {
+            tokensConfig.wstETH = collateral.collateral;
+        } else {
+            console2.log("Unknown collateral", collateral.symbol);
+        }
+    }
+
+    function _assignVault(
+        VaultData memory vault,
+        VaultsConfigA memory vaultsConfigA,
+        VaultsConfigB memory vaultsConfigB
+    ) private pure {
+        if (_sameString(vault.name, "MEV Capital restaked ETH")) {
+            vaultsConfigA.mevRestakedETH.vault = vault.vault;
+            vaultsConfigA.mevRestakedETH.delegator = vault.delegator;
+            vaultsConfigA.mevRestakedETH.slasher = vault.slasher;
+        } else if (_sameString(vault.name, "MEV Capital wstETH Vault")) {
+            vaultsConfigA.mevCapitalETH.vault = vault.vault;
+            vaultsConfigA.mevCapitalETH.delegator = vault.delegator;
+            vaultsConfigA.mevCapitalETH.slasher = vault.slasher;
+        } else if (_sameString(vault.name, "Hashkey Cloud")) {
+            vaultsConfigA.hashKeyCloudETH.vault = vault.vault;
+            vaultsConfigA.hashKeyCloudETH.delegator = vault.delegator;
+            vaultsConfigA.hashKeyCloudETH.slasher = vault.slasher;
+        } else if (_sameString(vault.name, "Renzo restaked LST")) {
+            vaultsConfigA.renzoRestakedETH.vault = vault.vault;
+            vaultsConfigA.renzoRestakedETH.delegator = vault.delegator;
+            vaultsConfigA.renzoRestakedETH.slasher = vault.slasher;
+        } else if (_sameString(vault.name, "Re7 Labs LRT Vault")) {
+            vaultsConfigA.re7LabsETH.vault = vault.vault;
+            vaultsConfigA.re7LabsETH.delegator = vault.delegator;
+            vaultsConfigA.re7LabsETH.slasher = vault.slasher;
+        } else if (_sameString(vault.name, "Re7 Restaking Vault ETH [All Networks]")) {
+            vaultsConfigA.re7LabsRestakingETH.vault = vault.vault;
+            vaultsConfigA.re7LabsRestakingETH.delegator = vault.delegator;
+            vaultsConfigA.re7LabsRestakingETH.slasher = vault.slasher;
+        } else if (_sameString(vault.name, "cp0x LRT conservative vault")) {
+            vaultsConfigA.cp0xLrtETH.vault = vault.vault;
+            vaultsConfigA.cp0xLrtETH.delegator = vault.delegator;
+            vaultsConfigA.cp0xLrtETH.slasher = vault.slasher;
+        } else if (_sameString(vault.name, "Ether fi wstETH")) {
+            vaultsConfigA.etherfiwstETH.vault = vault.vault;
+            vaultsConfigA.etherfiwstETH.delegator = vault.delegator;
+            vaultsConfigA.etherfiwstETH.slasher = vault.slasher;
+        } else if (_sameString(vault.name, "Restaked LsETH Vault (Liquid Collective)")) {
+            vaultsConfigA.restakedLsETHVault.vault = vault.vault;
+            vaultsConfigA.restakedLsETHVault.delegator = vault.delegator;
+            vaultsConfigA.restakedLsETHVault.slasher = vault.slasher;
+        } else if (_sameString(vault.name, "Opslayer Vault")) {
+            vaultsConfigA.opslayer.vault = vault.vault;
+            vaultsConfigA.opslayer.delegator = vault.delegator;
+            vaultsConfigA.opslayer.slasher = vault.slasher;
+        } else if (_sameString(vault.name, "Gauntlet restaked wstETH")) {
+            vaultsConfigB.gauntletRestakedWstETH.vault = vault.vault;
+            vaultsConfigB.gauntletRestakedWstETH.delegator = vault.delegator;
+            vaultsConfigB.gauntletRestakedWstETH.slasher = vault.slasher;
+        } else if (_sameString(vault.name, "Gauntlet restaked swETH")) {
+            vaultsConfigB.gauntletRestakedSwETH.vault = vault.vault;
+            vaultsConfigB.gauntletRestakedSwETH.delegator = vault.delegator;
+            vaultsConfigB.gauntletRestakedSwETH.slasher = vault.slasher;
+        } else if (_sameString(vault.name, "Gauntlet restaked rETH")) {
+            vaultsConfigB.gauntletRestakedRETH.vault = vault.vault;
+            vaultsConfigB.gauntletRestakedRETH.delegator = vault.delegator;
+            vaultsConfigB.gauntletRestakedRETH.slasher = vault.slasher;
+        } else if (_sameString(vault.name, "Gauntlet restaked wBETH")) {
+            vaultsConfigB.gauntletRestakedWBETH.vault = vault.vault;
+            vaultsConfigB.gauntletRestakedWBETH.delegator = vault.delegator;
+            vaultsConfigB.gauntletRestakedWBETH.slasher = vault.slasher;
+        } else if (_sameString(vault.name, "Gauntlet restaked cbETH")) {
+            vaultsConfigB.gauntletRestakedcBETH.vault = vault.vault;
+            vaultsConfigB.gauntletRestakedcBETH.delegator = vault.delegator;
+            vaultsConfigB.gauntletRestakedcBETH.slasher = vault.slasher;
+        } else {
+            console2.log("Unknown vault", vault.name);
+        }
+    }
+
+    function _sameString(string memory a, string memory b) private pure returns (bool) {
+        return keccak256(bytes(a)) == keccak256(bytes(b));
     }
 
     function getAnvilEthConfig()
@@ -201,15 +300,6 @@ contract HelperConfig is Script {
             networkMiddlewareService: symbioticAddresses.networkMiddlewareService,
             collateral: address(deploySymbiotic.collateral()),
             readHelper: address(0)
-        });
-
-        tokensConfig = TokensConfig({
-            wstETH: address(0),
-            rETH: address(0),
-            swETH: address(0),
-            wBETH: address(0),
-            LsETH: address(0),
-            cbETH: address(0)
         });
     }
 }
