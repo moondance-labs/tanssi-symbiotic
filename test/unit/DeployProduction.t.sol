@@ -81,7 +81,8 @@ contract DeployProductionTest is Test {
             HelperConfig.NetworkConfig memory networkConfig,
             HelperConfig.TokensConfig memory tokensConfig,
             HelperConfig.VaultsConfigA memory vaultsConfigA,
-            HelperConfig.VaultsConfigB memory vaultsConfigB
+            HelperConfig.VaultsConfigB memory vaultsConfigB,
+            HelperConfig.OperatorConfig memory operators
         ) = helperConfig.getChainConfig();
 
         assertNotEq(networkConfig.vaultConfigurator, address(0));
@@ -106,6 +107,10 @@ contract DeployProductionTest is Test {
         assertNotEq(vaultsConfigB.gauntletRestakedWstETH.vault, address(0));
         assertNotEq(vaultsConfigB.gauntletRestakedWstETH.delegator, address(0));
         assertNotEq(vaultsConfigB.gauntletRestakedWstETH.slasher, address(0));
+
+        assertNotEq(operators.operator11Opslayer.name, "");
+        assertNotEq(operators.operator11Opslayer.evmAddress, address(0));
+        assertNotEq(operators.operator11Opslayer.operatorKey, bytes32(0));
     }
 
     function _checkAddressesAndRoles(

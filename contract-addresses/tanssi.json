@@ -198,6 +198,7 @@
       "stakerRewardsImplementation": "0x67AeB74BEa9c3427da6b0eCf1dE02F6e0aA78F50"
     }
   ],
+  "totalOperators": 11,
   "operators": [
     {
       "name": "Pier Two",
@@ -263,7 +264,7 @@
       "name": "Opslayer",
       "substrateAddress": "5Ci8iFesdTYyArcvDc1a13k2Y8TRSEHUwk7xA5k7vQGWrNQS",
       "evmAddress": "0x0e50cef51947f19B5b91eD4C2CfC1C0Bb72F6a7A",
-      "operatorKey": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      "operatorKey": "0x1c8bbfc13c5085b9870d34a7db40977a1dc049d3c7d76b58ee9059348ec499cf"
     }
   ]
 }

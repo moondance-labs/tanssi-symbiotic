@@ -22,6 +22,7 @@ contract HelperConfig is Script {
     TokensConfig public activeTokensConfig;
     VaultsConfigA public activeVaultsConfigA;
     VaultsConfigB public activeVaultsConfigB;
+    OperatorConfig public activeOperatorConfig;
 
     struct NetworkConfig {
         address vaultConfigurator;
@@ -86,13 +87,35 @@ contract HelperConfig is Script {
         address collateral;
     }
 
+    struct OperatorData {
+        string name;
+        address evmAddress;
+        bytes32 operatorKey;
+    }
+
+    struct OperatorConfig {
+        OperatorData operator1PierTwo;
+        OperatorData operator2P2P;
+        OperatorData operator3Nodeinfra;
+        OperatorData operator4Blockscape;
+        OperatorData operator5QuantNode;
+        OperatorData operator6NodeMonster;
+        OperatorData operator7BlockBones;
+        OperatorData operator8CP0XStakrspace;
+        OperatorData operator9HashkeyCloud;
+        OperatorData operator10Alchemy;
+        OperatorData operator11Opslayer;
+    }
+
     uint256 public DEFAULT_ANVIL_PRIVATE_KEY = 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6;
 
     constructor() {
         if (block.chainid == 31_337) {
-            (activeNetworkConfig, activeTokensConfig, activeVaultsConfigA, activeVaultsConfigB) = getAnvilEthConfig();
+            (activeNetworkConfig, activeTokensConfig, activeVaultsConfigA, activeVaultsConfigB, activeOperatorConfig) =
+                getAnvilEthConfig();
         } else {
-            (activeNetworkConfig, activeTokensConfig, activeVaultsConfigA, activeVaultsConfigB) = getChainConfig();
+            (activeNetworkConfig, activeTokensConfig, activeVaultsConfigA, activeVaultsConfigB, activeOperatorConfig) =
+                getChainConfig();
         }
     }
 
@@ -103,7 +126,8 @@ contract HelperConfig is Script {
             NetworkConfig memory networkConfig,
             TokensConfig memory tokensConfig,
             VaultsConfigA memory vaultsConfigA,
-            VaultsConfigB memory vaultsConfigB
+            VaultsConfigB memory vaultsConfigB,
+            OperatorConfig memory operatorConfig
         )
     {
         string memory root = vm.projectRoot();
@@ -150,9 +174,16 @@ contract HelperConfig is Script {
 
             uint256 totalVaults = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".totalVaults")), (uint256));
             for (uint256 i = 0; i < totalVaults; i++) {
-                console2.log("vaults", i);
                 VaultData memory vault = _loadVault(json, string.concat(jsonPath, ".vaults[", vm.toString(i), "]"));
                 _assignVault(vault, vaultsConfigA, vaultsConfigB);
+            }
+
+            uint256 totalOperators =
+                abi.decode(vm.parseJson(json, string.concat(jsonPath, ".totalOperators")), (uint256));
+            for (uint256 i = 0; i < totalOperators; i++) {
+                OperatorData memory operator =
+                    _loadOperator(json, string.concat(jsonPath, ".operators[", vm.toString(i), "]"));
+                _assignOperator(operator, operatorConfig);
             }
         } else {
             networkConfig.collateral =
@@ -180,8 +211,14 @@ contract HelperConfig is Script {
         return VaultData({name: name, vault: vault, delegator: delegator, slasher: slasher, collateral: collateral});
     }
 
+    function _loadOperator(string memory json, string memory path) private pure returns (OperatorData memory) {
+        string memory name = abi.decode(vm.parseJson(json, string.concat(path, ".name")), (string));
+        address evmAddress = abi.decode(vm.parseJson(json, string.concat(path, ".evmAddress")), (address));
+        bytes32 operatorKey = abi.decode(vm.parseJson(json, string.concat(path, ".operatorKey")), (bytes32));
+        return OperatorData({name: name, evmAddress: evmAddress, operatorKey: operatorKey});
+    }
+
     function _assignCollateral(CollateralData memory collateral, TokensConfig memory tokensConfig) private pure {
-        console2.log("collateral", collateral.symbol);
         if (_sameString(collateral.symbol, "rETH")) {
             tokensConfig.rETH = collateral.collateral;
         } else if (_sameString(collateral.symbol, "swETH")) {
@@ -265,6 +302,32 @@ contract HelperConfig is Script {
         }
     }
 
+    function _assignOperator(OperatorData memory operator, OperatorConfig memory operatorConfig) private pure {
+        if (_sameString(operator.name, "Pier Two")) {
+            operatorConfig.operator1PierTwo = operator;
+        } else if (_sameString(operator.name, "P2P")) {
+            operatorConfig.operator2P2P = operator;
+        } else if (_sameString(operator.name, "Nodeinfra")) {
+            operatorConfig.operator3Nodeinfra = operator;
+        } else if (_sameString(operator.name, "Blockscape")) {
+            operatorConfig.operator4Blockscape = operator;
+        } else if (_sameString(operator.name, "Quant Node")) {
+            operatorConfig.operator5QuantNode = operator;
+        } else if (_sameString(operator.name, "Node Monster")) {
+            operatorConfig.operator6NodeMonster = operator;
+        } else if (_sameString(operator.name, "Block n Bones")) {
+            operatorConfig.operator7BlockBones = operator;
+        } else if (_sameString(operator.name, "CP0X by Stakr.space")) {
+            operatorConfig.operator8CP0XStakrspace = operator;
+        } else if (_sameString(operator.name, "Hashkey Cloud")) {
+            operatorConfig.operator9HashkeyCloud = operator;
+        } else if (_sameString(operator.name, "Alchemy")) {
+            operatorConfig.operator10Alchemy = operator;
+        } else if (_sameString(operator.name, "Opslayer")) {
+            operatorConfig.operator11Opslayer = operator;
+        }
+    }
+
     function _sameString(string memory a, string memory b) private pure returns (bool) {
         return keccak256(bytes(a)) == keccak256(bytes(b));
     }
@@ -275,7 +338,8 @@ contract HelperConfig is Script {
             NetworkConfig memory networkConfig,
             TokensConfig memory tokensConfig,
             VaultsConfigA memory vaultConfigA,
-            VaultsConfigB memory vaultConfigB
+            VaultsConfigB memory vaultConfigB,
+            OperatorConfig memory operatorConfig
         )
     {
         DeploySymbiotic deploySymbiotic = new DeploySymbiotic();
