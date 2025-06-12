@@ -201,7 +201,7 @@ contract FullTest is Test {
         uint256 gauntletRestakedcBETH;
     }
 
-    struct VaultTotalStakeA {
+    struct TotalSharesA {
         uint256 mevRestakedETH;
         uint256 mevCapitalETH;
         uint256 hashKeyCloudETH;
@@ -214,7 +214,7 @@ contract FullTest is Test {
         uint256 opslayer;
     }
 
-    struct VaultTotalStakeB {
+    struct TotalSharesB {
         uint256 gauntletRestakedWstETH;
         uint256 gauntletRestakedSwETH;
         uint256 gauntletRestakedRETH;
@@ -222,42 +222,54 @@ contract FullTest is Test {
         uint256 gauntletRestakedcBETH;
     }
 
-    struct EcosystemEntity {
-        Middleware middleware;
-        IDefaultCollateral wstETH;
-        IDefaultCollateral rETH;
-        IDefaultCollateral swETH;
-        IDefaultCollateral wBETH;
-        IDefaultCollateral LsETH;
-        IDefaultCollateral cbETH;
+    struct NetworkLimitsA {
+        uint256 mevRestakedETH;
+        uint256 mevCapitalETH;
+        uint256 hashKeyCloudETH;
+        uint256 renzoRestakedETH;
+        uint256 re7LabsETH;
+        uint256 re7LabsRestakingETH;
+        uint256 cp0xLrtETH;
+        uint256 etherfiwstETH;
+        uint256 restakedLsETHVault;
+        uint256 opslayer;
     }
 
-    EcosystemEntity public ecosystemEntities;
+    struct NetworkLimitsB {
+        uint256 gauntletRestakedWstETH;
+        uint256 gauntletRestakedSwETH;
+        uint256 gauntletRestakedRETH;
+        uint256 gauntletRestakedWBETH;
+        uint256 gauntletRestakedcBETH;
+    }
+
+    Middleware middleware;
+    HelperConfig.TokensConfig public tokensConfig;
+    HelperConfig.OperatorConfig public operators;
 
     HelperConfig.VaultsConfigA public vaultsAddressesDeployedA;
     HelperConfig.VaultsConfigB public vaultsAddressesDeployedB;
-    HelperConfig.OperatorConfig public operators;
-
-    VaultTotalStakeA public vaultTotalStakeA;
-    VaultTotalStakeB public vaultTotalStakeB;
 
     VaultStakeBeforeDepositA public vaultStakeBeforeDepositA;
     VaultStakeBeforeDepositB public vaultStakeBeforeDepositB;
 
+    TotalSharesA public totalSharesA;
+    TotalSharesB public totalSharesB;
+
+    NetworkLimitsA public networkLimitsA;
+    NetworkLimitsB public networkLimitsB;
+
     function setUp() public {
         _getBaseInfrastructure();
-        address[] memory activeOperators =
-            OBaseMiddlewareReader(address(ecosystemEntities.middleware)).activeOperators();
-        console2.log("Active operators before set up", activeOperators.length);
-
         _setLimitsAndShares(tanssi);
         _setupOperators();
-
         _registerEntitiesToMiddleware();
         _setupGateway();
-        _saveStakeBeforeDepositing();
 
-        /// ecosystemEntities.middleware.setCollateralToOracle(xxx, oracle); Called for each collateral: wstETH, rETH, swETH, wBETH, LsETH, cbETH
+        _saveStakeBeforeDepositing();
+        _saveTotalShares();
+
+        /// middleware.setCollateralToOracle(xxx, oracle); Already alled for each collateral: wstETH, rETH, swETH, wBETH, LsETH, cbETH
         vm.stopPrank();
     }
 
@@ -265,7 +277,6 @@ contract FullTest is Test {
         // Check if it's good for mainnet
         helperConfig = new HelperConfig();
 
-        HelperConfig.TokensConfig memory tokensConfig;
         (, tokensConfig, vaultsAddressesDeployedA, vaultsAddressesDeployedB, operators) = helperConfig.getChainConfig();
 
         string memory root = vm.projectRoot();
@@ -275,19 +286,11 @@ contract FullTest is Test {
         admin = abi.decode(vm.parseJson(json, "$.admin"), (address));
         tanssi = abi.decode(vm.parseJson(json, "$.tanssi"), (address));
         address middlewareAddress = abi.decode(vm.parseJson(json, "$.middleware"), (address));
-        ecosystemEntities.middleware = Middleware(middlewareAddress);
-
-        ecosystemEntities.wstETH = IDefaultCollateral(tokensConfig.wstETH);
-        ecosystemEntities.rETH = IDefaultCollateral(tokensConfig.rETH);
-        ecosystemEntities.swETH = IDefaultCollateral(tokensConfig.swETH);
-        ecosystemEntities.wBETH = IDefaultCollateral(tokensConfig.wBETH);
-        ecosystemEntities.LsETH = IDefaultCollateral(tokensConfig.LsETH);
-        ecosystemEntities.cbETH = IDefaultCollateral(tokensConfig.cbETH);
+        middleware = Middleware(middlewareAddress);
     }
 
     function _setupOperators() private {
         // OPERATOR 1 - Pier Two
-
         _optInOperator(
             operators.operator1PierTwo.evmAddress, vaultsAddressesDeployedA.etherfiwstETH, tanssi, address(0)
         );
@@ -327,7 +330,6 @@ contract FullTest is Test {
         );
 
         // OPERATOR 2 - P2P
-
         _optInOperator(operators.operator2P2P.evmAddress, vaultsAddressesDeployedA.etherfiwstETH, tanssi, address(0));
 
         _optInOperator(
@@ -357,7 +359,6 @@ contract FullTest is Test {
         );
 
         // OPERATOR 3 - Nodeinfra
-
         _optInOperator(
             operators.operator3Nodeinfra.evmAddress, vaultsAddressesDeployedA.mevRestakedETH, tanssi, address(0)
         );
@@ -388,11 +389,9 @@ contract FullTest is Test {
         );
 
         // OPERATOR 5 - Quant Node
-
         _optInOperator(operators.operator5QuantNode.evmAddress, vaultsAddressesDeployedA.re7LabsETH, tanssi, address(0));
 
         // OPERATOR 6 - Node Monster
-
         _optInOperator(
             operators.operator6NodeMonster.evmAddress, vaultsAddressesDeployedA.re7LabsETH, tanssi, address(0)
         );
@@ -417,7 +416,6 @@ contract FullTest is Test {
         );
 
         // OPERATOR 10 - Alchemy
-
         _optInOperator(
             operators.operator10Alchemy.evmAddress, vaultsAddressesDeployedA.mevRestakedETH, tanssi, address(0)
         );
@@ -451,7 +449,6 @@ contract FullTest is Test {
         );
 
         // OPERATOR 11 - Ops Layer
-
         _optInOperator(
             operators.operator11Opslayer.evmAddress, vaultsAddressesDeployedA.opslayer, tanssi, VAULT_MANAGER_OPSLAYER
         );
@@ -478,7 +475,7 @@ contract FullTest is Test {
         });
 
         vm.startPrank(admin);
-        address[] memory activeVaults = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).activeVaults();
+        address[] memory activeVaults = OBaseMiddlewareReader(address(middleware)).activeVaults();
 
         _registerVaultIfNotActive(vaultsAddressesDeployedA.mevRestakedETH.vault, activeVaults, stakerRewardsParams);
 
@@ -538,11 +535,9 @@ contract FullTest is Test {
     function _registerOperatorIfNeeded(
         HelperConfig.OperatorData memory operator
     ) private {
-        if (!OBaseMiddlewareReader(address(ecosystemEntities.middleware)).isOperatorRegistered(operator.evmAddress)) {
+        if (!OBaseMiddlewareReader(address(middleware)).isOperatorRegistered(operator.evmAddress)) {
             console2.log("Registering operator", operator.evmAddress);
-            ecosystemEntities.middleware.registerOperator(
-                operator.evmAddress, abi.encode(operator.operatorKey), address(0)
-            );
+            middleware.registerOperator(operator.evmAddress, abi.encode(operator.operatorKey), address(0));
         }
     }
 
@@ -551,9 +546,9 @@ contract FullTest is Test {
         address[] memory _activeVaults,
         IODefaultStakerRewards.InitParams memory stakerRewardsParams
     ) private {
-        if (!OBaseMiddlewareReader(address(ecosystemEntities.middleware)).isVaultRegistered(_vault)) {
+        if (!OBaseMiddlewareReader(address(middleware)).isVaultRegistered(_vault)) {
             console2.log("Registering vault", _vault);
-            ecosystemEntities.middleware.registerSharedVault(_vault, stakerRewardsParams);
+            middleware.registerSharedVault(_vault, stakerRewardsParams);
         }
     }
 
@@ -685,74 +680,80 @@ contract FullTest is Test {
     }
 
     function _setNetworkLimits() private {
-        _setNetworkLimitIfNeeded(
+        networkLimitsA.mevRestakedETH = _setNetworkLimitIfNeeded(
             VAULT_MANAGER_MEVRESTAKEDETH, vaultsAddressesDeployedA.mevRestakedETH.delegator, OPERATOR_NETWORK_LIMIT
         );
 
-        _setNetworkLimitIfNeeded(
+        networkLimitsA.mevCapitalETH = _setNetworkLimitIfNeeded(
             VAULT_MANAGER_MEVCAPITALETH, vaultsAddressesDeployedA.mevCapitalETH.delegator, OPERATOR_NETWORK_LIMIT
         );
 
-        _setNetworkLimitIfNeeded(
+        networkLimitsA.hashKeyCloudETH = _setNetworkLimitIfNeeded(
             VAULT_MANAGER_HASHKEYCLOUDETH, vaultsAddressesDeployedA.hashKeyCloudETH.delegator, OPERATOR_NETWORK_LIMIT
         );
 
-        _setNetworkLimitIfNeeded(
+        networkLimitsA.renzoRestakedETH = _setNetworkLimitIfNeeded(
             VAULT_MANAGER_RENZORESTAKEDETH, vaultsAddressesDeployedA.renzoRestakedETH.delegator, OPERATOR_NETWORK_LIMIT
         );
 
-        _setNetworkLimitIfNeeded(
+        networkLimitsA.re7LabsETH = _setNetworkLimitIfNeeded(
             VAULT_MANAGER_RE7LABS, vaultsAddressesDeployedA.re7LabsETH.delegator, OPERATOR_NETWORK_LIMIT
         );
 
-        _setNetworkLimitIfNeeded(
+        networkLimitsA.re7LabsRestakingETH = _setNetworkLimitIfNeeded(
             VAULT_MANAGER_RE7LABS, vaultsAddressesDeployedA.re7LabsRestakingETH.delegator, OPERATOR_NETWORK_LIMIT
         );
 
-        _setNetworkLimitIfNeeded(
+        networkLimitsA.cp0xLrtETH = _setNetworkLimitIfNeeded(
             VAULT_MANAGER_ETHERFIWSTETH, vaultsAddressesDeployedA.etherfiwstETH.delegator, OPERATOR_NETWORK_LIMIT
         );
 
-        _setNetworkLimitIfNeeded(
+        networkLimitsA.etherfiwstETH = _setNetworkLimitIfNeeded(
             VAULT_MANAGER_RESTAKEDLSETHVAULT,
             vaultsAddressesDeployedA.restakedLsETHVault.delegator,
             OPERATOR_NETWORK_LIMIT
         );
 
-        _setNetworkLimitIfNeeded(
+        networkLimitsA.opslayer = _setNetworkLimitIfNeeded(
             VAULT_MANAGER_OPSLAYER, vaultsAddressesDeployedA.opslayer.delegator, OPERATOR_NETWORK_LIMIT
         );
 
-        _setNetworkLimitIfNeeded(
+        networkLimitsB.gauntletRestakedcBETH = _setNetworkLimitIfNeeded(
             VAULT_MANAGER_GAUNTLET, vaultsAddressesDeployedB.gauntletRestakedcBETH.delegator, OPERATOR_NETWORK_LIMIT
         );
 
-        _setNetworkLimitIfNeeded(
+        networkLimitsB.gauntletRestakedRETH = _setNetworkLimitIfNeeded(
             VAULT_MANAGER_GAUNTLET, vaultsAddressesDeployedB.gauntletRestakedRETH.delegator, OPERATOR_NETWORK_LIMIT
         );
 
-        _setNetworkLimitIfNeeded(
+        networkLimitsB.gauntletRestakedSwETH = _setNetworkLimitIfNeeded(
             VAULT_MANAGER_GAUNTLET, vaultsAddressesDeployedB.gauntletRestakedSwETH.delegator, OPERATOR_NETWORK_LIMIT
         );
 
-        _setNetworkLimitIfNeeded(
+        networkLimitsB.gauntletRestakedWBETH = _setNetworkLimitIfNeeded(
             VAULT_MANAGER_GAUNTLET, vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator, OPERATOR_NETWORK_LIMIT
         );
 
-        _setNetworkLimitIfNeeded(
+        networkLimitsB.gauntletRestakedWstETH = _setNetworkLimitIfNeeded(
             VAULT_MANAGER_GAUNTLET, vaultsAddressesDeployedB.gauntletRestakedWstETH.delegator, OPERATOR_NETWORK_LIMIT
         );
     }
 
-    function _setNetworkLimitIfNeeded(address manager, address _delegator, uint256 _limit) private {
+    function _setNetworkLimitIfNeeded(
+        address manager,
+        address _delegator,
+        uint256 _limit
+    ) private returns (uint256 networkLimit) {
         vm.startPrank(manager);
         INetworkRestakeDelegator delegator = INetworkRestakeDelegator(_delegator);
 
-        if (delegator.networkLimit(tanssi.subnetwork(0)) == 0) {
+        networkLimit = delegator.networkLimit(tanssi.subnetwork(0));
+        if (networkLimit == 0) {
             console2.log("Setting network limit for", _delegator);
             uint256 maxLimit = delegator.maxNetworkLimit(tanssi.subnetwork(0));
+            networkLimit = Math.min(maxLimit, _limit);
 
-            delegator.setNetworkLimit(tanssi.subnetwork(0), Math.min(maxLimit, _limit));
+            delegator.setNetworkLimit(tanssi.subnetwork(0), networkLimit);
         }
         vm.stopPrank();
     }
@@ -978,9 +979,9 @@ contract FullTest is Test {
         SetOperatingModeParams memory params = SetOperatingModeParams({mode: OperatingMode.Normal});
         MockGateway(address(gateway)).setOperatingModePublic(abi.encode(params));
 
-        IOGateway(address(gateway)).setMiddleware(address(ecosystemEntities.middleware));
+        IOGateway(address(gateway)).setMiddleware(address(middleware));
         vm.prank(admin);
-        ecosystemEntities.middleware.setGateway(address(gateway));
+        middleware.setGateway(address(gateway));
     }
 
     function _saveStakeBeforeDepositing() private {
@@ -1007,6 +1008,31 @@ contract FullTest is Test {
         vaultStakeBeforeDepositA.etherfiwstETH = IVault(vaultsAddressesDeployedA.etherfiwstETH.vault).activeStake();
         vaultStakeBeforeDepositA.restakedLsETHVault =
             IVault(vaultsAddressesDeployedA.restakedLsETHVault.vault).activeStake();
+    }
+
+    function _saveTotalShares() private {
+        totalSharesA.mevRestakedETH = _getTotalShares(vaultsAddressesDeployedA.mevRestakedETH.delegator);
+        totalSharesA.mevCapitalETH = _getTotalShares(vaultsAddressesDeployedA.mevCapitalETH.delegator);
+        totalSharesA.hashKeyCloudETH = _getTotalShares(vaultsAddressesDeployedA.hashKeyCloudETH.delegator);
+        totalSharesA.renzoRestakedETH = _getTotalShares(vaultsAddressesDeployedA.renzoRestakedETH.delegator);
+        totalSharesA.re7LabsETH = _getTotalShares(vaultsAddressesDeployedA.re7LabsETH.delegator);
+        totalSharesA.re7LabsRestakingETH = _getTotalShares(vaultsAddressesDeployedA.re7LabsRestakingETH.delegator);
+        totalSharesA.cp0xLrtETH = _getTotalShares(vaultsAddressesDeployedA.cp0xLrtETH.delegator);
+        totalSharesA.etherfiwstETH = _getTotalShares(vaultsAddressesDeployedA.etherfiwstETH.delegator);
+        totalSharesA.restakedLsETHVault = _getTotalShares(vaultsAddressesDeployedA.restakedLsETHVault.delegator);
+        totalSharesA.opslayer = _getTotalShares(vaultsAddressesDeployedA.opslayer.delegator);
+
+        totalSharesB.gauntletRestakedcBETH = _getTotalShares(vaultsAddressesDeployedB.gauntletRestakedcBETH.delegator);
+        totalSharesB.gauntletRestakedRETH = _getTotalShares(vaultsAddressesDeployedB.gauntletRestakedRETH.delegator);
+        totalSharesB.gauntletRestakedSwETH = _getTotalShares(vaultsAddressesDeployedB.gauntletRestakedSwETH.delegator);
+        totalSharesB.gauntletRestakedWBETH = _getTotalShares(vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator);
+        totalSharesB.gauntletRestakedWstETH = _getTotalShares(vaultsAddressesDeployedB.gauntletRestakedWstETH.delegator);
+    }
+
+    function _getTotalShares(
+        address delegator
+    ) private view returns (uint256 totalShares) {
+        totalShares = INetworkRestakeDelegator(delegator).totalOperatorNetworkShares(tanssi.subnetwork(0));
     }
 
     function _getMaximumAvailableStakeForVault(
@@ -1381,91 +1407,19 @@ contract FullTest is Test {
     function testInitialState() public view {
         (, address operatorRegistryAddress,, address vaultFactoryAddress,,,,,) = helperConfig.activeNetworkConfig();
 
-        assertEq(OBaseMiddlewareReader(address(ecosystemEntities.middleware)).NETWORK(), tanssi);
-        assertEq(
-            OBaseMiddlewareReader(address(ecosystemEntities.middleware)).OPERATOR_REGISTRY(), operatorRegistryAddress
-        );
-        assertEq(OBaseMiddlewareReader(address(ecosystemEntities.middleware)).VAULT_REGISTRY(), vaultFactoryAddress);
-        assertEq(EpochCapture(address(ecosystemEntities.middleware)).getEpochDuration(), NETWORK_EPOCH_DURATION);
-        assertEq(OBaseMiddlewareReader(address(ecosystemEntities.middleware)).SLASHING_WINDOW(), SLASHING_WINDOW);
-        assertEq(OBaseMiddlewareReader(address(ecosystemEntities.middleware)).subnetworksLength(), 1);
+        assertEq(OBaseMiddlewareReader(address(middleware)).NETWORK(), tanssi);
+        assertEq(OBaseMiddlewareReader(address(middleware)).OPERATOR_REGISTRY(), operatorRegistryAddress);
+        assertEq(OBaseMiddlewareReader(address(middleware)).VAULT_REGISTRY(), vaultFactoryAddress);
+        assertEq(EpochCapture(address(middleware)).getEpochDuration(), NETWORK_EPOCH_DURATION);
+        assertEq(OBaseMiddlewareReader(address(middleware)).SLASHING_WINDOW(), SLASHING_WINDOW);
+        assertEq(OBaseMiddlewareReader(address(middleware)).subnetworksLength(), 1);
     }
 
     function testIfOperatorsAreRegisteredInVaults() public {
         vm.warp(block.timestamp + 7 days + 1); // In 7 days there should be a new vault epoch in all epochs
-        uint48 currentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
+        uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.OperatorVaultPair[] memory operatorVaultPairs =
-            OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getOperatorVaultPairs(currentEpoch);
-
-        address[] memory activeOperators =
-            OBaseMiddlewareReader(address(ecosystemEntities.middleware)).activeOperators();
-
-        console2.log("Active operators", activeOperators.length);
-        console2.log("Total operators", operatorVaultPairs.length);
-        // for (uint256 i = 0; i < operatorVaultPairs.length; i++) {
-        //     console2.log("Operator", operatorVaultPairs[i].operator);
-        //     console2.log("Vaults", operatorVaultPairs[i].vaults.length);
-        // }
-
-        uint256 epochStartTs = ecosystemEntities.middleware.getEpochStart(currentEpoch);
-
-        address[] memory vaults =
-            OBaseMiddlewareReader(address(ecosystemEntities.middleware)).activeVaultsAt(uint48(epochStartTs));
-        console2.log("Vaults", vaults.length);
-        uint256 totalVaults;
-        (totalVaults, vaults) = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getOperatorVaults(
-            operators.operator5QuantNode.evmAddress, uint48(epochStartTs)
-        );
-        console2.log("Total vaults operators.operator5QuantNode.evmAddress", totalVaults);
-
-        (totalVaults, vaults) = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getOperatorVaults(
-            operators.operator6NodeMonster.evmAddress, uint48(epochStartTs)
-        );
-        console2.log("Total vaults operators.operator6NodeMonster.evmAddress", totalVaults);
-
-        (totalVaults, vaults) = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getOperatorVaults(
-            operators.operator7BlockBones.evmAddress, uint48(epochStartTs)
-        );
-        console2.log("Total vaults operators.operator7BlockBones.evmAddress", totalVaults);
-
-        uint256 stake = IBaseDelegator(vaultsAddressesDeployedA.re7LabsETH.delegator).stakeAt(
-            tanssi.subnetwork(0), operators.operator5QuantNode.evmAddress, uint48(epochStartTs), new bytes(0)
-        );
-        console2.log("Stake operators.operator5QuantNode.evmAddress", stake);
-
-        stake = IBaseDelegator(vaultsAddressesDeployedA.re7LabsETH.delegator).stakeAt(
-            tanssi.subnetwork(0), operators.operator6NodeMonster.evmAddress, uint48(epochStartTs), new bytes(0)
-        );
-        console2.log("Stake operators.operator6NodeMonster.evmAddress", stake);
-
-        stake = IBaseDelegator(vaultsAddressesDeployedA.re7LabsETH.delegator).stakeAt(
-            tanssi.subnetwork(0), operators.operator7BlockBones.evmAddress, uint48(epochStartTs), new bytes(0)
-        );
-        console2.log("Stake operators.operator7BlockBones.evmAddress", stake);
-
-        stake = IVault(vaultsAddressesDeployedA.re7LabsETH.vault).activeStakeAt(uint48(epochStartTs), new bytes(0));
-        console2.log("Stake re7LabsETH", stake);
-        uint256 networkLimit = INetworkRestakeDelegator(vaultsAddressesDeployedA.re7LabsETH.delegator).networkLimitAt(
-            tanssi.subnetwork(0), uint48(epochStartTs), new bytes(0)
-        );
-        console2.log("Network limit re7LabsETH", networkLimit);
-
-        uint256 networkShares = INetworkRestakeDelegator(vaultsAddressesDeployedA.re7LabsETH.delegator)
-            .totalOperatorNetworkShares(tanssi.subnetwork(0));
-        console2.log("Network shares re7LabsETH", networkShares);
-
-        networkShares = INetworkRestakeDelegator(vaultsAddressesDeployedA.re7LabsETH.delegator).operatorNetworkSharesAt(
-            tanssi.subnetwork(0), operators.operator5QuantNode.evmAddress, uint48(epochStartTs), new bytes(0)
-        );
-        console2.log("Network shares operators.operator5QuantNode.evmAddress", networkShares);
-        networkShares = INetworkRestakeDelegator(vaultsAddressesDeployedA.re7LabsETH.delegator).operatorNetworkSharesAt(
-            tanssi.subnetwork(0), operators.operator6NodeMonster.evmAddress, uint48(epochStartTs), new bytes(0)
-        );
-        console2.log("Network shares operators.operator6NodeMonster.evmAddress", networkShares);
-        networkShares = INetworkRestakeDelegator(vaultsAddressesDeployedA.re7LabsETH.delegator).operatorNetworkSharesAt(
-            tanssi.subnetwork(0), operators.operator7BlockBones.evmAddress, uint48(epochStartTs), new bytes(0)
-        );
-        console2.log("Network shares operators.operator7BlockBones.evmAddress", networkShares);
+            OBaseMiddlewareReader(address(middleware)).getOperatorVaultPairs(currentEpoch);
 
         assertEq(operatorVaultPairs.length, TOTAL_OPERATORS);
 
@@ -1486,13 +1440,13 @@ contract FullTest is Test {
 
     function testOperatorsStakeIsTheSamePerEpoch() public {
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
-        uint48 previousEpoch = ecosystemEntities.middleware.getCurrentEpoch();
+        uint48 previousEpoch = middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validatorsPreviousEpoch =
-            OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(previousEpoch);
+            OBaseMiddlewareReader(address(middleware)).getValidatorSet(previousEpoch);
 
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
         Middleware.ValidatorData[] memory validators =
-            OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(previousEpoch);
+            OBaseMiddlewareReader(address(middleware)).getValidatorSet(previousEpoch);
         assertEq(validators.length, validatorsPreviousEpoch.length);
         assertEq(validators[0].power, validatorsPreviousEpoch[0].power);
         assertEq(validators[1].power, validatorsPreviousEpoch[1].power);
@@ -1534,7 +1488,7 @@ contract FullTest is Test {
     //     vaultHashkeyCloud.claim(operator, currentEpochHashkeyCloud - 1);
 
     //     assertEq(
-    //         ecosystemEntities.wstETH.balanceOf(operator),
+    //         tokensConfig.wstETH.balanceOf(operator),
     //         OPERATOR_INITIAL_BALANCE * 4 - OPERATOR_STAKE * 3 + DEFAULT_WITHDRAW_AMOUNT * 3
     //     );
     // }
@@ -1572,15 +1526,15 @@ contract FullTest is Test {
     //     vaultGauntletRestakedWBETH.claim(operator2, currentEpochGauntletRestakedWBETH - 1);
 
     //     assertEq(
-    //         ecosystemEntities.wstETH.balanceOf(operator2),
+    //         tokensConfig.wstETH.balanceOf(operator2),
     //         OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE + DEFAULT_WITHDRAW_AMOUNT
     //     );
     //     assertEq(
-    //         ecosystemEntities.rETH.balanceOf(operator2),
+    //         tokensConfig.rETH.balanceOf(operator2),
     //         OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE + DEFAULT_WITHDRAW_AMOUNT
     //     );
     //     assertEq(
-    //         ecosystemEntities.wBETH.balanceOf(operator2),
+    //         tokensConfig.wBETH.balanceOf(operator2),
     //         OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE + DEFAULT_WITHDRAW_AMOUNT
     //     );
     // }
@@ -1610,11 +1564,11 @@ contract FullTest is Test {
     //     vaultRe7LabsRestaked.claim(operator3, currentEpochRe7LabsRestakedEpochDuration - 1);
 
     //     assertEq(
-    //         ecosystemEntities.rETH.balanceOf(operator3),
+    //         tokensConfig.rETH.balanceOf(operator3),
     //         OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE + DEFAULT_WITHDRAW_AMOUNT
     //     );
     //     assertEq(
-    //         ecosystemEntities.wstETH.balanceOf(operator3),
+    //         tokensConfig.wstETH.balanceOf(operator3),
     //         OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE + DEFAULT_WITHDRAW_AMOUNT
     //     );
     // }
@@ -1636,7 +1590,7 @@ contract FullTest is Test {
     //     vaultGauntletRestaked.claim(operator4, currentEpochGauntletRestaked - 1);
 
     //     assertEq(
-    //         ecosystemEntities.swETH.balanceOf(operator4),
+    //         tokensConfig.swETH.balanceOf(operator4),
     //         OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE + DEFAULT_WITHDRAW_AMOUNT
     //     );
     // }
@@ -1658,16 +1612,16 @@ contract FullTest is Test {
     //     vaultGauntletRestaked.claim(operator5, currentEpochGauntletRestaked - 1);
 
     //     assertEq(
-    //         ecosystemEntities.wBETH.balanceOf(operator5),
+    //         tokensConfig.wBETH.balanceOf(operator5),
     //         OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE + DEFAULT_WITHDRAW_AMOUNT
     //     );
     // }
 
     // function testOperatorPower() public {
     //     vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
-    //     uint48 currentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
+    //     uint48 currentEpoch = middleware.getCurrentEpoch();
     //     Middleware.ValidatorData[] memory validators =
-    //         OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(currentEpoch);
+    //         OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
 
     //     uint256 operatorPower1 = _calculateOperatorPower1();
     //     uint256 operatorPower2 = _calculateOperatorPower2();
@@ -1684,53 +1638,51 @@ contract FullTest is Test {
 
     function testPauseAndUnregisterOperator() public {
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
-        uint48 currentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
+        uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validators =
-            OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(currentEpoch);
+            OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
         vm.startPrank(admin);
-        ecosystemEntities.middleware.pauseOperator(operators.operator1PierTwo.evmAddress);
+        middleware.pauseOperator(operators.operator1PierTwo.evmAddress);
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
 
-        ecosystemEntities.middleware.unregisterOperator(operators.operator1PierTwo.evmAddress);
-        validators = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(currentEpoch);
+        middleware.unregisterOperator(operators.operator1PierTwo.evmAddress);
+        validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
         assertEq(validators.length, TOTAL_OPERATORS - 1); // One less operator
 
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
-        ecosystemEntities.middleware.registerOperator(
-            operators.operator1PierTwo.evmAddress, abi.encode(bytes32(uint256(12))), address(0)
-        );
+        middleware.registerOperator(operators.operator1PierTwo.evmAddress, abi.encode(bytes32(uint256(12))), address(0));
 
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
-        currentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
-        validators = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(currentEpoch);
+        currentEpoch = middleware.getCurrentEpoch();
+        validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
         assertEq(validators.length, TOTAL_OPERATORS); // One more operator
     }
 
     function testPauseAndUnpausingOperator() public {
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
-        uint48 currentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
+        uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validators =
-            OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(currentEpoch);
+            OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
 
         vm.startPrank(admin);
-        ecosystemEntities.middleware.pauseOperator(operators.operator1PierTwo.evmAddress);
+        middleware.pauseOperator(operators.operator1PierTwo.evmAddress);
 
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
-        currentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
-        validators = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(currentEpoch);
+        currentEpoch = middleware.getCurrentEpoch();
+        validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
         assertEq(validators.length, TOTAL_OPERATORS - 1); // One less operator
 
-        ecosystemEntities.middleware.unpauseOperator(operators.operator1PierTwo.evmAddress);
+        middleware.unpauseOperator(operators.operator1PierTwo.evmAddress);
 
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
-        currentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
-        validators = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(currentEpoch);
+        currentEpoch = middleware.getCurrentEpoch();
+        validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
         assertEq(validators.length, TOTAL_OPERATORS);
     }
 
     function testUpkeep() public {
         vm.prank(admin);
-        ecosystemEntities.middleware.setForwarder(forwarder);
+        middleware.setForwarder(forwarder);
         // It's not needed (anyone can call it), it's just for explaining and showing the flow
         address offlineKeepers = makeAddr("offlineKeepers");
 
@@ -1738,7 +1690,7 @@ contract FullTest is Test {
 
         vm.prank(offlineKeepers);
         uint256 beforeGas = gasleft();
-        (bool upkeepNeeded, bytes memory performData) = ecosystemEntities.middleware.checkUpkeep(hex"");
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
         uint256 afterGas = gasleft();
 
         assertEq(upkeepNeeded, true);
@@ -1751,11 +1703,11 @@ contract FullTest is Test {
         beforeGas = gasleft();
         vm.expectEmit(true, false, false, false);
         emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
-        ecosystemEntities.middleware.performUpkeep(performData);
+        middleware.performUpkeep(performData);
         afterGas = gasleft();
         assertLt(beforeGas - afterGas, 10 ** 7); // Check that gas is lower than 10M
 
-        (upkeepNeeded,) = ecosystemEntities.middleware.checkUpkeep(hex"");
+        (upkeepNeeded,) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, false);
     }
 
@@ -1765,23 +1717,23 @@ contract FullTest is Test {
         Middleware middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
 
         vm.startPrank(admin);
-        assertEq(ecosystemEntities.middleware.VERSION(), 1);
+        assertEq(middleware.VERSION(), 1);
 
         MiddlewareV2 middlewareImplV2 = new MiddlewareV2();
         bytes memory emptyBytes = hex"";
-        ecosystemEntities.middleware.upgradeToAndCall(address(middlewareImplV2), emptyBytes);
+        middleware.upgradeToAndCall(address(middlewareImplV2), emptyBytes);
 
-        assertEq(ecosystemEntities.middleware.VERSION(), 2);
+        assertEq(middleware.VERSION(), 2);
 
         vm.expectRevert(); //Function doesn't exists
-        ecosystemEntities.middleware.setGateway(address(gateway));
+        middleware.setGateway(address(gateway));
 
-        ecosystemEntities.middleware.upgradeToAndCall(address(middlewareImpl), emptyBytes);
-        assertEq(ecosystemEntities.middleware.VERSION(), 1);
+        middleware.upgradeToAndCall(address(middlewareImpl), emptyBytes);
+        assertEq(middleware.VERSION(), 1);
 
         vm.expectRevert(IMiddleware.Middleware__AlreadySet.selector);
-        ecosystemEntities.middleware.setGateway(address(gateway));
-        assertEq(ecosystemEntities.middleware.getGateway(), address(gateway));
+        middleware.setGateway(address(gateway));
+        assertEq(middleware.getGateway(), address(gateway));
     }
 
     // function testSlashingOnOperator2AndVetoingSlash() public {
@@ -1791,13 +1743,13 @@ contract FullTest is Test {
     //     uint256 slashingPower = (SLASHING_FRACTION * powerFromSharesOperator2) / PARTS_PER_BILLION;
 
     //     vm.prank(address(gateway));
-    //     ecosystemEntities.middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
+    //     middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
     //     vm.prank(resolver1);
     //     ecosystemEntities.vetoSlasher.vetoSlash(0, hex"");
     //     vm.warp(block.timestamp + SLASHING_WINDOW + 1);
-    //     uint48 newEpoch = ecosystemEntities.middleware.getCurrentEpoch();
-    //     validators = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(newEpoch);
+    //     uint48 newEpoch = middleware.getCurrentEpoch();
+    //     validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
 
     //     (uint256 totalOperator2PowerAfter,) =
     //         _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
@@ -1816,14 +1768,14 @@ contract FullTest is Test {
     //     uint256 slashingPower = (SLASHING_FRACTION * powerFromSharesOperator2) / PARTS_PER_BILLION;
 
     //     vm.prank(address(gateway));
-    //     ecosystemEntities.middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
+    //     middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
     //     vm.warp(block.timestamp + VETO_DURATION);
-    //     vm.prank(address(ecosystemEntities.middleware));
+    //     vm.prank(address(middleware));
     //     ecosystemEntities.vetoSlasher.executeSlash(0, hex"");
     //     vm.warp(block.timestamp + SLASHING_WINDOW + 1);
-    //     uint48 newEpoch = ecosystemEntities.middleware.getCurrentEpoch();
-    //     validators = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(newEpoch);
+    //     uint48 newEpoch = middleware.getCurrentEpoch();
+    //     validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
 
     //     (uint256 totalOperator2PowerAfter,) =
     //         _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
@@ -1842,14 +1794,14 @@ contract FullTest is Test {
     //     uint256 slashingPower = (SLASHING_FRACTION * (powerFromSharesOperator3 / 2)) / PARTS_PER_BILLION;
 
     //     vm.prank(gateway);
-    //     ecosystemEntities.middleware.slash(currentEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
+    //     middleware.slash(currentEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
 
     //     vm.prank(resolver1);
     //     ecosystemEntities.vetoSlasher.vetoSlash(0, hex"");
 
     //     vm.warp(block.timestamp + SLASHING_WINDOW + 1);
-    //     uint48 newEpoch = ecosystemEntities.middleware.getCurrentEpoch();
-    //     validators = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(newEpoch);
+    //     uint48 newEpoch = middleware.getCurrentEpoch();
+    //     validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
 
     //     (uint256 totalOperator2PowerAfter,) =
     //         _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
@@ -1868,15 +1820,15 @@ contract FullTest is Test {
     //     uint256 slashingPower = (SLASHING_FRACTION * powerFromSharesOperator3 / 2) / PARTS_PER_BILLION;
 
     //     vm.prank(gateway);
-    //     ecosystemEntities.middleware.slash(currentEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
+    //     middleware.slash(currentEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
 
     //     vm.warp(block.timestamp + VETO_DURATION);
-    //     vm.prank(address(ecosystemEntities.middleware));
+    //     vm.prank(address(middleware));
     //     ecosystemEntities.vetoSlasher.executeSlash(0, hex"");
 
     //     vm.warp(block.timestamp + SLASHING_WINDOW + 1);
-    //     uint48 newEpoch = ecosystemEntities.middleware.getCurrentEpoch();
-    //     validators = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(newEpoch);
+    //     uint48 newEpoch = middleware.getCurrentEpoch();
+    //     validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
 
     //     (uint256 totalOperator2PowerAfter,) =
     //         _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
@@ -1891,14 +1843,14 @@ contract FullTest is Test {
     //     (uint48 currentEpoch, Middleware.ValidatorData[] memory validators,,,,) = _prepareSlashingTest();
 
     //     vm.prank(owner);
-    //     ecosystemEntities.middleware.pauseSharedVault(vaultAddresses.vaultSlashable);
+    //     middleware.pauseSharedVault(vaultAddresses.vaultSlashable);
 
     //     vm.prank(gateway);
-    //     ecosystemEntities.middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
+    //     middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
     //     vm.warp(block.timestamp + SLASHING_WINDOW + 1);
-    //     uint48 newEpoch = ecosystemEntities.middleware.getCurrentEpoch();
-    //     validators = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(newEpoch);
+    //     uint48 newEpoch = middleware.getCurrentEpoch();
+    //     validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
 
     //     (uint256 totalOperator2PowerAfter,) = _calculateOperatorPower(0, totalFullRestakePower, 0);
     //     (uint256 totalOperator3PowerAfter,) = _calculateOperatorPower(totalPowerVault, totalFullRestakePower, 0);
@@ -1912,17 +1864,17 @@ contract FullTest is Test {
     //         _prepareSlashingTest();
 
     //     vm.prank(owner);
-    //     ecosystemEntities.middleware.pauseOperator(operator2);
+    //     middleware.pauseOperator(operator2);
 
     //     // We calculate the amount slashable for only the operator2 since it's the only one that should be slashed. As a side effect operator3 will be slashed too since it's taking part in a NetworkRestake delegator based vault
     //     uint256 slashingPower = (SLASHING_FRACTION * powerFromSharesOperator2) / PARTS_PER_BILLION;
 
     //     vm.prank(gateway);
-    //     ecosystemEntities.middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
+    //     middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
     //     vm.warp(block.timestamp + SLASHING_WINDOW + 1);
-    //     uint48 newEpoch = ecosystemEntities.middleware.getCurrentEpoch();
-    //     validators = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(newEpoch);
+    //     uint48 newEpoch = middleware.getCurrentEpoch();
+    //     validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
 
     //     (uint256 totalOperator3PowerAfter,) =
     //         _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
@@ -1946,7 +1898,7 @@ contract FullTest is Test {
     //     address network2 = makeAddr("network2");
 
     //     bytes32 OPERATOR4_KEY = bytes32(uint256(4));
-    //     deal(address(ecosystemEntities.wstETH), operator4, OPERATOR_INITIAL_BALANCE);
+    //     deal(address(tokensConfig.wstETH), operator4, OPERATOR_INITIAL_BALANCE);
 
     //     //Middleware 2 Deployment
     //     vm.startPrank(network2);
@@ -1998,9 +1950,9 @@ contract FullTest is Test {
 
     //     vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
 
-    //     uint48 middlewareCurrentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
+    //     uint48 middlewareCurrentEpoch = middleware.getCurrentEpoch();
     //     Middleware.OperatorVaultPair[] memory operatorVaultPairs =
-    //         OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getOperatorVaultPairs(middlewareCurrentEpoch);
+    //         OBaseMiddlewareReader(address(middleware)).getOperatorVaultPairs(middlewareCurrentEpoch);
 
     //     uint48 middleware2CurrentEpoch = middleware2.getCurrentEpoch();
     //     Middleware.OperatorVaultPair[] memory operator2VaultPairs =
@@ -2038,8 +1990,8 @@ contract FullTest is Test {
         returns (uint48 currentEpoch, Middleware.ValidatorData[] memory validators)
     {
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + SLASHING_WINDOW - 1);
-        currentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
+        currentEpoch = middleware.getCurrentEpoch();
 
-        validators = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(currentEpoch);
+        validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
     }
 }
