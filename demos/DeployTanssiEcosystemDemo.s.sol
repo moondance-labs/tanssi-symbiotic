@@ -269,7 +269,6 @@ contract DeployTanssiEcosystem is Script {
             address operatorNetworkOptInServiceAddress,
             address operatorVaultOptInServiceAddress,
             address networkMiddlewareServiceAddress,
-            ,
             address stETHAddress,
         ) = contractScripts.helperConfig.activeNetworkConfig();
 
