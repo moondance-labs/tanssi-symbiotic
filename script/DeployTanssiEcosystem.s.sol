@@ -77,8 +77,6 @@ contract DeployTanssiEcosystem is Script {
 
     bool public isTest = false;
     VaultAddresses public vaultAddresses; // For testing only
-    HelperConfig.VaultsConfigA public vaultsAddressesDeployedA;
-    HelperConfig.VaultsConfigB public vaultsAddressesDeployedB;
     EcosystemEntity public ecosystemEntities;
     CollateralAddresses public collateralAddresses;
     TestCollateralAddresses public testCollateralAddresses;
@@ -263,23 +261,14 @@ contract DeployTanssiEcosystem is Script {
             address cbETHAddress
         ) = contractScripts.helperConfig.activeTokensConfig();
 
-        if (block.chainid != 31_337) {
-            if (block.chainid == 1) {
-                collateralAddresses.stETH = stETHAddress;
-                collateralAddresses.rETH = rETHAddress;
-                collateralAddresses.swETH = swETHAddress;
-                collateralAddresses.wBETH = wBETHAddress;
-                collateralAddresses.LsETH = LsETHAddress;
-                collateralAddresses.cbETH = cbETHAddress;
-            } else {
-                if (defaultCollateralFactoryAddress == address(0)) {
-                    defaultCollateralFactoryAddress = address(new DefaultCollateralFactory());
-                }
-
-                collateralAddresses.stETH = IDefaultCollateralFactory(defaultCollateralFactoryAddress).create(
-                    address(stETHAddress), 10_000 ether, address(0)
-                );
+        if (block.chainid != 31_337 && block.chainid != 1) {
+            if (defaultCollateralFactoryAddress == address(0)) {
+                defaultCollateralFactoryAddress = address(new DefaultCollateralFactory());
             }
+
+            collateralAddresses.stETH = IDefaultCollateralFactory(defaultCollateralFactoryAddress).create(
+                address(stETHAddress), 10_000 ether, address(0)
+            );
         }
 
         if (!isTest) {
@@ -316,8 +305,6 @@ contract DeployTanssiEcosystem is Script {
         if (block.chainid != 1) {
             deployVaults();
             _setDelegatorConfigs();
-        } else {
-            (vaultsAddressesDeployedA, vaultsAddressesDeployedB) = contractScripts.helperConfig.getActiveVaultsConfig();
         }
 
         if (!isTest) {

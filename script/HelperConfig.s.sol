@@ -96,10 +96,6 @@ contract HelperConfig is Script {
         }
     }
 
-    function getActiveVaultsConfig() external view returns (VaultsConfigA memory, VaultsConfigB memory) {
-        return (activeVaultsConfigA, activeVaultsConfigB);
-    }
-
     function getChainConfig()
         public
         view
@@ -198,8 +194,6 @@ contract HelperConfig is Script {
             tokensConfig.cbETH = collateral.collateral;
         } else if (_sameString(collateral.symbol, "wstETH")) {
             tokensConfig.wstETH = collateral.collateral;
-        } else {
-            console2.log("Unknown collateral", collateral.symbol);
         }
     }
 
@@ -268,8 +262,6 @@ contract HelperConfig is Script {
             vaultsConfigB.gauntletRestakedcBETH.vault = vault.vault;
             vaultsConfigB.gauntletRestakedcBETH.delegator = vault.delegator;
             vaultsConfigB.gauntletRestakedcBETH.slasher = vault.slasher;
-        } else {
-            console2.log("Unknown vault", vault.name);
         }
     }
 

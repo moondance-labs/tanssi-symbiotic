@@ -74,6 +74,40 @@ contract DeployProductionTest is Test {
         );
     }
 
+    function testCanReadChainConfigInMainnet() public {
+        vm.chainId(1);
+        HelperConfig helperConfig = new HelperConfig();
+        (
+            HelperConfig.NetworkConfig memory networkConfig,
+            HelperConfig.TokensConfig memory tokensConfig,
+            HelperConfig.VaultsConfigA memory vaultsConfigA,
+            HelperConfig.VaultsConfigB memory vaultsConfigB
+        ) = helperConfig.getChainConfig();
+
+        assertNotEq(networkConfig.vaultConfigurator, address(0));
+        assertNotEq(networkConfig.operatorRegistry, address(0));
+        assertNotEq(networkConfig.networkRegistry, address(0));
+        assertNotEq(networkConfig.vaultRegistry, address(0));
+        assertNotEq(networkConfig.operatorNetworkOptIn, address(0));
+        assertNotEq(networkConfig.operatorVaultOptInService, address(0));
+        assertNotEq(networkConfig.networkMiddlewareService, address(0));
+
+        assertNotEq(tokensConfig.wstETH, address(0));
+        assertNotEq(tokensConfig.rETH, address(0));
+        assertNotEq(tokensConfig.swETH, address(0));
+        assertNotEq(tokensConfig.wBETH, address(0));
+        assertNotEq(tokensConfig.LsETH, address(0));
+        assertNotEq(tokensConfig.cbETH, address(0));
+
+        assertNotEq(vaultsConfigA.opslayer.vault, address(0));
+        assertNotEq(vaultsConfigA.opslayer.delegator, address(0));
+        assertNotEq(vaultsConfigA.opslayer.slasher, address(0));
+
+        assertNotEq(vaultsConfigB.gauntletRestakedWstETH.vault, address(0));
+        assertNotEq(vaultsConfigB.gauntletRestakedWstETH.delegator, address(0));
+        assertNotEq(vaultsConfigB.gauntletRestakedWstETH.slasher, address(0));
+    }
+
     function _checkAddressesAndRoles(
         address middlewareAddress,
         address operatorRewardsAddress,
