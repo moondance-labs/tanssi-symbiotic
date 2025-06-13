@@ -18,11 +18,22 @@ import {console2, Script} from "forge-std/Script.sol";
 import {DeploySymbiotic} from "./DeploySymbiotic.s.sol";
 
 contract HelperConfig is Script {
+    Entities public activeEntities;
     NetworkConfig public activeNetworkConfig;
     TokensConfig public activeTokensConfig;
     VaultsConfigA public activeVaultsConfigA;
     VaultsConfigB public activeVaultsConfigB;
     OperatorConfig public activeOperatorConfig;
+
+    struct Entities {
+        address admin;
+        address tanssi;
+        address gateway;
+        address forwarder;
+        address middleware;
+        address operatorRewards;
+        address rewardsToken;
+    }
 
     struct NetworkConfig {
         address vaultConfigurator;
@@ -110,12 +121,18 @@ contract HelperConfig is Script {
     uint256 public DEFAULT_ANVIL_PRIVATE_KEY = 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6;
 
     constructor() {
-        if (block.chainid == 31_337) {
-            (activeNetworkConfig, activeTokensConfig, activeVaultsConfigA, activeVaultsConfigB, activeOperatorConfig) =
-                getAnvilEthConfig();
+        if (block.chainid == 1 || block.chainid == 11_155_111) {
+            (
+                activeEntities,
+                activeNetworkConfig,
+                activeTokensConfig,
+                activeVaultsConfigA,
+                activeVaultsConfigB,
+                activeOperatorConfig
+            ) = getChainConfig();
         } else {
-            (activeNetworkConfig, activeTokensConfig, activeVaultsConfigA, activeVaultsConfigB, activeOperatorConfig) =
-                getChainConfig();
+            // Other configurations can remain empty
+            activeNetworkConfig = getAnvilEthConfig();
         }
     }
 
@@ -123,6 +140,7 @@ contract HelperConfig is Script {
         public
         view
         returns (
+            Entities memory entities,
             NetworkConfig memory networkConfig,
             TokensConfig memory tokensConfig,
             VaultsConfigA memory vaultsConfigA,
@@ -130,19 +148,16 @@ contract HelperConfig is Script {
             OperatorConfig memory operatorConfig
         )
     {
-        string memory root = vm.projectRoot();
-        string memory json;
-        string memory jsonPath;
+        (string memory json, string memory jsonPath) = getJsonAndPathForChain();
 
-        uint256 chainId = block.chainid;
-
-        if (chainId == 1) {
-            json = vm.readFile(string.concat(root, "/contract-addresses/tanssi.json"));
-            jsonPath = "$";
-        } else {
-            json = vm.readFile(string.concat(root, "/script/chain_data.json"));
-            jsonPath = string.concat("$.", vm.toString(chainId));
-        }
+        entities.admin = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".admin")), (address));
+        entities.tanssi = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".tanssi")), (address));
+        entities.gateway = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".gateway")), (address));
+        entities.forwarder = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".forwarder")), (address));
+        entities.middleware = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".middleware")), (address));
+        entities.operatorRewards =
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".operatorRewards")), (address));
+        entities.rewardsToken = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".rewardsToken")), (address));
 
         networkConfig.vaultConfigurator =
             abi.decode(vm.parseJson(json, string.concat(jsonPath, ".vaultConfigurator")), (address));
@@ -163,7 +178,7 @@ contract HelperConfig is Script {
         networkConfig.readHelper =
             abi.decode(vm.parseJson(json, string.concat(jsonPath, ".middlewareReader")), (address));
 
-        if (chainId == 1) {
+        if (block.chainid == 1) {
             uint256 totalCollaterals =
                 abi.decode(vm.parseJson(json, string.concat(jsonPath, ".totalCollaterals")), (uint256));
             for (uint256 i = 0; i < totalCollaterals; i++) {
@@ -187,9 +202,8 @@ contract HelperConfig is Script {
             }
         } else {
             networkConfig.collateral =
-                abi.decode(vm.parseJson(json, string.concat(jsonPath, ".defaultCollateralFactory")), (address));
-            tokensConfig.wstETH =
-                abi.decode(vm.parseJson(json, string.concat(jsonPath, ".wstETHCollateral")), (address));
+                abi.decode(vm.parseJson(json, string.concat(jsonPath, ".collaterals[0].address")), (address));
+            tokensConfig.wstETH = networkConfig.collateral;
         }
     }
 
@@ -332,16 +346,7 @@ contract HelperConfig is Script {
         return keccak256(bytes(a)) == keccak256(bytes(b));
     }
 
-    function getAnvilEthConfig()
-        public
-        returns (
-            NetworkConfig memory networkConfig,
-            TokensConfig memory tokensConfig,
-            VaultsConfigA memory vaultConfigA,
-            VaultsConfigB memory vaultConfigB,
-            OperatorConfig memory operatorConfig
-        )
-    {
+    function getAnvilEthConfig() public returns (NetworkConfig memory networkConfig) {
         DeploySymbiotic deploySymbiotic = new DeploySymbiotic();
 
         DeploySymbiotic.SymbioticAddresses memory symbioticAddresses = deploySymbiotic.deploySymbioticBroadcast();
@@ -357,5 +362,18 @@ contract HelperConfig is Script {
             collateral: address(deploySymbiotic.collateral()),
             readHelper: address(0)
         });
+    }
+
+    function getJsonAndPathForChain() public view returns (string memory json, string memory jsonPath) {
+        string memory root = vm.projectRoot();
+        uint256 chainId = block.chainid;
+
+        if (chainId == 1) {
+            json = vm.readFile(string.concat(root, "/contract-addresses/tanssi.json"));
+            jsonPath = "$";
+        } else if (chainId == 11_155_111) {
+            json = vm.readFile(string.concat(root, "/contract-addresses/stagelight.json"));
+            jsonPath = "$";
+        }
     }
 }

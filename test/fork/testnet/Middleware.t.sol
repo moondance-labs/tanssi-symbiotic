@@ -125,7 +125,6 @@ contract MiddlewareTest is Test {
     function setUp() public {
         _deployBaseInfrastructure();
         _setupOperators();
-
         _registerEntitiesToMiddleware(owner);
         _setOperatorsNetworkShares(tanssi);
         _setLimitForNetworkAndOperators(tanssi);
@@ -145,7 +144,6 @@ contract MiddlewareTest is Test {
         DeployTanssiEcosystem deployTanssi = new DeployTanssiEcosystem();
         helperConfig = new HelperConfig();
         deployTanssi.deployTanssiEcosystem(helperConfig);
-
         (ecosystemEntities.middleware,) = deployTanssi.ecosystemEntities();
         ecosystemEntities.stETH = IDefaultCollateral(deployTanssi.getStETHCollateralAddress());
 

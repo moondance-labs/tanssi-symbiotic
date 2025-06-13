@@ -174,15 +174,7 @@ contract DeployProduction is Script {
     }
 
     function _loadEntities() private {
-        string memory root = vm.projectRoot();
-        string memory path = string.concat(root, "/script/chain_data.json");
-        string memory json = vm.readFile(path);
-        uint256 chainId = block.chainid;
-        string memory jsonPath = string.concat("$.", vm.toString(chainId));
-        address admin = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".admin")), (address));
-        address tanssi = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".tanssi")), (address));
-        address gateway = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".gateway")), (address));
-        address forwarder = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".forwarder")), (address));
+        (address admin, address tanssi, address gateway, address forwarder,,,) = helperConfig.activeEntities();
 
         entities = Entities({admin: admin, tanssi: tanssi, gateway: gateway, forwarder: forwarder});
     }

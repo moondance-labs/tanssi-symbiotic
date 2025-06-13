@@ -35,15 +35,8 @@ contract DeployProductionTest is Test {
         (address middlewareAddress, address operatorRewardsAddress, address stakerRewardsFactoryAddress) =
             deployProduction.deploy();
 
-        string memory root = vm.projectRoot();
-        string memory path = string.concat(root, "/script/chain_data.json");
-        string memory json = vm.readFile(path);
-        uint256 chainId = block.chainid;
-        string memory jsonPath = string.concat("$.", vm.toString(chainId));
-        address admin = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".admin")), (address));
-        address tanssi = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".tanssi")), (address));
-        address gateway = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".gateway")), (address));
-        address forwarder = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".forwarder")), (address));
+        HelperConfig helperConfig = new HelperConfig();
+        (address admin, address tanssi, address gateway, address forwarder,,,) = helperConfig.activeEntities();
         DeployProduction.Entities memory entities =
             DeployProduction.Entities({admin: admin, tanssi: tanssi, gateway: gateway, forwarder: forwarder});
 
@@ -78,12 +71,21 @@ contract DeployProductionTest is Test {
         vm.chainId(1);
         HelperConfig helperConfig = new HelperConfig();
         (
+            HelperConfig.Entities memory entities,
             HelperConfig.NetworkConfig memory networkConfig,
             HelperConfig.TokensConfig memory tokensConfig,
             HelperConfig.VaultsConfigA memory vaultsConfigA,
             HelperConfig.VaultsConfigB memory vaultsConfigB,
             HelperConfig.OperatorConfig memory operators
         ) = helperConfig.getChainConfig();
+
+        assertNotEq(entities.middleware, address(0));
+        assertNotEq(entities.admin, address(0));
+        assertNotEq(entities.tanssi, address(0));
+        assertNotEq(entities.gateway, address(0));
+        // assertNotEq(entities.forwarder, address(0));
+        assertNotEq(entities.operatorRewards, address(0));
+        assertNotEq(entities.rewardsToken, address(0));
 
         assertNotEq(networkConfig.vaultConfigurator, address(0));
         assertNotEq(networkConfig.operatorRegistry, address(0));

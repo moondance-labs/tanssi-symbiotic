@@ -261,7 +261,7 @@ contract FullTest is Test {
 
     function setUp() public {
         _getBaseInfrastructure();
-        _setLimitsAndShares(tanssi);
+        _setLimitsAndShares();
         _setupOperators();
         _registerEntitiesToMiddleware();
         _setupGateway();
@@ -276,17 +276,13 @@ contract FullTest is Test {
     function _getBaseInfrastructure() private {
         // Check if it's good for mainnet
         helperConfig = new HelperConfig();
+        HelperConfig.Entities memory entities;
+        (entities,, tokensConfig, vaultsAddressesDeployedA, vaultsAddressesDeployedB, operators) =
+            helperConfig.getChainConfig();
 
-        (, tokensConfig, vaultsAddressesDeployedA, vaultsAddressesDeployedB, operators) = helperConfig.getChainConfig();
-
-        string memory root = vm.projectRoot();
-        string memory path = string.concat(root, "/contract-addresses/tanssi.json");
-        string memory json = vm.readFile(path);
-
-        admin = abi.decode(vm.parseJson(json, "$.admin"), (address));
-        tanssi = abi.decode(vm.parseJson(json, "$.tanssi"), (address));
-        address middlewareAddress = abi.decode(vm.parseJson(json, "$.middleware"), (address));
-        middleware = Middleware(middlewareAddress);
+        admin = entities.admin;
+        tanssi = entities.tanssi;
+        middleware = Middleware(entities.middleware);
     }
 
     function _setupOperators() private {
@@ -475,47 +471,36 @@ contract FullTest is Test {
         });
 
         vm.startPrank(admin);
-        address[] memory activeVaults = OBaseMiddlewareReader(address(middleware)).activeVaults();
 
-        _registerVaultIfNotActive(vaultsAddressesDeployedA.mevRestakedETH.vault, activeVaults, stakerRewardsParams);
+        _registerVaultIfNotActive(vaultsAddressesDeployedA.mevRestakedETH.vault, stakerRewardsParams);
 
-        _registerVaultIfNotActive(vaultsAddressesDeployedA.mevCapitalETH.vault, activeVaults, stakerRewardsParams);
+        _registerVaultIfNotActive(vaultsAddressesDeployedA.mevCapitalETH.vault, stakerRewardsParams);
 
-        _registerVaultIfNotActive(vaultsAddressesDeployedA.hashKeyCloudETH.vault, activeVaults, stakerRewardsParams);
+        _registerVaultIfNotActive(vaultsAddressesDeployedA.hashKeyCloudETH.vault, stakerRewardsParams);
 
-        _registerVaultIfNotActive(vaultsAddressesDeployedA.renzoRestakedETH.vault, activeVaults, stakerRewardsParams);
+        _registerVaultIfNotActive(vaultsAddressesDeployedA.renzoRestakedETH.vault, stakerRewardsParams);
 
-        _registerVaultIfNotActive(vaultsAddressesDeployedA.re7LabsETH.vault, activeVaults, stakerRewardsParams);
+        _registerVaultIfNotActive(vaultsAddressesDeployedA.re7LabsETH.vault, stakerRewardsParams);
 
-        _registerVaultIfNotActive(vaultsAddressesDeployedA.re7LabsRestakingETH.vault, activeVaults, stakerRewardsParams);
+        _registerVaultIfNotActive(vaultsAddressesDeployedA.re7LabsRestakingETH.vault, stakerRewardsParams);
 
-        _registerVaultIfNotActive(vaultsAddressesDeployedA.cp0xLrtETH.vault, activeVaults, stakerRewardsParams);
+        _registerVaultIfNotActive(vaultsAddressesDeployedA.cp0xLrtETH.vault, stakerRewardsParams);
 
-        _registerVaultIfNotActive(vaultsAddressesDeployedA.etherfiwstETH.vault, activeVaults, stakerRewardsParams);
+        _registerVaultIfNotActive(vaultsAddressesDeployedA.etherfiwstETH.vault, stakerRewardsParams);
 
-        _registerVaultIfNotActive(vaultsAddressesDeployedA.restakedLsETHVault.vault, activeVaults, stakerRewardsParams);
+        _registerVaultIfNotActive(vaultsAddressesDeployedA.restakedLsETHVault.vault, stakerRewardsParams);
 
-        _registerVaultIfNotActive(vaultsAddressesDeployedA.opslayer.vault, activeVaults, stakerRewardsParams);
+        _registerVaultIfNotActive(vaultsAddressesDeployedA.opslayer.vault, stakerRewardsParams);
 
-        _registerVaultIfNotActive(
-            vaultsAddressesDeployedB.gauntletRestakedWstETH.vault, activeVaults, stakerRewardsParams
-        );
+        _registerVaultIfNotActive(vaultsAddressesDeployedB.gauntletRestakedWstETH.vault, stakerRewardsParams);
 
-        _registerVaultIfNotActive(
-            vaultsAddressesDeployedB.gauntletRestakedWBETH.vault, activeVaults, stakerRewardsParams
-        );
+        _registerVaultIfNotActive(vaultsAddressesDeployedB.gauntletRestakedWBETH.vault, stakerRewardsParams);
 
-        _registerVaultIfNotActive(
-            vaultsAddressesDeployedB.gauntletRestakedSwETH.vault, activeVaults, stakerRewardsParams
-        );
+        _registerVaultIfNotActive(vaultsAddressesDeployedB.gauntletRestakedSwETH.vault, stakerRewardsParams);
 
-        _registerVaultIfNotActive(
-            vaultsAddressesDeployedB.gauntletRestakedRETH.vault, activeVaults, stakerRewardsParams
-        );
+        _registerVaultIfNotActive(vaultsAddressesDeployedB.gauntletRestakedRETH.vault, stakerRewardsParams);
 
-        _registerVaultIfNotActive(
-            vaultsAddressesDeployedB.gauntletRestakedcBETH.vault, activeVaults, stakerRewardsParams
-        );
+        _registerVaultIfNotActive(vaultsAddressesDeployedB.gauntletRestakedcBETH.vault, stakerRewardsParams);
 
         _registerOperatorIfNeeded(operators.operator1PierTwo);
         _registerOperatorIfNeeded(operators.operator2P2P);
@@ -543,7 +528,6 @@ contract FullTest is Test {
 
     function _registerVaultIfNotActive(
         address _vault,
-        address[] memory _activeVaults,
         IODefaultStakerRewards.InitParams memory stakerRewardsParams
     ) private {
         if (!OBaseMiddlewareReader(address(middleware)).isVaultRegistered(_vault)) {
@@ -616,9 +600,7 @@ contract FullTest is Test {
         vm.stopPrank();
     }
 
-    function _setLimitsAndShares(
-        address _owner
-    ) private {
+    function _setLimitsAndShares() private {
         _setMaxNetworkLimits();
         _setNetworkLimits();
         _setOperatorShares();
