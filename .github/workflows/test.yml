@@ -10,6 +10,10 @@ on:
 env:
   FOUNDRY_PROFILE: ci
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   set-tags:
     runs-on: ubuntu-latest
