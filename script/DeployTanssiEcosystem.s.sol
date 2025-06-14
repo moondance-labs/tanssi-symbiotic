@@ -250,26 +250,17 @@ contract DeployTanssiEcosystem is Script {
     }
 
     function _deployCollateralFactory() private {
-        (,,,,,,, address defaultCollateralFactoryAddress,) = contractScripts.helperConfig.activeNetworkConfig();
-
         (address stETHAddress,,,,,) = contractScripts.helperConfig.activeTokensConfig();
 
         if (block.chainid != 31_337 && block.chainid != 1) {
-            if (defaultCollateralFactoryAddress == address(0)) {
-                defaultCollateralFactoryAddress = address(new DefaultCollateralFactory());
-            }
-
+            DefaultCollateralFactory defaultCollateralFactory = new DefaultCollateralFactory();
             if (stETHAddress == address(0)) {
                 stETHAddress = address(new Token("stETH", 18));
             }
-
-            collateralAddresses.stETH = IDefaultCollateralFactory(defaultCollateralFactoryAddress).create(
-                address(stETHAddress), 10_000 ether, address(0)
-            );
+            collateralAddresses.stETH = defaultCollateralFactory.create(address(stETHAddress), 10_000 ether, address(0));
         }
 
         if (!isTest) {
-            console2.log("DefaultCollateralFactory: ", defaultCollateralFactoryAddress);
             console2.log("StETH: ", stETHAddress);
         }
     }
