@@ -1,11 +1,11 @@
 {
   "admin": "0xae5d4e70cb5910bea21e06d33b10f2bd6c95daae",
   "tanssi": "0x8c1a46d032b7b30d9ab4f30e51d8139cc3e85ce3",
-  "rewardsToken": "0x0EC1118D52a2e9B622046c5e0eE0263577721D02",
+  "rewardsToken": "0x553F4cB7256D8fC038E91d36Cb63fa7C13b624AB",
   "beefy": "0x68cfb0df884e488e362690408231c316ed7348af ",
   "forwarder": "0x0000000000000000000000000000000000000000",
-  "gateway": "0x0000000000000000000000000000000000000000",
-  "gatewayImplementation": "0x0000000000000000000000000000000000000000",
+  "gateway": "0x3fFb3254134c0a7a5125Fee061C5243C9E1c2A95",
+  "gatewayImplementation": "0x773bb5b243b0eab2a186d00a110a74db85358676",
   "middleware": "0x1bbd37e4325d931aef5fedef1f87e8343835ace4",
   "middlewareImplementation": "0xd7e9c6c495841eb67dfa57c4f7bef9c9e48d0feb",
   "middlewareReader": "0x73fee9c8ef1e48cb76fa16321cfc27eb1c032a22",
@@ -21,6 +21,7 @@
   "operatorNetworkOptInService": "0x7133415b33B438843D581013f98A08704316633c",
   "operatorVaultOptInService": "0xb361894bC06cbBA7Ea8098BF0e32EB1906A5F891",
   "networkMiddlewareService": "0xD7dC9B366c027743D90761F71858BCa83C6899Ad",
+  "totalCollaterals": 6,
   "collaterals": [
     {
       "name": "Wrapped liquid staked Ether 2.0",
@@ -59,6 +60,7 @@
       "oracle": "0x5f4ec3df9cbd43714fe2740f5e3616155c5b8419"
     }
   ],
+  "totalVaults": 15,
   "vaults": [
     {
       "name": "MEV Capital restaked ETH",
@@ -113,6 +115,15 @@
       "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
       "stakerRewards": "0xca89B022820f0b21db88F38A3b75e4ECBAb277c0",
       "stakerRewardsImplementation": "0x615e39CD45d02d4D2684DFBfe888AfB2AD338e13"
+    },
+    {
+      "name": "Opslayer Vault",
+      "vault": "0xd006d743fcc622486bD971596e39cC55F8c641Ca",
+      "delegator": "0x7AD05f9445484B07dFC778895b8439D9fCE76bAe",
+      "slasher": "0x3f55A74B287359bF0fCc8149817C2C6472d6Ba5d",
+      "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+      "stakerRewards": "0xCD4eFf52E84a335C3A565598b2a647E2E51d8a38",
+      "stakerRewardsImplementation": "0x1e0e60c9977dc16d7a7ddcc4aed99032516e7f77"
     },
     {
       "name": "Gauntlet restaked wstETH",
@@ -187,6 +198,7 @@
       "stakerRewardsImplementation": "0x67AeB74BEa9c3427da6b0eCf1dE02F6e0aA78F50"
     }
   ],
+  "totalOperators": 11,
   "operators": [
     {
       "name": "Pier Two",
@@ -252,7 +264,7 @@
       "name": "Opslayer",
       "substrateAddress": "5Ci8iFesdTYyArcvDc1a13k2Y8TRSEHUwk7xA5k7vQGWrNQS",
       "evmAddress": "0x0e50cef51947f19B5b91eD4C2CfC1C0Bb72F6a7A",
-      "operatorKey": ""
+      "operatorKey": "0x1c8bbfc13c5085b9870d34a7db40977a1dc049d3c7d76b58ee9059348ec499cf"
     }
   ]
 }

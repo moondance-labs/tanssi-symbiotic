@@ -20,6 +20,7 @@ import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
 import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
+import {HelperConfig} from "script/HelperConfig.s.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
@@ -37,24 +38,19 @@ contract UpgradesTest is Test {
     address gateway;
 
     function setUp() public {
-        string memory root = vm.projectRoot();
-        string memory path = string.concat(root, "/script/chain_data.json");
-        string memory json = vm.readFile(path);
-
-        uint256 chainId = block.chainid;
-        string memory jsonPath = string.concat("$.", vm.toString(chainId));
-
-        address middlewareAddress = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".middleware")), (address));
-        address operatorRewardsAddress =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".operatorRewards")), (address));
-        address stakerRewardsAddress =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".stakerRewards")), (address));
-        rewardsToken = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".rewardsToken")), (address));
-        gateway = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".gateway")), (address));
-        currentAdmin = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".admin")), (address));
-
+        HelperConfig helperConfig = new HelperConfig();
+        address middlewareAddress;
+        address operatorRewardsAddress;
+        (currentAdmin, tanssi, gateway,, middlewareAddress, operatorRewardsAddress, rewardsToken) =
+            helperConfig.activeEntities();
         middleware = Middleware(middlewareAddress);
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
+
+        (string memory json, string memory jsonPath) = helperConfig.getJsonAndPathForChain();
+
+        address stakerRewardsAddress =
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".vaults[0].stakerRewards")), (address));
+
         stakerRewards = ODefaultStakerRewards(stakerRewardsAddress);
 
         deployRewards = new DeployRewards();
