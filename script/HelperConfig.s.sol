@@ -208,7 +208,7 @@ contract HelperConfig is Script {
     }
 
     function _loadCollateral(string memory json, string memory path) private pure returns (CollateralData memory) {
-        // Trying to decode the full dictionary as a strict won't work, even if docs suggest it. I suspect it's due to dictionary keys not guaranteed to be in order.
+        // Trying to decode the full dictionary as a struct won't work, even if docs suggest it. I suspect it's due to dictionary keys not guaranteed to be in order.
         string memory name = abi.decode(vm.parseJson(json, string.concat(path, ".name")), (string));
         string memory symbol = abi.decode(vm.parseJson(json, string.concat(path, ".symbol")), (string));
         address collateral = abi.decode(vm.parseJson(json, string.concat(path, ".address")), (address));
