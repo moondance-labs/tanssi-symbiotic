@@ -538,6 +538,23 @@ contract OBaseMiddlewareReader is
         uint48 epoch
     ) external view returns (bytes32[] memory sortedKeys) {
         IMiddleware.ValidatorData[] memory validatorSet = getValidatorSet(epoch);
+        sortedKeys = _sortOperatorsByPower(validatorSet);
+    }
+
+    /**
+     * @dev Sorts operators by their total power in descending order, after 500 it will be almost impossible to be used on-chain since 500 ≈ 36M gas
+     * @param validatorSet Array of validator data containing operator keys and their powers
+     * @return sortedKeys Array of sorted operators keys based on their power
+     */
+    function sortOperatorsByPower(
+        IMiddleware.ValidatorData[] memory validatorSet
+    ) external view returns (bytes32[] memory sortedKeys) {
+        sortedKeys = _sortOperatorsByPower(validatorSet);
+    }
+
+    function _sortOperatorsByPower(
+        IMiddleware.ValidatorData[] memory validatorSet
+    ) internal pure returns (bytes32[] memory sortedKeys) {
         if (validatorSet.length == 0) return sortedKeys;
         validatorSet = validatorSet.quickSort(0, int256(validatorSet.length - 1));
 
@@ -646,6 +663,7 @@ contract OBaseMiddlewareReader is
                 ++i;
             }
             bytes32 key = abi.decode(getOperatorKeyAt(operator, epochStartTs), (bytes32));
+            // TODO check if cache exists
             uint256 power = _getOperatorPowerAt(epochStartTs, operator);
             if (key != bytes32(0) && power != 0) {
                 validatorSet[len++] = IMiddleware.ValidatorData(power, key);

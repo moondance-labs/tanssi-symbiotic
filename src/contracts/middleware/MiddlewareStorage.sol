@@ -14,6 +14,8 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
+import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
+
 abstract contract MiddlewareStorage {
     /// @custom:storage-location erc7201:tanssi.middleware.MiddlewareStorage.v1.1
     struct StorageMiddleware {
@@ -26,14 +28,24 @@ abstract contract MiddlewareStorage {
         uint256 lastExecutionBlock;
     }
 
+    struct StorageMiddlewareCache {
+        mapping(uint48 epoch => IMiddleware.ValidatorData[] validatorsData) epochToValidatorsData;
+        mapping(uint48 epoch => mapping(bytes32 operatorKey => uint256 power)) operatorKeyToPower;
+    }
+
     // keccak256(abi.encode(uint256(keccak256("tanssi.middleware.MiddlewareStorage.v1.1")) - 1)) & ~bytes32(uint256(0xff));
     bytes32 private constant MIDDLEWARE_STORAGE_LOCATION =
         0xca64b196a0d05040904d062f739ed1d1e1d3cc5de78f7001fb9039595fce9100;
+
+    // keccak256(abi.encode(uint256(keccak256("tanssi.middleware.MiddlewareStorageCache.v1")) - 1)) & ~bytes32(uint256(0xff));
+    bytes32 private constant MIDDLEWARE_STORAGE_CACHE_LOCATION =
+        0x93540b1a1dc30969947272428a8d0331ac0b23f753e3edd38c70f80cf0835100;
 
     uint8 public constant DEFAULT_DECIMALS = 18;
     uint256 public constant VERSION = 1;
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
     uint256 public constant MIN_INTERVAL_TO_SEND_OPERATOR_KEYS = 50; // 600 seconds ≈ 10 minutes
+    uint256 public constant MAX_OPERATORS_TO_PROCESS = 10;
     bytes32 internal constant GATEWAY_ROLE = keccak256("GATEWAY_ROLE");
     bytes32 internal constant FORWARDER_ROLE = keccak256("FORWARDER_ROLE");
 
@@ -52,6 +64,12 @@ abstract contract MiddlewareStorage {
     function _getMiddlewareStorage() internal pure returns (StorageMiddleware storage $v1) {
         assembly {
             $v1.slot := MIDDLEWARE_STORAGE_LOCATION
+        }
+    }
+
+    function _getMiddlewareStorageCache() internal pure returns (StorageMiddlewareCache storage $v1) {
+        assembly {
+            $v1.slot := MIDDLEWARE_STORAGE_CACHE_LOCATION
         }
     }
 
@@ -122,5 +140,28 @@ abstract contract MiddlewareStorage {
     ) public view returns (address) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
         return $.collateralToOracle[$.vaultToCollateral[vault]];
+    }
+
+    /**
+     * @notice Get epoch operators that have had their powers cached
+     * @param epoch The epoch number
+     * @return validatorsData The list of operators for the epoch that have had their powers cached
+     */
+    function getEpochValidatorsData(
+        uint48 epoch
+    ) public view returns (IMiddleware.ValidatorData[] memory validatorsData) {
+        StorageMiddlewareCache storage $ = _getMiddlewareStorageCache();
+        validatorsData = $.epochToValidatorsData[epoch];
+    }
+
+    /**
+     * @notice Get the power of an operator
+     * @param epoch The epoch number
+     * @param operatorKey The operator key
+     * @return power The power of the operator
+     */
+    function getOperatorToPower(uint48 epoch, bytes32 operatorKey) public view returns (uint256 power) {
+        StorageMiddlewareCache storage $ = _getMiddlewareStorageCache();
+        power = $.operatorKeyToPower[epoch][operatorKey];
     }
 }

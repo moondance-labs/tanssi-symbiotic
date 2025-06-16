@@ -67,6 +67,7 @@ import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRe
 import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
 import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
+import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
 import {MiddlewareV2} from "./utils/MiddlewareV2.sol";
 import {MiddlewareV3} from "./utils/MiddlewareV3.sol";
@@ -2506,12 +2507,7 @@ contract MiddlewareTest is Test {
         (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, false);
 
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
-        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
-        assertEq(upkeepNeeded, true);
-
-        bytes32[] memory sortedKeys = abi.decode(performData, (bytes32[]));
-        assertEq(sortedKeys.length, 0);
+        assertEq(performData.length, 0);
 
         vm.prank(forwarder2);
         middleware.performUpkeep(performData);
@@ -2542,11 +2538,18 @@ contract MiddlewareTest is Test {
         (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
 
-        bytes32[] memory sortedKeys = abi.decode(performData, (bytes32[]));
-        assertEq(sortedKeys.length, 2);
+        IMiddleware.ValidatorData[] memory validatorsData = abi.decode(performData, (IMiddleware.ValidatorData[]));
+        assertEq(validatorsData.length, 2);
         vm.startPrank(forwarder);
         middleware.performUpkeep(performData);
         vm.stopPrank();
+
+        uint48 epoch = middleware.getCurrentEpoch();
+
+        validatorsData = middleware.getEpochValidatorsData(epoch);
+        assertEq(validatorsData.length, 2);
+        assertEq(validatorsData[0].key, OPERATOR_KEY);
+        assertEq(validatorsData[1].key, OPERATOR2_KEY);
     }
 
     function testUpkeepShouldRevertIfNotCalledByForwarder() public {

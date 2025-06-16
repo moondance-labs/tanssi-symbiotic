@@ -14,6 +14,7 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
+import {console2} from "forge-std/console2.sol";
 //**************************************************************************************************
 //                                      CHAINLINK
 //**************************************************************************************************
@@ -306,13 +307,55 @@ contract Middleware is
         bytes calldata /* checkData */
     ) external view override returns (bool upkeepNeeded, bytes memory performData) {
         uint48 epoch = getCurrentEpoch();
-        bytes32[] memory sortedKeys = IOBaseMiddlewareReader(address(this)).sortOperatorsByPower(epoch);
+        uint48 currentEpochStartTs = IOBaseMiddlewareReader(address(this)).getEpochStart(epoch);
+
         StorageMiddleware storage $ = _getMiddlewareStorage();
+        StorageMiddlewareCache storage cache = _getMiddlewareStorageCache();
+
+        address[] memory activeOperators = _activeOperators();
+        uint256 activeOperatorsLength = activeOperators.length;
+        if (activeOperatorsLength == 0) {
+            // No active operators, no upkeep needed
+            return (false, hex"");
+        }
+
+        uint256 cachedCurrentEpochValidatorsLength = cache.epochToValidatorsData[epoch].length;
+        uint256 diffLength = activeOperatorsLength - cachedCurrentEpochValidatorsLength;
+
+        // Check if cache is still not filled with the current epoch validators
+        if (diffLength > 0) {
+            uint256 maxNumOperatorsToCheck = Math.min(diffLength, MAX_OPERATORS_TO_PROCESS);
+
+            ValidatorData[] memory validatorsData = new ValidatorData[](maxNumOperatorsToCheck);
+
+            // Populate validatorsData with the new operators' keys and their powers
+            // It gets encoded to be used in performUpkeep
+            for (
+                uint256 i = cachedCurrentEpochValidatorsLength;
+                i < cachedCurrentEpochValidatorsLength + maxNumOperatorsToCheck && i < activeOperatorsLength;
+                i++
+            ) {
+                address operator = activeOperators[i];
+                bytes32 operatorKey = abi.decode(operatorKey(operator), (bytes32));
+                uint256 operatorPower = _getOperatorPowerAt(currentEpochStartTs, operator);
+                validatorsData[i - cachedCurrentEpochValidatorsLength] =
+                    ValidatorData({key: operatorKey, power: operatorPower});
+            }
+            // encode values to be used in performUpkeep
+            return (true, abi.encode(validatorsData));
+        }
 
         //Should be at least once per epoch
         upkeepNeeded = (Time.timestamp() - $.lastTimestamp) > $.interval;
+        if (upkeepNeeded) {
+            // This will use the cached values, resulting in just a simple sorting operation. We can know a priori how much it cost since it's just an address with a uint256 power. Worst case we can split this too.
+            bytes32[] memory sortedKeys =
+                IOBaseMiddlewareReader(address(this)).sortOperatorsByPower(cache.epochToValidatorsData[epoch]);
+            performData = abi.encode(sortedKeys);
+            return (true, performData);
+        }
 
-        performData = abi.encode(sortedKeys, epoch);
+        return (upkeepNeeded, hex"");
     }
 
     /**
@@ -327,15 +370,33 @@ contract Middleware is
         if (gateway == address(0)) {
             revert Middleware__GatewayNotSet();
         }
+        uint48 epoch = getCurrentEpoch();
+        StorageMiddlewareCache storage cache = _getMiddlewareStorageCache();
 
-        uint48 currentTimestamp = Time.timestamp();
-        if ((currentTimestamp - $.lastTimestamp) > $.interval) {
-            $.lastTimestamp = currentTimestamp;
+        address[] memory activeOperators = _activeOperators();
+        uint256 activeOperatorsLength = activeOperators.length;
+        uint256 cachedCurrentEpochValidatorsLength = cache.epochToValidatorsData[epoch].length;
+        uint256 diffLength = activeOperatorsLength - cachedCurrentEpochValidatorsLength;
 
-            // Decode the sorted keys and the epoch from performData
-            (bytes32[] memory sortedKeys, uint48 epoch) = abi.decode(performData, (bytes32[], uint48));
+        if (diffLength > 0) {
+            ValidatorData[] memory validatorsData = abi.decode(performData, (ValidatorData[]));
+            uint256 validatorsDataLength = validatorsData.length;
+            for (uint256 i = 0; i < validatorsDataLength; i++) {
+                ValidatorData memory validatorData = validatorsData[i];
+                // Update the cache with the operator power and the operator
+                cache.operatorKeyToPower[epoch][validatorData.key] = validatorData.power;
+                cache.epochToValidatorsData[epoch].push(validatorData);
+            }
+        } else {
+            uint48 currentTimestamp = Time.timestamp();
+            if ((currentTimestamp - $.lastTimestamp) > $.interval) {
+                $.lastTimestamp = currentTimestamp;
 
-            IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);
+                // Decode the sorted keys and the epoch from performData
+                bytes32[] memory sortedKeys = abi.decode(performData, (bytes32[]));
+
+                IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);
+            }
         }
     }
 
