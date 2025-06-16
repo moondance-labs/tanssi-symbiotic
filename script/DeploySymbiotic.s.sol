@@ -79,6 +79,7 @@ contract DeploySymbiotic is Script {
     error DeploySymbiotic__VaultsAddresseslNotDeployed();
 
     uint48 public constant VAULT_EPOCH_DURATION = 12 days;
+    uint48 public constant VETO_DURATION = 1 days;
 
     // These can be hardcoded since they are anvil private keys
     uint256 ownerPrivateKey =
@@ -349,8 +350,8 @@ contract DeploySymbiotic is Script {
         deploySymbioticBroadcast();
         deployVault = new DeployVault();
 
-        deployVault.deployAllVaults(
-            address(vaultConfigurator), address(collateral), address(owner), VAULT_EPOCH_DURATION
+        deployVault.deployTestVaults(
+            address(vaultConfigurator), address(collateral), address(owner), VAULT_EPOCH_DURATION, VETO_DURATION
         );
     }
 }

@@ -28,7 +28,6 @@ import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestak
 import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
 import {DeployCollateral} from "../DeployCollateral.s.sol";
 import {DeployVault} from "../DeployVault.s.sol";
-import {DeploySymbiotic} from "../DeploySymbiotic.s.sol";
 
 import {Token} from "test/mocks/Token.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";

@@ -28,8 +28,7 @@ import {IOperatorNetworkSpecificDelegator} from "@symbiotic/interfaces/delegator
 import {IBaseSlasher} from "@symbiotic/interfaces/slasher/IBaseSlasher.sol";
 import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
-
-import {DeploySymbiotic} from "./DeploySymbiotic.s.sol";
+import {HelperConfig} from "script/HelperConfig.s.sol";
 
 contract DeployVault is Script {
     error DeployVault__VaultConfiguratorOrCollateralNotDeployed();
@@ -74,7 +73,7 @@ contract DeployVault is Script {
         return _createVault({
             params: params,
             withSlasher: true,
-            slasherIndex: uint8(DeploySymbiotic.VaultSlashType.SLASH),
+            slasherIndex: uint8(VaultManager.SlasherType.INSTANT),
             vetoDuration: 0
         });
     }
@@ -86,7 +85,7 @@ contract DeployVault is Script {
         return _createVault({
             params: params,
             withSlasher: true,
-            slasherIndex: uint8(DeploySymbiotic.VaultSlashType.VETO),
+            slasherIndex: uint8(VaultManager.SlasherType.VETO),
             vetoDuration: vetoDuration
         });
     }
@@ -233,12 +232,20 @@ contract DeployVault is Script {
         );
     }
 
-    function deployAllVaults(
+    function deployTestVaults(
         address vaultConfigurator,
         address collateral,
         address owner,
-        uint48 vaultEpochDuration
-    ) public {
+        uint48 vaultEpochDuration,
+        uint48 vetoDuration
+    )
+        public
+        returns (
+            HelperConfig.VaultTrifecta memory vault,
+            HelperConfig.VaultTrifecta memory vaultSlashable,
+            HelperConfig.VaultTrifecta memory vaultVetoed
+        )
+    {
         CreateVaultBaseParams memory params = CreateVaultBaseParams({
             epochDuration: vaultEpochDuration,
             depositWhitelist: false,
@@ -252,23 +259,26 @@ contract DeployVault is Script {
             network: address(0)
         });
 
-        (address vault, address delegator, address slasher) = createBaseVault(params);
+        (address vault_, address delegator, address slasher) = createBaseVault(params);
+        vault = HelperConfig.VaultTrifecta({vault: vault_, delegator: delegator, slasher: slasher});
 
-        console2.log("Vault: ", vault);
+        console2.log("Vault: ", vault_);
         console2.log("Delegator: ", delegator);
         console2.log("Slasher: ", slasher);
 
-        (address vaultSlashable, address delegatorSlashable, address slasherSlashable) = createSlashableVault(params);
-        console2.log("VaultSlashable: ", vaultSlashable);
-        console2.log("DelegatorSlashable: ", delegatorSlashable);
-        console2.log("SlasherSlashable: ", slasherSlashable);
+        (vault_, delegator, slasher) = createSlashableVault(params);
+        vaultSlashable = HelperConfig.VaultTrifecta({vault: vault_, delegator: delegator, slasher: slasher});
+        console2.log("VaultSlashable: ", vault_);
+        console2.log("DelegatorSlashable: ", delegator);
+        console2.log("SlasherSlashable: ", slasher);
 
         params.delegatorIndex = VaultManager.DelegatorType.FULL_RESTAKE;
 
-        (address vaultVetoed, address delegatorVetoed, address slasherVetoed) = createVaultVetoed(params, 1 days);
-        console2.log("VaultVetoed: ", vaultVetoed);
-        console2.log("DelegatorVetoed: ", delegatorVetoed);
-        console2.log("SlasherVetoed: ", slasherVetoed);
+        (vault_, delegator, slasher) = createVaultVetoed(params, vetoDuration);
+        vaultVetoed = HelperConfig.VaultTrifecta({vault: vault_, delegator: delegator, slasher: slasher});
+        console2.log("VaultVetoed: ", vault_);
+        console2.log("DelegatorVetoed: ", delegator);
+        console2.log("SlasherVetoed: ", slasher);
     }
 
     function run(

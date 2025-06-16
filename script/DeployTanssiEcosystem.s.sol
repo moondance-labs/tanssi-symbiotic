@@ -44,7 +44,6 @@ import {Token} from "test/mocks/Token.sol";
 import {DeployCollateral} from "./DeployCollateral.s.sol";
 import {DeployVault} from "./DeployVault.s.sol";
 import {DeployRewards} from "./DeployRewards.s.sol";
-import {DeploySymbiotic} from "./DeploySymbiotic.s.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
 
 contract DeployTanssiEcosystem is Script {
@@ -257,11 +256,8 @@ contract DeployTanssiEcosystem is Script {
             if (stETHAddress == address(0)) {
                 stETHAddress = address(new Token("stETH", 18));
             }
+            // TODO, why do we need to wrap stETH on Sepolia only?
             collateralAddresses.stETH = defaultCollateralFactory.create(address(stETHAddress), 10_000 ether, address(0));
-        }
-
-        if (!isTest) {
-            console2.log("StETH: ", stETHAddress);
         }
     }
 

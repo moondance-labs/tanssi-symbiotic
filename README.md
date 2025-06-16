@@ -30,12 +30,6 @@ To spin up locally the blockchain network run:
 $ make anvil
 ```
 
-#### Deploy symbiotic contracts:
-
-```shell
-$ make deploy
-```
-
 #### Deploy Tanssi Ecosystem:
 
 ```shell

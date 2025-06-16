@@ -48,9 +48,9 @@ import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareRea
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
-import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
+import {DeployVault} from "script/DeployVault.s.sol";
 
 contract MiddlewareTest is Test {
     using Subnetwork for address;
@@ -97,18 +97,9 @@ contract MiddlewareTest is Test {
     address public operatorRewardsAddress;
 
     HelperConfig helperConfig;
-
-    struct VaultAddresses {
-        address vault;
-        address delegator;
-        address slasher;
-        address vaultSlashable;
-        address delegatorSlashable;
-        address slasherSlashable;
-        address vaultVetoed;
-        address delegatorVetoed;
-        address slasherVetoed;
-    }
+    HelperConfig.VaultTrifecta vaultNoSlash;
+    HelperConfig.VaultTrifecta vaultSlashable;
+    HelperConfig.VaultTrifecta vaultVetoed;
 
     struct EcosystemEntity {
         Middleware middleware;
@@ -119,7 +110,6 @@ contract MiddlewareTest is Test {
         IDefaultCollateral stETH;
     }
 
-    VaultAddresses public vaultAddresses;
     EcosystemEntity public ecosystemEntities;
 
     function setUp() public {
@@ -130,8 +120,8 @@ contract MiddlewareTest is Test {
         _setLimitForNetworkAndOperators(tanssi);
 
         vm.startPrank(tanssi);
-        ecosystemEntities.vetoSlasher.setResolver(0, resolver1, hex"");
-        ecosystemEntities.vetoSlasher.setResolver(0, resolver2, hex"");
+        IVetoSlasher(vaultVetoed.slasher).setResolver(0, resolver1, hex"");
+        IVetoSlasher(vaultVetoed.slasher).setResolver(0, resolver2, hex"");
         ecosystemEntities.middleware.setGateway(gateway);
         ecosystemEntities.middleware.setCollateralToOracle(address(ecosystemEntities.stETH), oracle);
         vm.stopPrank();
@@ -141,14 +131,17 @@ contract MiddlewareTest is Test {
 
     function _deployBaseInfrastructure() private {
         vm.allowCheatcodes(address(0x6B5CF024365D5d5d0786673780CA7E3F07f85B63));
-        DeployTanssiEcosystem deployTanssi = new DeployTanssiEcosystem();
         helperConfig = new HelperConfig();
-        deployTanssi.deployTanssiEcosystem(helperConfig);
-        (ecosystemEntities.middleware,) = deployTanssi.ecosystemEntities();
-        ecosystemEntities.stETH = IDefaultCollateral(deployTanssi.getStETHCollateralAddress());
+        address stEth;
+        address middleware;
 
-        _setVaultAddresses(deployTanssi);
-        _initializeVaults();
+        (,,,, middleware,,) = helperConfig.activeEntities();
+        (stEth,,,,,) = helperConfig.activeTokensConfig();
+
+        ecosystemEntities.middleware = Middleware(middleware);
+        ecosystemEntities.stETH = IDefaultCollateral(stEth);
+
+        _setVaultAddresses();
     }
 
     function _setupOperators() private {
@@ -156,62 +149,22 @@ contract MiddlewareTest is Test {
         deal(address(ecosystemEntities.stETH), operator2, OPERATOR_INITIAL_BALANCE);
         deal(address(ecosystemEntities.stETH), operator3, OPERATOR_INITIAL_BALANCE);
 
-        _registerOperator(operator, tanssi, vaultAddresses.vault);
-        _registerOperator(operator3, tanssi, vaultAddresses.vaultSlashable);
-        _registerOperator(operator2, tanssi, vaultAddresses.vaultVetoed);
+        _registerOperator(operator, tanssi, vaultNoSlash.vault);
+        _registerOperator(operator3, tanssi, vaultSlashable.vault);
+        _registerOperator(operator2, tanssi, vaultVetoed.vault);
     }
 
-    function _initializeVaults() private {
-        ecosystemEntities.vault = IVault(vaultAddresses.vault);
-        ecosystemEntities.vaultSlashable = IVault(vaultAddresses.vaultSlashable);
-        ecosystemEntities.vaultVetoed = IVault(vaultAddresses.vaultVetoed);
-        ecosystemEntities.vetoSlasher = IVetoSlasher(vaultAddresses.slasherVetoed);
-    }
-
-    struct VaultGroup {
-        address vault;
-        address delegator;
-        address slasher;
-    }
-
-    function _setVaultAddresses(
-        DeployTanssiEcosystem deployTanssi
-    ) private {
+    function _setVaultAddresses() private {
         {
-            VaultGroup memory baseVault;
-            VaultGroup memory slashableVault;
-
-            (
-                baseVault.vault,
-                baseVault.delegator,
-                baseVault.slasher,
-                slashableVault.vault,
-                slashableVault.delegator,
-                slashableVault.slasher,
-                vaultAddresses.vaultVetoed,
-                vaultAddresses.delegatorVetoed,
-                vaultAddresses.slasherVetoed
-            ) = deployTanssi.vaultAddresses();
-
-            _setBaseVault(baseVault);
-            _setSlashableVault(slashableVault);
+            DeployVault deployVault = new DeployVault();
+            (vaultNoSlash, vaultSlashable, vaultVetoed) = deployVault.deployTestVaults(
+                address(ecosystemEntities.middleware),
+                address(ecosystemEntities.stETH),
+                owner,
+                VAULT_EPOCH_DURATION,
+                VETO_DURATION
+            );
         }
-    }
-
-    function _setBaseVault(
-        VaultGroup memory baseVault
-    ) private {
-        vaultAddresses.vault = baseVault.vault;
-        vaultAddresses.delegator = baseVault.delegator;
-        vaultAddresses.slasher = baseVault.slasher;
-    }
-
-    function _setSlashableVault(
-        VaultGroup memory slashableVault
-    ) private {
-        vaultAddresses.vaultSlashable = slashableVault.vault;
-        vaultAddresses.delegatorSlashable = slashableVault.delegator;
-        vaultAddresses.slasherSlashable = slashableVault.slasher;
     }
 
     function _handleDeposits() private {
@@ -220,26 +173,26 @@ contract MiddlewareTest is Test {
         IOptInService operatorVaultOptInService = IOptInService(operatorVaultOptInServiceAddress);
 
         vm.startPrank(operator);
-        _depositToVault(ecosystemEntities.vault, operator, OPERATOR_STAKE, ecosystemEntities.stETH);
+        _depositToVault(IVault(vaultNoSlash.vault), operator, OPERATOR_STAKE, ecosystemEntities.stETH);
         vm.stopPrank();
 
         {
             // Scoped to help with stack depth
             vm.startPrank(operator2);
-            operatorVaultOptInService.optIn(address(ecosystemEntities.vaultSlashable));
-            _depositToVault(ecosystemEntities.vaultSlashable, operator2, OPERATOR_STAKE, ecosystemEntities.stETH);
-            _depositToVault(ecosystemEntities.vaultVetoed, operator2, OPERATOR_STAKE, ecosystemEntities.stETH);
+            operatorVaultOptInService.optIn(vaultSlashable.vault);
+            _depositToVault(IVault(vaultSlashable.vault), operator2, OPERATOR_STAKE, ecosystemEntities.stETH);
+            _depositToVault(IVault(vaultVetoed.vault), operator2, OPERATOR_STAKE, ecosystemEntities.stETH);
             vm.stopPrank();
         }
 
         {
             // Scoped to help with stack depth
             vm.startPrank(operator3);
-            operatorVaultOptInService.optIn(address(ecosystemEntities.vault));
-            operatorVaultOptInService.optIn(address(ecosystemEntities.vaultVetoed));
-            _depositToVault(ecosystemEntities.vault, operator3, OPERATOR_STAKE, ecosystemEntities.stETH);
-            _depositToVault(ecosystemEntities.vaultSlashable, operator3, OPERATOR_STAKE, ecosystemEntities.stETH);
-            _depositToVault(ecosystemEntities.vaultVetoed, operator3, OPERATOR_STAKE, ecosystemEntities.stETH);
+            operatorVaultOptInService.optIn(vaultNoSlash.vault);
+            operatorVaultOptInService.optIn(vaultVetoed.vault);
+            _depositToVault(IVault(vaultNoSlash.vault), operator3, OPERATOR_STAKE, ecosystemEntities.stETH);
+            _depositToVault(IVault(vaultSlashable.vault), operator3, OPERATOR_STAKE, ecosystemEntities.stETH);
+            _depositToVault(IVault(vaultVetoed.vault), operator3, OPERATOR_STAKE, ecosystemEntities.stETH);
             vm.stopPrank();
         }
 
@@ -260,9 +213,6 @@ contract MiddlewareTest is Test {
         address _owner
     ) public {
         vm.startPrank(_owner);
-        // middleware.registerSharedVault(vaultAddresses.vault);
-        // middleware.registerSharedVault(vaultAddresses.vaultSlashable);
-        // middleware.registerSharedVault(vaultAddresses.vaultVetoed);
         ecosystemEntities.middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         ecosystemEntities.middleware.registerOperator(operator2, abi.encode(OPERATOR2_KEY), address(0));
         ecosystemEntities.middleware.registerOperator(operator3, abi.encode(OPERATOR3_KEY), address(0));
@@ -297,17 +247,17 @@ contract MiddlewareTest is Test {
     ) public {
         vm.startPrank(_owner);
         //The total shares are 3 (TOTAL_NETWORK_SHARE), so each operator has 1 share (OPERATOR_SHARE)
-        INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares(
+        INetworkRestakeDelegator(vaultNoSlash.delegator).setOperatorNetworkShares(
             tanssi.subnetwork(0), operator, OPERATOR_SHARE
         );
-        INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares(
+        INetworkRestakeDelegator(vaultNoSlash.delegator).setOperatorNetworkShares(
             tanssi.subnetwork(0), operator3, OPERATOR_SHARE
         );
 
-        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setOperatorNetworkShares(
+        INetworkRestakeDelegator(vaultSlashable.delegator).setOperatorNetworkShares(
             tanssi.subnetwork(0), operator2, OPERATOR_SHARE
         );
-        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setOperatorNetworkShares(
+        INetworkRestakeDelegator(vaultSlashable.delegator).setOperatorNetworkShares(
             tanssi.subnetwork(0), operator3, OPERATOR_SHARE
         );
         vm.stopPrank();
@@ -327,10 +277,10 @@ contract MiddlewareTest is Test {
         address _owner
     ) public {
         vm.startPrank(_owner);
-        IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
+        IFullRestakeDelegator(vaultVetoed.delegator).setOperatorNetworkLimit(
             tanssi.subnetwork(0), operator2, OPERATOR_STAKE
         );
-        IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
+        IFullRestakeDelegator(vaultVetoed.delegator).setOperatorNetworkLimit(
             tanssi.subnetwork(0), operator3, OPERATOR_STAKE
         );
         vm.stopPrank();
@@ -429,16 +379,17 @@ contract MiddlewareTest is Test {
     }
 
     function testWithdraw() public {
-        uint256 currentEpoch = ecosystemEntities.vaultSlashable.currentEpoch();
+        IVault vaultSlashableContract = IVault(vaultSlashable.vault);
+        uint256 currentEpoch = vaultSlashableContract.currentEpoch();
 
         vm.prank(operator2);
-        ecosystemEntities.vaultSlashable.withdraw(operator2, DEFAULT_WITHDRAW_AMOUNT);
+        vaultSlashableContract.withdraw(operator2, DEFAULT_WITHDRAW_AMOUNT);
 
         vm.warp(block.timestamp + VAULT_EPOCH_DURATION * 2 + 1);
-        currentEpoch = ecosystemEntities.vaultSlashable.currentEpoch();
+        currentEpoch = vaultSlashableContract.currentEpoch();
 
         vm.prank(operator2);
-        ecosystemEntities.vaultSlashable.claim(operator2, currentEpoch - 1);
+        vaultSlashableContract.claim(operator2, currentEpoch - 1);
         assertEq(
             ecosystemEntities.stETH.balanceOf(operator2),
             OPERATOR_INITIAL_BALANCE - OPERATOR_STAKE * 2 + DEFAULT_WITHDRAW_AMOUNT
@@ -465,7 +416,7 @@ contract MiddlewareTest is Test {
         ecosystemEntities.middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
         vm.prank(resolver1);
-        ecosystemEntities.vetoSlasher.vetoSlash(0, hex"");
+        IVetoSlasher(vaultVetoed.slasher).vetoSlash(0, hex"");
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = ecosystemEntities.middleware.getCurrentEpoch();
         validators = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(newEpoch);
@@ -490,7 +441,7 @@ contract MiddlewareTest is Test {
         ecosystemEntities.middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
         vm.warp(block.timestamp + VETO_DURATION);
-        ecosystemEntities.middleware.executeSlash(address(ecosystemEntities.vaultVetoed), 0, hex"");
+        ecosystemEntities.middleware.executeSlash(vaultVetoed.vault, 0, hex"");
 
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = ecosystemEntities.middleware.getCurrentEpoch();
@@ -516,7 +467,7 @@ contract MiddlewareTest is Test {
         ecosystemEntities.middleware.slash(currentEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
 
         vm.prank(resolver1);
-        ecosystemEntities.vetoSlasher.vetoSlash(0, hex"");
+        IVetoSlasher(vaultVetoed.slasher).vetoSlash(0, hex"");
 
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = ecosystemEntities.middleware.getCurrentEpoch();
@@ -542,7 +493,7 @@ contract MiddlewareTest is Test {
         ecosystemEntities.middleware.slash(currentEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
 
         vm.warp(block.timestamp + VETO_DURATION);
-        ecosystemEntities.middleware.executeSlash(address(ecosystemEntities.vaultVetoed), 0, hex"");
+        ecosystemEntities.middleware.executeSlash(vaultVetoed.vault, 0, hex"");
 
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = ecosystemEntities.middleware.getCurrentEpoch();
@@ -561,7 +512,7 @@ contract MiddlewareTest is Test {
         (uint48 currentEpoch, Middleware.ValidatorData[] memory validators,,,,) = _prepareSlashingTest();
 
         vm.prank(owner);
-        ecosystemEntities.middleware.pauseSharedVault(vaultAddresses.vaultSlashable);
+        ecosystemEntities.middleware.pauseSharedVault(vaultSlashable.vault);
 
         vm.prank(gateway);
         ecosystemEntities.middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
@@ -621,16 +572,14 @@ contract MiddlewareTest is Test {
         //Middleware 2 Deployment
         vm.startPrank(network2);
         INetworkRegistry(networkRegistryAddress).registerNetwork();
-        INetworkRestakeDelegator(vaultAddresses.delegator).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
+        INetworkRestakeDelegator(vaultNoSlash.delegator).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
 
         vm.startPrank(owner);
-        INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares(
+        INetworkRestakeDelegator(vaultNoSlash.delegator).setOperatorNetworkShares(
             network2.subnetwork(0), operator4, OPERATOR_SHARE
         );
-        INetworkRestakeDelegator(vaultAddresses.delegator).setNetworkLimit(
-            network2.subnetwork(0), OPERATOR_NETWORK_LIMIT
-        );
-        _registerOperator(operator4, network2, address(ecosystemEntities.vault));
+        INetworkRestakeDelegator(vaultNoSlash.delegator).setNetworkLimit(network2.subnetwork(0), OPERATOR_NETWORK_LIMIT);
+        _registerOperator(operator4, network2, vaultNoSlash.vault);
 
         vm.startPrank(network2);
 
@@ -662,7 +611,7 @@ contract MiddlewareTest is Test {
             adminFeeClaimRoleHolder: network2,
             adminFeeSetRoleHolder: network2
         });
-        middleware2.registerSharedVault(address(ecosystemEntities.vault), stakerRewardsParams);
+        middleware2.registerSharedVault(vaultNoSlash.vault, stakerRewardsParams);
         middleware2.registerOperator(operator4, abi.encode(OPERATOR4_KEY), address(0));
         vm.stopPrank();
 

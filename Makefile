@@ -60,18 +60,6 @@ anvil :; anvil -m 'test test test test test test test test test test test junk' 
 RPC_URL ?= http://localhost:8545
 PRIVATE_KEY ?= ${DEFAULT_ANVIL_KEY}
 NETWORK_ARGS := --rpc-url ${RPC_URL} --private-key ${PRIVATE_KEY} --broadcast --verify --etherscan-api-key ${ETHERSCAN_API_KEY}
-
-
-deploy:
-	@echo "🚀 Deploying contracts..."
-
-	@echo "📡 Deploying Collateral..."
-	@forge script script/DeployCollateral.s.sol:DeployCollateral ${NETWORK_ARGS}
-	@echo "✅ Collateral deployment completed"
-	
-	@echo "📡 Deploying Symbiotic..."
-	@forge script script/DeploySymbiotic.s.sol ${NETWORK_ARGS} --slow --skip-simulation --sig "run(address)" 0x5FbDB2315678afecb367f032d93F642f64180aa3
-	@echo "✅ Symbiotic deployment completed"
 	
 demo:
 	@echo "📡 Deploying Demo..."

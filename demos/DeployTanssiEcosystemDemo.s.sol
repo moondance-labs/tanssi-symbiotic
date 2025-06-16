@@ -45,7 +45,6 @@ import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Token} from "test/mocks/Token.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
 import {DeployVault} from "script/DeployVault.s.sol";
-import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
 
