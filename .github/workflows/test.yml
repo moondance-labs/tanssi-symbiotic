@@ -107,10 +107,15 @@ jobs:
           forge test --nmp "test/fork/*" -vvv
         id: test
 
-      - name: Run Forge fork tests
+      - name: Run Forge fork testnet tests
         run: |
-          forge test --fork-url $SEPOLIA_RPC_URL --mp "test/fork/*" -vvv
-        id: test-fork
+          make coverage-fork-testnet
+        id: test-fork-testnet
+
+      # - name: Run Forge fork mainnet tests
+      #   run: |
+      #     make coverage-fork-mainnet
+      #   id: test-fork-mainnet
 
       - name: Run Forge coverage
         run: |
