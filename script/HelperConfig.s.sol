@@ -207,6 +207,13 @@ contract HelperConfig is Script {
             networkConfig.collateral =
                 abi.decode(vm.parseJson(json, string.concat(jsonPath, ".collaterals[0].address")), (address));
             tokensConfig.wstETH = networkConfig.collateral;
+
+            if (block.chainid == 11_155_111) {
+                VaultData memory vault = _loadVault(json, string.concat(jsonPath, ".vaults[0]"));
+                _assignVault(vault, vaultsConfigA, vaultsConfigB);
+                OperatorData memory operator = _loadOperator(json, string.concat(jsonPath, ".operators[0]"));
+                _assignOperator(operator, operatorConfig);
+            }
         }
     }
 
