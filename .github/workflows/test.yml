@@ -112,10 +112,10 @@ jobs:
           make coverage-fork-testnet
         id: test-fork-testnet
 
-      # - name: Run Forge fork mainnet tests
-      #   run: |
-      #     make coverage-fork-mainnet
-      #   id: test-fork-mainnet
+      - name: Run Forge fork mainnet tests
+        run: |
+          make coverage-fork-mainnet
+        id: test-fork-mainnet
 
       - name: Run Forge coverage
         run: |
