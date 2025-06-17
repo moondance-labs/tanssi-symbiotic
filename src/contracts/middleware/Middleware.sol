@@ -320,11 +320,11 @@ contract Middleware is
         }
 
         uint256 cachedCurrentEpochValidatorsLength = cache.epochToValidatorsData[epoch].length;
-        uint256 diffLength = activeOperatorsLength - cachedCurrentEpochValidatorsLength;
+        uint256 pendingOperatorsToCache = activeOperatorsLength - cachedCurrentEpochValidatorsLength;
 
         // Check if cache is still not filled with the current epoch validators
-        if (diffLength > 0) {
-            uint256 maxNumOperatorsToCheck = Math.min(diffLength, MAX_OPERATORS_TO_PROCESS);
+        if (pendingOperatorsToCache > 0) {
+            uint256 maxNumOperatorsToCheck = Math.min(pendingOperatorsToCache, MAX_OPERATORS_TO_PROCESS);
 
             ValidatorData[] memory validatorsData = new ValidatorData[](maxNumOperatorsToCheck);
 
@@ -376,9 +376,9 @@ contract Middleware is
         address[] memory activeOperators = _activeOperators();
         uint256 activeOperatorsLength = activeOperators.length;
         uint256 cachedCurrentEpochValidatorsLength = cache.epochToValidatorsData[epoch].length;
-        uint256 diffLength = activeOperatorsLength - cachedCurrentEpochValidatorsLength;
+        uint256 pendingOperatorsToCache = activeOperatorsLength - cachedCurrentEpochValidatorsLength;
 
-        if (diffLength > 0) {
+        if (pendingOperatorsToCache > 0) {
             ValidatorData[] memory validatorsData = abi.decode(performData, (ValidatorData[]));
             uint256 validatorsDataLength = validatorsData.length;
             for (uint256 i = 0; i < validatorsDataLength; i++) {
