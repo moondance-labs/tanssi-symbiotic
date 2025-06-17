@@ -48,7 +48,7 @@ import {DeployVault} from "script/DeployVault.s.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
 
-contract DeployTanssiEcosystem is Script {
+contract DeployTanssiEcosystemDemo is Script {
     using Subnetwork for address;
 
     uint48 public constant VAULT_EPOCH_DURATION = 12 days;
