@@ -166,7 +166,7 @@ contract MiddlewareTest is Test {
     function _calculateOperatorPower(
         uint256 operatorStake_,
         uint256 amountSlashed
-    ) public returns (uint256 totalOperatorPower) {
+    ) public view returns (uint256 totalOperatorPower) {
         totalOperatorPower = operatorShares.mulDiv(operatorStake_ - amountSlashed, vaultShares).mulDiv(
             uint256(ORACLE_CONVERSION_TOKEN), 10 ** ORACLE_DECIMALS
         );
@@ -247,8 +247,31 @@ contract MiddlewareTest is Test {
         assertApproxEqAbs(validators[0].power, totalOperatorPower, 1);
     }
 
+    function testSlashingOperator() public {
+        (uint48 currentEpoch, Middleware.ValidatorData[] memory validators, uint256 totalOperatorPower) =
+            _prepareSlashingTest();
+
+        assertEq(validators.length, 1);
+        assertEq(validators[0].power, totalOperatorPower);
+        assertEq(validators[0].key, operatorData.operatorKey);
+
+        vm.prank(gateway);
+        middleware.slash(currentEpoch, operatorData.operatorKey, SLASHING_FRACTION);
+
+        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        uint48 newEpoch = middleware.getCurrentEpoch();
+        validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
+
+        uint256 slashedAmount = (SLASHING_FRACTION * operatorStake) / PARTS_PER_BILLION;
+        totalOperatorPower = _calculateOperatorPower(operatorStake, slashedAmount);
+
+        assertEq(validators.length, 1);
+        assertEq(validators[0].power, totalOperatorPower);
+        assertEq(validators[0].key, operatorData.operatorKey);
+    }
+
     function testSlashingAndPausingVault() public {
-        (uint48 currentEpoch, Middleware.ValidatorData[] memory validators,) = _prepareSlashingTest();
+        (uint48 currentEpoch,,) = _prepareSlashingTest();
 
         vm.prank(admin);
         middleware.pauseSharedVault(vaultData.vault);
@@ -258,28 +281,27 @@ contract MiddlewareTest is Test {
 
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
-        validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
+        Middleware.ValidatorData[] memory validators =
+            OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
 
         // Vault is paused so there should be none
         assertEq(validators.length, 0);
     }
 
     function testSlashingAndPausingOperator() public {
-        (uint48 currentEpoch, Middleware.ValidatorData[] memory validators, uint256 totalOperatorPower) =
-            _prepareSlashingTest();
+        (uint48 currentEpoch,,) = _prepareSlashingTest();
 
         vm.prank(admin);
         middleware.pauseOperator(operator);
-
-        // We calculate the amount slashable for only the operator2 since it's the only one that should be slashed. As a side effect operator3 will be slashed too since it's taking part in a NetworkRestake delegator based vault
-        uint256 slashedAmount = (SLASHING_FRACTION * operatorStake) / PARTS_PER_BILLION;
 
         vm.prank(gateway);
         middleware.slash(currentEpoch, operatorData.operatorKey, SLASHING_FRACTION);
 
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
-        validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
+        Middleware.ValidatorData[] memory validators =
+            OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
+
         // Operator is paused so there should be none
         assertEq(validators.length, 0);
     }
