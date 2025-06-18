@@ -19,43 +19,13 @@ import {Script, console2} from "forge-std/Script.sol";
 //**************************************************************************************************
 //                                      SYMBIOTIC
 //**************************************************************************************************
-import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
-import {IVaultConfigurator} from "@symbiotic/interfaces/IVaultConfigurator.sol";
-import {IOperatorRegistry} from "@symbiotic/interfaces/IOperatorRegistry.sol";
-import {INetworkRegistry} from "@symbiotic/interfaces/INetworkRegistry.sol";
 import {INetworkMiddlewareService} from "@symbiotic/interfaces/service/INetworkMiddlewareService.sol";
-import {IOptInService} from "@symbiotic/interfaces/service/IOptInService.sol";
-import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
-import {INetworkRestakeDelegator} from "@symbiotic/interfaces/delegator/INetworkRestakeDelegator.sol";
-import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestakeDelegator.sol";
-import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
-import {IDefaultCollateralFactory} from
-    "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateralFactory.sol";
-import {DefaultCollateralFactory} from "@symbiotic-collateral/contracts/defaultCollateral/DefaultCollateralFactory.sol";
-import {VaultFactory} from "@symbiotic/contracts/VaultFactory.sol";
-
-import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
-import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
-import {Token} from "test/mocks/Token.sol";
-import {DeployCollateral} from "./DeployCollateral.s.sol";
-import {DeployVault} from "./DeployVault.s.sol";
-import {DeployRewards} from "./DeployRewards.s.sol";
-import {HelperConfig} from "./HelperConfig.s.sol";
 
 contract DeployTanssiEcosystem is Script {
-    using Subnetwork for address;
-
-    uint48 public constant VAULT_EPOCH_DURATION = 12 days;
-    uint48 public constant NETWORK_EPOCH_DURATION = 6 days;
-    uint48 public constant SLASHING_WINDOW = 7 days;
-    uint48 public constant OPERATOR_NETWORK_SHARES = 1;
-    uint128 public constant MAX_NETWORK_LIMIT = 1000 ether;
-    uint128 public constant OPERATOR_NETWORK_LIMIT = 300 ether;
-
     uint256 ownerPrivateKey =
         vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
     address public tanssi = vm.addr(ownerPrivateKey);

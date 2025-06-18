@@ -17,7 +17,6 @@ pragma solidity 0.8.25;
 import {Script, console2} from "forge-std/Script.sol";
 
 import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
-import {IMigratablesFactory} from "@symbiotic/interfaces/common/IMigratablesFactory.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {IVaultConfigurator} from "@symbiotic/interfaces/IVaultConfigurator.sol";
 import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";

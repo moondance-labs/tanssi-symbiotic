@@ -14,7 +14,7 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
-import {console2, Script} from "forge-std/Script.sol";
+import {Script} from "forge-std/Script.sol";
 import {DeploySymbiotic} from "./DeploySymbiotic.s.sol";
 
 contract HelperConfig is Script {

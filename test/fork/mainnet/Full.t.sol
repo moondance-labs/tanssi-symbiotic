@@ -21,10 +21,8 @@ import {Test, console2} from "forge-std/Test.sol";
 //**************************************************************************************************
 import {INetworkRestakeDelegator} from "@symbiotic/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
-import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IOptInService} from "@symbiotic/interfaces/service/IOptInService.sol";
 import {INetworkMiddlewareService} from "@symbiotic/interfaces/service/INetworkMiddlewareService.sol";
-import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {IOperatorRegistry} from "@symbiotic/interfaces/IOperatorRegistry.sol";
 import {INetworkRegistry} from "@symbiotic/interfaces/INetworkRegistry.sol";
@@ -39,17 +37,12 @@ import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3
 //**************************************************************************************************
 //                                      SNOWBRIDGE
 //**************************************************************************************************
-import {RegisterForeignTokenParams} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Params.sol";
-import {
-    OperatingMode, ParaID, Command, InboundMessage
-} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Types.sol";
+import {OperatingMode, ParaID} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Types.sol";
 import {MockGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/test/mocks/MockGateway.sol";
 import {GatewayProxy} from "@tanssi-bridge-relayer/snowbridge/contracts/src/GatewayProxy.sol";
-import {Verification} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Verification.sol";
 import {AgentExecutor} from "@tanssi-bridge-relayer/snowbridge/contracts/src/AgentExecutor.sol";
 import {SetOperatingModeParams} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Params.sol";
 import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfaces/IOGateway.sol";
-import {IGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfaces/IGateway.sol";
 import {Gateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Gateway.sol";
 
 import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
@@ -59,7 +52,6 @@ import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
 //**************************************************************************************************
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
@@ -74,7 +66,6 @@ import {HelperConfig} from "script/HelperConfig.s.sol";
 
 contract FullTest is Test {
     using Subnetwork for address;
-    using Subnetwork for bytes32;
     using Math for uint256;
 
     uint48 public constant VAULT_EPOCH_DURATION = 12 days;

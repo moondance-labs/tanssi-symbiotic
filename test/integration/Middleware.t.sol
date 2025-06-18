@@ -94,7 +94,6 @@ import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerReward
 
 contract MiddlewareTest is Test {
     using Subnetwork for address;
-    using Subnetwork for bytes32;
     using Math for uint256;
 
     uint48 public constant VAULT_EPOCH_DURATION = 8 days;

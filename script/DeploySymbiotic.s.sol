@@ -21,10 +21,6 @@ import {Script, console2} from "forge-std/Script.sol";
 //**************************************************************************************************
 import {IVaultConfigurator} from "@symbiotic/interfaces/IVaultConfigurator.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
-import {INetworkRestakeDelegator} from "@symbiotic/interfaces/delegator/INetworkRestakeDelegator.sol";
-import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
-import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
-import {IBaseSlasher} from "@symbiotic/interfaces/slasher/IBaseSlasher.sol";
 
 import {OperatorRegistry} from "@symbiotic/contracts/OperatorRegistry.sol";
 import {NetworkRegistry} from "@symbiotic/contracts/NetworkRegistry.sol";
@@ -45,15 +41,9 @@ import {NetworkRestakeDelegator} from "@symbiotic/contracts/delegator/NetworkRes
 import {FullRestakeDelegator} from "@symbiotic/contracts/delegator/FullRestakeDelegator.sol";
 import {OperatorSpecificDelegator} from "@symbiotic/contracts/delegator/OperatorSpecificDelegator.sol";
 import {OperatorNetworkSpecificDelegator} from "@symbiotic/contracts/delegator/OperatorNetworkSpecificDelegator.sol";
-import {INetworkRestakeDelegator} from "@symbiotic/interfaces/delegator/INetworkRestakeDelegator.sol";
-import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestakeDelegator.sol";
-import {IOperatorSpecificDelegator} from "@symbiotic/interfaces/delegator/IOperatorSpecificDelegator.sol";
 
 import {Slasher} from "@symbiotic/contracts/slasher/Slasher.sol";
 import {VetoSlasher} from "@symbiotic/contracts/slasher/VetoSlasher.sol";
-import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
-import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
-import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN
@@ -73,8 +63,6 @@ import {Token} from "../test/mocks/Token.sol";
 import {DeployVault} from "./DeployVault.s.sol";
 
 contract DeploySymbiotic is Script {
-    using Subnetwork for address;
-
     error DeploySymbiotic__VaultConfiguratorOrCollateralNotDeployed();
     error DeploySymbiotic__VaultsAddresseslNotDeployed();
 
