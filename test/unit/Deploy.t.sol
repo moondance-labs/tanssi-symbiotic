@@ -214,23 +214,6 @@ contract DeployTest is Test {
         );
     }
 
-    //     function testFullDeployment() public {
-    //         vm.startPrank(tanssi);
-    //         deployTanssiEcosystem.deployTanssiEcosystem(helperConfig);
-
-    //         // Verify ecosystem entities were deployed
-    // (address vaultConfiguratorAddress,,,,,,,,) = helperConfig.activeNetworkConfig();
-    // IVaultConfigurator vaultConfigurator = IVaultConfigurator(vaultConfiguratorAddress);
-    // address middleware = _deployMiddleware();
-    //         assertTrue(address(middleware) != address(0));
-    //         assertTrue(address(vaultConfigurator) != address(0));
-
-    //         assertEq(OBaseMiddlewareReader(address(middleware)).NETWORK(), tanssi);
-    //         assertEq(EpochCapture(address(middleware)).getEpochDuration(), deployTanssiEcosystem.NETWORK_EPOCH_DURATION());
-    //         assertEq(OBaseMiddlewareReader(address(middleware)).SLASHING_WINDOW(), deployTanssiEcosystem.SLASHING_WINDOW());
-    //         vm.stopPrank();
-    //     }
-
     //**************************************************************************************************
     //                                      DEPLOY VAULT
     //**************************************************************************************************
