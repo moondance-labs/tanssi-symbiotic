@@ -333,13 +333,16 @@ contract Middleware is
             for (
                 uint256 i = cachedCurrentEpochValidatorsLength;
                 i < cachedCurrentEpochValidatorsLength + maxNumOperatorsToCheck && i < activeOperatorsLength;
-                i++
             ) {
                 address operator = activeOperators[i];
                 bytes32 operatorKey = abi.decode(operatorKey(operator), (bytes32));
                 uint256 operatorPower = _getOperatorPowerAt(currentEpochStartTs, operator);
                 validatorsData[i - cachedCurrentEpochValidatorsLength] =
                     ValidatorData({key: operatorKey, power: operatorPower});
+
+                unchecked {
+                    ++i;
+                }
             }
             // encode values to be used in performUpkeep
             return (true, abi.encode(validatorsData));
@@ -381,11 +384,14 @@ contract Middleware is
         if (pendingOperatorsToCache > 0) {
             ValidatorData[] memory validatorsData = abi.decode(performData, (ValidatorData[]));
             uint256 validatorsDataLength = validatorsData.length;
-            for (uint256 i = 0; i < validatorsDataLength; i++) {
+            for (uint256 i = 0; i < validatorsDataLength;) {
                 ValidatorData memory validatorData = validatorsData[i];
                 // Update the cache with the operator power and the operator
                 cache.operatorKeyToPower[epoch][validatorData.key] = validatorData.power;
                 cache.epochToValidatorsData[epoch].push(validatorData);
+                unchecked {
+                    ++i;
+                }
             }
         } else {
             uint48 currentTimestamp = Time.timestamp();
