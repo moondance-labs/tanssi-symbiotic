@@ -36,14 +36,6 @@ $ make anvil
 $ make deploy-tanssi-eco RPC_URL=${RPC_URL} PRIVATE_KEY=${PRIVATE_KEY}  ETHERSCAN_API_KEY=${ETHERSCAN_API_KEY}
 ```
 
-#### Deploy Tanssi Rewards Contracts:
-
-Check `Makefile` for the variable to pass to the deploy command.
-
-```shell
-$ make deploy-rewards ...
-```
-
 ### Demo
 
 If you want to emulate the whole process of registering operators and vaults as in mainnet run the demo script:

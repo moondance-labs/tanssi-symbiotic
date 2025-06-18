@@ -97,8 +97,6 @@ contract DeployTest is Test {
         assertNotEq(tokenAddress, ZERO_ADDRESS);
         address tokenAddressBroadcast = deployCollateral.deployCollateralBroadcast("Test");
         assertNotEq(tokenAddressBroadcast, ZERO_ADDRESS);
-
-        deployCollateral.run();
     }
 
     //**************************************************************************************************
@@ -124,15 +122,6 @@ contract DeployTest is Test {
         assertNotEq(addresses.slasherImpl, ZERO_ADDRESS);
         assertNotEq(addresses.vetoSlasherImpl, ZERO_ADDRESS);
         assertNotEq(addresses.vaultConfigurator, ZERO_ADDRESS);
-
-        vm.recordLogs();
-        deployCollateral.run();
-
-        Vm.Log[] memory entries = vm.getRecordedLogs();
-
-        for (uint256 i = 0; i < entries.length; i++) {
-            assertNotEq(entries[i].topics[0], DeploySymbiotic.DeploySymbiotic__VaultsAddresseslNotDeployed.selector);
-        }
     }
 
     function testDeploySymbiotic() public {
@@ -266,56 +255,6 @@ contract DeployTest is Test {
         deployVault.createBaseVault(params);
     }
 
-    function testDeployVaultRun() public {
-        vm.recordLogs();
-        (address vaultConfiguratorAddress,,,,,,,,) = helperConfig.activeNetworkConfig();
-        IVaultConfigurator vaultConfigurator = IVaultConfigurator(vaultConfiguratorAddress);
-
-        deployVault.run(address(vaultConfigurator), tanssi, address(1), VAULT_EPOCH_DURATION, false, 0, 0, false, 0, 0);
-
-        Vm.Log[] memory entries = vm.getRecordedLogs();
-        for (uint256 i = 0; i < entries.length; i++) {
-            assertNotEq(
-                entries[i].topics[0], DeployVault.DeployVault__VaultConfiguratorOrCollateralNotDeployed.selector
-            );
-        }
-    }
-
-    function testDeployVaultWithIndex1() public {
-        vm.recordLogs();
-        (address vaultConfiguratorAddress,,,,,,,,) = helperConfig.activeNetworkConfig();
-        IVaultConfigurator vaultConfigurator = IVaultConfigurator(vaultConfiguratorAddress);
-
-        deployVault.run(address(vaultConfigurator), tanssi, address(1), VAULT_EPOCH_DURATION, false, 0, 1, false, 0, 0);
-
-        Vm.Log[] memory entries = vm.getRecordedLogs();
-        for (uint256 i = 0; i < entries.length; i++) {
-            assertNotEq(
-                entries[i].topics[0], DeployVault.DeployVault__VaultConfiguratorOrCollateralNotDeployed.selector
-            );
-        }
-    }
-
-    // function testDeployVaultWithIndex2() public {
-    //     vm.recordLogs();
-    //     (address vaultConfiguratorAddress,,,,,,,,) = helperConfig.activeNetworkConfig();
-    //     IVaultConfigurator vaultConfigurator = IVaultConfigurator(vaultConfiguratorAddress);
-    //     address middleware = _deployMiddleware();
-
-    //     IRegistry operatorRegistry = IRegistry(OBaseMiddlewareReader(address(middleware)).OPERATOR_REGISTRY());
-    //     vm.mockCall(
-    //         address(operatorRegistry), abi.encodeWithSelector(operatorRegistry.isEntity.selector), abi.encode(true)
-    //     );
-    //     deployVault.run(address(vaultConfigurator), tanssi, address(1), VAULT_EPOCH_DURATION, false, 0, 2, false, 0, 0);
-
-    //     Vm.Log[] memory entries = vm.getRecordedLogs();
-    //     for (uint256 i = 0; i < entries.length; i++) {
-    //         assertNotEq(
-    //             entries[i].topics[0], DeployVault.DeployVault__VaultConfiguratorOrCollateralNotDeployed.selector
-    //         );
-    //     }
-    // }
-
     function testDeployVaultDirectCall() public {
         vm.recordLogs();
 
@@ -355,35 +294,7 @@ contract DeployTest is Test {
     //                                      DEPLOY REWARDS
     //**************************************************************************************************
 
-    function testDeployRewards() public {
-        DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
-
-        (address vaultConfigurator,,,,,,,,) = helperConfig.activeNetworkConfig();
-        address stETHToken = deployCollateral.deployCollateral("stETH");
-        address vault = _deployVault(stETHToken, vaultConfigurator);
-
-        DeployRewards.DeployParams memory params = DeployRewards.DeployParams({
-            vault: vault,
-            vaultFactory: addresses.vaultFactory,
-            adminFee: 0,
-            defaultAdminRole: tanssi,
-            adminFeeClaimRole: tanssi,
-            adminFeeSetRole: tanssi,
-            network: tanssi,
-            networkMiddlewareService: addresses.networkMiddlewareService,
-            startTime: 1 days,
-            epochDuration: NETWORK_EPOCH_DURATION,
-            operatorShare: 20
-        });
-
-        vm.mockCall(addresses.vaultFactory, abi.encodeWithSelector(IRegistry.isEntity.selector), abi.encode(true));
-
-        vm.expectEmit(true, false, false, false);
-        emit DeployRewards.Done();
-        deployRewards.run(params);
-    }
-
-    function testDeployRewardsOperator() public {
+    function testDeployOperatorRewards() public {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
 
         address operatorRewards =
@@ -391,7 +302,7 @@ contract DeployTest is Test {
         assertNotEq(operatorRewards, ZERO_ADDRESS);
     }
 
-    function testUpgradeRewardsOperator() public {
+    function testUpgradeOperatorRewards() public {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
 
         address operatorRewards =
@@ -400,7 +311,7 @@ contract DeployTest is Test {
         deployRewards.upgradeOperatorRewards(operatorRewards, tanssi, addresses.networkMiddlewareService);
     }
 
-    function testUpgradeRewardsOperatorWithBroadcast() public {
+    function testUpgradeOperatorRewardsWithBroadcast() public {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
 
         deployRewards.setIsTest(false);

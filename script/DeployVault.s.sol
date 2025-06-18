@@ -280,41 +280,4 @@ contract DeployVault is Script {
         console2.log("DelegatorVetoed: ", delegator);
         console2.log("SlasherVetoed: ", slasher);
     }
-
-    function run(
-        address vaultConfigurator,
-        address _owner,
-        address collateral,
-        uint48 epochDuration,
-        bool depositWhitelist,
-        uint256 depositLimit,
-        uint64 delegatorIndex,
-        bool withSlasher,
-        uint64 slasherIndex,
-        uint48 vetoDuration
-    ) public {
-        vm.startBroadcast();
-
-        VaultDeployParams memory params = VaultDeployParams({
-            vaultConfigurator: vaultConfigurator,
-            owner: _owner,
-            collateral: collateral,
-            epochDuration: epochDuration,
-            depositWhitelist: depositWhitelist,
-            depositLimit: depositLimit,
-            delegatorIndex: delegatorIndex,
-            withSlasher: withSlasher,
-            slasherIndex: slasherIndex,
-            vetoDuration: vetoDuration,
-            operator: address(0),
-            network: address(0)
-        });
-        (address vault_, address delegator_, address slasher_) = deployVault(params);
-
-        console2.log("Vault: ", vault_);
-        console2.log("Delegator: ", delegator_);
-        console2.log("Slasher: ", slasher_);
-
-        vm.stopBroadcast();
-    }
 }

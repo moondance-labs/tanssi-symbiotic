@@ -95,18 +95,6 @@ contract DeployRewards is Script {
         return address(stakerRewardsFactory);
     }
 
-    function run(
-        DeployParams calldata params
-    ) external {
-        address operatorRewardsAddress = deployOperatorRewardsContract(
-            params.network, params.networkMiddlewareService, params.operatorShare, params.defaultAdminRole
-        );
-        deployStakerRewardsFactoryContract(
-            params.vaultFactory, params.networkMiddlewareService, operatorRewardsAddress, params.network
-        );
-        emit Done();
-    }
-
     function upgradeStakerRewards(
         address proxyAddress,
         address networkMiddlewareService,

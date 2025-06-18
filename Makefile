@@ -60,27 +60,21 @@ anvil :; anvil -m 'test test test test test test test test test test test junk' 
 RPC_URL ?= http://localhost:8545
 PRIVATE_KEY ?= ${DEFAULT_ANVIL_KEY}
 NETWORK_ARGS := --rpc-url ${RPC_URL} --private-key ${PRIVATE_KEY} --broadcast --verify --etherscan-api-key ${ETHERSCAN_API_KEY}
-	
-demo:
-	@echo "📡 Deploying Demo..."
-	@forge script script/Demo.s.sol:Demo ${NETWORK_ARGS} --sig "run(address,address,address,address,address,address)" 0x09635F643e140090A9A8Dcd712eD6285858ceBef 0x5FC8d32690cc91D4c39d9d3abcBD16989F875707 0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512 0x610178dA211FEF7D417bC0e6FeD39F05609AD788 0x8A791620dd6260079BF849Dc5567aDC3F2FdC318
-	@echo "✅ Demo deployment completed"
 
 deploy-full-tanssi-eco-demo:
 	@echo "📡 Deploying Full Tanssi Ecosystem Locally for Demo..."
-	@forge script demos/DeployTanssiEcosystemDemo.s.sol --slow --skip-simulation ${NETWORK_ARGS}
+	@forge script demos/DeployTanssiEcosystemDemo.s.sol --slow ${NETWORK_ARGS}
 	@echo "✅ Full Tanssi Ecosystem Locally for Demo deployment completed"
 
-# EXAMPLE: These are all mock data to deploy locally
-# Make example:
-# make deploy-rewards VAULT_ADDRESS=0xc5d41F3f9C4930992EE01DDb226bfD7212C00CBA VAULT_FACTORY_ADDRESS=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512 ADMIN_FEE=100 DEFAULT_ADMIN_ROLE=0x8f7b28C2A36E805F4024c1AE1e96a4B75E50A512 ADMIN_FEE_CLAIM_ROLE=0x8f7b28C2A36E805F4024c1AE1e96a4B75E50A512 ADMIN_FEE_SET_ROLE=0x8f7b28C2A36E805F4024c1AE1e96a4B75E50A512 NETWORK=0x8f7b28C2A36E805F4024c1AE1e96a4B75E50A512 NETWORK_MIDDLEWARE_SERVICE=0x62a1ddfD86b4c1636759d9286D3A0EC722D086e3 START_TIME=1234567890 EPOCH_DURATION=86400 OPERATOR_SHARE=5000
+deploy-full-tanssi-eco:
+	@echo "📡 Deploying Full Tanssi Ecosystem..."
+	@forge script script/DeployProduction.s.sol:DeployProduction $(NETWORK_ARGS) --sig "deploy()" -vv
+	@echo "✅ Full Tanssi Ecosystem deployment completed"
 
-deploy-rewards:
-	@echo "📡 Deploying Rewards Contracts..."
-	@forge script script/DeployRewards.s.sol ${NETWORK_ARGS} \
-		--sig "run((address,address,uint256,address,address,address,address,address,uint48,uint48,uint48))" \
-		"($(VAULT_ADDRESS),$(VAULT_FACTORY_ADDRESS),$(ADMIN_FEE),$(DEFAULT_ADMIN_ROLE),$(ADMIN_FEE_CLAIM_ROLE),$(ADMIN_FEE_SET_ROLE),$(NETWORK),$(NETWORK_MIDDLEWARE_SERVICE),$(START_TIME),$(EPOCH_DURATION),$(OPERATOR_SHARE))"
-	@echo "✅ Rewards Contracts deployment completed"
+deploy-operator-rewards:
+	@echo "📡 Deploying Operator Rewards..."
+	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "deployOperatorRewardsContract(address,address,uint48,address)" $(NETWORK) $(NETWORK_MIDDLEWARE_SERVICE) $(OPERATOR_SHARE) $(ADMIN_ADDRESS) -vv
+	@echo "✅ Operator Rewards deployment completed"
 
 deploy-staker-rewards-factory:
 	@echo "📡 Deploying Staker Rewards Factory..."
