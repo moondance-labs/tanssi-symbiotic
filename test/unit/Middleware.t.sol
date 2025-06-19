@@ -2545,11 +2545,6 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
 
         uint48 epoch = middleware.getCurrentEpoch();
-
-        validatorsData = middleware.getEpochValidatorsData(epoch);
-        assertEq(validatorsData.length, 2);
-        assertEq(validatorsData[0].key, OPERATOR_KEY);
-        assertEq(validatorsData[1].key, OPERATOR2_KEY);
     }
 
     function testUpkeepShouldRevertIfNotCalledByForwarder() public {

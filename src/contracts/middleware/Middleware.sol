@@ -319,26 +319,21 @@ contract Middleware is
             return (false, hex"");
         }
 
-        uint256 cachedCurrentEpochValidatorsLength = cache.epochToValidatorsData[epoch].length;
-        uint256 pendingOperatorsToCache = activeOperatorsLength - cachedCurrentEpochValidatorsLength;
+        uint256 cacheIndex = cache.epochToCacheIndex[epoch];
+        uint256 pendingOperatorsToCache = activeOperatorsLength - cacheIndex;
 
         // Check if cache is still not filled with the current epoch validators
         if (pendingOperatorsToCache > 0) {
             uint256 maxNumOperatorsToCheck = Math.min(pendingOperatorsToCache, MAX_OPERATORS_TO_PROCESS);
-
             ValidatorData[] memory validatorsData = new ValidatorData[](maxNumOperatorsToCheck);
 
             // Populate validatorsData with the new operators' keys and their powers
             // It gets encoded to be used in performUpkeep
-            for (
-                uint256 i = cachedCurrentEpochValidatorsLength;
-                i < cachedCurrentEpochValidatorsLength + maxNumOperatorsToCheck && i < activeOperatorsLength;
-            ) {
+            for (uint256 i = cacheIndex; i < cacheIndex + maxNumOperatorsToCheck && i < activeOperatorsLength;) {
                 address operator = activeOperators[i];
                 bytes32 operatorKey = abi.decode(operatorKey(operator), (bytes32));
                 uint256 operatorPower = _getOperatorPowerAt(currentEpochStartTs, operator);
-                validatorsData[i - cachedCurrentEpochValidatorsLength] =
-                    ValidatorData({key: operatorKey, power: operatorPower});
+                validatorsData[i - cacheIndex] = ValidatorData({key: operatorKey, power: operatorPower});
 
                 unchecked {
                     ++i;
@@ -352,8 +347,7 @@ contract Middleware is
         upkeepNeeded = (Time.timestamp() - $.lastTimestamp) > $.interval;
         if (upkeepNeeded) {
             // This will use the cached values, resulting in just a simple sorting operation. We can know a priori how much it cost since it's just an address with a uint256 power. Worst case we can split this too.
-            bytes32[] memory sortedKeys =
-                IOBaseMiddlewareReader(address(this)).sortOperatorsByPower(cache.epochToValidatorsData[epoch]);
+            bytes32[] memory sortedKeys = IOBaseMiddlewareReader(address(this)).sortOperatorsByPower(epoch);
             performData = abi.encode(sortedKeys);
             return (true, performData);
         }
@@ -378,20 +372,28 @@ contract Middleware is
 
         address[] memory activeOperators = _activeOperators();
         uint256 activeOperatorsLength = activeOperators.length;
-        uint256 cachedCurrentEpochValidatorsLength = cache.epochToValidatorsData[epoch].length;
-        uint256 pendingOperatorsToCache = activeOperatorsLength - cachedCurrentEpochValidatorsLength;
+        uint256 cacheIndex = cache.epochToCacheIndex[epoch];
+        uint256 pendingOperatorsToCache = activeOperatorsLength - cacheIndex;
 
         if (pendingOperatorsToCache > 0) {
             ValidatorData[] memory validatorsData = abi.decode(performData, (ValidatorData[]));
             uint256 validatorsDataLength = validatorsData.length;
             for (uint256 i = 0; i < validatorsDataLength;) {
                 ValidatorData memory validatorData = validatorsData[i];
+                bytes32 validatorKey = validatorData.key;
                 // Update the cache with the operator power and the operator
-                cache.operatorKeyToPower[epoch][validatorData.key] = validatorData.power;
-                cache.epochToValidatorsData[epoch].push(validatorData);
+                if (cache.operatorKeyToPower[epoch][validatorKey] != 0) {
+                    revert Middleware__TooOldEpoch();
+                }
+
+                cache.operatorKeyToPower[epoch][validatorKey] = validatorData.power;
                 unchecked {
                     ++i;
                 }
+            }
+
+            unchecked {
+                cache.epochToCacheIndex[epoch] += validatorsDataLength;
             }
         } else {
             uint48 currentTimestamp = Time.timestamp();

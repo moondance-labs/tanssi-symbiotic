@@ -663,10 +663,15 @@ contract OBaseMiddlewareReader is
                 ++i;
             }
             bytes32 key = abi.decode(getOperatorKeyAt(operator, epochStartTs), (bytes32));
-            // TODO check if cache exists
-            uint256 power = _getOperatorPowerAt(epochStartTs, operator);
-            if (key != bytes32(0) && power != 0) {
-                validatorSet[len++] = IMiddleware.ValidatorData(power, key);
+            uint256 operatorPower = getOperatorToPower(epoch, key);
+
+            if (operatorPower > 0) {
+                validatorSet[len++] = IMiddleware.ValidatorData(operatorPower, key);
+            } else {
+                uint256 power = _getOperatorPowerAt(epochStartTs, operator);
+                if (key != bytes32(0) && power != 0) {
+                    validatorSet[len++] = IMiddleware.ValidatorData(power, key);
+                }
             }
         }
 

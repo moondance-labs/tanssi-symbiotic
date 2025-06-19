@@ -29,7 +29,7 @@ abstract contract MiddlewareStorage {
     }
 
     struct StorageMiddlewareCache {
-        mapping(uint48 epoch => IMiddleware.ValidatorData[] validatorsData) epochToValidatorsData;
+        mapping(uint48 epoch => uint256 cacheIndex) epochToCacheIndex;
         mapping(uint48 epoch => mapping(bytes32 operatorKey => uint256 power)) operatorKeyToPower;
     }
 
@@ -45,7 +45,7 @@ abstract contract MiddlewareStorage {
     uint256 public constant VERSION = 1;
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
     uint256 public constant MIN_INTERVAL_TO_SEND_OPERATOR_KEYS = 50; // 600 seconds ≈ 10 minutes
-    uint256 public constant MAX_OPERATORS_TO_PROCESS = 10;
+    uint256 public constant MAX_OPERATORS_TO_PROCESS = 40;
     bytes32 internal constant GATEWAY_ROLE = keccak256("GATEWAY_ROLE");
     bytes32 internal constant FORWARDER_ROLE = keccak256("FORWARDER_ROLE");
 
@@ -143,15 +143,15 @@ abstract contract MiddlewareStorage {
     }
 
     /**
-     * @notice Get epoch operators that have had their powers cached
+     * @notice Get epoch operators cache index
      * @param epoch The epoch number
-     * @return validatorsData The list of operators for the epoch that have had their powers cached
+     * @return cacheIndex The index of the cache for the epoch or how many operators have had their powers cached
      */
-    function getEpochValidatorsData(
+    function getEpochCacheIndex(
         uint48 epoch
-    ) public view returns (IMiddleware.ValidatorData[] memory validatorsData) {
+    ) public view returns (uint256 cacheIndex) {
         StorageMiddlewareCache storage $ = _getMiddlewareStorageCache();
-        validatorsData = $.epochToValidatorsData[epoch];
+        cacheIndex = $.epochToCacheIndex[epoch];
     }
 
     /**

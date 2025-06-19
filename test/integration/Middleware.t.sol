@@ -1259,7 +1259,6 @@ contract MiddlewareTest is Test {
         uint256 operator1Power = middleware.getOperatorToPower(epoch, OPERATOR_KEY);
         uint256 operator2Power = middleware.getOperatorToPower(epoch, OPERATOR2_KEY);
         uint256 operator3Power = middleware.getOperatorToPower(epoch, OPERATOR3_KEY);
-        IMiddleware.ValidatorData[] memory validatorsData = middleware.getEpochValidatorsData(epoch);
 
         (uint256 totalOperatorPowerAfter,) = _calculateOperatorPower(totalPowerVault, 0, 0);
         (uint256 totalOperator2PowerAfter,) =
@@ -1270,13 +1269,6 @@ contract MiddlewareTest is Test {
         assertEq(operator1Power, totalOperatorPowerAfter);
         assertEq(operator2Power, totalOperator2PowerAfter);
         assertEq(operator3Power, totalOperator3PowerAfter);
-        assertEq(validatorsData.length, 3);
-        assertEq(validatorsData[0].key, OPERATOR_KEY);
-        assertEq(validatorsData[0].power, operator1Power);
-        assertEq(validatorsData[1].key, OPERATOR2_KEY);
-        assertEq(validatorsData[1].power, operator2Power);
-        assertEq(validatorsData[2].key, OPERATOR3_KEY);
-        assertEq(validatorsData[2].power, operator3Power);
 
         vm.startPrank(offlineKeepers);
         (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
@@ -1365,9 +1357,6 @@ contract MiddlewareTest is Test {
         (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, false);
         uint48 epoch = middleware.getCurrentEpoch();
-
-        IMiddleware.ValidatorData[] memory validatorsData = middleware.getEpochValidatorsData(epoch);
-        assertEq(validatorsData.length, count);
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         vm.roll(50);
