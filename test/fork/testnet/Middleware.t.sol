@@ -59,7 +59,6 @@ contract MiddlewareTest is Test {
     int256 public constant ORACLE_CONVERSION_TOKEN = 20_000;
 
     // This needs to be read from live contracts
-    uint256 public operatorStake = 90 ether;
     uint256 public vaultShares;
     uint256 public operatorShares;
     uint256 public totalVaultPower; // By shares. Each operator participates gets 1/3 of the total power
@@ -69,7 +68,7 @@ contract MiddlewareTest is Test {
     address public operator;
     address public gateway;
 
-    address public oracle = makeAddr("oracle"); // TODO: We could actually get it from contract-addresses but it's not available through HelperConfig at the moment
+    address public oracle = makeAddr("oracle");
 
     HelperConfig helperConfig;
     HelperConfig.VaultTrifecta vaultData;
