@@ -118,7 +118,7 @@ contract HelperConfig is Script {
     VaultsConfigB public activeVaultsConfigB;
     OperatorConfig public activeOperatorConfig;
 
-    uint256 public DEFAULT_ANVIL_PRIVATE_KEY =
+    uint256 public PRIVATE_KEY =
         vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
 
     constructor() {
@@ -134,7 +134,7 @@ contract HelperConfig is Script {
         } else {
             // Other configurations can remain empty
             activeNetworkConfig = getAnvilEthConfig();
-            activeEntities.tanssi = vm.addr(DEFAULT_ANVIL_PRIVATE_KEY);
+            activeEntities.tanssi = vm.addr(PRIVATE_KEY);
             activeEntities.admin = activeEntities.tanssi;
         }
     }
