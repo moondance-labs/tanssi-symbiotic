@@ -63,7 +63,7 @@ NETWORK_ARGS := --rpc-url ${RPC_URL} --private-key ${PRIVATE_KEY} --broadcast --
 
 deploy-full-tanssi-eco-demo:
 	@echo "📡 Deploying Full Tanssi Ecosystem Locally for Demo..."
-	@forge script demos/DeployTanssiEcosystemDemo.s.sol --slow ${NETWORK_ARGS}
+	@forge script demos/DeployTanssiEcosystemDemo.s.sol --slow --skip-simulation ${NETWORK_ARGS}
 	@echo "✅ Full Tanssi Ecosystem Locally for Demo deployment completed"
 
 deploy-full-tanssi-eco:
