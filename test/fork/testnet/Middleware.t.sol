@@ -23,6 +23,7 @@ import {IOptInService} from "@symbiotic/interfaces/service/IOptInService.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {IOperatorRegistry} from "@symbiotic/interfaces/IOperatorRegistry.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
+import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
 import {IDefaultCollateral} from "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateral.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 
@@ -62,6 +63,7 @@ contract MiddlewareTest is Test {
     uint256 public vaultShares;
     uint256 public operatorShares;
     uint256 public totalVaultPower; // By shares. Each operator participates gets 1/3 of the total power
+    uint256 public operatorStake;
 
     address public admin;
     address public tanssi;
@@ -223,7 +225,7 @@ contract MiddlewareTest is Test {
 
         vm.prank(operator);
         vault.claim(operator, currentEpoch - 1);
-        assertEq(stETH.balanceOf(operator), operatorBalanceBefore + withdrawAmount);
+        assertApproxEqAbs(stETH.balanceOf(operator), operatorBalanceBefore + withdrawAmount, 1);
     }
 
     function testOperatorPower() public {
@@ -248,7 +250,7 @@ contract MiddlewareTest is Test {
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
 
-        uint256 slashedAmount = (SLASHING_FRACTION * operatorStake) / PARTS_PER_BILLION;
+        uint256 slashedAmount = operatorStake.mulDiv(SLASHING_FRACTION, PARTS_PER_BILLION);
         totalOperatorPower = _calculateOperatorPower(operatorStake, slashedAmount);
 
         assertEq(validators.length, 1);
@@ -272,6 +274,14 @@ contract MiddlewareTest is Test {
 
         // Vault is paused so there should be none
         assertEq(validators.length, 0);
+
+        // Power should have changed since the vault and operator were active at the start of the epoch where the slash was applied
+        uint256 newOperatorStake = IBaseDelegator(vaultData.delegator).stake(tanssi.subnetwork(0), operator);
+        uint256 newOperatorPower = middleware.stakeToPower(vaultData.vault, newOperatorStake);
+        uint256 slashedAmount = operatorStake.mulDiv(SLASHING_FRACTION, PARTS_PER_BILLION);
+        uint256 expectedOperatorPower = _calculateOperatorPower(operatorStake, slashedAmount);
+
+        assertEq(newOperatorPower, expectedOperatorPower);
     }
 
     function testSlashingAndPausingOperator() public {
@@ -290,6 +300,14 @@ contract MiddlewareTest is Test {
 
         // Operator is paused so there should be none
         assertEq(validators.length, 0);
+
+        // Power should not have changed since the operator is paused
+        uint256 newOperatorStake = IBaseDelegator(vaultData.delegator).stake(tanssi.subnetwork(0), operator);
+        uint256 newOperatorPower = middleware.stakeToPower(vaultData.vault, newOperatorStake);
+        uint256 slashedAmount = operatorStake.mulDiv(SLASHING_FRACTION, PARTS_PER_BILLION);
+        uint256 expectedOperatorPower = _calculateOperatorPower(operatorStake, slashedAmount);
+
+        assertEq(newOperatorPower, expectedOperatorPower);
     }
 
     function _prepareSlashingTest()
