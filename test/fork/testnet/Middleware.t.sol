@@ -73,7 +73,7 @@ contract MiddlewareTest is Test {
     address public oracle = makeAddr("oracle");
 
     HelperConfig helperConfig;
-    HelperConfig.VaultTrifecta vaultData;
+    HelperConfig.VaultData vaultData;
     HelperConfig.OperatorData operatorData;
     IVault vault;
     Middleware middleware;
