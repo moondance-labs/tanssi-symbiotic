@@ -554,6 +554,41 @@ contract MiddlewareTest is Test {
         assertEq(validators[2].key, validatorsPreviousEpoch[2].key);
     }
 
+    function testUnregisterOperatorButPastVaultsAreNotShown() public {
+        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        uint48 previousEpoch = middleware.getCurrentEpoch();
+        uint48 previousEpochStartTs = middleware.getEpochStart(previousEpoch);
+
+        vm.startPrank(owner);
+        address[] memory operatorVaults = OBaseMiddlewareReader(address(middleware)).activeVaults(operator2);
+        assertEq(operatorVaults.length, 3);
+
+        middleware.pauseOperator(operator2);
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
+        middleware.unregisterOperator(operator2);
+
+        // Get validator set for current epoch
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        Middleware.ValidatorData[] memory validators =
+            OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
+
+        operatorVaults = OBaseMiddlewareReader(address(middleware)).activeVaults(operator2);
+
+        uint256 operatorPower =
+            OBaseMiddlewareReader(address(middleware)).getOperatorPowerAt(previousEpochStartTs, operator2);
+        address[] memory activeOperators =
+            OBaseMiddlewareReader(address(middleware)).activeOperatorsAt(previousEpochStartTs);
+        assertGt(operatorPower, 0);
+
+        // Vaults history for the operators is kept intact
+        assertEq(operatorVaults.length, 3);
+        // Operators history is completely erased
+        assertEq(activeOperators.length, 2);
+
+        assertEq(validators.length, 2);
+        vm.stopPrank();
+    }
+
     function testWithdraw() public {
         uint256 currentEpoch = vaultSlashable.currentEpoch();
         vm.prank(operator2);
