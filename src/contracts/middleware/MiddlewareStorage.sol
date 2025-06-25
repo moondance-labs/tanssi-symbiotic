@@ -30,7 +30,8 @@ abstract contract MiddlewareStorage {
 
     struct StorageMiddlewareCache {
         mapping(uint48 epoch => uint256 cacheIndex) epochToCacheIndex;
-        mapping(uint48 epoch => mapping(bytes32 operatorKey => uint256 power)) operatorKeyToPower;
+        mapping(uint48 epoch => mapping(bytes32 operatorKey => IMiddleware.ValidatorDataCache operatorPower))
+            operatorKeyToPower;
     }
 
     // keccak256(abi.encode(uint256(keccak256("tanssi.middleware.MiddlewareStorage.v1.1")) - 1)) & ~bytes32(uint256(0xff));
@@ -160,8 +161,13 @@ abstract contract MiddlewareStorage {
      * @param operatorKey The operator key
      * @return power The power of the operator
      */
-    function getOperatorToPower(uint48 epoch, bytes32 operatorKey) public view returns (uint256 power) {
+    function getOperatorToPower(
+        uint48 epoch,
+        bytes32 operatorKey
+    ) public view returns (uint256 power, uint256[] memory powerPerVault) {
         StorageMiddlewareCache storage $ = _getMiddlewareStorageCache();
-        power = $.operatorKeyToPower[epoch][operatorKey];
+        IMiddleware.ValidatorDataCache memory operatorPowerData = $.operatorKeyToPower[epoch][operatorKey];
+        power = operatorPowerData.power;
+        powerPerVault = operatorPowerData.powerPerVault;
     }
 }

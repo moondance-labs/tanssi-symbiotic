@@ -44,6 +44,7 @@ interface IMiddleware {
     // Errors
     error Middleware__GatewayNotSet();
     error Middleware__AlreadySet();
+    error Middleware__AlreadyCached();
     error Middleware__TooOldEpoch();
     error Middleware__InvalidEpoch();
     error Middleware__InvalidEpochDuration();
@@ -63,6 +64,18 @@ interface IMiddleware {
      */
     struct ValidatorData {
         uint256 power;
+        bytes32 key;
+    }
+
+    /**
+     * @notice Validator data structure containing cached stake and key
+     * @param power The validator's power, based on staked tokens and their price
+     * @param powerPerVault Array of validator's power per vault
+     * @param key The validator's key
+     */
+    struct ValidatorDataCache {
+        uint256 power;
+        uint256[] powerPerVault;
         bytes32 key;
     }
 

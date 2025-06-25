@@ -582,15 +582,14 @@ contract OBaseMiddlewareReader is
         address[] memory operatorVaults = _activeVaultsAt(epochStartTs, operator);
         vaults = new address[](operatorVaults.length);
         vaultIdx = 0;
+        bytes32 subnetwork = _NETWORK().subnetwork(0);
+
         uint256 operatorVaultsLength_ = operatorVaults.length;
         for (uint256 j; j < operatorVaultsLength_;) {
             address _vault = operatorVaults[j];
-            // Tanssi will use probably only one subnetwork, so we can skip this loop
-            // for (uint96 k = 0; k < _subnetworksLength(); ++k) {
-            uint256 operatorStake = IBaseDelegator(IVault(_vault).delegator()).stakeAt(
-                _NETWORK().subnetwork(0), operator, epochStartTs, new bytes(0)
-            );
-            // }
+
+            uint256 operatorStake =
+                IBaseDelegator(IVault(_vault).delegator()).stakeAt(subnetwork, operator, epochStartTs, hex"");
 
             if (operatorStake != 0) {
                 vaults[vaultIdx++] = _vault;
@@ -663,10 +662,10 @@ contract OBaseMiddlewareReader is
                 ++i;
             }
             bytes32 key = abi.decode(getOperatorKeyAt(operator, epochStartTs), (bytes32));
-            uint256 operatorPower = getOperatorToPower(epoch, key);
+            (uint256 operatorPowerCached,) = getOperatorToPower(epoch, key);
 
-            if (operatorPower > 0) {
-                validatorSet[len++] = IMiddleware.ValidatorData(operatorPower, key);
+            if (operatorPowerCached != 0) {
+                validatorSet[len++] = IMiddleware.ValidatorData(operatorPowerCached, key);
             } else {
                 uint256 power = _getOperatorPowerAt(epochStartTs, operator);
                 if (key != bytes32(0) && power != 0) {

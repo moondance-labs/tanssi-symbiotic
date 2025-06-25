@@ -14,7 +14,6 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
-import {console2} from "forge-std/console2.sol";
 //**************************************************************************************************
 //                                      CHAINLINK
 //**************************************************************************************************
@@ -74,6 +73,7 @@ contract Middleware is
     using PauseableEnumerableSet for PauseableEnumerableSet.AddressSet;
     using PauseableEnumerableSet for PauseableEnumerableSet.Status;
     using Subnetwork for address;
+    using Subnetwork for bytes32;
     using Math for uint256;
 
     modifier notZeroAddress(
@@ -325,20 +325,13 @@ contract Middleware is
         // Check if cache is still not filled with the current epoch validators
         if (pendingOperatorsToCache > 0) {
             uint256 maxNumOperatorsToCheck = Math.min(pendingOperatorsToCache, MAX_OPERATORS_TO_PROCESS);
-            ValidatorData[] memory validatorsData = new ValidatorData[](maxNumOperatorsToCheck);
 
             // Populate validatorsData with the new operators' keys and their powers
             // It gets encoded to be used in performUpkeep
-            for (uint256 i = cacheIndex; i < cacheIndex + maxNumOperatorsToCheck && i < activeOperatorsLength;) {
-                address operator = activeOperators[i];
-                bytes32 operatorKey = abi.decode(operatorKey(operator), (bytes32));
-                uint256 operatorPower = _getOperatorPowerAt(currentEpochStartTs, operator);
-                validatorsData[i - cacheIndex] = ValidatorData({key: operatorKey, power: operatorPower});
+            ValidatorDataCache[] memory validatorsData = _calculateOperatorPowersToCache(
+                activeOperators, currentEpochStartTs, maxNumOperatorsToCheck, cacheIndex
+            );
 
-                unchecked {
-                    ++i;
-                }
-            }
             // encode values to be used in performUpkeep
             return (true, abi.encode(validatorsData));
         }
@@ -353,6 +346,44 @@ contract Middleware is
         }
 
         return (upkeepNeeded, hex"");
+    }
+
+    function _calculateOperatorPowersToCache(
+        address[] memory activeOperators,
+        uint48 currentEpochStartTs,
+        uint256 maxNumOperatorsToCheck,
+        uint256 cacheIndex
+    ) private view returns (ValidatorDataCache[] memory validatorsData) {
+        uint256 activeOperatorsLength = activeOperators.length;
+        validatorsData = new ValidatorDataCache[](maxNumOperatorsToCheck);
+        uint96 subnetwork = _NETWORK().subnetwork(0).identifier();
+        for (uint256 i = cacheIndex; i < cacheIndex + maxNumOperatorsToCheck && i < activeOperatorsLength;) {
+            address operator = activeOperators[i];
+            bytes32 operatorKey = abi.decode(operatorKey(operator), (bytes32));
+
+            {
+                (uint256 totalVaults, address[] memory vaults) =
+                    IOBaseMiddlewareReader(address(this)).getOperatorVaults(operator, currentEpochStartTs);
+
+                uint256[] memory vaultPowers = new uint256[](totalVaults);
+                uint256 totalPower;
+                for (uint256 j; j < totalVaults;) {
+                    vaultPowers[j] = IOBaseMiddlewareReader(address(this)).getOperatorPowerAt(
+                        currentEpochStartTs, operator, vaults[j], subnetwork
+                    );
+                    totalPower += vaultPowers[j];
+                    unchecked {
+                        ++j;
+                    }
+                }
+
+                validatorsData[i - cacheIndex] =
+                    ValidatorDataCache({key: operatorKey, power: totalPower, powerPerVault: vaultPowers});
+            }
+            unchecked {
+                ++i;
+            }
+        }
     }
 
     /**
@@ -376,17 +407,18 @@ contract Middleware is
         uint256 pendingOperatorsToCache = activeOperatorsLength - cacheIndex;
 
         if (pendingOperatorsToCache > 0) {
-            ValidatorData[] memory validatorsData = abi.decode(performData, (ValidatorData[]));
+            ValidatorDataCache[] memory validatorsData = abi.decode(performData, (ValidatorDataCache[]));
             uint256 validatorsDataLength = validatorsData.length;
             for (uint256 i = 0; i < validatorsDataLength;) {
-                ValidatorData memory validatorData = validatorsData[i];
+                ValidatorDataCache memory validatorData = validatorsData[i];
                 bytes32 validatorKey = validatorData.key;
                 // Update the cache with the operator power and the operator
-                if (cache.operatorKeyToPower[epoch][validatorKey] != 0) {
-                    revert Middleware__TooOldEpoch();
+                if (cache.operatorKeyToPower[epoch][validatorKey].power != 0) {
+                    revert Middleware__AlreadyCached();
                 }
 
-                cache.operatorKeyToPower[epoch][validatorKey] = validatorData.power;
+                cache.operatorKeyToPower[epoch][validatorKey].power = validatorData.power;
+                cache.operatorKeyToPower[epoch][validatorKey].powerPerVault = validatorData.powerPerVault;
                 unchecked {
                     ++i;
                 }
