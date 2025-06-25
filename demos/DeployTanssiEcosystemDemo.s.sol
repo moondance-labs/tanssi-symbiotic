@@ -45,7 +45,6 @@ import {Token} from "test/mocks/Token.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
 import {DeployVault} from "script/DeployVault.s.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
-import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
 
 contract DeployTanssiEcosystemDemo is Script {
@@ -90,7 +89,6 @@ contract DeployTanssiEcosystemDemo is Script {
         DeployVault deployVault;
         HelperConfig helperConfig;
         DeployRewards deployRewards;
-        DeployTanssiEcosystem deployTanssiEcosystem;
     }
 
     struct EcosystemEntity {
@@ -308,12 +306,12 @@ contract DeployTanssiEcosystemDemo is Script {
             owner: tanssi,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
-            reader: address(0)
+            reader: address(new OBaseMiddlewareReader())
         });
 
-        ecosystemEntities.middleware = contractScripts.deployTanssiEcosystem.deployMiddlewareWithProxy(
-            params, operatorRewardsAddress, stakerRewardsFactoryAddress
-        );
+        Middleware _middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        ecosystemEntities.middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
+        ecosystemEntities.middleware.initialize(params);
 
         operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(ecosystemEntities.middleware));
         operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(ecosystemEntities.middleware));
@@ -366,7 +364,6 @@ contract DeployTanssiEcosystemDemo is Script {
         contractScripts.deployVault = new DeployVault();
         contractScripts.deployCollateral = new DeployCollateral();
         contractScripts.deployRewards = new DeployRewards();
-        contractScripts.deployTanssiEcosystem = new DeployTanssiEcosystem();
         contractScripts.deployRewards.setIsTest(false);
 
         _deploy();
