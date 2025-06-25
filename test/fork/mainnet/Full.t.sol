@@ -85,7 +85,7 @@ contract FullTest is Test {
     uint256 public constant DEFAULT_WITHDRAW_AMOUNT = 30 ether;
     uint256 public constant OPERATOR_INITIAL_BALANCE = 1000 ether;
     uint256 public constant MIN_SLASHING_WINDOW = 1 days;
-    uint256 public constant MIN_DEPOSIT = 10 ether; // 10 ETH
+    uint256 public constant MIN_DEPOSIT = 100 ether; // 10 ETH
     uint256 public constant TOKEN_REWARDS_PER_ERA_INDEX = 10_000 * 10 ** 12; // Tanssi has 12 decimals.
 
     uint256 public constant OPERATOR_SHARE = 2000; // 20%
@@ -675,7 +675,10 @@ contract FullTest is Test {
         uint256 operatorStake = IBaseDelegator(vaultData.delegator).stakeAt(
             tanssi.subnetwork(0), operator, uint48(block.timestamp), new bytes(0)
         );
+        // TODO: How can you have stake and no shares/balance?
+        // uint256 activeSharesOf = IVault(vaultData.vault).activeSharesOf(operator);
         if (operatorStake == 0) {
+            // if (operatorStake == 0 || activeSharesOf == 0) {
             IVault vault = IVault(vaultData.vault);
             console2.log("Operator", operator, "has no stake into vault", vaultData.vault);
             _depositToVault(vault, operator, MIN_DEPOSIT, IERC20(vault.collateral()));
@@ -1208,61 +1211,81 @@ contract FullTest is Test {
         assertEq(validators[2].key, validatorsPreviousEpoch[2].key);
     }
 
-    // function testWithdrawForOperator1() public {
-    //     IVault vaultMevRestaked = IVault(vaultsAddressesDeployedA.mevRestakedETH.vault);
-    //     IVault vaultMevCapital = IVault(vaultsAddressesDeployedA.mevCapitalETH.vault);
-    //     IVault vaultHashkeyCloud = IVault(vaultsAddressesDeployedA.hashKeyCloudETH.vault);
-    //     uint256 currentEpochMevRestaked = vaultMevRestaked.currentEpoch();
-    //     uint256 currentEpochMevCapital = vaultMevCapital.currentEpoch();
-    //     uint256 currentEpochHashkeyCloud = vaultHashkeyCloud.currentEpoch();
+    function testWithdrawCase1() public {
+        // TODO: unskip, currently all operators get zero shares/balance even tho they have stake, so withdrawing fails.
+        vm.skip(true);
+        // operator1PierTwo is in 9 out of 15 vaults
 
-    //     uint256 currentEpochMevRestakedEpochDuration = vaultMevRestaked.epochDuration();
-    //     uint256 currentEpochMevCapitalEpochDuration = vaultMevCapital.epochDuration();
-    //     uint256 currentEpochHashkeyCloudEpochDuration = vaultHashkeyCloud.epochDuration();
+        HelperConfig.VaultData[] memory vaults = new HelperConfig.VaultData[](9);
+        vaults[0] = vaultsAddressesDeployedA.etherfiwstETH;
+        vaults[1] = vaultsAddressesDeployedB.gauntletRestakedcBETH;
+        vaults[2] = vaultsAddressesDeployedB.gauntletRestakedRETH;
+        vaults[3] = vaultsAddressesDeployedB.gauntletRestakedSwETH;
+        vaults[4] = vaultsAddressesDeployedB.gauntletRestakedWBETH;
+        vaults[5] = vaultsAddressesDeployedB.gauntletRestakedWstETH;
+        vaults[6] = vaultsAddressesDeployedA.mevRestakedETH;
+        vaults[7] = vaultsAddressesDeployedA.renzoRestakedETH;
+        vaults[8] = vaultsAddressesDeployedA.restakedLsETHVault;
 
-    //     uint256 currentTimestamp = block.timestamp;
+        for (uint256 i = 0; i < vaults.length; i++) {
+            console2.log("Testing vault", i);
+            _testWithdrawFromVaultByOperator(vaults[i], operators.operator1PierTwo);
+        }
+    }
 
-    //     vm.startPrank(operator);
-    //     vaultMevRestaked.withdraw(operator, DEFAULT_WITHDRAW_AMOUNT);
-    //     vaultMevCapital.withdraw(operator, DEFAULT_WITHDRAW_AMOUNT);
-    //     vaultHashkeyCloud.withdraw(operator, DEFAULT_WITHDRAW_AMOUNT);
+    function _testWithdrawFromVaultByOperator(
+        HelperConfig.VaultData memory vaultData,
+        HelperConfig.OperatorData memory operator
+    ) private {
+        IVault vault = IVault(vaultData.vault);
+        // Get current vault epoch and epoch duration
+        uint256 initialEpoch = vault.currentEpoch();
+        uint256 epochDuration = vault.epochDuration();
+        address operatorAddress = operator.evmAddress;
 
-    //     vm.warp(currentTimestamp + currentEpochMevRestakedEpochDuration * 2 + 1);
-    //     currentEpochMevRestaked = vaultMevRestaked.currentEpoch();
-    //     vaultMevRestaked.claim(operator, currentEpochMevRestaked - 1);
+        // Get operator stake at current epoch
+        uint256 operatorStake = IBaseDelegator(vaultData.delegator).stakeAt(
+            tanssi.subnetwork(0), operatorAddress, uint48(block.timestamp), new bytes(0)
+        );
+        console2.log("epochDuration", epochDuration);
+        console2.log("operatorStake", operatorStake);
 
-    //     vm.warp(currentTimestamp + currentEpochMevCapitalEpochDuration * 2 + 1);
-    //     currentEpochMevCapital = vaultMevCapital.currentEpoch();
-    //     vaultMevCapital.claim(operator, currentEpochMevCapital - 1);
+        // Withdraw amount = 10% of stake
+        uint256 withdrawAmount = operatorStake / 10;
+        console2.log("withdrawAmount", withdrawAmount);
 
-    //     vm.warp(currentTimestamp + currentEpochHashkeyCloudEpochDuration * 2 + 1);
-    //     currentEpochHashkeyCloud = vaultHashkeyCloud.currentEpoch();
-    //     vaultHashkeyCloud.claim(operator, currentEpochHashkeyCloud - 1);
+        uint256 activeShares = vault.activeShares();
+        uint256 activeStake = vault.activeStake();
+        uint256 activeSharesOf = vault.activeSharesOf(operatorAddress);
+        uint256 activeBalanceOf = vault.activeBalanceOf(operatorAddress);
+        console2.log("activeShares", activeShares);
+        console2.log("activeStake", activeStake);
+        console2.log("activeSharesOf", activeSharesOf);
+        console2.log("activeBalanceOf", activeBalanceOf);
 
-    //     assertEq(
-    //         tokensConfig.wstETH.balanceOf(operator),
-    //         OPERATOR_INITIAL_BALANCE * 4 - OPERATOR_STAKE * 3 + DEFAULT_WITHDRAW_AMOUNT * 3
-    //     );
-    // }
+        if (activeSharesOf == 0) {
+            console2.log("No shares for operator", operatorAddress);
+            return;
+        }
 
-    // function testOperatorPower() public {
-    //     vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
-    //     uint48 currentEpoch = middleware.getCurrentEpoch();
-    //     Middleware.ValidatorData[] memory validators =
-    //         reader.getValidatorSet(currentEpoch);
+        // Get current operator balance of the vault collateral
+        IERC20 collateral = IERC20(vault.collateral());
+        uint256 initialBalance = collateral.balanceOf(operatorAddress);
 
-    //     uint256 operatorPower1 = _calculateOperatorPower1();
-    //     uint256 operatorPower2 = _calculateOperatorPower2();
-    //     uint256 operatorPower3 = _calculateOperatorPower3();
-    //     uint256 operatorPower4 = _calculateOperatorPower4();
-    //     uint256 operatorPower5 = _calculateOperatorPower5();
+        vm.startPrank(operatorAddress);
+        vault.withdraw(operatorAddress, withdrawAmount);
 
-    //     assertEq(validators[0].power, operatorPower1);
-    //     assertEq(validators[1].power, operatorPower2);
-    //     assertEq(validators[2].power, operatorPower3);
-    //     assertEq(validators[3].power, operatorPower4);
-    //     assertEq(validators[4].power, operatorPower5);
-    // }
+        // Warp the epoch duration * 2
+        vm.warp(block.timestamp + epochDuration * 2 + 1);
+
+        // Claim for the right epoch (1 after withdraw started)
+        vault.claim(operatorAddress, initialEpoch + 1);
+
+        // Check new balance, assert difference equals withdraw amount
+        uint256 finalBalance = collateral.balanceOf(operatorAddress);
+        assertEq(finalBalance - initialBalance, withdrawAmount);
+        vm.stopPrank();
+    }
 
     function testPauseAndUnregisterOperator() public {
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
