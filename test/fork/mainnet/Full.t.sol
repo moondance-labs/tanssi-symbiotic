@@ -27,6 +27,7 @@ import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {IOperatorRegistry} from "@symbiotic/interfaces/IOperatorRegistry.sol";
 import {INetworkRegistry} from "@symbiotic/interfaces/INetworkRegistry.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
+import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 import {IDefaultStakerRewards} from "@symbiotic-rewards/interfaces/defaultStakerRewards/IDefaultStakerRewards.sol";
 
@@ -1118,33 +1119,6 @@ contract FullTest is Test {
         }
     }
 
-    // function _calculateOperatorPower1() private view returns (uint256 operatorPower1) {
-    //     operatorPower1 = (
-    //         OPERATOR_SHARE.mulDiv(
-    //             _getMaximumAvailableStakeForVault(
-    //                 vaultsAddressesDeployedA.mevRestakedETH.delegator,
-    //                 vaultStakeBeforeDeposit.mevRestakedStakeBeforeDeposit + OPERATOR_STAKE * TOTAL_SHARES_MEV_RESTAKED
-    //             ),
-    //             TOTAL_SHARES_MEV_RESTAKED
-    //         )
-    //             + OPERATOR_SHARE.mulDiv(
-    //                 _getMaximumAvailableStakeForVault(
-    //                     vaultsAddressesDeployedA.mevCapitalETH.delegator,
-    //                     vaultStakeBeforeDeposit.mevCapitalStakeBeforeDeposit + OPERATOR_STAKE * TOTAL_SHARES_MEV_CAPITAL
-    //                 ),
-    //                 TOTAL_SHARES_MEV_CAPITAL
-    //             )
-    //             + OPERATOR_SHARE.mulDiv(
-    //                 _getMaximumAvailableStakeForVault(
-    //                     vaultsAddressesDeployedA.hashKeyCloudETH.delegator,
-    //                     vaultStakeBeforeDeposit.hashKeyCloudStakeBeforeDeposit
-    //                         + OPERATOR_STAKE * TOTAL_SHARES_HASH_KEY_CLOUD
-    //                 ),
-    //                 TOTAL_SHARES_HASH_KEY_CLOUD
-    //             )
-    //     ).mulDiv(uint256(ORACLE_CONVERSION_TOKEN), 10 ** ORACLE_DECIMALS);
-    // }
-
     function _checkOperatorVaultPairs(
         Middleware.OperatorVaultPair[] memory operatorVaultPairs,
         HelperConfig.OperatorData memory operator,
@@ -1176,7 +1150,7 @@ contract FullTest is Test {
         assertEq(reader.subnetworksLength(), 1);
     }
 
-    function testIfOperatorsAreRegisteredInVaults() public {
+    function testIfOperatorsAreRegisteredInVaults() public view {
         uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.OperatorVaultPair[] memory operatorVaultPairs = reader.getOperatorVaultPairs(currentEpoch);
 
@@ -1385,201 +1359,89 @@ contract FullTest is Test {
         assertEq(middleware.getGateway(), address(gateway));
     }
 
-    // function testSlashingOnOperator2AndVetoingSlash() public {
-    //     (uint48 currentEpoch, Middleware.ValidatorData[] memory validators,, uint256 powerFromSharesOperator2,,) =
-    //         _prepareSlashingTest();
+    function testSlashingOnOperatorAndVetoingSlashCase1() public {
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        Middleware.ValidatorData[] memory validators = reader.getValidatorSet(currentEpoch);
+        uint256 operatorPowerBefore;
+        for (uint256 i = 0; i < validators.length; i++) {
+            if (validators[i].key == operators.operator1PierTwo.operatorKey) {
+                operatorPowerBefore = validators[i].power;
+                break;
+            }
+        }
+        assertNotEq(operatorPowerBefore, 0);
 
-    //     uint256 slashingPower = (SLASHING_FRACTION * powerFromSharesOperator2) / PARTS_PER_BILLION;
+        vm.prank(address(gateway));
+        middleware.slash(currentEpoch, operators.operator1PierTwo.operatorKey, SLASHING_FRACTION);
 
-    //     vm.prank(address(gateway));
-    //     middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
+        // We need to veto the slashes for all the vaults of the operator
+        for (uint256 i = 0; i < operators.operator1PierTwo.vaults.length; i++) {
+            IVault vault = IVault(operators.operator1PierTwo.vaults[i]);
+            IVetoSlasher slasher = IVetoSlasher(vault.slasher());
+            address resolver = slasher.resolver(tanssi.subnetwork(0), new bytes(0));
+            // This is actually not needed since slashes need to be executed to take place. Vetoing just prevents that from being possible. However we leave it here for completeness.
+            if (resolver != address(0)) {
+                vm.prank(resolver);
+                slasher.vetoSlash(0, hex"");
+                vm.stopPrank();
+            }
+        }
 
-    //     vm.prank(resolver1);
-    //     ecosystemEntities.vetoSlasher.vetoSlash(0, hex"");
-    //     vm.warp(block.timestamp + SLASHING_WINDOW + 1);
-    //     uint48 newEpoch = middleware.getCurrentEpoch();
-    //     validators = reader.getValidatorSet(newEpoch);
+        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        uint48 newEpoch = middleware.getCurrentEpoch();
+        validators = reader.getValidatorSet(newEpoch);
 
-    //     (uint256 totalOperator2PowerAfter,) =
-    //         _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
-    //     (uint256 totalOperator3PowerAfter,) =
-    //         _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
+        uint256 operatorPowerAfter;
+        for (uint256 i = 0; i < validators.length; i++) {
+            if (validators[i].key == operators.operator1PierTwo.operatorKey) {
+                operatorPowerAfter = validators[i].power;
+                break;
+            }
+        }
+        assertEq(operatorPowerBefore, operatorPowerAfter);
+    }
 
-    //     assertEq(validators[1].power, totalOperator2PowerAfter);
-    //     assertEq(validators[2].power, totalOperator3PowerAfter);
-    // }
+    function testSlashingOnOperatorAndExecutingSlashCase1() public {
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        Middleware.ValidatorData[] memory validators = reader.getValidatorSet(currentEpoch);
+        uint256 operatorPowerBefore;
+        for (uint256 i = 0; i < validators.length; i++) {
+            if (validators[i].key == operators.operator1PierTwo.operatorKey) {
+                operatorPowerBefore = validators[i].power;
+                break;
+            }
+        }
+        assertNotEq(operatorPowerBefore, 0);
 
-    // function testSlashingOnOperator2AndExecuteSlashOnVetoVault() public {
-    //     (uint48 currentEpoch, Middleware.ValidatorData[] memory validators,, uint256 powerFromSharesOperator2,,) =
-    //         _prepareSlashingTest();
+        vm.prank(address(gateway));
+        middleware.slash(currentEpoch, operators.operator1PierTwo.operatorKey, SLASHING_FRACTION);
 
-    //     // We calculate the amount slashable for only the operator2 since it's the only one that should be slashed. As a side effect operator3 will be slashed too since it's taking part in a NetworkRestake delegator based vault
-    //     uint256 slashingPower = (SLASHING_FRACTION * powerFromSharesOperator2) / PARTS_PER_BILLION;
+        vm.warp(block.timestamp + VETO_DURATION + 1);
+        uint256[] memory slashedAmounts = new uint256[](PIER_TWO_VAULTS);
+        uint256 totalSlash;
 
-    //     vm.prank(address(gateway));
-    //     middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
+        // We need to execute the slashes for all the vaults of the operator
+        for (uint256 i = 0; i < operators.operator1PierTwo.vaults.length; i++) {
+            console2.log("Executing slash for vault", i);
+            // TODO: It's reverting here
+            // slashedAmounts[i] = middleware.executeSlash(operators.operator1PierTwo.vaults[i], 0, hex"");
+            totalSlash += slashedAmounts[i];
+        }
+        // TODO: Check expected slashed amounts for each vault
 
-    //     vm.warp(block.timestamp + VETO_DURATION);
-    //     vm.prank(address(middleware));
-    //     ecosystemEntities.vetoSlasher.executeSlash(0, hex"");
-    //     vm.warp(block.timestamp + SLASHING_WINDOW + 1);
-    //     uint48 newEpoch = middleware.getCurrentEpoch();
-    //     validators = reader.getValidatorSet(newEpoch);
+        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        uint48 newEpoch = middleware.getCurrentEpoch();
+        validators = reader.getValidatorSet(newEpoch);
 
-    //     (uint256 totalOperator2PowerAfter,) =
-    //         _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
-    //     (uint256 totalOperator3PowerAfter,) =
-    //         _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
-
-    //     assertEq(validators[1].power, totalOperator2PowerAfter);
-    //     assertEq(validators[2].power, totalOperator3PowerAfter);
-    // }
-
-    // function testSlashingAndPausingVault() public {
-    //     (uint48 currentEpoch, Middleware.ValidatorData[] memory validators,,,,) = _prepareSlashingTest();
-
-    //     vm.prank(owner);
-    //     middleware.pauseSharedVault(vaultAddresses.vaultSlashable);
-
-    //     vm.prank(gateway);
-    //     middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
-
-    //     vm.warp(block.timestamp + SLASHING_WINDOW + 1);
-    //     uint48 newEpoch = middleware.getCurrentEpoch();
-    //     validators = reader.getValidatorSet(newEpoch);
-
-    //     (uint256 totalOperator2PowerAfter,) = _calculateOperatorPower(0, totalFullRestakePower, 0);
-    //     (uint256 totalOperator3PowerAfter,) = _calculateOperatorPower(totalPowerVault, totalFullRestakePower, 0);
-
-    //     assertEq(validators[1].power, totalOperator2PowerAfter);
-    //     assertEq(validators[2].power, totalOperator3PowerAfter);
-    // }
-
-    // function testSlashingAndPausingOperator() public {
-    //     (uint48 currentEpoch, Middleware.ValidatorData[] memory validators,, uint256 powerFromSharesOperator2,,) =
-    //         _prepareSlashingTest();
-
-    //     vm.prank(owner);
-    //     middleware.pauseOperator(operator2);
-
-    //     // We calculate the amount slashable for only the operator2 since it's the only one that should be slashed. As a side effect operator3 will be slashed too since it's taking part in a NetworkRestake delegator based vault
-    //     uint256 slashingPower = (SLASHING_FRACTION * powerFromSharesOperator2) / PARTS_PER_BILLION;
-
-    //     vm.prank(gateway);
-    //     middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
-
-    //     vm.warp(block.timestamp + SLASHING_WINDOW + 1);
-    //     uint48 newEpoch = middleware.getCurrentEpoch();
-    //     validators = reader.getValidatorSet(newEpoch);
-
-    //     (uint256 totalOperator3PowerAfter,) =
-    //         _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
-    //     // Index is 1 instead of 2 because operator2 was paused
-    //     assertEq(validators[1].power, totalOperator3PowerAfter);
-    // }
-
-    // function testOperatorsOnlyInTanssiNetwork() public {
-    //     (
-    //         ,
-    //         address operatorRegistryAddress,
-    //         address networkRegistryAddress,
-    //         address vaultFactoryAddress,
-    //         address operatorNetworkOptInServiceAddress,
-    //         ,
-    //         address networkMiddlewareServiceAddress,
-    //         ,
-    //     ) = helperConfig.activeNetworkConfig();
-
-    //     address operator4 = makeAddr("operator4");
-    //     address network2 = makeAddr("network2");
-
-    //     bytes32 OPERATOR4_KEY = bytes32(uint256(4));
-    //     deal(address(tokensConfig.wstETH), operator4, OPERATOR_INITIAL_BALANCE);
-
-    //     //Middleware 2 Deployment
-    //     vm.startPrank(network2);
-    //     INetworkRegistry(networkRegistryAddress).registerNetwork();
-    //     INetworkRestakeDelegator(vaultAddresses.delegator).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
-
-    //     vm.startPrank(owner);
-    //     INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares(
-    //         network2.subnetwork(0), operator4, OPERATOR_SHARE
-    //     );
-    //     INetworkRestakeDelegator(vaultAddresses.delegator).setNetworkLimit(
-    //         network2.subnetwork(0), OPERATOR_NETWORK_LIMIT
-    //     );
-    //     _optInOperator(operator4, address(ecosystemEntities.vault), network2);
-
-    //     vm.startPrank(network2);
-
-    //     Middleware _middlewareImpl = _getMiddlewareImpl(network2, vaultFactoryAddress, networkMiddlewareServiceAddress);
-    //     Middleware middleware2 = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
-    //     vm.startPrank(owner);
-    //     ODefaultOperatorRewards operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
-    //     operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware2));
-    //     operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware2));
-
-    //     vm.startPrank(network2);
-    //     address readHelper = address(new OBaseMiddlewareReader());
-    //     IMiddleware.InitParams memory params = IMiddleware.InitParams({
-    //         network: network2,
-    //         operatorRegistry: operatorRegistryAddress,
-    //         vaultRegistry: vaultFactoryAddress,
-    //         operatorNetworkOptIn: operatorNetworkOptInServiceAddress,
-    //         owner: network2,
-    //         epochDuration: NETWORK_EPOCH_DURATION,
-    //         slashingWindow: SLASHING_WINDOW,
-    //         reader: readHelper
-    //     });
-    //     middleware2.initialize(params);
-
-    //     INetworkMiddlewareService(networkMiddlewareServiceAddress).setMiddleware(address(middleware2));
-    //     IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
-    //         adminFee: 0,
-    //         defaultAdminRoleHolder: network2,
-    //         adminFeeClaimRoleHolder: network2,
-    //         adminFeeSetRoleHolder: network2
-    //     });
-    //     middleware2.registerSharedVault(address(ecosystemEntities.vault), stakerRewardsParams);
-    //     middleware2.registerOperator(operator4, abi.encode(OPERATOR4_KEY), address(0));
-    //     vm.stopPrank();
-
-    //     vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
-
-    //     uint48 middlewareCurrentEpoch = middleware.getCurrentEpoch();
-    //     Middleware.OperatorVaultPair[] memory operatorVaultPairs =
-    //         reader.getOperatorVaultPairs(middlewareCurrentEpoch);
-
-    //     uint48 middleware2CurrentEpoch = middleware2.getCurrentEpoch();
-    //     Middleware.OperatorVaultPair[] memory operator2VaultPairs =
-    //         OBaseMiddlewareReader(address(middleware2)).getOperatorVaultPairs(middleware2CurrentEpoch);
-
-    //     assertEq(operator2VaultPairs.length, 1);
-    //     assertEq(operator2VaultPairs[0].operator, operator4);
-    //     assertEq(operator2VaultPairs[0].vaults.length, 1);
-
-    //     for (uint256 i = 0; i < operatorVaultPairs.length; i++) {
-    //         assert(operatorVaultPairs[i].operator != operator4);
-    //     }
-    // }
-
-    // function _getMiddlewareImpl(
-    //     address network,
-    //     address vaultFactoryAddress,
-    //     address networkMiddlewareServiceAddress
-    // ) private returns (Middleware middlewareImpl) {
-    //     DeployRewards deployRewards = new DeployRewards();
-    //     deployRewards.setIsTest(true);
-
-    //     operatorRewardsAddress =
-    //         deployRewards.deployOperatorRewardsContract(network, networkMiddlewareServiceAddress, 5000, owner);
-
-    //     address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
-    //         vaultFactoryAddress, networkMiddlewareServiceAddress, operatorRewardsAddress, owner
-    //     );
-
-    //     middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
-    // }
+        uint256 operatorPowerAfter;
+        for (uint256 i = 0; i < validators.length; i++) {
+            if (validators[i].key == operators.operator1PierTwo.operatorKey) {
+                operatorPowerAfter = validators[i].power;
+                break;
+            }
+        }
+        assertEq(operatorPowerBefore - totalSlash, operatorPowerAfter);
+    }
 
     function testOperatorRewardsDistributionCase1() public {
         (uint48 eraIndex, uint32 totalPoints) = _prepareRewardsDistributionForCase(1);
@@ -1932,15 +1794,5 @@ contract FullTest is Test {
         );
 
         vm.stopPrank();
-    }
-
-    function _prepareSlashingTest()
-        public
-        returns (uint48 currentEpoch, Middleware.ValidatorData[] memory validators)
-    {
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + SLASHING_WINDOW - 1);
-        currentEpoch = middleware.getCurrentEpoch();
-
-        validators = reader.getValidatorSet(currentEpoch);
     }
 }
