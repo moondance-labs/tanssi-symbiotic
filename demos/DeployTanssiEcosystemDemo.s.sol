@@ -150,7 +150,6 @@ contract DeployTanssiEcosystemDemo is Script {
         console2.log(" ");
 
         params.collateral = address(tokensAddresses.rETHToken);
-
         (vaultAddresses.vaultSlashable, vaultAddresses.delegatorSlashable, vaultAddresses.slasherSlashable) =
             contractScripts.deployVault.createSlashableVault(params);
         console2.log("VaultSlashable Collateral: ", IVault(vaultAddresses.vaultSlashable).collateral());
@@ -160,15 +159,7 @@ contract DeployTanssiEcosystemDemo is Script {
         console2.log(" ");
 
         params.delegatorIndex = VaultManager.DelegatorType.FULL_RESTAKE;
-        params.delegatorIndex = VaultManager.DelegatorType.FULL_RESTAKE;
-        if (block.chainid == 31_337) {
-            params.delegatorIndex = VaultManager.DelegatorType.FULL_RESTAKE;
-            if (block.chainid == 31_337) {
-                params.collateral = address(tokensAddresses.wBTCToken);
-                params.collateral = address(tokensAddresses.wBTCToken);
-            }
-            params.collateral = address(tokensAddresses.wBTCToken);
-        }
+        params.collateral = address(tokensAddresses.wBTCToken);
         (vaultAddresses.vaultVetoed, vaultAddresses.delegatorVetoed, vaultAddresses.slasherVetoed) =
             contractScripts.deployVault.createVaultVetoed(params, 1 days);
         console2.log("VaultVetoed Collateral: ", IVault(vaultAddresses.vaultVetoed).collateral());
