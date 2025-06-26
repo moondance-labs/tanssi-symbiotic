@@ -114,7 +114,7 @@ contract DeployTanssiEcosystemDemo is Script {
         address slasherVetoed;
     }
 
-    function deployTokens() public {
+    function _deployTokens() private {
         address stETH = contractScripts.deployCollateral.deployCollateralBroadcast("stETH");
         console2.log(" ");
         address rETH = contractScripts.deployCollateral.deployCollateralBroadcast("rETH");
@@ -127,7 +127,7 @@ contract DeployTanssiEcosystemDemo is Script {
         tokensAddresses.wBTCToken = Token(wBTC);
     }
 
-    function deployVaults() public returns (VaultAddresses memory) {
+    function _deployVaults() private returns (VaultAddresses memory) {
         DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
@@ -171,84 +171,32 @@ contract DeployTanssiEcosystemDemo is Script {
         return vaultAddresses;
     }
 
-    function _setDelegatorConfigs() public {
-        INetworkRestakeDelegator(vaultAddresses.delegator).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
-        INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
-
-        INetworkRestakeDelegator(vaultAddresses.delegator).setNetworkLimit(tanssi.subnetwork(0), MAX_NETWORK_LIMIT);
-        INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setNetworkLimit(
-            tanssi.subnetwork(0), MAX_NETWORK_LIMIT
-        );
-
-        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
-        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setNetworkLimit(
-            tanssi.subnetwork(0), MAX_NETWORK_LIMIT
-        );
-    }
-
-    function _registerEntitiesToMiddleware() public {
-        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
-            adminFee: 0,
-            defaultAdminRoleHolder: tanssi,
-            adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi
-        });
-        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
-        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsParams);
-        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsParams);
-        ecosystemEntities.middleware.registerOperator(operator, abi.encode(operatorKey1), address(0));
-        ecosystemEntities.middleware.registerOperator(operator2, abi.encode(operatorKey2), address(0));
-        ecosystemEntities.middleware.registerOperator(operator3, abi.encode(operatorKey3), address(0));
-    }
-
-    function _depositToVault(IVault _vault, address _operator, uint256 _amount, Token collateral) public {
-        collateral.approve(address(_vault), _amount * 10);
-        _vault.deposit(_operator, _amount);
-    }
-
-    function _deploy() private {
-        (
-            address vaultConfiguratorAddress,
-            address operatorRegistryAddress,
-            address networkRegistryAddress,
-            address vaultRegistryAddress,
-            address operatorNetworkOptInServiceAddress,
-            address operatorVaultOptInServiceAddress,
-            address networkMiddlewareServiceAddress,
-            ,
-        ) = contractScripts.helperConfig.activeNetworkConfig();
-
-        ecosystemEntities.vaultConfigurator = IVaultConfigurator(vaultConfiguratorAddress);
-        INetworkRegistry networkRegistry = INetworkRegistry(networkRegistryAddress);
-        IOperatorRegistry operatorRegistry = IOperatorRegistry(operatorRegistryAddress);
-        INetworkMiddlewareService networkMiddlewareService = INetworkMiddlewareService(networkMiddlewareServiceAddress);
-        IOptInService operatorNetworkOptInService = IOptInService(operatorNetworkOptInServiceAddress);
-        IOptInService operatorVaultOptInService = IOptInService(operatorVaultOptInServiceAddress);
-        MockV3Aggregator collateralOracle = new MockV3Aggregator(ORACLE_DECIMALS, ORACLE_CONVERSION_TOKEN);
-
-        deployTokens();
-
+    function _mintAndDistributeTokens() private {
         vm.startBroadcast(ownerPrivateKey);
         (bool success,) = payable(operator).call{value: 100 ether}("");
         (bool success2,) = payable(operator2).call{value: 100 ether}("");
         (bool success3,) = payable(operator3).call{value: 100 ether}("");
 
-        tokensAddresses.stETHToken.mint(tanssi, 10_000 ether);
-        tokensAddresses.rETHToken.mint(tanssi, 10_000 ether);
-        tokensAddresses.wBTCToken.mint(tanssi, 10_000 ether);
-        tokensAddresses.stETHToken.transfer(operator, 1000 ether);
-        tokensAddresses.stETHToken.transfer(operator2, 1000 ether);
-        tokensAddresses.stETHToken.transfer(operator3, 1000 ether);
+        tokensAddresses.stETHToken.mint(tanssi, 500 ether);
+        tokensAddresses.rETHToken.mint(tanssi, 500 ether);
+        tokensAddresses.wBTCToken.mint(tanssi, 500 ether);
+        tokensAddresses.stETHToken.transfer(operator, 100 ether);
+        tokensAddresses.stETHToken.transfer(operator2, 100 ether);
+        tokensAddresses.stETHToken.transfer(operator3, 100 ether);
 
-        tokensAddresses.rETHToken.transfer(operator, 1000 ether);
-        tokensAddresses.rETHToken.transfer(operator2, 1000 ether);
-        tokensAddresses.rETHToken.transfer(operator3, 1000 ether);
+        tokensAddresses.rETHToken.transfer(operator, 100 ether);
+        tokensAddresses.rETHToken.transfer(operator2, 100 ether);
+        tokensAddresses.rETHToken.transfer(operator3, 100 ether);
 
-        tokensAddresses.wBTCToken.transfer(operator3, 1000 ether);
+        tokensAddresses.wBTCToken.transfer(operator3, 100 ether);
         vm.stopBroadcast();
+    }
 
-        deployVaults();
-
+    function _optInOperators(
+        IOperatorRegistry operatorRegistry,
+        IOptInService operatorNetworkOptInService,
+        IOptInService operatorVaultOptInService
+    ) private {
         IVault _vault = IVault(vaultAddresses.vault);
         IVault _vaultSlashable = IVault(vaultAddresses.vaultSlashable);
 
@@ -277,6 +225,101 @@ contract DeployTanssiEcosystemDemo is Script {
         operatorVaultOptInService.optIn(vaultAddresses.vaultSlashable);
         _depositToVault(_vaultSlashable, operator3, 100 ether, tokensAddresses.rETHToken);
         vm.stopBroadcast();
+    }
+
+    function _deployMiddleware(
+        address operatorRegistryAddress,
+        address vaultRegistryAddress,
+        address operatorNetworkOptInServiceAddress,
+        ODefaultOperatorRewards operatorRewards,
+        address stakerRewardsFactoryAddress
+    ) private returns (Middleware middlewareProxy) {
+        address reader = address(new OBaseMiddlewareReader());
+        IMiddleware.InitParams memory params = IMiddleware.InitParams({
+            network: tanssi,
+            operatorRegistry: operatorRegistryAddress,
+            vaultRegistry: vaultRegistryAddress,
+            operatorNetworkOptIn: operatorNetworkOptInServiceAddress,
+            owner: tanssi,
+            epochDuration: NETWORK_EPOCH_DURATION,
+            slashingWindow: SLASHING_WINDOW,
+            reader: reader
+        });
+
+        Middleware _middlewareImpl = new Middleware(address(operatorRewards), stakerRewardsFactoryAddress);
+        middlewareProxy = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
+        middlewareProxy.initialize(params);
+
+        operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middlewareProxy));
+        operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middlewareProxy));
+    }
+
+    function _setDelegatorConfigs() private {
+        INetworkRestakeDelegator(vaultAddresses.delegator).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
+        INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
+
+        INetworkRestakeDelegator(vaultAddresses.delegator).setNetworkLimit(tanssi.subnetwork(0), MAX_NETWORK_LIMIT);
+        INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setNetworkLimit(
+            tanssi.subnetwork(0), MAX_NETWORK_LIMIT
+        );
+
+        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
+        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setNetworkLimit(
+            tanssi.subnetwork(0), MAX_NETWORK_LIMIT
+        );
+    }
+
+    function _registerEntitiesToMiddleware() private {
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            adminFee: 0,
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: tanssi,
+            adminFeeSetRoleHolder: tanssi
+        });
+        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
+        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsParams);
+        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsParams);
+        ecosystemEntities.middleware.registerOperator(operator, abi.encode(operatorKey1), address(0));
+        ecosystemEntities.middleware.registerOperator(operator2, abi.encode(operatorKey2), address(0));
+        ecosystemEntities.middleware.registerOperator(operator3, abi.encode(operatorKey3), address(0));
+    }
+
+    function _depositToVault(IVault _vault, address _operator, uint256 _amount, Token collateral) private {
+        collateral.approve(address(_vault), _amount * 10);
+        _vault.deposit(_operator, _amount);
+    }
+
+    function _deploy() private {
+        (
+            address vaultConfiguratorAddress,
+            address operatorRegistryAddress,
+            address networkRegistryAddress,
+            address vaultRegistryAddress,
+            address operatorNetworkOptInServiceAddress,
+            address operatorVaultOptInServiceAddress,
+            address networkMiddlewareServiceAddress,
+            ,
+        ) = contractScripts.helperConfig.activeNetworkConfig();
+        console2.log("OwnerPrivateKey: ", ownerPrivateKey);
+        console2.log("tanssi: ", tanssi);
+        console2.log("balance of tanssi: ", tanssi.balance);
+
+        ecosystemEntities.vaultConfigurator = IVaultConfigurator(vaultConfiguratorAddress);
+        INetworkRegistry networkRegistry = INetworkRegistry(networkRegistryAddress);
+        IOperatorRegistry operatorRegistry = IOperatorRegistry(operatorRegistryAddress);
+        INetworkMiddlewareService networkMiddlewareService = INetworkMiddlewareService(networkMiddlewareServiceAddress);
+        IOptInService operatorNetworkOptInService = IOptInService(operatorNetworkOptInServiceAddress);
+        IOptInService operatorVaultOptInService = IOptInService(operatorVaultOptInServiceAddress);
+        MockV3Aggregator collateralOracle = new MockV3Aggregator(ORACLE_DECIMALS, ORACLE_CONVERSION_TOKEN);
+
+        vm.startBroadcast(ownerPrivateKey);
+        networkRegistry.registerNetwork();
+        vm.stopBroadcast();
+
+        _deployTokens();
+        _mintAndDistributeTokens();
+        _deployVaults();
+        _optInOperators(operatorRegistry, operatorNetworkOptInService, operatorVaultOptInService);
 
         address operatorRewardsAddress = contractScripts.deployRewards.deployOperatorRewardsContract(
             tanssi, networkMiddlewareServiceAddress, 2000, tanssi
@@ -289,39 +332,25 @@ contract DeployTanssiEcosystemDemo is Script {
 
         vm.startBroadcast(ownerPrivateKey);
 
-        IMiddleware.InitParams memory params = IMiddleware.InitParams({
-            network: tanssi,
-            operatorRegistry: operatorRegistryAddress,
-            vaultRegistry: vaultRegistryAddress,
-            operatorNetworkOptIn: operatorNetworkOptInServiceAddress,
-            owner: tanssi,
-            epochDuration: NETWORK_EPOCH_DURATION,
-            slashingWindow: SLASHING_WINDOW,
-            reader: address(new OBaseMiddlewareReader())
-        });
-
-        Middleware _middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
-        ecosystemEntities.middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
-        ecosystemEntities.middleware.initialize(params);
-
-        operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(ecosystemEntities.middleware));
-        operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(ecosystemEntities.middleware));
+        ecosystemEntities.middleware = _deployMiddleware(
+            operatorRegistryAddress,
+            vaultRegistryAddress,
+            operatorNetworkOptInServiceAddress,
+            operatorRewards,
+            stakerRewardsFactoryAddress
+        );
 
         // Operator 1 goes to first vault
-        INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares{gas: 10_000_000}(
-            tanssi.subnetwork(0), operator, 1
-        );
+        INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares(tanssi.subnetwork(0), operator, 1);
 
         // Operator 2 goes to the first and second vault
-        INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares{gas: 10_000_000}(
-            tanssi.subnetwork(0), operator2, 1
-        );
-        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setOperatorNetworkShares{gas: 10_000_000}(
+        INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares(tanssi.subnetwork(0), operator2, 1);
+        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setOperatorNetworkShares(
             tanssi.subnetwork(0), operator2, 1
         );
 
         // Operator 3 goes to the second vault
-        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setOperatorNetworkShares{gas: 10_000_000}(
+        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setOperatorNetworkShares(
             tanssi.subnetwork(0), operator3, 1
         );
 
@@ -358,5 +387,16 @@ contract DeployTanssiEcosystemDemo is Script {
         contractScripts.deployRewards.setIsTest(false);
 
         _deploy();
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION * 7 + 1);
+        uint48 currentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
+        console2.log("Current epoch: ", currentEpoch);
+
+        bytes32[] memory sortedKeys =
+            OBaseMiddlewareReader(address(ecosystemEntities.middleware)).sortOperatorsByPower(currentEpoch);
+        console2.log("Sorted keys: ", sortedKeys.length);
+        for (uint256 i = 0; i < sortedKeys.length; i++) {
+            console2.logBytes32(sortedKeys[i]);
+        }
     }
 }
