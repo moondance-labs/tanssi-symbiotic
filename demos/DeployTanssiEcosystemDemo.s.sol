@@ -312,10 +312,6 @@ contract DeployTanssiEcosystemDemo is Script {
         IOptInService operatorVaultOptInService = IOptInService(operatorVaultOptInServiceAddress);
         MockV3Aggregator collateralOracle = new MockV3Aggregator(ORACLE_DECIMALS, ORACLE_CONVERSION_TOKEN);
 
-        vm.startBroadcast(ownerPrivateKey);
-        networkRegistry.registerNetwork();
-        vm.stopBroadcast();
-
         _deployTokens();
         _mintAndDistributeTokens();
         _deployVaults();
