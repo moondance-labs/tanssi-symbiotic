@@ -76,7 +76,7 @@ import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperato
 import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 
-contract MiddlewareTest is Test {
+contract FullTest is Test {
     using Subnetwork for address;
     using Subnetwork for bytes32;
     using Math for uint256;
@@ -1179,6 +1179,38 @@ contract MiddlewareTest is Test {
         uint256 amountToDistribute = 100 ether;
         uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
 
+        uint256 expectedRewardsForStakers =
+            _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR7_KEY, operator7, 7, true);
+
+        // Operator 7 is only active on vault 5, so all the stakers rewards go to this vault
+        address stakerRewardsContractVault5 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v5.vault));
+        uint256 expectedRewardsStakerVault5 = expectedRewardsForStakers;
+
+        assertEq(STAR.balanceOf(stakerRewardsContractVault5), expectedRewardsStakerVault5);
+
+        // Vault 5
+        {
+            uint256 adminFeeStakerRewardsVault5 = expectedRewardsStakerVault5.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
+            expectedRewardsStakerVault5 -= adminFeeStakerRewardsVault5;
+
+            // Operator 7 in Vault 5
+            uint256 expectedRewards = expectedRewardsStakerVault5;
+            _checkClaimableRewards(stakerRewardsContractVault5, epoch, operator7, expectedRewards);
+        }
+    }
+
+    function testRewardsAreDistributedCorrectlyForOperator7AfterUnregistering() public {
+        uint48 eraIndex = 1;
+        uint256 amountToDistribute = 100 ether;
+        uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
+
+        // Pause and unregister
+        vm.startPrank(owner);
+        middleware.pauseOperator(operator7);
+        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        middleware.unregisterOperator(operator7);
+
+        // Try to claim afterwards
         uint256 expectedRewardsForStakers =
             _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR7_KEY, operator7, 7, true);
 

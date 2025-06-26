@@ -43,7 +43,9 @@ testv :; forge test -vvvv
 
 coverage :; forge coverage --nmp "test/fork/*"
 
-coverage-fork :; forge coverage --mp "test/fork/*" --fork-url ${FORK_RPC_URL}
+coverage-fork-testnet :; forge coverage --mp "test/fork/*" --nmp "test/fork/mainnet/Full.t.sol" --fork-url ${SEPOLIA_RPC_URL} -vvv
+
+coverage-fork-mainnet :; forge coverage --mp "test/fork/mainnet/Full.t.sol" --fork-url ${ETH_RPC_URL} -vvv
 
 dcoverage :; forge coverage --nmp "test/fork/*" --report debug > coverage.txt
 

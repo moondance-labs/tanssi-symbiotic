@@ -35,15 +35,8 @@ contract DeployProductionTest is Test {
         (address middlewareAddress, address operatorRewardsAddress, address stakerRewardsFactoryAddress) =
             deployProduction.deploy();
 
-        string memory root = vm.projectRoot();
-        string memory path = string.concat(root, "/script/chain_data.json");
-        string memory json = vm.readFile(path);
-        uint256 chainId = block.chainid;
-        string memory jsonPath = string.concat("$.", vm.toString(chainId));
-        address admin = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".admin")), (address));
-        address tanssi = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".tanssi")), (address));
-        address gateway = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".gateway")), (address));
-        address forwarder = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".forwarder")), (address));
+        HelperConfig helperConfig = new HelperConfig();
+        (address admin, address tanssi, address gateway, address forwarder,,,) = helperConfig.activeEntities();
         DeployProduction.Entities memory entities =
             DeployProduction.Entities({admin: admin, tanssi: tanssi, gateway: gateway, forwarder: forwarder});
 
@@ -72,6 +65,54 @@ contract DeployProductionTest is Test {
         _checkAddressesAndRoles(
             middlewareAddress, operatorRewardsAddress, stakerRewardsFactoryAddress, entities, initialAdmin
         );
+    }
+
+    function testCanReadChainConfigInMainnet() public {
+        vm.chainId(1);
+        HelperConfig helperConfig = new HelperConfig();
+        (
+            HelperConfig.Entities memory entities,
+            HelperConfig.NetworkConfig memory networkConfig,
+            HelperConfig.TokensConfig memory tokensConfig,
+            HelperConfig.VaultsConfigA memory vaultsConfigA,
+            HelperConfig.VaultsConfigB memory vaultsConfigB,
+            HelperConfig.OperatorConfig memory operators
+        ) = helperConfig.getChainConfig();
+
+        assertNotEq(entities.middleware, address(0));
+        assertNotEq(entities.admin, address(0));
+        assertNotEq(entities.tanssi, address(0));
+        assertNotEq(entities.gateway, address(0));
+        // assertNotEq(entities.forwarder, address(0));
+        assertNotEq(entities.operatorRewards, address(0));
+        assertNotEq(entities.rewardsToken, address(0));
+
+        assertNotEq(networkConfig.vaultConfigurator, address(0));
+        assertNotEq(networkConfig.operatorRegistry, address(0));
+        assertNotEq(networkConfig.networkRegistry, address(0));
+        assertNotEq(networkConfig.vaultRegistry, address(0));
+        assertNotEq(networkConfig.operatorNetworkOptIn, address(0));
+        assertNotEq(networkConfig.operatorVaultOptInService, address(0));
+        assertNotEq(networkConfig.networkMiddlewareService, address(0));
+
+        assertNotEq(tokensConfig.wstETH, address(0));
+        assertNotEq(tokensConfig.rETH, address(0));
+        assertNotEq(tokensConfig.swETH, address(0));
+        assertNotEq(tokensConfig.wBETH, address(0));
+        assertNotEq(tokensConfig.LsETH, address(0));
+        assertNotEq(tokensConfig.cbETH, address(0));
+
+        assertNotEq(vaultsConfigA.opslayer.vault, address(0));
+        assertNotEq(vaultsConfigA.opslayer.delegator, address(0));
+        assertNotEq(vaultsConfigA.opslayer.slasher, address(0));
+
+        assertNotEq(vaultsConfigB.gauntletRestakedWstETH.vault, address(0));
+        assertNotEq(vaultsConfigB.gauntletRestakedWstETH.delegator, address(0));
+        assertNotEq(vaultsConfigB.gauntletRestakedWstETH.slasher, address(0));
+
+        assertNotEq(operators.operator11Opslayer.name, "");
+        assertNotEq(operators.operator11Opslayer.evmAddress, address(0));
+        assertNotEq(operators.operator11Opslayer.operatorKey, bytes32(0));
     }
 
     function _checkAddressesAndRoles(
