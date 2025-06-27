@@ -86,7 +86,7 @@ contract FullTest is Test {
     uint256 public constant DEFAULT_WITHDRAW_AMOUNT = 30 ether;
     uint256 public constant OPERATOR_INITIAL_BALANCE = 1000 ether;
     uint256 public constant MIN_SLASHING_WINDOW = 1 days;
-    uint256 public constant MIN_DEPOSIT = 100 ether; // 10 ETH
+    uint256 public constant MIN_DEPOSIT = 10 ether; // 10 ETH
     uint256 public constant TOKEN_REWARDS_PER_ERA_INDEX = 10_000 * 10 ** 12; // Tanssi has 12 decimals.
 
     uint256 public constant OPERATOR_SHARE = 2000; // 20%
@@ -139,6 +139,8 @@ contract FullTest is Test {
     address public constant VAULT_MANAGER_ETHERFIWSTETH = 0x47482dA197719f2CE0BAeBB7F72D1d7C1D6cc8bD;
     address public constant VAULT_MANAGER_RESTAKEDLSETHVAULT = 0x8989e3f949df80e8eFcbf3372F082699b93E5C09;
     address public constant VAULT_MANAGER_OPSLAYER = 0xf409021Fa7E769837162346CFA8d1eF4DAa77585;
+
+    bytes32 public constant DEPOSIT_WHITELIST_SET_ROLE = keccak256("DEPOSIT_WHITELIST_SET_ROLE");
 
     address public resolver1 = makeAddr("resolver1");
     address public resolver2 = makeAddr("resolver2");
@@ -648,14 +650,12 @@ contract FullTest is Test {
         IOptInService operatorNetworkOptInService = IOptInService(operatorNetworkOptInServiceAddress);
 
         {
-            bytes32 depositorWhitelistRole = 0x9c56d972d63cbb4195b3c1484691dfc220fa96a4c47e7b6613bd82a022029e06;
-
             if (vaultManager != address(0)) {
                 vm.startPrank(vaultManager);
                 IVault(vaultData.vault).setDepositorWhitelistStatus(operator, true);
             }
             // This is the vault manager for several vaults.
-            else if (IAccessControl(vaultData.vault).hasRole(depositorWhitelistRole, VAULT_MANAGER_COMMON)) {
+            else if (IAccessControl(vaultData.vault).hasRole(DEPOSIT_WHITELIST_SET_ROLE, vaultManager)) {
                 // console2.log("Setting depositor whitelist status for", _operator, vaultData.vault);
                 vm.startPrank(VAULT_MANAGER_COMMON);
                 IVault(vaultData.vault).setDepositorWhitelistStatus(operator, true);
@@ -676,13 +676,13 @@ contract FullTest is Test {
         uint256 operatorStake = IBaseDelegator(vaultData.delegator).stakeAt(
             tanssi.subnetwork(0), operator, uint48(block.timestamp), new bytes(0)
         );
-        // TODO: How can you have stake and no shares/balance?
-        // uint256 activeSharesOf = IVault(vaultData.vault).activeSharesOf(operator);
+        IVault vault = IVault(vaultData.vault);
         if (operatorStake == 0) {
-            // if (operatorStake == 0 || activeSharesOf == 0) {
-            IVault vault = IVault(vaultData.vault);
             console2.log("Operator", operator, "has no stake into vault", vaultData.vault);
-            _depositToVault(vault, operator, MIN_DEPOSIT, IERC20(vault.collateral()));
+        }
+        uint256 activeBalanceOf = vault.activeBalanceOf(operator);
+        if (activeBalanceOf == 0) {
+            console2.log("Operator", operator, "has no desposit into vault", vaultData.vault);
         }
 
         if (!operatorNetworkOptInService.isOptedIn(operator, network)) {
@@ -1186,61 +1186,67 @@ contract FullTest is Test {
     }
 
     function testWithdrawCase1() public {
-        // TODO: unskip, currently all operators get zero shares/balance even tho they have stake, so withdrawing fails.
-        vm.skip(true);
-        // operator1PierTwo is in 9 out of 15 vaults
+        HelperConfig.OperatorData memory operator = operators.operator1PierTwo;
 
-        HelperConfig.VaultData[] memory vaults = new HelperConfig.VaultData[](9);
-        vaults[0] = vaultsAddressesDeployedA.etherfiwstETH;
-        vaults[1] = vaultsAddressesDeployedB.gauntletRestakedcBETH;
-        vaults[2] = vaultsAddressesDeployedB.gauntletRestakedRETH;
-        vaults[3] = vaultsAddressesDeployedB.gauntletRestakedSwETH;
-        vaults[4] = vaultsAddressesDeployedB.gauntletRestakedWBETH;
-        vaults[5] = vaultsAddressesDeployedB.gauntletRestakedWstETH;
-        vaults[6] = vaultsAddressesDeployedA.mevRestakedETH;
-        vaults[7] = vaultsAddressesDeployedA.renzoRestakedETH;
-        vaults[8] = vaultsAddressesDeployedA.restakedLsETHVault;
-
-        for (uint256 i = 0; i < vaults.length; i++) {
-            console2.log("Testing vault", i);
-            _testWithdrawFromVaultByOperator(vaults[i], operators.operator1PierTwo);
-        }
+        _testWithdrawFromVaultByOperator(vaultsAddressesDeployedA.etherfiwstETH, operator, VAULT_MANAGER_ETHERFIWSTETH);
+        _testWithdrawFromVaultByOperator(
+            vaultsAddressesDeployedB.gauntletRestakedcBETH, operator, VAULT_MANAGER_GAUNTLET
+        );
+        _testWithdrawFromVaultByOperator(
+            vaultsAddressesDeployedB.gauntletRestakedRETH, operator, VAULT_MANAGER_GAUNTLET
+        );
+        _testWithdrawFromVaultByOperator(
+            vaultsAddressesDeployedB.gauntletRestakedSwETH, operator, VAULT_MANAGER_GAUNTLET
+        );
+        _testWithdrawFromVaultByOperator(
+            vaultsAddressesDeployedB.gauntletRestakedWBETH, operator, VAULT_MANAGER_GAUNTLET
+        );
+        _testWithdrawFromVaultByOperator(
+            vaultsAddressesDeployedB.gauntletRestakedWstETH, operator, VAULT_MANAGER_GAUNTLET
+        );
+        _testWithdrawFromVaultByOperator(
+            vaultsAddressesDeployedA.mevRestakedETH, operator, VAULT_MANAGER_MEVRESTAKEDETH
+        );
+        _testWithdrawFromVaultByOperator(
+            vaultsAddressesDeployedA.renzoRestakedETH, operator, VAULT_MANAGER_RENZORESTAKEDETH
+        );
+        _testWithdrawFromVaultByOperator(
+            vaultsAddressesDeployedA.restakedLsETHVault, operator, VAULT_MANAGER_RESTAKEDLSETHVAULT
+        );
     }
 
     function _testWithdrawFromVaultByOperator(
         HelperConfig.VaultData memory vaultData,
-        HelperConfig.OperatorData memory operator
+        HelperConfig.OperatorData memory operator,
+        address vaultManager
     ) private {
         IVault vault = IVault(vaultData.vault);
         // Get current vault epoch and epoch duration
-        uint256 initialEpoch = vault.currentEpoch();
         uint256 epochDuration = vault.epochDuration();
         address operatorAddress = operator.evmAddress;
-
-        // Get operator stake at current epoch
-        uint256 operatorStake = IBaseDelegator(vaultData.delegator).stakeAt(
-            tanssi.subnetwork(0), operatorAddress, uint48(block.timestamp), new bytes(0)
-        );
-        console2.log("epochDuration", epochDuration);
-        console2.log("operatorStake", operatorStake);
-
-        // Withdraw amount = 10% of stake
-        uint256 withdrawAmount = operatorStake / 10;
-        console2.log("withdrawAmount", withdrawAmount);
-
-        uint256 activeShares = vault.activeShares();
-        uint256 activeStake = vault.activeStake();
-        uint256 activeSharesOf = vault.activeSharesOf(operatorAddress);
         uint256 activeBalanceOf = vault.activeBalanceOf(operatorAddress);
-        console2.log("activeShares", activeShares);
-        console2.log("activeStake", activeStake);
-        console2.log("activeSharesOf", activeSharesOf);
-        console2.log("activeBalanceOf", activeBalanceOf);
 
-        if (activeSharesOf == 0) {
-            console2.log("No shares for operator", operatorAddress);
-            return;
+        if (activeBalanceOf == 0) {
+            if (!vault.isDepositorWhitelisted(operatorAddress)) {
+                if (IAccessControl(address(vault)).hasRole(DEPOSIT_WHITELIST_SET_ROLE, vaultManager)) {
+                    vm.startPrank(vaultManager);
+                    vault.setDepositorWhitelistStatus(operatorAddress, true);
+                } else {
+                    // TODO: For some vaults we do not have the account which can set it, so they are skipped for now
+                    console2.log("Operator is not whitelisted and cannot whitelist depositor for vault", vaultData.name);
+                    return;
+                }
+            }
+
+            vm.startPrank(operatorAddress);
+            _depositToVault(vault, operatorAddress, MIN_DEPOSIT, IERC20(vault.collateral()));
         }
+
+        vm.warp(block.timestamp + 7 days + 1);
+        uint256 initialEpoch = vault.currentEpoch();
+
+        activeBalanceOf = vault.activeBalanceOf(operatorAddress);
+        uint256 withdrawAmount = activeBalanceOf / 10; // Withdraw amount = 10% of balance
 
         // Get current operator balance of the vault collateral
         IERC20 collateral = IERC20(vault.collateral());
