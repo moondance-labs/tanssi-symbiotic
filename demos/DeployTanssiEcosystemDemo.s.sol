@@ -383,16 +383,5 @@ contract DeployTanssiEcosystemDemo is Script {
         contractScripts.deployRewards.setIsTest(false);
 
         _deploy();
-
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION * 7 + 1);
-        uint48 currentEpoch = ecosystemEntities.middleware.getCurrentEpoch();
-        console2.log("Current epoch: ", currentEpoch);
-
-        bytes32[] memory sortedKeys =
-            OBaseMiddlewareReader(address(ecosystemEntities.middleware)).sortOperatorsByPower(currentEpoch);
-        console2.log("Sorted keys: ", sortedKeys.length);
-        for (uint256 i = 0; i < sortedKeys.length; i++) {
-            console2.logBytes32(sortedKeys[i]);
-        }
     }
 }

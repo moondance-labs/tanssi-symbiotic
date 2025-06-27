@@ -46,6 +46,7 @@ import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
 import {DeployVault} from "script/DeployVault.s.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
+import {DeployTanssiEcosystemDemo} from "demos/DeployTanssiEcosystemDemo.s.sol";
 
 contract DeployTest is Test {
     using Subnetwork for address;
@@ -314,6 +315,19 @@ contract DeployTest is Test {
             addresses.vaultFactory, addresses.networkMiddlewareService, operatorRewards, tanssi
         );
         assertNotEq(stakerFactory, ZERO_ADDRESS);
+    }
+
+    function testDemo() public {
+        DeployTanssiEcosystemDemo deployTanssiEcosystemDemo = new DeployTanssiEcosystemDemo();
+        deployTanssiEcosystemDemo.run();
+
+        vm.warp(block.timestamp + deployTanssiEcosystemDemo.NETWORK_EPOCH_DURATION() * 5 + 1);
+        (Middleware middleware,) = deployTanssiEcosystemDemo.ecosystemEntities();
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        assertEq(currentEpoch, 5);
+
+        bytes32[] memory sortedKeys = OBaseMiddlewareReader(address(middleware)).sortOperatorsByPower(currentEpoch);
+        assertEq(sortedKeys.length, 3);
     }
 
     //**************************************************************************************************
