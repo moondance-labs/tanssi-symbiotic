@@ -1185,7 +1185,7 @@ contract FullTest is Test {
         assertEq(validators[2].key, validatorsPreviousEpoch[2].key);
     }
 
-    function testWithdrawCase1() public {
+    function testWithdrawForEachVault() public {
         HelperConfig.OperatorData memory operator = operators.operator1PierTwo;
 
         _testWithdrawFromVaultByOperator(vaultsAddressesDeployedA.etherfiwstETH, operator, VAULT_MANAGER_ETHERFIWSTETH);
@@ -1212,6 +1212,22 @@ contract FullTest is Test {
         );
         _testWithdrawFromVaultByOperator(
             vaultsAddressesDeployedA.restakedLsETHVault, operator, VAULT_MANAGER_RESTAKEDLSETHVAULT
+        );
+
+        _testWithdrawFromVaultByOperator(
+            vaultsAddressesDeployedA.re7LabsETH, operators.operator2P2P, VAULT_MANAGER_RE7LABS
+        );
+        _testWithdrawFromVaultByOperator(
+            vaultsAddressesDeployedA.mevCapitalETH, operators.operator3Nodeinfra, VAULT_MANAGER_MEVCAPITALETH
+        );
+        _testWithdrawFromVaultByOperator(
+            vaultsAddressesDeployedA.hashKeyCloudETH, operators.operator9HashkeyCloud, VAULT_MANAGER_HASHKEYCLOUDETH
+        );
+        _testWithdrawFromVaultByOperator(
+            vaultsAddressesDeployedA.cp0xLrtETH, operators.operator8CP0XStakrspace, VAULT_MANAGER_CP0XLRTETH
+        );
+        _testWithdrawFromVaultByOperator(
+            vaultsAddressesDeployedA.opslayer, operators.operator11Opslayer, VAULT_MANAGER_OPSLAYER
         );
     }
 
