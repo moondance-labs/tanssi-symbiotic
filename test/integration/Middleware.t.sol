@@ -1366,6 +1366,37 @@ contract MiddlewareTest is Test {
         console2.log("Total gas used for sorting manually: ", gasSorted);
     }
 
+    function testUpkeepCacheIsAlwaysLessOrEqualThanActiveOperators() public {
+        uint16 count = 100;
+        _addOperatorsToNetwork(count);
+        count += 3; // 3 operators are already registered
+        vm.prank(owner);
+        middleware.setForwarder(forwarder);
+
+        address offlineKeepers = makeAddr("offlineKeepers");
+
+        vm.startPrank(offlineKeepers);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+        uint48 epoch = middleware.getCurrentEpoch();
+        uint256 activeOperatorsLength = (OBaseMiddlewareReader(address(middleware)).activeOperators()).length;
+        {
+            uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
+            for (uint256 i = 0; i < (count + max - 1) / max; i++) {
+                (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+
+                uint256 cacheIndex = middleware.getEpochCacheIndex(epoch);
+                assertGe(activeOperatorsLength, cacheIndex);
+                assertEq(upkeepNeeded, true);
+
+                vm.startPrank(forwarder);
+                middleware.performUpkeep(performData);
+            }
+        }
+    }
+
     function testWhenRegisteringVaultThenStakerRewardsAreDeployed() public {
         vm.startPrank(owner);
         uint256 totalEntities = stakerRewardsFactory.totalEntities();
