@@ -55,6 +55,7 @@ jobs:
           filters: |
             solidity:
               - '**/*.sol' # Match any file ending in .sol anywhere in the repo
+              - '!**/*.t.sol'        # Exclude all .t.sol files
 
   check:
     strategy:
