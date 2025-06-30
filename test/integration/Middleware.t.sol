@@ -576,14 +576,14 @@ contract MiddlewareTest is Test {
 
         uint256 operatorPower =
             OBaseMiddlewareReader(address(middleware)).getOperatorPowerAt(previousEpochStartTs, operator2);
-        address[] memory activeOperators =
+        address[] memory previousActiveOperators =
             OBaseMiddlewareReader(address(middleware)).activeOperatorsAt(previousEpochStartTs);
         assertGt(operatorPower, 0);
 
         // Vaults history for the operators is kept intact
         assertEq(operatorVaults.length, 3);
         // Operators history is completely erased
-        assertEq(activeOperators.length, 2);
+        assertEq(previousActiveOperators.length, 2);
 
         assertEq(validators.length, 2);
         vm.stopPrank();
