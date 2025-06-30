@@ -57,6 +57,9 @@ jobs:
               - '**/*.sol' # Match any file ending in .sol anywhere in the repo
               - '!**/*.t.sol'        # Exclude all .t.sol files
 
+      - name: Print matched files
+        run: echo "${{ steps.filter.outputs.solidity_changed }}"
+
   check:
     strategy:
       fail-fast: true
