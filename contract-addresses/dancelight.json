@@ -1,0 +1,41 @@
+{
+  "admin": "0xdad051447c4452e15b35b7f831cee8deb890f1a4",
+  "tanssi": "0xdad051447c4452e15b35b7f831cee8deb890f1a4",
+  "rewardsToken": "0x43609791bc5f1b42df1747cddabab77af65a5fe3",
+  "beefy": "0xe8dd26d2ec505ac7e51740da84ba2ce9f01a2431",
+  "forwarder": "0x0000000000000000000000000000000000000000",
+  "gateway": "0x503b4d684074888eb7fe82d4c5ab25e57de0e85c",
+  "gatewayImplementation": "0xb05b936fcbd7e2176e935cd93ea4fcc690e66ebd",
+  "middleware": "0xdf94aaf9684b676db9664a4e9790cfbbbe64ef85",
+  "middlewareImplementation": "0x114342f62b32c0df8a8027344ed5dfd6d2c489c6",
+  "middlewareReader": "0x6d885a3bb6ea5499db36f19a5c794af1da93052b",
+  "operatorRewards": "0x462af341b95212f7f5c4b51bb7941838961ab2b4",
+  "operatorRewardsImplementation": "0x9f3eab1edd0c6f3929225d17854dd311ec1a4bcd",
+  "stakerRewardsFactory": "0xf0965a585ffb0f365ade251faf153c6929920ab8",
+  "delegatorFactory": "0x890ca3f95e0f40a79885b7400926544b2214b03f",
+  "slasherFactory": "0xbf34bf75bb779c383267736c53a4ae86ac7bb299",
+  "vaultFactory": "0x407a039d94948484d356efb765b3c74382a050b4",
+  "vaultConfigurator": "0xd2191fe92987171691d552c219b8caef186eb9ca",
+  "networkRegistry": "0x7d03b7343bf8d5cec7c0c27ece084a20113d15c9",
+  "operatorRegistry": "0x6f75a4fff97326a00e52662d82ea4fde86a2c548",
+  "operatorNetworkOptInService": "0x58973d16ffa900d11fc22e5e2b6840d9f7e13401",
+  "operatorVaultOptInService": "0x95cc0a052ae33941877c9619835a233d21d57351",
+  "networkMiddlewareService": "0x62a1ddfd86b4c1636759d9286d3a0ec722d086e3",
+  "collaterals": [
+    {
+      "name": "stETH",
+      "address": "0x3e3fe7dbc6b4c189e7128855dd526361c49b40af",
+      "oracle": "0x694aa1769357215de4fac081bf1f309adc325306"
+    }
+  ],
+  "vaults": [
+    {
+      "name": "Slashable",
+      "vault": "0xb94f8852443fb4fab18363d22a45ca64a8cf4482",
+      "delegator": "0x3f2e1db3f2bb165e50f2960e728099071353ed63",
+      "slasher": "0x583f9a77af8f4d7aee735a2f7645bbd7a012af1b",
+      "stakerRewards": "0x583f9a77af8f4d7aee735a2f7645bbd7a012af1b",
+      "stakerRewardsImplementation": "0x34e4d6acc204595b7e35ad2b9dee4ab85a6a2216"
+    }
+  ]
+}

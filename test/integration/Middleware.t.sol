@@ -680,8 +680,8 @@ contract MiddlewareTest is Test {
         middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
         vm.warp(block.timestamp + VETO_DURATION);
-        vm.prank(address(middleware));
-        vetoSlasher.executeSlash(0, hex"");
+        middleware.executeSlash(address(vaultVetoed), 0, hex"");
+
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
@@ -732,8 +732,7 @@ contract MiddlewareTest is Test {
         middleware.slash(currentEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
 
         vm.warp(block.timestamp + VETO_DURATION);
-        vm.prank(address(middleware));
-        vetoSlasher.executeSlash(0, hex"");
+        middleware.executeSlash(address(vaultVetoed), 0, hex"");
 
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
@@ -1072,11 +1071,18 @@ contract MiddlewareTest is Test {
             _registerOperatorAndOptIn(_operator, tanssi, address(_vault), true);
             vm.startPrank(_operator);
             uint256 depositAmount = 0.001 ether * (i + 1);
-            _depositToVault(Vault(_vault), _operator, 0.001 ether * (i + 1), token);
+            _depositToVault(Vault(_vault), _operator, depositAmount, token);
+
             vm.startPrank(owner);
-            if (i % 3 != 1) {
+            if (i % 3 == 1) {
+                // FULL_RESTAKE, needs to set the operator network limit
+                IFullRestakeDelegator(_delegator).setOperatorNetworkLimit(
+                    tanssi.subnetwork(0), _operator, OPERATOR_STAKE_BTC
+                );
+            } else {
+                // NETWORK_RESTAKE, needs to set the operator network shares
                 INetworkRestakeDelegator(_delegator).setOperatorNetworkShares(
-                    tanssi.subnetwork(0), _operator, depositAmount
+                    tanssi.subnetwork(0), _operator, OPERATOR_SHARE
                 );
             }
             bytes32 operatorKey = bytes32(uint256(i + 4));
@@ -1133,12 +1139,11 @@ contract MiddlewareTest is Test {
         }
     }
 
-    function testGasFor100OperatorsIn3VaultsSorted() public {
+    function testGasFor10OperatorsIn3VaultsSorted() public {
         uint16 count = 100;
         _addOperatorsToNetwork(count);
 
         vm.warp(NETWORK_EPOCH_DURATION + 2);
-        vm.startPrank(owner);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validators = _validatorSet(currentEpoch);
 
@@ -1151,15 +1156,13 @@ contract MiddlewareTest is Test {
         console2.log("Total gas used: ", gasSorted);
 
         _assertDataIsValidAndSorted(validators, sortedValidators, count);
-        vm.stopPrank();
     }
 
-    function testGasFor100OperatorsIn3VaultsNonSorted() public {
+    function testGasFor100peratorsIn3VaultsNonSorted() public {
         uint16 count = 100;
         _addOperatorsToNetwork(count);
 
         vm.warp(NETWORK_EPOCH_DURATION + 2);
-        vm.startPrank(owner);
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 gasBefore = gasleft();
@@ -1167,16 +1170,13 @@ contract MiddlewareTest is Test {
         uint256 gasAfter = gasleft();
         uint256 gasNotSorted = gasBefore - gasAfter;
         console2.log("Total gas used for non sorted: ", gasNotSorted);
-
-        vm.stopPrank();
     }
 
-    function testGasFor250OperatorsIn3VaultsSorted() public {
+    function testGasFor25OperatorsIn3VaultsSorted() public {
         uint16 count = 250;
         _addOperatorsToNetwork(count);
 
         vm.warp(NETWORK_EPOCH_DURATION + 2);
-        vm.startPrank(owner);
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 gasBefore = gasleft();
@@ -1188,15 +1188,13 @@ contract MiddlewareTest is Test {
 
         Middleware.ValidatorData[] memory validators = _validatorSet(currentEpoch);
         _assertDataIsValidAndSorted(validators, sortedValidators, count);
-        vm.stopPrank();
     }
 
-    function testGasFor250OperatorsIn3VaultsNonSorted() public {
+    function testGasFor20OperatorsIn3VaultsNonSorted() public {
         uint16 count = 250;
         _addOperatorsToNetwork(count);
 
         vm.warp(NETWORK_EPOCH_DURATION + 2);
-        vm.startPrank(owner);
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 gasBefore = gasleft();
@@ -1204,16 +1202,13 @@ contract MiddlewareTest is Test {
         uint256 gasAfter = gasleft();
         uint256 gasNotSorted = gasBefore - gasAfter;
         console2.log("Total gas used for non sorted: ", gasNotSorted);
-
-        vm.stopPrank();
     }
 
-    function testGasFor350OperatorsIn3VaultsSorted() public {
+    function testGasFor30OperatorsIn3VaultsSorted() public {
         uint16 count = 350;
         _addOperatorsToNetwork(count);
 
         vm.warp(NETWORK_EPOCH_DURATION + 2);
-        vm.startPrank(owner);
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 gasBefore = gasleft();
@@ -1225,16 +1220,13 @@ contract MiddlewareTest is Test {
 
         Middleware.ValidatorData[] memory validators = _validatorSet(currentEpoch);
         _assertDataIsValidAndSorted(validators, sortedValidators, count);
-
-        vm.stopPrank();
     }
 
-    function testGasFor350OperatorsIn3VaultsNonSorted() public {
+    function testGasFor30OperatorsIn3VaultsNonSorted() public {
         uint16 count = 350;
         _addOperatorsToNetwork(count);
 
         vm.warp(NETWORK_EPOCH_DURATION + 2);
-        vm.startPrank(owner);
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 gasBefore = gasleft();
@@ -1242,16 +1234,13 @@ contract MiddlewareTest is Test {
         uint256 gasAfter = gasleft();
         uint256 gasNotSorted = gasBefore - gasAfter;
         console2.log("Total gas used for non sorted: ", gasNotSorted);
-
-        vm.stopPrank();
     }
 
-    function testGasFor500OperatorsIn3VaultsNonSorted() public {
+    function testGasFor50OperatorsIn3VaultsNonSorted() public {
         uint16 count = 500;
         _addOperatorsToNetwork(count);
 
         vm.warp(NETWORK_EPOCH_DURATION + 2);
-        vm.startPrank(owner);
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 gasBefore = gasleft();
@@ -1259,16 +1248,13 @@ contract MiddlewareTest is Test {
         uint256 gasAfter = gasleft();
         uint256 gasNotSorted = gasBefore - gasAfter;
         console2.log("Total gas used for non sorted: ", gasNotSorted);
-
-        vm.stopPrank();
     }
 
-    function testGasFor500OperatorsIn3VaultsSorted() public {
+    function testGasFor50OperatorsIn3VaultsSorted() public {
         uint16 count = 500;
         _addOperatorsToNetwork(count);
 
         vm.warp(NETWORK_EPOCH_DURATION + 2);
-        vm.startPrank(owner);
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 gasBefore = gasleft();
@@ -1281,8 +1267,6 @@ contract MiddlewareTest is Test {
         Middleware.ValidatorData[] memory validators = _validatorSet(currentEpoch);
 
         _assertDataIsValidAndSorted(validators, sortedValidators, count);
-
-        vm.stopPrank();
     }
 
     // ************************************************************************************************
@@ -1400,6 +1384,7 @@ contract MiddlewareTest is Test {
         vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
 
         vm.warp(NETWORK_EPOCH_DURATION + 2);
+        vm.roll(80);
         bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
         assertEq(keys.length, 3);
 
@@ -1416,7 +1401,7 @@ contract MiddlewareTest is Test {
         );
 
         vm.warp(block.timestamp + VAULT_EPOCH_DURATION + 1);
-
+        vm.roll(80 + 57_235); // 57_235 is ≈ the number of blocks in 1 week
         keys = middleware.sendCurrentOperatorsKeys();
         assertEq(keys.length, 3);
 

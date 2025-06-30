@@ -1,0 +1,270 @@
+{
+  "admin": "0xae5d4e70cb5910bea21e06d33b10f2bd6c95daae",
+  "tanssi": "0x8c1a46d032b7b30d9ab4f30e51d8139cc3e85ce3",
+  "rewardsToken": "0x553F4cB7256D8fC038E91d36Cb63fa7C13b624AB",
+  "beefy": "0x68cfb0df884e488e362690408231c316ed7348af ",
+  "forwarder": "0x0000000000000000000000000000000000000000",
+  "gateway": "0x3fFb3254134c0a7a5125Fee061C5243C9E1c2A95",
+  "gatewayImplementation": "0x773bb5b243b0eab2a186d00a110a74db85358676",
+  "middleware": "0x1bbd37e4325d931aef5fedef1f87e8343835ace4",
+  "middlewareImplementation": "0xd7e9c6c495841eb67dfa57c4f7bef9c9e48d0feb",
+  "middlewareReader": "0x73fee9c8ef1e48cb76fa16321cfc27eb1c032a22",
+  "operatorRewards": "0xc4bd651bbc730c77459aa92500ad642fe4faa874",
+  "operatorRewardsImplementation": "0x3eac86f78d9fc3acc811dcf93b4d9a01e5532035",
+  "stakerRewardsFactory": "0xb1541d4a1f3a0fc41dcae8a75278fa0f000e5086",
+  "delegatorFactory": "0x985Ed57AF9D475f1d83c1c1c8826A0E5A34E8C7B",
+  "slasherFactory": "0x685c2eD7D59814d2a597409058Ee7a92F21e48Fd",
+  "vaultFactory": "0xAEb6bdd95c502390db8f52c8909F703E9Af6a346",
+  "vaultConfigurator": "0x29300b1d3150B4E2b12fE80BE72f365E200441EC",
+  "networkRegistry": "0xC773b1011461e7314CF05f97d95aa8e92C1Fd8aA",
+  "operatorRegistry": "0xAd817a6Bc954F678451A71363f04150FDD81Af9F",
+  "operatorNetworkOptInService": "0x7133415b33B438843D581013f98A08704316633c",
+  "operatorVaultOptInService": "0xb361894bC06cbBA7Ea8098BF0e32EB1906A5F891",
+  "networkMiddlewareService": "0xD7dC9B366c027743D90761F71858BCa83C6899Ad",
+  "totalCollaterals": 6,
+  "collaterals": [
+    {
+      "name": "Wrapped liquid staked Ether 2.0",
+      "symbol": "wstETH",
+      "address": "0x7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0",
+      "oracle": "0x5f4ec3df9cbd43714fe2740f5e3616155c5b8419"
+    },
+    {
+      "name": "Liquid Staked ETH",
+      "symbol": "LsETH",
+      "address": "0x8c1bed5b9a0928467c9b1341da1d7bd5e10b6549",
+      "oracle": "0x5f4ec3df9cbd43714fe2740f5e3616155c5b8419"
+    },
+    {
+      "name": "Wrapped Binance Beacon ETH",
+      "symbol": "wBETH",
+      "address": "0xa2e3356610840701bdf5611a53974510ae27e2e1",
+      "oracle": "0x5f4ec3df9cbd43714fe2740f5e3616155c5b8419"
+    },
+    {
+      "name": "Rocket Pool ETH",
+      "symbol": "rETH",
+      "address": "0xae78736cd615f374d3085123a210448e74fc6393",
+      "oracle": "0x5f4ec3df9cbd43714fe2740f5e3616155c5b8419"
+    },
+    {
+      "name": "Coinbase Wrapped Staked ETH",
+      "symbol": "cbETH",
+      "address": "0xbe9895146f7af43049ca1c1ae358b0541ea49704",
+      "oracle": "0x5f4ec3df9cbd43714fe2740f5e3616155c5b8419"
+    },
+    {
+      "name": "swETH",
+      "symbol": "swETH",
+      "address": "0xf951e335afb289353dc249e82926178eac7ded78",
+      "oracle": "0x5f4ec3df9cbd43714fe2740f5e3616155c5b8419"
+    }
+  ],
+  "totalVaults": 15,
+  "vaults": [
+    {
+      "name": "MEV Capital restaked ETH",
+      "vault": "0x446970400e1787814CA050A4b45AE9d21B3f7EA7",
+      "delegator": "0xA6851E43FA955753ee90a72c59030e0423F27E41",
+      "slasher": "0x04a216411317A334C234C6ABDD589bB94d303d5b",
+      "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+      "stakerRewards": "0x36D627d6aB064C5Eb295CB23Ce9d11cb0EfB4377",
+      "stakerRewardsImplementation": "0xD7f68AAc42c479b7245D3aE934bc329f41D91365"
+    },
+    {
+      "name": "MEV Capital wstETH Vault",
+      "vault": "0x4e0554959A631B3D3938ffC158e0a7b2124aF9c5",
+      "delegator": "0x1f16782a9b75FfFAD87e7936791C672bdDBCb8Ec",
+      "slasher": "0x541c86eb2C5e7F3E0C04eF82aeb68EA6A86409ef",
+      "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+      "stakerRewards": "0xa47b15F1cE1240c3b7b9AD2A1dE9C84BF4270715",
+      "stakerRewardsImplementation": "0x0A136B408B550c83dD13502097FDae41FaE7C01f"
+    },
+    {
+      "name": "Renzo restaked LST",
+      "vault": "0xa88e91cEF50b792f9449e2D4C699b6B3CcE1D19F",
+      "delegator": "0x6d636B070Cd59B17B47931E9E0108869A310FB39",
+      "slasher": "0xCF42f1B5E0ABB6f1521D8D523715781F9cd933C5",
+      "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+      "stakerRewards": "0xf6f65c9AAA62EC5F294843621878673B3668e75E",
+      "stakerRewardsImplementation": "0x0B0dcC509f074BfB88aDd6D840779847a6BC32fa"
+    },
+    {
+      "name": "Re7 Restaking Vault ETH [All Networks]",
+      "vault": "0x7b276aAD6D2ebfD7e270C5a2697ac79182D9550E",
+      "delegator": "0xdc439a51AB1C1D4DB0CD09A009f94eC4D127D93c",
+      "slasher": "0x295F8c41eA17B330853AC74D1477a6F83B36ee31",
+      "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+      "stakerRewards": "0x606E4B46F3A7bA6449D0C9d828A4065BDbf8847e",
+      "stakerRewardsImplementation": "0xeCb1F015625F14e9151d53D109cB5809a2448afd"
+    },
+    {
+      "name": "Re7 Labs LRT Vault",
+      "vault": "0x3D93b33f5E5fe74D54676720e70EA35210cdD46E",
+      "delegator": "0xdE43dade5D05B31b1e3524A268b32314Dee51DA0",
+      "slasher": "0x31Ebe6E0bec2fa2167903D9C4487c9F0F496b64E",
+      "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+      "stakerRewards": "0xf45D68652b3caA0A0874E45334603d23E519601f",
+      "stakerRewardsImplementation": "0xEa998D1294fEb324826174a2c84DD50e69D9E046"
+    },
+    {
+      "name": "cp0x LRT conservative vault",
+      "vault": "0x82c304aa105fbbE2aA368A83D7F8945d41f6cA54",
+      "delegator": "0x682A37ad062793bE1B3277aA114419CB35F5F720",
+      "slasher": "0xC38027653F91600809850ccf82616F19a99EaC52",
+      "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+      "stakerRewards": "0xca89B022820f0b21db88F38A3b75e4ECBAb277c0",
+      "stakerRewardsImplementation": "0x615e39CD45d02d4D2684DFBfe888AfB2AD338e13"
+    },
+    {
+      "name": "Opslayer Vault",
+      "vault": "0xd006d743fcc622486bD971596e39cC55F8c641Ca",
+      "delegator": "0x7AD05f9445484B07dFC778895b8439D9fCE76bAe",
+      "slasher": "0x3f55A74B287359bF0fCc8149817C2C6472d6Ba5d",
+      "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+      "stakerRewards": "0xCD4eFf52E84a335C3A565598b2a647E2E51d8a38",
+      "stakerRewardsImplementation": "0x1e0e60c9977dc16d7a7ddcc4aed99032516e7f77"
+    },
+    {
+      "name": "Gauntlet restaked wstETH",
+      "vault": "0xc10A7f0AC6E3944F4860eE97a937C51572e3a1Da",
+      "delegator": "0x7562437585DA000bE4815AC4A09430070Cf665D1",
+      "slasher": "0x84a79B33f0F6f92e926309A94Dfb5c2bF7D8716D",
+      "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+      "stakerRewards": "0xED1b1b10FD77de6409059B8ffAca6d53fA788Cb0",
+      "stakerRewardsImplementation": "0xEe0F418A8D45EaCCFdF98D6deb20Bb8F8179D971"
+    },
+    {
+      "name": "Gauntlet restaked swETH",
+      "vault": "0x65B560d887c010c4993C8F8B36E595C171d69D63",
+      "delegator": "0x05fa4D489fcd58ec45Df390955b7C0A0327D25d5",
+      "slasher": "0x0f6949D05EE5EA589CF86923b4F48110De38f469",
+      "collateral": "0xf951E335afb289353dc249e82926178EaC7DEd78",
+      "stakerRewards": "0x825F3a31e5988247D40C246FBD483c05B0C0c536",
+      "stakerRewardsImplementation": "0xf8490EA6C6e8906bD70Dc6b14511E99aacc6313b"
+    },
+    {
+      "name": "Gauntlet restaked wBETH",
+      "vault": "0x81bb35c4152B605574BAbD320f8EABE2871CE8C6",
+      "delegator": "0xC575D92568eF438552b97A24D8923FB6dd6f4C29",
+      "slasher": "0x42AEb222f7069E73Cb166c9C57F1110916a6Cc47",
+      "collateral": "0xa2E3356610840701BDf5611a53974510Ae27E2e1",
+      "stakerRewards": "0x5B624f892DCd467FDDE35336fC917594d6d4C23E",
+      "stakerRewardsImplementation": "0x07deC3e032a27117291C6f304278B5d8BDC3C9d5"
+    },
+    {
+      "name": "Gauntlet restaked rETH",
+      "vault": "0xaF07131C497E06361dc2F75de63dc1d3e113f7cb",
+      "delegator": "0xc077e58164F3c3dE4BD92dB8a155b91cCdd97A06",
+      "slasher": "0xD5091fdcaF80b347356F9be1B11BFBE8f754792a",
+      "collateral": "0xae78736Cd615f374D3085123A210448E74Fc6393",
+      "stakerRewards": "0x02a9DcF4f4b166Db60E0a279FB373Be21d304A4a",
+      "stakerRewardsImplementation": "0x2b4136acDDaB9505EF74261546f1bb4a5C853052"
+    },
+    {
+      "name": "Gauntlet restaked cbETH",
+      "vault": "0xB8Fd82169a574eB97251bF43e443310D33FF056C",
+      "delegator": "0x4366f2a20Fe4d6ba4C29FAfbF406CD2aE969A77a",
+      "slasher": "0xaD1891CCe32114a042BaEdf2684B3C4226D395C4",
+      "collateral": "0xBe9895146f7AF43049ca1c1AE358B0541Ea49704",
+      "stakerRewards": "0xe979eDC4ba911306eeCb0490fb6Ed02b7f63f3bD",
+      "stakerRewardsImplementation": "0xB1C5FEb2Dc60AfE581f89ddfAe66A9F342da3913"
+    },
+    {
+      "name": "Hashkey Cloud",
+      "vault": "0x108784D6B93A010f62b652b2356697dAEF3D7341",
+      "delegator": "0xeBDbF863f07E20842182c50C168524C6d86B68E4",
+      "slasher": "0xca7F5040021d51748f65E8524bA11B7705B7A402",
+      "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+      "stakerRewards": "0xcb68A5DE5a91FB32563277881d8C2fBC3cEb8bf9",
+      "stakerRewardsImplementation": "0x3DD93d73B3A26c8f3F0EE1341F122497f0Afa831"
+    },
+    {
+      "name": "Ether fi wstETH",
+      "vault": "0x450a90fdEa8B87a6448Ca1C87c88Ff65676aC45b",
+      "delegator": "0xd6c4b4267BFB908BBdf8C9BDa7d0Ae517aA145b0",
+      "slasher": "0xdA14110C2B9e120354d36eAcB1bEdf84d532E831",
+      "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+      "stakerRewards": "0xF6B65566f6EE16De15E0C128878e477370765Fa9",
+      "stakerRewardsImplementation": "0xd297a3ab6b3a47a2868710D72CB923627A86192a"
+    },
+    {
+      "name": "Restaked LsETH Vault (Liquid Collective)",
+      "vault": "0xEa0F2EA61998346aD39dddeF7513ae90915AFb3c",
+      "delegator": "0x978F96A24bCA1ac13129C85F5BEdBA49b01e9335",
+      "slasher": "0xC1c5aed50F817d161b72c34942497C3f77B0Ec36",
+      "collateral": "0x8c1BEd5b9a0928467c9B1341Da1D7BD5e10b6549",
+      "stakerRewards": "0x19CA20beDd3424937e908db526266c45e8384473",
+      "stakerRewardsImplementation": "0x67AeB74BEa9c3427da6b0eCf1dE02F6e0aA78F50"
+    }
+  ],
+  "totalOperators": 11,
+  "operators": [
+    {
+      "name": "Pier Two",
+      "substrateAddress": "5HRErQcsVBvG1SArk7Xp1Yd8VXSAVGvNHqFnZtGRybCAYotP",
+      "evmAddress": "0x51B6D824bd35AeD4FD1a9E253E41Dc7C9feeFa30",
+      "operatorKey": "0xecd66a5fac2d2b6abbc31562058b30dc8eaffaf229b19c0bacd170995dfd0e5e"
+    },
+    {
+      "name": "P2P",
+      "substrateAddress": "5GYtpbcHHjArLe5PfG2R412JnufdHibPQg2jGCLoEJQC4RVU",
+      "evmAddress": "0x087c25f83ED20bda587CFA035ED0c96338D4660f",
+      "operatorKey": "0xc670b6d72c8457da7fddf8f96d2e02f41c486c755186fd45f7c2d39fdd170843"
+    },
+    {
+      "name": "Nodeinfra",
+      "substrateAddress": "5D25xzPp1BKmmj5XcbfWuS7UoNffUzLB64CsnUUrdzYkhTt7",
+      "evmAddress": "0x9321d38c355d1D8cB9dbfC05a5c0f347b1DDa46a",
+      "operatorKey": "0x2a3cec3909122bfdffcc8809a5d5586af1c0554f5e8b34cf747ba3629a6b6303"
+    },
+    {
+      "name": "Blockscape",
+      "substrateAddress": "5GBobCvzxey3xZ84twaWxaX5u9uexF78PYBDzccmZpxUPsEh",
+      "evmAddress": "0xfd42c11Bf9518A078445b04857B205Fee688b133",
+      "operatorKey": "0xb65af3b79dcc9b300df74156a3ca86b959331d57d8d4f5801b40e61d53a5c931"
+    },
+    {
+      "name": "Quant Node",
+      "substrateAddress": "5HdLvZ3D8VN1QojdTxop7BP2pe9R4fueAViiEpjYNxSp48QC",
+      "evmAddress": "0xAF0dbc82EDc4e893d7898Cf6a8eA2497ce859A1F",
+      "operatorKey": "0xf611cc7b7adcdafbe7f2781acc0f0b5926b78f30aa27cf6afb749a9b1b5ac355"
+    },
+    {
+      "name": "Node Monster",
+      "substrateAddress": "5Gw715kUZ5CGuXbUYitfquCAFWTq4y5yWvuCeJxDzVEyGvL8",
+      "evmAddress": "0x030d6216f27B4370D9e173ff6dd2e192166cbA19",
+      "operatorKey": "0xd7611e05b79f07dac15926ac0e20f6e2a002e46cedf074d13e505c27f945e38b"
+    },
+    {
+      "name": "Block n Bones",
+      "substrateAddress": "5ELPH6go5taoPvCi9z46h3XJoS6UcNPPpCFnpricjpsY1vBj",
+      "evmAddress": "0xEe92C0CeF065819BFE17A5626b8209f64D82971e",
+      "operatorKey": "0x646dda01bcc2f11b7d9b7e2311a958941e0b5134776d642d17e0f76bbc46541c"
+    },
+    {
+      "name": "CP0X by Stakr.space",
+      "substrateAddress": "5Gy7zCkeSZBhWw27Gcrv5MfK2PZ5G5mSLvPne8mjR92U9ZDM",
+      "evmAddress": "0x9766e9e3045a8cEd5E1fa5B72AEEeEC9D74D00d0",
+      "operatorKey": "0xd8eaec60c55fccab637ba401bc23328f7dffb7f36a025dd77215592d7de8d707"
+    },
+    {
+      "name": "Hashkey Cloud",
+      "substrateAddress": "5DjwYUDLhAbM1ndQGARGsTEhzk6mjN51bgKsVh6yfHbxubCW",
+      "evmAddress": "0xe8e54EA992a3f8aaED7f05de7C1487855674A3cf",
+      "operatorKey": "0x4a28e04d008b281fe855242d7a907b0968ae4dc8e9c0a72c0724c69a53db7159"
+    },
+    {
+      "name": "Alchemy",
+      "substrateAddress": "5ELACNAAgeRbGFcHBfRo7rQgwKoXnpYEqHd3HB1dYpdd8zRA",
+      "evmAddress": "0xcf28Fe3A1B73887e405bf955Bf52D9341F666CAa",
+      "operatorKey": "0x6441d0a205bfb34eee189931a672baca6722eddbc05a8e370f72c161d9e72662"
+    },
+    {
+      "name": "Opslayer",
+      "substrateAddress": "5Ci8iFesdTYyArcvDc1a13k2Y8TRSEHUwk7xA5k7vQGWrNQS",
+      "evmAddress": "0x0e50cef51947f19B5b91eD4C2CfC1C0Bb72F6a7A",
+      "operatorKey": "0x1c8bbfc13c5085b9870d34a7db40977a1dc049d3c7d76b58ee9059348ec499cf"
+    }
+  ]
+}

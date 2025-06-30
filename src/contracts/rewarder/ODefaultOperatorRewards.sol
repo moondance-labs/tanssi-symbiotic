@@ -55,18 +55,18 @@ contract ODefaultOperatorRewards is
     using Subnetwork for address;
     using Subnetwork for bytes32;
 
-    /// @custom:storage-location erc7201:tanssi.rewards.ODefaultOperatorRewards.v1
+    /// @custom:storage-location erc7201:tanssi.rewards.ODefaultOperatorRewards.v2
     struct OperatorRewardsStorage {
         uint48 operatorShare;
         mapping(uint48 eraIndex => EraRoot eraRoot) eraRoot;
         mapping(uint48 epoch => uint48[] eraIndexes) eraIndexesPerEpoch;
-        mapping(uint48 eraIndex => mapping(address account => uint256 amount)) claimed;
+        mapping(uint48 eraIndex => mapping(bytes32 account => uint256 amount)) claimed;
         mapping(address vault => address stakerRewardsAddress) vaultToStakerRewardsContract;
     }
 
-    // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultOperatorRewards.v1")) - 1)) & ~bytes32(uint256(0xff))
+    // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultOperatorRewards.v2")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 constant OPERATOR_REWARDS_STORAGE_LOCATION =
-        0x57cf781f364664df22ab0472e35114435fb4a6881ab5a1b47ed6d1a7d4605400;
+        0x9e763766bd4dc4b79493b61f657e7d458cf0270bbd21be73fbf773df86fbd400;
 
     bytes32 public constant STAKER_REWARDS_SETTER_ROLE = keccak256("STAKER_REWARDS_SETTER_ROLE");
     bytes32 public constant MIDDLEWARE_ROLE = keccak256("MIDDLEWARE_ROLE");
@@ -93,6 +93,7 @@ contract ODefaultOperatorRewards is
         address network,
         address networkMiddlewareService
     ) notZeroAddress(network) notZeroAddress(networkMiddlewareService) {
+        _disableInitializers();
         i_network = network;
         i_networkMiddlewareService = networkMiddlewareService;
     }
@@ -102,7 +103,7 @@ contract ODefaultOperatorRewards is
      * @param operatorShare_ The share of the operator.
      * @param owner The address of the owner.
      */
-    function initialize(uint48 operatorShare_, address owner) public initializer notZeroAddress(owner) {
+    function initialize(uint48 operatorShare_, address owner) external initializer notZeroAddress(owner) {
         if (operatorShare_ >= MAX_PERCENTAGE) {
             revert ODefaultOperatorRewards__InvalidOperatorShare();
         }
@@ -149,7 +150,7 @@ contract ODefaultOperatorRewards is
             epoch: epoch,
             amount: amount,
             // We need to calculate how much each point is worth in tokens
-            tokensPerPoint: amount / totalPoints, // TODO: To change/check the math. There will be a rounding error so some rewards will be forever stuck in this contract.
+            totalPoints: totalPoints,
             root: root,
             tokenAddress: tokenAddress
         });
@@ -159,7 +160,7 @@ contract ODefaultOperatorRewards is
         $.eraRoot[eraIndex] = eraRoot_;
         $.eraIndexesPerEpoch[epoch].push(eraIndex);
 
-        emit DistributeRewards(epoch, eraIndex, tokenAddress, eraRoot_.tokensPerPoint, amount, root);
+        emit DistributeRewards(epoch, eraIndex, tokenAddress, totalPoints, amount, root);
     }
 
     /**
@@ -187,30 +188,10 @@ contract ODefaultOperatorRewards is
         }
 
         address middlewareAddress = INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network);
-        // Starlight sends back only the operator key, thus we need to get back the operator address
-        address recipient = IOBaseMiddlewareReader(middlewareAddress).operatorByKey(abi.encode(input.operatorKey));
+        uint256 stakerAmount;
+        address recipient;
 
-        // Calculate the total amount of tokens that can be claimed which is:
-        // total amount of tokens = total points claimable * tokens per point
-        amount = input.totalPointsClaimable * eraRoot_.tokensPerPoint;
-
-        // You can only claim everything and if it's claimed before revert
-        if ($.claimed[input.eraIndex][recipient] != 0) {
-            revert ODefaultOperatorRewards__InsufficientTotalClaimable();
-        }
-
-        $.claimed[input.eraIndex][recipient] = amount;
-
-        // operatorShare% of the rewards to the operator
-        uint256 operatorAmount = amount.mulDiv($.operatorShare, MAX_PERCENTAGE);
-
-        // (1-s_operatorShare)% of the rewards to the stakers
-        uint256 stakerAmount = amount - operatorAmount;
-
-        // On every claim send operatorShare% of the rewards to the operator
-        // And then distribute rewards to the stakers
-        // This is gonna send (1-s_operatorShare)% of the rewards
-        IERC20(tokenAddress).safeTransfer(recipient, operatorAmount);
+        (amount, stakerAmount, recipient) = _distributeRewardsToOperator($, input, eraRoot_, middlewareAddress);
 
         _distributeRewardsToStakers(
             eraRoot_.epoch, input.eraIndex, stakerAmount, recipient, middlewareAddress, tokenAddress, input.data
@@ -241,6 +222,40 @@ contract ODefaultOperatorRewards is
         );
 
         _distributeRewardsPerVault(epoch, eraIndex, tokenAddress, totalVaults, operatorVaults, amountPerVault, data);
+    }
+
+    function _distributeRewardsToOperator(
+        OperatorRewardsStorage storage $,
+        ClaimRewardsInput calldata input,
+        EraRoot memory eraRoot_,
+        address middlewareAddress
+    ) private returns (uint256 amount, uint256 stakerAmount, address recipient) {
+        // Calculate the total amount of tokens that can be claimed which is:
+        // total amount of tokens = (total points claimable * total amount) / total points
+        amount = uint256(input.totalPointsClaimable).mulDiv(eraRoot_.amount, eraRoot_.totalPoints);
+
+        bytes32 operatorKey = input.operatorKey;
+        // Starlight sends back only the operator key, thus we need to get back the operator address
+        recipient = IOBaseMiddlewareReader(middlewareAddress).operatorByKey(abi.encode(operatorKey));
+
+        uint48 eraIndex = input.eraIndex;
+        // You can only claim everything and if it's claimed before revert
+        if ($.claimed[eraIndex][operatorKey] != 0) {
+            revert ODefaultOperatorRewards__AlreadyClaimed();
+        }
+
+        $.claimed[eraIndex][operatorKey] = amount;
+
+        // operatorShare% of the rewards to the operator
+        uint256 operatorAmount = amount.mulDiv($.operatorShare, MAX_PERCENTAGE);
+
+        // (1-s_operatorShare)% of the rewards to the stakers
+        stakerAmount = amount - operatorAmount;
+
+        // On every claim send operatorShare% of the rewards to the operator
+        // And then distribute rewards to the stakers
+        // This is gonna send (1-s_operatorShare)% of the rewards
+        IERC20(eraRoot_.tokenAddress).safeTransfer(recipient, operatorAmount);
     }
 
     function _getRewardsAmountPerVault(
@@ -295,11 +310,13 @@ contract ODefaultOperatorRewards is
     ) private {
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         for (uint256 i; i < totalVaults;) {
-            address stakerRewardsForVault = $.vaultToStakerRewardsContract[operatorVaults[i]];
-            IERC20(tokenAddress).approve(stakerRewardsForVault, amountPerVault[i]);
-            IODefaultStakerRewards(stakerRewardsForVault).distributeRewards(
-                epoch, eraIndex, amountPerVault[i], tokenAddress, data
-            );
+            if (amountPerVault[i] != 0) {
+                address stakerRewardsForVault = $.vaultToStakerRewardsContract[operatorVaults[i]];
+                IERC20(tokenAddress).approve(stakerRewardsForVault, amountPerVault[i]);
+                IODefaultStakerRewards(stakerRewardsForVault).distributeRewards(
+                    epoch, eraIndex, amountPerVault[i], tokenAddress, data
+                );
+            }
 
             unchecked {
                 ++i;
@@ -331,7 +348,6 @@ contract ODefaultOperatorRewards is
     function setOperatorShare(
         uint48 operatorShare_
     ) external checkAccess {
-        //TODO A maximum value for the operatorShare should be chosen. 100% shouldn't be a valid option.
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         if (operatorShare_ >= MAX_PERCENTAGE) {
             revert ODefaultOperatorRewards__InvalidOperatorShare();
@@ -374,7 +390,7 @@ contract ODefaultOperatorRewards is
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
-    function claimed(uint48 eraIndex, address account) external view returns (uint256 amount) {
+    function claimed(uint48 eraIndex, bytes32 account) external view returns (uint256 amount) {
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         amount = $.claimed[eraIndex][account];
     }

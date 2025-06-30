@@ -31,6 +31,7 @@ import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestak
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {IDefaultCollateralFactory} from
     "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateralFactory.sol";
+import {DefaultCollateralFactory} from "@symbiotic-collateral/contracts/defaultCollateral/DefaultCollateralFactory.sol";
 import {VaultFactory} from "@symbiotic/contracts/VaultFactory.sol";
 
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
@@ -75,9 +76,10 @@ contract DeployTanssiEcosystem is Script {
     bytes32 public constant OPERATOR_KEY3 = bytes32(uint256(3));
 
     bool public isTest = false;
-    VaultAddresses public vaultAddresses;
-    TokensAddresses public tokensAddresses;
+    VaultAddresses public vaultAddresses; // For testing only
     EcosystemEntity public ecosystemEntities;
+    CollateralAddresses public collateralAddresses;
+    TestCollateralAddresses public testCollateralAddresses;
     ContractScripts public contractScripts;
 
     struct ContractScripts {
@@ -90,13 +92,21 @@ contract DeployTanssiEcosystem is Script {
     struct EcosystemEntity {
         Middleware middleware;
         IVaultConfigurator vaultConfigurator;
-        address defaultCollateralAddress;
     }
 
-    struct TokensAddresses {
-        Token stETHToken;
-        Token rETHToken;
-        Token wBTCToken;
+    struct CollateralAddresses {
+        address stETH;
+        address rETH;
+        address swETH;
+        address wBETH;
+        address LsETH;
+        address cbETH;
+    }
+
+    struct TestCollateralAddresses {
+        Token stETH;
+        Token rETH;
+        Token wBTC;
     }
 
     struct VaultAddresses {
@@ -114,10 +124,6 @@ contract DeployTanssiEcosystem is Script {
     function deployTokens(
         address owner
     ) public returns (address, address, address) {
-        // if (!isTest) {
-        //     vm.stopBroadcast();
-        // }
-
         address stETH = contractScripts.deployCollateral.deployCollateral("stETH");
         console2.log(" ");
         address rETH = contractScripts.deployCollateral.deployCollateral("rETH");
@@ -125,21 +131,15 @@ contract DeployTanssiEcosystem is Script {
         address wBTC = contractScripts.deployCollateral.deployCollateral("wBTC");
         console2.log(" ");
 
-        tokensAddresses.stETHToken = Token(stETH);
-        tokensAddresses.rETHToken = Token(rETH);
-        tokensAddresses.wBTCToken = Token(wBTC);
+        testCollateralAddresses.stETH = Token(stETH);
+        testCollateralAddresses.rETH = Token(rETH);
+        testCollateralAddresses.wBTC = Token(wBTC);
 
-        tokensAddresses.stETHToken.mint{gas: 1_000_000}(owner, 10_000 ether);
-        tokensAddresses.rETHToken.mint(owner, 10_000 ether);
-        tokensAddresses.wBTCToken.mint(owner, 10_000 ether);
+        testCollateralAddresses.stETH.mint{gas: 1_000_000}(owner, 10_000 ether);
+        testCollateralAddresses.rETH.mint(owner, 10_000 ether);
+        testCollateralAddresses.wBTC.mint(owner, 10_000 ether);
 
-        // vm.stopBroadcast();
-
-        // if (!isTest) {
-        //     vm.startBroadcast(ownerPrivateKey);
-        // }
         return (stETH, rETH, wBTC);
-        // return (stETH, address(0), address(0));
     }
 
     function deployVaults() public returns (VaultAddresses memory) {
@@ -150,9 +150,9 @@ contract DeployTanssiEcosystem is Script {
             delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
             shouldBroadcast: !isTest,
             vaultConfigurator: address(ecosystemEntities.vaultConfigurator),
-            collateral: ecosystemEntities.defaultCollateralAddress != address(0)
-                ? ecosystemEntities.defaultCollateralAddress
-                : address(tokensAddresses.stETHToken),
+            collateral: collateralAddresses.stETH != address(0)
+                ? collateralAddresses.stETH
+                : address(testCollateralAddresses.stETH),
             owner: tanssi,
             operator: address(0),
             network: address(0)
@@ -174,7 +174,7 @@ contract DeployTanssiEcosystem is Script {
         }
 
         if (block.chainid == 31_337) {
-            params.collateral = address(tokensAddresses.rETHToken);
+            params.collateral = address(testCollateralAddresses.rETH);
         }
         (vaultAddresses.vaultSlashable, vaultAddresses.delegatorSlashable, vaultAddresses.slasherSlashable) =
             contractScripts.deployVault.createSlashableVault(params);
@@ -187,7 +187,7 @@ contract DeployTanssiEcosystem is Script {
         if (isTest || block.chainid == 31_337) {
             params.delegatorIndex = VaultManager.DelegatorType.FULL_RESTAKE;
             if (block.chainid == 31_337) {
-                params.collateral = address(tokensAddresses.wBTCToken);
+                params.collateral = address(testCollateralAddresses.wBTC);
             }
             (vaultAddresses.vaultVetoed, vaultAddresses.delegatorVetoed, vaultAddresses.slasherVetoed) =
                 contractScripts.deployVault.createVaultVetoed(params, 1 days);
@@ -228,38 +228,39 @@ contract DeployTanssiEcosystem is Script {
             adminFeeClaimRoleHolder: tanssi,
             adminFeeSetRoleHolder: tanssi
         });
-        if (block.chainid == 31_337 || isTest) {
-            ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
-            ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsParams);
+        if (block.chainid != 1) {
+            if (block.chainid == 31_337 || isTest) {
+                ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
+                ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsParams);
+            }
+            ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsParams);
         }
-        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsParams);
     }
 
     function _transferTokensToOperators() private {
         // vm.startBroadcast(ownerPrivateKey);
-        tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator, 1000 ether);
-        tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator3, 1000 ether);
+        testCollateralAddresses.stETH.transfer{gas: 1_000_000}(operator, 1000 ether);
+        testCollateralAddresses.stETH.transfer{gas: 1_000_000}(operator3, 1000 ether);
 
-        tokensAddresses.rETHToken.transfer(operator, 1000 ether);
-        tokensAddresses.rETHToken.transfer(operator2, 1000 ether);
-        tokensAddresses.rETHToken.transfer(operator3, 1000 ether);
+        testCollateralAddresses.rETH.transfer(operator, 1000 ether);
+        testCollateralAddresses.rETH.transfer(operator2, 1000 ether);
+        testCollateralAddresses.rETH.transfer(operator3, 1000 ether);
 
-        tokensAddresses.wBTCToken.transfer(operator3, 1000 ether);
+        testCollateralAddresses.wBTC.transfer(operator3, 1000 ether);
     }
 
     function _deployCollateralFactory() private {
-        (,,,,,,, address defaultCollateralFactoryAddress, address stETHAddress,) =
-            contractScripts.helperConfig.activeNetworkConfig();
+        (address stETHAddress,,,,,) = contractScripts.helperConfig.activeTokensConfig();
 
-        IDefaultCollateralFactory defaultCollateralFactory;
-        if (block.chainid != 31_337) {
-            defaultCollateralFactory = IDefaultCollateralFactory(defaultCollateralFactoryAddress);
-            ecosystemEntities.defaultCollateralAddress =
-                defaultCollateralFactory.create(address(stETHAddress), 10_000 ether, address(0));
+        if (block.chainid != 31_337 && block.chainid != 1) {
+            DefaultCollateralFactory defaultCollateralFactory = new DefaultCollateralFactory();
+            if (stETHAddress == address(0)) {
+                stETHAddress = address(new Token("stETH", 18));
+            }
+            collateralAddresses.stETH = defaultCollateralFactory.create(address(stETHAddress), 10_000 ether, address(0));
         }
 
         if (!isTest) {
-            console2.log("DefaultCollateralFactory: ", defaultCollateralFactoryAddress);
             console2.log("StETH: ", stETHAddress);
         }
     }
@@ -274,7 +275,6 @@ contract DeployTanssiEcosystem is Script {
             address operatorVaultOptInServiceAddress,
             address networkMiddlewareServiceAddress,
             ,
-            ,
         ) = contractScripts.helperConfig.activeNetworkConfig();
 
         _deployCollateralFactory();
@@ -286,10 +286,15 @@ contract DeployTanssiEcosystem is Script {
             deployTokens(tanssi);
             _transferTokensToOperators();
         } else {
-            INetworkRegistry(networkRegistryAddress).registerNetwork();
+            if (!INetworkRegistry(networkRegistryAddress).isEntity(tanssi)) {
+                INetworkRegistry(networkRegistryAddress).registerNetwork();
+            }
         }
-        deployVaults();
-        _setDelegatorConfigs();
+
+        if (block.chainid != 1) {
+            deployVaults();
+            _setDelegatorConfigs();
+        }
 
         if (!isTest) {
             vm.stopBroadcast();
@@ -335,7 +340,7 @@ contract DeployTanssiEcosystem is Script {
             console2.log("NetworkMiddlewareService: ", networkMiddlewareServiceAddress);
             console2.log("OperatorNetworkOptInService: ", operatorNetworkOptInServiceAddress);
             console2.log("OperatorVaultOptInService: ", operatorVaultOptInServiceAddress);
-            console2.log("DefaultCollateral: ", ecosystemEntities.defaultCollateralAddress);
+            console2.log("stETHCollateralAddress: ", collateralAddresses.stETH);
             console2.log("Middleware: ", address(ecosystemEntities.middleware));
             console2.log("OperatorRewards: ", operatorRewardsAddress);
             console2.log("Vault: ", vaultAddresses.vault);
@@ -409,7 +414,7 @@ contract DeployTanssiEcosystem is Script {
         HelperConfig _helperConfig
     ) external {
         isTest = true;
-        _initScriptsAndEntities(_helperConfig, isTest);
+        _initScriptsAndEntities(_helperConfig);
 
         vm.startPrank(tanssi);
         _deploy();
@@ -418,7 +423,7 @@ contract DeployTanssiEcosystem is Script {
 
     function run() external {
         isTest = false;
-        _initScriptsAndEntities(new HelperConfig(), isTest);
+        _initScriptsAndEntities(new HelperConfig());
 
         vm.startBroadcast(ownerPrivateKey);
         _deploy();
@@ -464,14 +469,20 @@ contract DeployTanssiEcosystem is Script {
         }
     }
 
-    function _initScriptsAndEntities(HelperConfig _helperConfig, bool _isTest) private {
+    function getStETHCollateralAddress() external view returns (address) {
+        return collateralAddresses.stETH;
+    }
+
+    function _initScriptsAndEntities(
+        HelperConfig _helperConfig
+    ) private {
         contractScripts.helperConfig = _helperConfig;
         contractScripts.deployVault = new DeployVault();
         contractScripts.deployCollateral = new DeployCollateral();
         contractScripts.deployRewards = new DeployRewards();
         contractScripts.deployRewards.setIsTest(isTest);
 
-        (address vaultConfiguratorAddress,,,,,,,,,) = _helperConfig.activeNetworkConfig();
+        (address vaultConfiguratorAddress,,,,,,,,) = _helperConfig.activeNetworkConfig();
         ecosystemEntities.vaultConfigurator = IVaultConfigurator(vaultConfiguratorAddress);
     }
 }

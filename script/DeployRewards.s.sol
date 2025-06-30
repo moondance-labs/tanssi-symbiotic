@@ -22,6 +22,7 @@ import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerReward
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
+import {Middleware} from "src/contracts/middleware/Middleware.sol";
 
 contract DeployRewards is Script {
     ODefaultStakerRewardsFactory public stakerRewardsFactory;
@@ -59,14 +60,14 @@ contract DeployRewards is Script {
         address network,
         address networkMiddlewareService,
         uint48 operatorShare,
-        address owner
+        address admin
     ) public returns (address) {
         if (!isTest) {
             vm.startBroadcast(ownerPrivateKey);
         }
         ODefaultOperatorRewards operatorRewardsImpl = new ODefaultOperatorRewards(network, networkMiddlewareService);
         operatorRewards = ODefaultOperatorRewards(address(new ERC1967Proxy(address(operatorRewardsImpl), "")));
-        operatorRewards.initialize(operatorShare, owner);
+        operatorRewards.initialize(operatorShare, admin);
         console2.log("Operator rewards contract deployed at address: ", address(operatorRewards));
         if (!isTest) {
             vm.stopBroadcast();

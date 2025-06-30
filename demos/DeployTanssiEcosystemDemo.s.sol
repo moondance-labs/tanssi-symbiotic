@@ -30,8 +30,6 @@ import {Vault} from "@symbiotic/contracts/vault/Vault.sol";
 import {INetworkRestakeDelegator} from "@symbiotic/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestakeDelegator.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
-import {IDefaultCollateralFactory} from
-    "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateralFactory.sol";
 
 //**************************************************************************************************
 //                                      CHAINLINK
@@ -101,7 +99,7 @@ contract DeployTanssiEcosystem is Script {
     struct EcosystemEntity {
         Middleware middleware;
         IVaultConfigurator vaultConfigurator;
-        address defaultCollateralAddress;
+        address stETHCollateralAddress;
     }
 
     struct TokensAddresses {
@@ -171,8 +169,8 @@ contract DeployTanssiEcosystem is Script {
             delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
             shouldBroadcast: !isTest,
             vaultConfigurator: address(ecosystemEntities.vaultConfigurator),
-            collateral: ecosystemEntities.defaultCollateralAddress != address(0)
-                ? ecosystemEntities.defaultCollateralAddress
+            collateral: ecosystemEntities.stETHCollateralAddress != address(0)
+                ? ecosystemEntities.stETHCollateralAddress
                 : address(tokensAddresses.stETHToken),
             owner: tanssi,
             operator: address(0),
@@ -184,7 +182,7 @@ contract DeployTanssiEcosystem is Script {
         }
 
         // On real scenario we want to deploy only the slashable vault. TBD
-        if (isTest || block.chainid == 31_337 || block.chainid == 11_155_111) {
+        if (isTest || block.chainid == 31_337) {
             (vaultAddresses.vault, vaultAddresses.delegator, vaultAddresses.slasher) =
                 contractScripts.deployVault.createBaseVault(params);
             console2.log("Vault Collateral: ", IVault(vaultAddresses.vault).collateral());
@@ -194,7 +192,7 @@ contract DeployTanssiEcosystem is Script {
             console2.log(" ");
         }
 
-        if (block.chainid == 31_337 || block.chainid == 11_155_111) {
+        if (block.chainid == 31_337) {
             params.collateral = address(tokensAddresses.rETHToken);
         }
         (vaultAddresses.vaultSlashable, vaultAddresses.delegatorSlashable, vaultAddresses.slasherSlashable) =
@@ -205,9 +203,9 @@ contract DeployTanssiEcosystem is Script {
         console2.log("SlasherSlashable: ", vaultAddresses.slasherSlashable);
         console2.log(" ");
 
-        if (isTest || block.chainid == 31_337 || block.chainid == 11_155_111) {
+        if (isTest || block.chainid == 31_337) {
             params.delegatorIndex = VaultManager.DelegatorType.FULL_RESTAKE;
-            if (block.chainid == 31_337 || block.chainid == 11_155_111) {
+            if (block.chainid == 31_337) {
                 params.collateral = address(tokensAddresses.wBTCToken);
             }
             (vaultAddresses.vaultVetoed, vaultAddresses.delegatorVetoed, vaultAddresses.slasherVetoed) =
@@ -226,7 +224,7 @@ contract DeployTanssiEcosystem is Script {
     }
 
     function _setDelegatorConfigs() public {
-        if (block.chainid == 31_337 || block.chainid == 11_155_111 || isTest) {
+        if (block.chainid == 31_337 || isTest) {
             INetworkRestakeDelegator(vaultAddresses.delegator).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
             INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
 
@@ -271,16 +269,8 @@ contract DeployTanssiEcosystem is Script {
             address operatorNetworkOptInServiceAddress,
             address operatorVaultOptInServiceAddress,
             address networkMiddlewareServiceAddress,
-            address defaultCollateralFactoryAddress,
             address stETHAddress,
         ) = contractScripts.helperConfig.activeNetworkConfig();
-
-        IDefaultCollateralFactory defaultCollateralFactory;
-        if (block.chainid != 31_337 && block.chainid != 11_155_111) {
-            defaultCollateralFactory = IDefaultCollateralFactory(defaultCollateralFactoryAddress);
-            ecosystemEntities.defaultCollateralAddress =
-                defaultCollateralFactory.create(address(stETHAddress), 10_000 ether, address(0));
-        }
 
         ecosystemEntities.vaultConfigurator = IVaultConfigurator(vaultConfiguratorAddress);
 
@@ -291,7 +281,7 @@ contract DeployTanssiEcosystem is Script {
         IOptInService operatorVaultOptInService = IOptInService(operatorVaultOptInServiceAddress);
         MockV3Aggregator collateralOracle = new MockV3Aggregator(ORACLE_DECIMALS, ORACLE_CONVERSION_TOKEN);
 
-        if (block.chainid == 31_337 || block.chainid == 11_155_111) {
+        if (block.chainid == 31_337) {
             // Deploy simple ERC20 collateral tokens
             deployTokens();
         } else {
@@ -402,8 +392,7 @@ contract DeployTanssiEcosystem is Script {
         console2.log("NetworkMiddlewareService: ", address(networkMiddlewareService));
         console2.log("OperatorNetworkOptInService: ", address(operatorNetworkOptInService));
         console2.log("OperatorVaultOptInService: ", address(operatorVaultOptInService));
-        console2.log("DefaultCollateralFactory: ", address(defaultCollateralFactory));
-        console2.log("DefaultCollateral: ", ecosystemEntities.defaultCollateralAddress);
+        console2.log("stETHCollateralAddress: ", ecosystemEntities.stETHCollateralAddress);
         console2.log("Middleware: ", address(ecosystemEntities.middleware));
         console2.log("Vault: ", vaultAddresses.vault);
         console2.log("Delegator: ", vaultAddresses.delegator);

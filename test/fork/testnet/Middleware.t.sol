@@ -125,7 +125,6 @@ contract MiddlewareTest is Test {
     function setUp() public {
         _deployBaseInfrastructure();
         _setupOperators();
-
         _registerEntitiesToMiddleware(owner);
         _setOperatorsNetworkShares(tanssi);
         _setLimitForNetworkAndOperators(tanssi);
@@ -145,10 +144,8 @@ contract MiddlewareTest is Test {
         DeployTanssiEcosystem deployTanssi = new DeployTanssiEcosystem();
         helperConfig = new HelperConfig();
         deployTanssi.deployTanssiEcosystem(helperConfig);
-
-        address defaultCollateralAddress;
-        (ecosystemEntities.middleware,, defaultCollateralAddress) = deployTanssi.ecosystemEntities();
-        ecosystemEntities.stETH = IDefaultCollateral(defaultCollateralAddress);
+        (ecosystemEntities.middleware,) = deployTanssi.ecosystemEntities();
+        ecosystemEntities.stETH = IDefaultCollateral(deployTanssi.getStETHCollateralAddress());
 
         _setVaultAddresses(deployTanssi);
         _initializeVaults();
@@ -218,7 +215,7 @@ contract MiddlewareTest is Test {
     }
 
     function _handleDeposits() private {
-        (,,,,, address operatorVaultOptInServiceAddress,,,,) = helperConfig.activeNetworkConfig();
+        (,,,,, address operatorVaultOptInServiceAddress,,,) = helperConfig.activeNetworkConfig();
 
         IOptInService operatorVaultOptInService = IOptInService(operatorVaultOptInServiceAddress);
 
@@ -280,7 +277,6 @@ contract MiddlewareTest is Test {
             ,
             address operatorNetworkOptInServiceAddress,
             address operatorVaultOptInServiceAddress,
-            ,
             ,
             ,
         ) = helperConfig.activeNetworkConfig();
@@ -370,7 +366,7 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function testInitialState() public view {
-        (, address operatorRegistryAddress,, address vaultFactoryAddress,,,,,,) = helperConfig.activeNetworkConfig();
+        (, address operatorRegistryAddress,, address vaultFactoryAddress,,,,,) = helperConfig.activeNetworkConfig();
 
         assertEq(OBaseMiddlewareReader(address(ecosystemEntities.middleware)).NETWORK(), tanssi);
         assertEq(
@@ -494,8 +490,8 @@ contract MiddlewareTest is Test {
         ecosystemEntities.middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
         vm.warp(block.timestamp + VETO_DURATION);
-        vm.prank(address(ecosystemEntities.middleware));
-        ecosystemEntities.vetoSlasher.executeSlash(0, hex"");
+        ecosystemEntities.middleware.executeSlash(address(ecosystemEntities.vaultVetoed), 0, hex"");
+
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = ecosystemEntities.middleware.getCurrentEpoch();
         validators = OBaseMiddlewareReader(address(ecosystemEntities.middleware)).getValidatorSet(newEpoch);
@@ -546,8 +542,7 @@ contract MiddlewareTest is Test {
         ecosystemEntities.middleware.slash(currentEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
 
         vm.warp(block.timestamp + VETO_DURATION);
-        vm.prank(address(ecosystemEntities.middleware));
-        ecosystemEntities.vetoSlasher.executeSlash(0, hex"");
+        ecosystemEntities.middleware.executeSlash(address(ecosystemEntities.vaultVetoed), 0, hex"");
 
         vm.warp(block.timestamp + SLASHING_WINDOW + 1);
         uint48 newEpoch = ecosystemEntities.middleware.getCurrentEpoch();
@@ -614,7 +609,6 @@ contract MiddlewareTest is Test {
             address operatorNetworkOptInServiceAddress,
             ,
             address networkMiddlewareServiceAddress,
-            ,
             ,
         ) = helperConfig.activeNetworkConfig();
 
