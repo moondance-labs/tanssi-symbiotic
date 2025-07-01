@@ -140,6 +140,9 @@ contract FullTest is Test {
     address public constant VAULT_MANAGER_RESTAKEDLSETHVAULT = 0x8989e3f949df80e8eFcbf3372F082699b93E5C09;
     address public constant VAULT_MANAGER_OPSLAYER = 0xf409021Fa7E769837162346CFA8d1eF4DAa77585;
 
+    address public constant WHITELIST_SETTER_ETHERFIWSTETH = 0x2aCA71020De61bb532008049e1Bd41E451aE8AdC;
+    address public constant WHITELIST_SETTER_MEVCAPITAL = 0x8989e3f949df80e8eFcbf3372F082699b93E5C09;
+
     bytes32 public constant DEPOSIT_WHITELIST_SET_ROLE = keccak256("DEPOSIT_WHITELIST_SET_ROLE");
 
     address public resolver1 = makeAddr("resolver1");
@@ -682,7 +685,7 @@ contract FullTest is Test {
         }
         uint256 activeBalanceOf = vault.activeBalanceOf(operator);
         if (activeBalanceOf == 0) {
-            console2.log("Operator", operator, "has no desposit into vault", vaultData.vault);
+            console2.log("Operator", operator, "has no deposit into vault", vaultData.vault);
         }
 
         if (!operatorNetworkOptInService.isOptedIn(operator, network)) {
@@ -1188,7 +1191,9 @@ contract FullTest is Test {
     function testWithdrawForEachVault() public {
         HelperConfig.OperatorData memory operator = operators.operator1PierTwo;
 
-        _testWithdrawFromVaultByOperator(vaultsAddressesDeployedA.etherfiwstETH, operator, VAULT_MANAGER_ETHERFIWSTETH);
+        _testWithdrawFromVaultByOperator(
+            vaultsAddressesDeployedA.etherfiwstETH, operator, WHITELIST_SETTER_ETHERFIWSTETH
+        );
         _testWithdrawFromVaultByOperator(
             vaultsAddressesDeployedB.gauntletRestakedcBETH, operator, VAULT_MANAGER_GAUNTLET
         );
@@ -1204,27 +1209,27 @@ contract FullTest is Test {
         _testWithdrawFromVaultByOperator(
             vaultsAddressesDeployedB.gauntletRestakedWstETH, operator, VAULT_MANAGER_GAUNTLET
         );
-        _testWithdrawFromVaultByOperator(
-            vaultsAddressesDeployedA.mevRestakedETH, operator, VAULT_MANAGER_MEVRESTAKEDETH
-        );
-        _testWithdrawFromVaultByOperator(
-            vaultsAddressesDeployedA.renzoRestakedETH, operator, VAULT_MANAGER_RENZORESTAKEDETH
-        );
+        _testWithdrawFromVaultByOperator(vaultsAddressesDeployedA.mevRestakedETH, operator, VAULT_MANAGER_COMMON);
+        _testWithdrawFromVaultByOperator(vaultsAddressesDeployedA.renzoRestakedETH, operator, VAULT_MANAGER_COMMON);
         _testWithdrawFromVaultByOperator(
             vaultsAddressesDeployedA.restakedLsETHVault, operator, VAULT_MANAGER_RESTAKEDLSETHVAULT
         );
+        _testWithdrawFromVaultByOperator(
+            vaultsAddressesDeployedA.re7LabsETH, operators.operator2P2P, VAULT_MANAGER_COMMON
+        );
+        _testWithdrawFromVaultByOperator(
+            vaultsAddressesDeployedA.mevCapitalETH, operators.operator3Nodeinfra, WHITELIST_SETTER_MEVCAPITAL
+        );
+        _testWithdrawFromVaultByOperator(
+            vaultsAddressesDeployedA.hashKeyCloudETH, operators.operator9HashkeyCloud, VAULT_MANAGER_COMMON
+        );
 
+        // CP0x has reached deposit limit so we need to set it first
+        vm.startPrank(VAULT_MANAGER_CP0XLRTETH);
+        IVault(vaultsAddressesDeployedA.cp0xLrtETH.vault).setDepositLimit(10_000 ether);
+        vm.stopPrank();
         _testWithdrawFromVaultByOperator(
-            vaultsAddressesDeployedA.re7LabsETH, operators.operator2P2P, VAULT_MANAGER_RE7LABS
-        );
-        _testWithdrawFromVaultByOperator(
-            vaultsAddressesDeployedA.mevCapitalETH, operators.operator3Nodeinfra, VAULT_MANAGER_MEVCAPITALETH
-        );
-        _testWithdrawFromVaultByOperator(
-            vaultsAddressesDeployedA.hashKeyCloudETH, operators.operator9HashkeyCloud, VAULT_MANAGER_HASHKEYCLOUDETH
-        );
-        _testWithdrawFromVaultByOperator(
-            vaultsAddressesDeployedA.cp0xLrtETH, operators.operator8CP0XStakrspace, VAULT_MANAGER_CP0XLRTETH
+            vaultsAddressesDeployedA.cp0xLrtETH, operators.operator8CP0XStakrspace, VAULT_MANAGER_COMMON
         );
         _testWithdrawFromVaultByOperator(
             vaultsAddressesDeployedA.opslayer, operators.operator11Opslayer, VAULT_MANAGER_OPSLAYER
@@ -1234,7 +1239,7 @@ contract FullTest is Test {
     function _testWithdrawFromVaultByOperator(
         HelperConfig.VaultData memory vaultData,
         HelperConfig.OperatorData memory operator,
-        address vaultManager
+        address whitelistSetter
     ) private {
         IVault vault = IVault(vaultData.vault);
         // Get current vault epoch and epoch duration
@@ -1244,13 +1249,18 @@ contract FullTest is Test {
 
         if (activeBalanceOf == 0) {
             if (!vault.isDepositorWhitelisted(operatorAddress)) {
-                if (IAccessControl(address(vault)).hasRole(DEPOSIT_WHITELIST_SET_ROLE, vaultManager)) {
-                    vm.startPrank(vaultManager);
+                if (IAccessControl(address(vault)).hasRole(DEPOSIT_WHITELIST_SET_ROLE, whitelistSetter)) {
+                    vm.startPrank(whitelistSetter);
                     vault.setDepositorWhitelistStatus(operatorAddress, true);
                 } else {
-                    // TODO: For some vaults we do not have the account which can set it, so they are skipped for now
-                    console2.log("Operator is not whitelisted and cannot whitelist depositor for vault", vaultData.name);
-                    return;
+                    // Fail, needs to be configured in the test
+                    revert(
+                        string(
+                            abi.encodePacked(
+                                "Operator is not whitelisted and cannot whitelist depositor for vault", vaultData.name
+                            )
+                        )
+                    );
                 }
             }
 
