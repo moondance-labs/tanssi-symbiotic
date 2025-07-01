@@ -386,7 +386,8 @@ contract RewardsTest is Test {
             collateral: address(stETH),
             owner: _owner,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
 
         (vaultAddresses.vault, vaultAddresses.delegator, vaultAddresses.slasher) = deployVault.createBaseVault(params);

@@ -590,7 +590,8 @@ contract DeployTest is Test {
             collateral: stEth,
             owner: tanssi,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
 
         vm.expectRevert(DeployVault.DeployVault__VaultConfiguratorOrCollateralNotDeployed.selector);
@@ -613,7 +614,8 @@ contract DeployTest is Test {
             collateral: address(0),
             owner: tanssi,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
 
         vm.expectRevert(DeployVault.DeployVault__VaultConfiguratorOrCollateralNotDeployed.selector);
@@ -624,7 +626,19 @@ contract DeployTest is Test {
         vm.recordLogs();
         (, IVaultConfigurator vaultConfigurator) = deployTanssiEcosystem.ecosystemEntities();
 
-        deployVault.run(address(vaultConfigurator), tanssi, address(1), VAULT_EPOCH_DURATION, false, 0, 0, false, 0, 0);
+        deployVault.run(
+            address(vaultConfigurator),
+            tanssi,
+            address(1),
+            VAULT_EPOCH_DURATION,
+            false,
+            0,
+            VaultManager.DelegatorType.NETWORK_RESTAKE,
+            false,
+            VaultManager.SlasherType.INSTANT,
+            0,
+            address(0xDead)
+        );
 
         Vm.Log[] memory entries = vm.getRecordedLogs();
         for (uint256 i = 0; i < entries.length; i++) {
@@ -634,11 +648,23 @@ contract DeployTest is Test {
         }
     }
 
-    function testDeployVaultWithIndex1() public {
+    function testDeployFullRestakeVault() public {
         vm.recordLogs();
         (, IVaultConfigurator vaultConfigurator) = deployTanssiEcosystem.ecosystemEntities();
 
-        deployVault.run(address(vaultConfigurator), tanssi, address(1), VAULT_EPOCH_DURATION, false, 0, 1, false, 0, 0);
+        deployVault.run(
+            address(vaultConfigurator),
+            tanssi,
+            address(1),
+            VAULT_EPOCH_DURATION,
+            false,
+            0,
+            VaultManager.DelegatorType.FULL_RESTAKE,
+            false,
+            VaultManager.SlasherType.INSTANT,
+            0,
+            address(0xDead)
+        );
 
         Vm.Log[] memory entries = vm.getRecordedLogs();
         for (uint256 i = 0; i < entries.length; i++) {
@@ -648,7 +674,7 @@ contract DeployTest is Test {
         }
     }
 
-    function testDeployVaultWithIndex2() public {
+    function testDeployOperatorSpecificVault() public {
         vm.recordLogs();
         (Middleware middleware, IVaultConfigurator vaultConfigurator) = deployTanssiEcosystem.ecosystemEntities();
 
@@ -656,7 +682,19 @@ contract DeployTest is Test {
         vm.mockCall(
             address(operatorRegistry), abi.encodeWithSelector(operatorRegistry.isEntity.selector), abi.encode(true)
         );
-        deployVault.run(address(vaultConfigurator), tanssi, address(1), VAULT_EPOCH_DURATION, false, 0, 2, false, 0, 0);
+        deployVault.run(
+            address(vaultConfigurator),
+            tanssi,
+            address(1),
+            VAULT_EPOCH_DURATION,
+            false,
+            0,
+            VaultManager.DelegatorType.OPERATOR_SPECIFIC,
+            false,
+            VaultManager.SlasherType.INSTANT,
+            0,
+            address(0xDead)
+        );
 
         Vm.Log[] memory entries = vm.getRecordedLogs();
         for (uint256 i = 0; i < entries.length; i++) {
@@ -679,12 +717,13 @@ contract DeployTest is Test {
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
             depositLimit: 0,
-            delegatorIndex: uint64(0),
+            delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
             withSlasher: true,
-            slasherIndex: 0,
+            slasherIndex: VaultManager.SlasherType.INSTANT,
             vetoDuration: 0,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
 
         deployVault.deployVault(deployParams);

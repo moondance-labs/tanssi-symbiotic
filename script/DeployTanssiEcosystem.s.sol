@@ -155,7 +155,8 @@ contract DeployTanssiEcosystem is Script {
                 : address(testCollateralAddresses.stETH),
             owner: tanssi,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
 
         if (!isTest) {

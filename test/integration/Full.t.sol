@@ -368,7 +368,8 @@ contract FullTest is Test {
             collateral: address(usdc),
             owner: _owner,
             operator: operator1,
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
         (vault, delegator,) = deployVault.createBaseVault(params);
         vaultsData.v1.vault = IVault(vault);
@@ -781,7 +782,8 @@ contract FullTest is Test {
                 collateral: address(wBTC),
                 owner: owner,
                 operator: address(0),
-                network: address(0)
+                network: address(0),
+                burner: address(0xDead)
             });
             (address vault, address delegator,) = deployVault.createSlashableVault(params);
 
@@ -962,7 +964,8 @@ contract FullTest is Test {
             collateral: address(wBTC),
             owner: owner,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
         (address vault, address delegator,) = deployVault.createSlashableVault(params);
 
@@ -1970,7 +1973,8 @@ contract FullTest is Test {
             collateral: address(usdc),
             owner: owner,
             operator: operator1,
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
 
         (address vault,, address slasher) = deployVault.createVaultVetoed(params, vetoDuration);
@@ -1999,7 +2003,8 @@ contract FullTest is Test {
             collateral: address(usdc),
             owner: owner,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
 
         (address vault,, address slasher) = deployVault.createVaultVetoed(params, vetoDuration);
