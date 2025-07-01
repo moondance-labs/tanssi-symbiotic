@@ -51,6 +51,7 @@ interface IMiddleware {
     error Middleware__InvalidAddress();
     error Middleware__InvalidKey();
     error Middleware__InvalidInterval();
+    error Middleware__NoPerformData();
     error Middleware__InsufficientBalance();
     error Middleware__NotSupportedCollateral(address collateral);
     error Middleware__SlashingWindowTooShort();

@@ -98,6 +98,8 @@ contract MiddlewareTest is Test {
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
     bytes32 public constant MIDDLEWARE_STORAGE_LOCATION =
         0xca64b196a0d05040904d062f739ed1d1e1d3cc5de78f7001fb9039595fce9100;
+    bytes32 public constant MIDDLEWARE_STORAGE_CACHE_LOCATION =
+        0x93540b1a1dc30969947272428a8d0331ac0b23f753e3edd38c70f80cf0835100;
 
     uint8 public constant ORACLE_DECIMALS = 18;
     int256 public constant ORACLE_CONVERSION_TOKEN = 3000 ether;
@@ -2510,6 +2512,7 @@ contract MiddlewareTest is Test {
         assertEq(performData.length, 0);
 
         vm.prank(forwarder2);
+        vm.expectRevert(IMiddleware.Middleware__NoPerformData.selector);
         middleware.performUpkeep(performData);
     }
 
@@ -2543,8 +2546,6 @@ contract MiddlewareTest is Test {
         vm.startPrank(forwarder);
         middleware.performUpkeep(performData);
         vm.stopPrank();
-
-        uint48 epoch = middleware.getCurrentEpoch();
     }
 
     function testUpkeepShouldRevertIfNotCalledByForwarder() public {
@@ -2585,6 +2586,29 @@ contract MiddlewareTest is Test {
 
         vm.prank(forwarder);
         vm.expectRevert(IMiddleware.Middleware__GatewayNotSet.selector);
+        middleware.performUpkeep(performData);
+    }
+
+    function testUpkeepShouldRevertIfAlreadyCached() public {
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+
+        bytes32 slot = bytes32(uint256(MIDDLEWARE_STORAGE_CACHE_LOCATION) + uint256(1));
+        bytes32 operatorKeyToPowerEpochSlot = keccak256(abi.encode(1, slot));
+        bytes32 structSlot = keccak256(abi.encode(OPERATOR_KEY, operatorKeyToPowerEpochSlot));
+
+        vm.store(address(middleware), structSlot, bytes32(uint256(150 ether)));
+
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+
+        vm.prank(forwarder);
+        vm.expectRevert(IMiddleware.Middleware__AlreadyCached.selector);
         middleware.performUpkeep(performData);
     }
 

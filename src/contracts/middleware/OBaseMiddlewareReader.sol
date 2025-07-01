@@ -538,23 +538,6 @@ contract OBaseMiddlewareReader is
         uint48 epoch
     ) external view returns (bytes32[] memory sortedKeys) {
         IMiddleware.ValidatorData[] memory validatorSet = getValidatorSet(epoch);
-        sortedKeys = _sortOperatorsByPower(validatorSet);
-    }
-
-    /**
-     * @dev Sorts operators by their total power in descending order, after 500 it will be almost impossible to be used on-chain since 500 ≈ 36M gas
-     * @param validatorSet Array of validator data containing operator keys and their powers
-     * @return sortedKeys Array of sorted operators keys based on their power
-     */
-    function sortOperatorsByPower(
-        IMiddleware.ValidatorData[] memory validatorSet
-    ) external view returns (bytes32[] memory sortedKeys) {
-        sortedKeys = _sortOperatorsByPower(validatorSet);
-    }
-
-    function _sortOperatorsByPower(
-        IMiddleware.ValidatorData[] memory validatorSet
-    ) internal pure returns (bytes32[] memory sortedKeys) {
         if (validatorSet.length == 0) return sortedKeys;
         validatorSet = validatorSet.quickSort(0, int256(validatorSet.length - 1));
 
@@ -581,7 +564,6 @@ contract OBaseMiddlewareReader is
     ) public view returns (uint256 vaultIdx, address[] memory vaults) {
         address[] memory operatorVaults = _activeVaultsAt(epochStartTs, operator);
         vaults = new address[](operatorVaults.length);
-        vaultIdx = 0;
         bytes32 subnetwork = _NETWORK().subnetwork(0);
 
         uint256 operatorVaultsLength_ = operatorVaults.length;
@@ -591,10 +573,11 @@ contract OBaseMiddlewareReader is
             uint256 operatorStake =
                 IBaseDelegator(IVault(_vault).delegator()).stakeAt(subnetwork, operator, epochStartTs, hex"");
 
-            if (operatorStake != 0) {
-                vaults[vaultIdx++] = _vault;
-            }
             unchecked {
+                if (operatorStake != 0) {
+                    vaults[vaultIdx++] = _vault;
+                }
+
                 ++j;
             }
         }

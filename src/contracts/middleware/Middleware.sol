@@ -371,9 +371,9 @@ contract Middleware is
                     vaultPowers[j] = IOBaseMiddlewareReader(address(this)).getOperatorPowerAt(
                         currentEpochStartTs, operator, vaults[j], subnetwork
                     );
-                    totalPower += vaultPowers[j];
                     unchecked {
                         ++j;
+                        totalPower += vaultPowers[j];
                     }
                 }
 
@@ -393,11 +393,16 @@ contract Middleware is
     function performUpkeep(
         bytes calldata performData
     ) external override checkAccess {
+        if (performData.length == 0) {
+            revert Middleware__NoPerformData();
+        }
+
         StorageMiddleware storage $ = _getMiddlewareStorage();
         address gateway = $.gateway;
         if (gateway == address(0)) {
             revert Middleware__GatewayNotSet();
         }
+
         uint48 epoch = getCurrentEpoch();
         StorageMiddlewareCache storage cache = _getMiddlewareStorageCache();
 
