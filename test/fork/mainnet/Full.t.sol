@@ -1455,7 +1455,7 @@ contract FullTest is Test {
         // We need to execute the slashes for all the vaults of the operator
         for (uint256 i = 0; i < operators.operator1PierTwo.vaults.length; i++) {
             console2.log("Executing slash for vault", i);
-            // TODO: It's reverting here
+            // TODO: The current deployed version doesn't implement executeSlash yet.
             // slashedAmounts[i] = middleware.executeSlash(operators.operator1PierTwo.vaults[i], 0, hex"");
             totalSlash += slashedAmounts[i];
         }
