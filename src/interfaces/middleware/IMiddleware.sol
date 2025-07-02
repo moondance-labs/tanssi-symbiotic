@@ -24,6 +24,20 @@ interface IMiddleware {
     event CollateralToOracleSet(address indexed collateral, address indexed oracle);
 
     /**
+     * @notice Emitted when a pair symbol (i.e. ETH/USD) is set for a collateral.
+     * @dev If the pair symbol is set to empty string, the collateral will no longer be supported.
+     * @param collateral The collateral address
+     * @param pairSymbol The string of the pair symbol
+     */
+    event CollateralToPairSymbol(address indexed collateral, string indexed pairSymbol);
+
+    /**
+     * @notice Emitted when the oracle address is set.
+     * @param oracle The address of DIA oracle
+     */
+    event DIAOracleSet(address indexed oracle);
+
+    /**
      * @notice Emitted when the interval for which the `performUpkeep` should be performed is set.
      * @param interval The interval in seconds
      */

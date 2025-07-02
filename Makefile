@@ -23,10 +23,10 @@ remove :; rm -rf .gitmodules && rm -rf .git/modules/* && rm -rf lib && touch .gi
 # 			forge install symbioticfi/rewards --no-commit && \
 # 			forge install symbioticfi/middleware-sdk --no-commit && \
 # 			forge install Cyfrin/foundry-devops --no-commit && \
-# 			forge install PaulRBerg/prb-math@release-v4 --no-commit&&\
+# 			forge install PaulRBerg/prb-math@release-v4 --no-commit &&\
 # 			forge install moondance-labs/tanssi-bridge-relayer --no-commit --no-git && \
+# 			forge install diadata-org/Spectra-interoperability --no-commit && \
 # 			cd lib/tanssi-bridge-relayer && ./add_overridden_contracts.sh
-
 install :; 	git submodule update --init --recursive && \
 			cd lib/tanssi-bridge-relayer && ./add_overridden_contracts.sh
 

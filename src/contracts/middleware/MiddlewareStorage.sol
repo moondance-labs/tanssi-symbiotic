@@ -24,6 +24,8 @@ abstract contract MiddlewareStorage {
         mapping(address collateral => address oracle) collateralToOracle;
         mapping(address vault => address collateral) vaultToCollateral;
         uint256 lastExecutionBlock;
+        address diaOracleAddress;
+        mapping(address collateral => string encodedPairSymbol) collateralToPairSymbol;
     }
 
     // keccak256(abi.encode(uint256(keccak256("tanssi.middleware.MiddlewareStorage.v1.1")) - 1)) & ~bytes32(uint256(0xff));
@@ -114,6 +116,26 @@ abstract contract MiddlewareStorage {
     }
 
     /**
+     * @notice Get the oracle address for a collateral
+     * @return pairSymbol
+     */
+    function collateralToPairSymbol(
+        address collateral
+    ) public view returns (string memory) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        return $.collateralToPairSymbol[collateral];
+    }
+
+    /**
+     * @notice Get DIA oracle address
+     * @return oracle
+     */
+    function getDIAOracleAddress() public view returns (address) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        return $.diaOracleAddress;
+    }
+
+    /**
      * @notice Get the oracle address for a vault
      * @return oracle address
      */
@@ -122,5 +144,16 @@ abstract contract MiddlewareStorage {
     ) public view returns (address) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
         return $.collateralToOracle[$.vaultToCollateral[vault]];
+    }
+
+    /**
+     * @notice Get the pair symbol for a vault
+     * @return pair symbol
+     */
+    function vaultToPairSymbol(
+        address vault
+    ) public view returns (string memory) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        return $.collateralToPairSymbol[$.vaultToCollateral[vault]];
     }
 }

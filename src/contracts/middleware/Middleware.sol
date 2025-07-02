@@ -21,6 +21,11 @@ import {AutomationCompatibleInterface} from "@chainlink/automation/interfaces/Au
 import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3Interface.sol";
 
 //**************************************************************************************************
+//                                      DIA
+//**************************************************************************************************
+import {PushOracleReceiver} from "@dia-data/PushOracleReceiver.sol";
+
+//**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -160,19 +165,15 @@ contract Middleware is
 
     function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
         address collateral = vaultToCollateral(vault);
-        address oracle = collateralToOracle(collateral);
-
-        if (oracle == address(0)) {
+        string memory pairSymbol = collateralToPairSymbol(collateral);
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        if (pairSymbol.length == 0) {
             revert Middleware__NotSupportedCollateral(collateral);
         }
-        (, int256 price,,,) = AggregatorV3Interface(oracle).latestRoundData();
-        uint8 priceDecimals = AggregatorV3Interface(oracle).decimals();
-        power = stake.mulDiv(uint256(price), 10 ** priceDecimals);
-        // Normalize power to 18 decimals
-        uint8 collateralDecimals = IERC20Metadata(collateral).decimals();
-        if (collateralDecimals != DEFAULT_DECIMALS) {
-            power = power.mulDiv(10 ** DEFAULT_DECIMALS, 10 ** collateralDecimals);
-        }
+        (, uint128 price) = PushOracleReceiver($.diaOracleAddress).updates(pairSymbol);
+
+        // Normalize power to 18 decimals, since the price is already on 8 decimals
+        power = stake.mulDiv(uint256(price), 10 ** 10);
     }
 
     /**
@@ -245,6 +246,18 @@ contract Middleware is
         emit CollateralToOracleSet(collateral, oracle);
     }
 
+    function setCollateralToPairSymbol(
+        address collateral,
+        string calldata pairSymbol
+    ) external checkAccess notZeroAddress(collateral) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+
+        // pairSymbol is not checked against zero so this can be used to remove the pairSymbol from a collateral
+
+        $.collateralToPairSymbol[collateral] = pairSymbol;
+        emit CollateralToPairSymbol(collateral, pairSymbol);
+    }
+
     /**
      * @inheritdoc IMiddleware
      */
@@ -252,6 +265,15 @@ contract Middleware is
         uint48 operatorShare
     ) external checkAccess {
         IODefaultOperatorRewards(i_operatorRewards).setOperatorShare(operatorShare);
+    }
+
+    function setDIAOracleAddress(
+        address oracle
+    ) external checkAccess notZeroAddress(oracle) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        $.diaOracleAddress = oracle;
+
+        emit DIAOracleSet(oracle);
     }
 
     /**
