@@ -81,6 +81,11 @@ deploy-staker-rewards-factory:
 	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "deployStakerRewardsFactoryContract(address,address,address,address)" $(VAULT_FACTORY_ADDRESS) $(NETWORK_MIDDLEWARE_SERVICE) $(OPERATOR_REWARDS_ADDRESS) $(NETWORK) -vv
 	@echo "✅ Staker Rewards Factory deployment completed"
 
+deploy-tanssi-vault:
+	@echo "📡 Deploying Tanssi Vault..."
+	@forge script script/DeployVault.s.sol:DeployVault $(NETWORK_ARGS) --sig "createTanssiVault(address,address,address)" $(VAULT_CONFIGURATOR_ADDRESS) $(ADMIN_ADDRESS) $(TANSSI_TOKEN_ADDRESS) -vv
+	@echo "✅ Tanssi Vault deployment completed"
+
 upgrade-operator-rewards:
 	@echo "📡 Upgrading Operator Rewards..."
 	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "upgradeOperatorRewards(address,address,address)" $(OPERATOR_REWARDS_ADDRESS) $(NETWORK) $(NETWORK_MIDDLEWARE_SERVICE) -vv

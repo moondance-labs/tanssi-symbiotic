@@ -332,6 +332,12 @@ contract DeployTest is Test {
         assertEq(sortedKeys.length, 3);
     }
 
+    function testDeployTanssiVault() public {
+        (address vaultConfiguratorAddress,,,,,,,,) = helperConfig.activeNetworkConfig();
+        address tanssiToken = deployCollateral.deployCollateral("TANSSI");
+        deployVault.createTanssiVault(vaultConfiguratorAddress, tanssi, tanssiToken);
+    }
+
     //**************************************************************************************************
     //                                      PRIVATE FUNCTIONS
     //**************************************************************************************************

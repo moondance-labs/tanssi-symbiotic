@@ -96,6 +96,23 @@ contract DeployVault is Script {
         });
     }
 
+    function createTanssiVault(address vaultConfigurator, address admin, address collateral) public {
+        CreateVaultBaseParams memory params = CreateVaultBaseParams({
+            epochDuration: 7 days,
+            depositWhitelist: false,
+            depositLimit: 0,
+            delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
+            shouldBroadcast: true,
+            vaultConfigurator: vaultConfigurator,
+            collateral: collateral,
+            owner: admin,
+            operator: address(0),
+            network: address(0),
+            burner: address(0xDead)
+        });
+        _createVault(params, VaultManager.SlasherType.INSTANT, true, 0);
+    }
+
     function _createVault(
         CreateVaultBaseParams memory params,
         VaultManager.SlasherType slasherIndex,
