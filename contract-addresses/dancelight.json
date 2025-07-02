@@ -34,7 +34,7 @@
       "vault": "0xb94f8852443fb4fab18363d22a45ca64a8cf4482",
       "delegator": "0x3f2e1db3f2bb165e50f2960e728099071353ed63",
       "slasher": "0x583f9a77af8f4d7aee735a2f7645bbd7a012af1b",
-      "stakerRewards": "0x583f9a77af8f4d7aee735a2f7645bbd7a012af1b",
+      "stakerRewards": "0x54c3fddfafa33e7a0ece37c61e0057bff3a9ef96",
       "stakerRewardsImplementation": "0x34e4d6acc204595b7e35ad2b9dee4ab85a6a2216"
     }
   ]

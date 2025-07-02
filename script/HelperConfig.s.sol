@@ -14,17 +14,10 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
-import {console2, Script} from "forge-std/Script.sol";
+import {Script} from "forge-std/Script.sol";
 import {DeploySymbiotic} from "./DeploySymbiotic.s.sol";
 
 contract HelperConfig is Script {
-    Entities public activeEntities;
-    NetworkConfig public activeNetworkConfig;
-    TokensConfig public activeTokensConfig;
-    VaultsConfigA public activeVaultsConfigA;
-    VaultsConfigB public activeVaultsConfigB;
-    OperatorConfig public activeOperatorConfig;
-
     struct Entities {
         address admin;
         address tanssi;
@@ -118,7 +111,15 @@ contract HelperConfig is Script {
         OperatorData operator11Opslayer;
     }
 
-    uint256 public DEFAULT_ANVIL_PRIVATE_KEY = 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6;
+    Entities public activeEntities;
+    NetworkConfig public activeNetworkConfig;
+    TokensConfig public activeTokensConfig;
+    VaultsConfigA public activeVaultsConfigA;
+    VaultsConfigB public activeVaultsConfigB;
+    OperatorConfig public activeOperatorConfig;
+
+    uint256 public PRIVATE_KEY =
+        vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
 
     constructor() {
         if (block.chainid == 1 || block.chainid == 11_155_111) {
@@ -133,6 +134,8 @@ contract HelperConfig is Script {
         } else {
             // Other configurations can remain empty
             activeNetworkConfig = getAnvilEthConfig();
+            activeEntities.tanssi = vm.addr(PRIVATE_KEY);
+            activeEntities.admin = activeEntities.tanssi;
         }
     }
 
@@ -204,6 +207,13 @@ contract HelperConfig is Script {
             networkConfig.collateral =
                 abi.decode(vm.parseJson(json, string.concat(jsonPath, ".collaterals[0].address")), (address));
             tokensConfig.wstETH = networkConfig.collateral;
+
+            if (block.chainid == 11_155_111) {
+                VaultData memory vault = _loadVault(json, string.concat(jsonPath, ".vaults[0]"));
+                _assignVault(vault, vaultsConfigA, vaultsConfigB);
+                OperatorData memory operator = _loadOperator(json, string.concat(jsonPath, ".operators[0]"));
+                _assignOperator(operator, operatorConfig);
+            }
         }
     }
 
