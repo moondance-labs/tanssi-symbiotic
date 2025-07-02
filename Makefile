@@ -83,7 +83,7 @@ deploy-staker-rewards-factory:
 
 deploy-tanssi-vault:
 	@echo "📡 Deploying Tanssi Vault..."
-	@forge script script/DeployVault.s.sol:DeployVault $(NETWORK_ARGS) --sig "createTanssiVault(address,address,address)" $(VAULT_CONFIGURATOR_ADDRESS) $(ADMIN_ADDRESS) $(TANSSI_TOKEN_ADDRESS) -vv
+	@forge script script/DeployVault.s.sol:DeployVault $(NETWORK_ARGS) --sig "createTanssiVault(address,address,address)" $(VAULT_CONFIGURATOR_ADDRESS) $(ADMIN_ADDRESS) $(TOKEN_ADDRESS) -vv
 	@echo "✅ Tanssi Vault deployment completed"
 
 upgrade-operator-rewards:
