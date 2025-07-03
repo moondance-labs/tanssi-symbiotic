@@ -306,84 +306,7 @@ contract Middleware is
     function checkUpkeep(
         bytes calldata /* checkData */
     ) external view override returns (bool upkeepNeeded, bytes memory performData) {
-        uint48 epoch = getCurrentEpoch();
-        uint48 currentEpochStartTs = IOBaseMiddlewareReader(address(this)).getEpochStart(epoch);
-
-        StorageMiddleware storage $ = _getMiddlewareStorage();
-        StorageMiddlewareCache storage cache = _getMiddlewareStorageCache();
-
-        address[] memory activeOperators = _activeOperators();
-        uint256 activeOperatorsLength = activeOperators.length;
-        if (activeOperatorsLength == 0) {
-            // No active operators, no upkeep needed
-            return (false, hex"");
-        }
-
-        uint256 cacheIndex = cache.epochToCacheIndex[epoch];
-        uint256 pendingOperatorsToCache = activeOperatorsLength - cacheIndex;
-
-        // Check if cache is still not filled with the current epoch validators
-        if (pendingOperatorsToCache > 0) {
-            uint256 maxNumOperatorsToCheck = Math.min(pendingOperatorsToCache, MAX_OPERATORS_TO_PROCESS);
-
-            // Populate validatorsData with the new operators' keys and their powers
-            // It gets encoded to be used in performUpkeep
-            ValidatorDataCache[] memory validatorsData = _calculateOperatorPowersToCache(
-                activeOperators, currentEpochStartTs, maxNumOperatorsToCheck, cacheIndex
-            );
-
-            // encode values to be used in performUpkeep
-            return (true, abi.encode(validatorsData));
-        }
-
-        //Should be at least once per epoch
-        upkeepNeeded = (Time.timestamp() - $.lastTimestamp) > $.interval;
-        if (upkeepNeeded) {
-            // This will use the cached values, resulting in just a simple sorting operation. We can know a priori how much it cost since it's just an address with a uint256 power. Worst case we can split this too.
-            bytes32[] memory sortedKeys = IOBaseMiddlewareReader(address(this)).sortOperatorsByPower(epoch);
-            performData = abi.encode(sortedKeys);
-            return (true, performData);
-        }
-
-        return (upkeepNeeded, hex"");
-    }
-
-    function _calculateOperatorPowersToCache(
-        address[] memory activeOperators,
-        uint48 currentEpochStartTs,
-        uint256 maxNumOperatorsToCheck,
-        uint256 cacheIndex
-    ) private view returns (ValidatorDataCache[] memory validatorsData) {
-        uint256 activeOperatorsLength = activeOperators.length;
-        validatorsData = new ValidatorDataCache[](maxNumOperatorsToCheck);
-        uint96 subnetwork = _NETWORK().subnetwork(0).identifier();
-        for (uint256 i = cacheIndex; i < cacheIndex + maxNumOperatorsToCheck && i < activeOperatorsLength;) {
-            address operator = activeOperators[i];
-            bytes32 operatorKey = abi.decode(operatorKey(operator), (bytes32));
-
-            {
-                (uint256 totalVaults, address[] memory vaults) =
-                    IOBaseMiddlewareReader(address(this)).getOperatorVaults(operator, currentEpochStartTs);
-
-                uint256[] memory vaultPowers = new uint256[](totalVaults);
-                uint256 totalPower;
-                for (uint256 j; j < totalVaults;) {
-                    vaultPowers[j] = IOBaseMiddlewareReader(address(this)).getOperatorPowerAt(
-                        currentEpochStartTs, operator, vaults[j], subnetwork
-                    );
-                    unchecked {
-                        ++j;
-                        totalPower += vaultPowers[j];
-                    }
-                }
-
-                validatorsData[i - cacheIndex] =
-                    ValidatorDataCache({key: operatorKey, power: totalPower, powerPerVault: vaultPowers});
-            }
-            unchecked {
-                ++i;
-            }
-        }
+        (upkeepNeeded, performData) = IOBaseMiddlewareReader(address(this)).auxialiaryCheckUpkeep();
     }
 
     /**
@@ -412,10 +335,10 @@ contract Middleware is
         uint256 pendingOperatorsToCache = activeOperatorsLength - cacheIndex;
 
         if (pendingOperatorsToCache > 0) {
-            ValidatorDataCache[] memory validatorsData = abi.decode(performData, (ValidatorDataCache[]));
+            ValidatorData[] memory validatorsData = abi.decode(performData, (ValidatorData[]));
             uint256 validatorsDataLength = validatorsData.length;
             for (uint256 i = 0; i < validatorsDataLength;) {
-                ValidatorDataCache memory validatorData = validatorsData[i];
+                ValidatorData memory validatorData = validatorsData[i];
                 bytes32 validatorKey = validatorData.key;
                 // Update the cache with the operator power and the operator
                 if (cache.operatorKeyToPower[epoch][validatorKey].power != 0) {
@@ -423,7 +346,6 @@ contract Middleware is
                 }
 
                 cache.operatorKeyToPower[epoch][validatorKey].power = validatorData.power;
-                cache.operatorKeyToPower[epoch][validatorKey].powerPerVault = validatorData.powerPerVault;
                 unchecked {
                     ++i;
                 }

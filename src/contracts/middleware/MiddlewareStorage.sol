@@ -30,7 +30,7 @@ abstract contract MiddlewareStorage {
 
     struct StorageMiddlewareCache {
         mapping(uint48 epoch => uint256 cacheIndex) epochToCacheIndex;
-        mapping(uint48 epoch => mapping(bytes32 operatorKey => IMiddleware.ValidatorDataCache operatorPower))
+        mapping(uint48 epoch => mapping(bytes32 operatorKey => IMiddleware.ValidatorData operatorPower))
             operatorKeyToPower;
     }
 
@@ -146,28 +146,23 @@ abstract contract MiddlewareStorage {
     /**
      * @notice Get epoch operators cache index
      * @param epoch The epoch number
-     * @return cacheIndex The index of the cache for the epoch or how many operators have had their powers cached
+     * @return The index of the cache for the epoch or how many operators have had their powers cached
      */
     function getEpochCacheIndex(
         uint48 epoch
-    ) public view returns (uint256 cacheIndex) {
+    ) public view returns (uint256) {
         StorageMiddlewareCache storage $ = _getMiddlewareStorageCache();
-        cacheIndex = $.epochToCacheIndex[epoch];
+        return $.epochToCacheIndex[epoch];
     }
 
     /**
      * @notice Get the power of an operator
      * @param epoch The epoch number
      * @param operatorKey The operator key
-     * @return power The power of the operator
+     * @return The power of the operator
      */
-    function getOperatorToPower(
-        uint48 epoch,
-        bytes32 operatorKey
-    ) public view returns (uint256 power, uint256[] memory powerPerVault) {
+    function getOperatorToPower(uint48 epoch, bytes32 operatorKey) public view returns (uint256) {
         StorageMiddlewareCache storage $ = _getMiddlewareStorageCache();
-        IMiddleware.ValidatorDataCache memory operatorPowerData = $.operatorKeyToPower[epoch][operatorKey];
-        power = operatorPowerData.power;
-        powerPerVault = operatorPowerData.powerPerVault;
+        return $.operatorKeyToPower[epoch][operatorKey].power;
     }
 }

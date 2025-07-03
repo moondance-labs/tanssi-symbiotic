@@ -18,6 +18,7 @@ pragma solidity 0.8.25;
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
 //**************************************************************************************************
 //                                      SYMBIOTIC
@@ -54,6 +55,7 @@ contract OBaseMiddlewareReader is
     using PauseableEnumerableSet for PauseableEnumerableSet.AddressSet;
     using PauseableEnumerableSet for PauseableEnumerableSet.Status;
     using Subnetwork for address;
+    using Subnetwork for bytes32;
     using Math for uint256;
 
     // ** OLD BASE MIDDLEWARE READER LOGIC **
@@ -536,7 +538,7 @@ contract OBaseMiddlewareReader is
      */
     function sortOperatorsByPower(
         uint48 epoch
-    ) external view returns (bytes32[] memory sortedKeys) {
+    ) public view returns (bytes32[] memory sortedKeys) {
         IMiddleware.ValidatorData[] memory validatorSet = getValidatorSet(epoch);
         if (validatorSet.length == 0) return sortedKeys;
         validatorSet = validatorSet.quickSort(0, int256(validatorSet.length - 1));
@@ -642,7 +644,7 @@ contract OBaseMiddlewareReader is
         for (uint256 i; i < operatorsLength_;) {
             address operator = operators[i];
             bytes32 key = abi.decode(getOperatorKeyAt(operator, epochStartTs), (bytes32));
-            (uint256 operatorPowerCached,) = getOperatorToPower(epoch, key);
+            uint256 operatorPowerCached = getOperatorToPower(epoch, key);
 
             unchecked {
                 ++i;
@@ -674,5 +676,63 @@ contract OBaseMiddlewareReader is
     ) external view returns (uint48 epoch) {
         EpochCaptureStorage storage $ = _getEpochCaptureStorage();
         return (timestamp - $.startTimestamp - 1) / $.epochDuration;
+    }
+
+    /**
+     * @dev Called by the middleware, as an auxiliary view function to check if the upkeep is needed
+     * @dev The function is in this contract to reduce Middleware size
+     * @return upkeepNeeded boolean to indicate whether the keeper should call performUpkeep or not.
+     * @return performData bytes of the sorted (by power) operators' keys and the epoch that will be used by the keeper when calling performUpkeep, if upkeep is needed.
+     */
+    function auxialiaryCheckUpkeep() external view returns (bool upkeepNeeded, bytes memory performData) {
+        uint48 epoch = getCurrentEpoch();
+        uint48 currentEpochStartTs = getEpochStart(epoch);
+
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        StorageMiddlewareCache storage cache = _getMiddlewareStorageCache();
+
+        address[] memory activeOperators = _activeOperators();
+        uint256 activeOperatorsLength = activeOperators.length;
+        if (activeOperatorsLength == 0) {
+            // No active operators, no upkeep needed
+            return (false, hex"");
+        }
+
+        uint256 cacheIndex = cache.epochToCacheIndex[epoch];
+        uint256 pendingOperatorsToCache = activeOperatorsLength - cacheIndex;
+
+        // Check if cache is still not filled with the current epoch validators
+        if (pendingOperatorsToCache > 0) {
+            uint256 maxNumOperatorsToCheck = Math.min(pendingOperatorsToCache, MAX_OPERATORS_TO_PROCESS);
+            IMiddleware.ValidatorData[] memory validatorsData = new IMiddleware.ValidatorData[](maxNumOperatorsToCheck);
+
+            // Populate validatorsData with the new operators' keys and their powers
+            // It gets encoded to be used in performUpkeep
+
+            for (uint256 i = cacheIndex; i < cacheIndex + maxNumOperatorsToCheck && i < activeOperatorsLength;) {
+                address operator = activeOperators[i];
+                bytes32 operatorKey = abi.decode(operatorKey(operator), (bytes32));
+                uint256 operatorPower = _getOperatorPowerAt(currentEpochStartTs, operator);
+                validatorsData[i - cacheIndex] = IMiddleware.ValidatorData({key: operatorKey, power: operatorPower});
+
+                unchecked {
+                    ++i;
+                }
+            }
+
+            // encode values to be used in performUpkeep
+            return (true, abi.encode(validatorsData));
+        }
+
+        //Should be at least once per epoch
+        upkeepNeeded = (Time.timestamp() - $.lastTimestamp) > $.interval;
+        if (upkeepNeeded) {
+            // This will use the cached values, resulting in just a simple sorting operation. We can know a priori how much it cost since it's just an address with a uint256 power. Worst case we can split this too.
+            bytes32[] memory sortedKeys = sortOperatorsByPower(epoch);
+            performData = abi.encode(sortedKeys);
+            return (true, performData);
+        }
+
+        return (upkeepNeeded, hex"");
     }
 }

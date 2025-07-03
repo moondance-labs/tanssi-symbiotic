@@ -219,8 +219,9 @@ contract ODefaultOperatorRewards is
             revert ODefaultOperatorRewards__NoVaults();
         }
 
-        uint256[] memory amountPerVault =
-            _getRewardsAmountPerVault(operatorVaults, epoch, epochStartTs, operator, middlewareAddress, stakerAmount);
+        uint256[] memory amountPerVault = _getRewardsAmountPerVault(
+            operatorVaults, totalVaults, epochStartTs, operator, middlewareAddress, stakerAmount
+        );
 
         _distributeRewardsPerVault(epoch, eraIndex, tokenAddress, totalVaults, operatorVaults, amountPerVault, data);
     }
@@ -261,35 +262,26 @@ contract ODefaultOperatorRewards is
 
     function _getRewardsAmountPerVault(
         address[] memory operatorVaults,
-        uint48 epoch,
+        uint256 totalVaults,
         uint48 epochStartTs,
         address operator,
         address middlewareAddress,
         uint256 stakerAmount
     ) private view returns (uint256[] memory amountPerVault) {
         // First we get the operator power per vault
-        uint256 totalPower;
-        uint256[] memory vaultPowers;
-        {
-            bytes32 operatorKey = abi.decode(Middleware(middlewareAddress).operatorKey(operator), (bytes32));
+        uint96 subnetwork = i_network.subnetwork(0).identifier();
+        IOBaseMiddlewareReader reader = IOBaseMiddlewareReader(middlewareAddress);
 
-            (totalPower, vaultPowers) = Middleware(middlewareAddress).getOperatorToPower(epoch, operatorKey);
-        }
-        uint256 totalVaults = operatorVaults.length;
-        if (totalPower == 0) {
-            vaultPowers = new uint256[](totalVaults);
-            uint96 subnetwork = i_network.subnetwork(0).identifier();
-            for (uint256 i; i < totalVaults;) {
-                vaultPowers[i] = IOBaseMiddlewareReader(middlewareAddress).getOperatorPowerAt(
-                    epochStartTs, operator, operatorVaults[i], subnetwork
-                );
+        uint256[] memory vaultPowers = new uint256[](totalVaults);
+        uint256 totalPower;
+        for (uint256 i; i < totalVaults;) {
+            vaultPowers[i] = reader.getOperatorPowerAt(epochStartTs, operator, operatorVaults[i], subnetwork);
+            unchecked {
                 totalPower += vaultPowers[i];
-                unchecked {
-                    ++i;
-                }
+                ++i;
             }
         }
-
+        // Then we calculate the rewards according to the operator power on each vault
         uint256 distributedAmount;
         amountPerVault = new uint256[](totalVaults);
         for (uint256 i; i < totalVaults;) {

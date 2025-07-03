@@ -69,18 +69,6 @@ interface IMiddleware {
     }
 
     /**
-     * @notice Validator data structure containing cached stake and key
-     * @param power The validator's power, based on staked tokens and their price
-     * @param powerPerVault Array of validator's power per vault
-     * @param key The validator's key
-     */
-    struct ValidatorDataCache {
-        uint256 power;
-        uint256[] powerPerVault;
-        bytes32 key;
-    }
-
-    /**
      * @notice Structure to store slashing parameters
      * @param epochStartTs The epoch start timestamp
      * @param vault The vault address
