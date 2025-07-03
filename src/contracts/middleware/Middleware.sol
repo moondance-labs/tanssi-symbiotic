@@ -306,7 +306,7 @@ contract Middleware is
     function checkUpkeep(
         bytes calldata /* checkData */
     ) external view override returns (bool upkeepNeeded, bytes memory performData) {
-        (upkeepNeeded, performData) = IOBaseMiddlewareReader(address(this)).auxialiaryCheckUpkeep();
+        (upkeepNeeded, performData) = IOBaseMiddlewareReader(address(this)).auxiliaryCheckUpkeep();
     }
 
     /**
@@ -341,11 +341,11 @@ contract Middleware is
                 ValidatorData memory validatorData = validatorsData[i];
                 bytes32 validatorKey = validatorData.key;
                 // Update the cache with the operator power and the operator
-                if (cache.operatorKeyToPower[epoch][validatorKey].power != 0) {
+                if (cache.operatorKeyToPower[epoch][validatorKey] != 0) {
                     revert Middleware__AlreadyCached();
                 }
 
-                cache.operatorKeyToPower[epoch][validatorKey].power = validatorData.power;
+                cache.operatorKeyToPower[epoch][validatorKey] = validatorData.power;
                 unchecked {
                     ++i;
                 }

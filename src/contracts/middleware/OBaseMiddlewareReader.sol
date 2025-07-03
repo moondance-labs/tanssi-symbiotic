@@ -684,7 +684,7 @@ contract OBaseMiddlewareReader is
      * @return upkeepNeeded boolean to indicate whether the keeper should call performUpkeep or not.
      * @return performData bytes of the sorted (by power) operators' keys and the epoch that will be used by the keeper when calling performUpkeep, if upkeep is needed.
      */
-    function auxialiaryCheckUpkeep() external view returns (bool upkeepNeeded, bytes memory performData) {
+    function auxiliaryCheckUpkeep() external view returns (bool upkeepNeeded, bytes memory performData) {
         uint48 epoch = getCurrentEpoch();
         uint48 currentEpochStartTs = getEpochStart(epoch);
 
