@@ -52,7 +52,7 @@ contract ODefaultStakerRewardsFactory is Registry, IODefaultStakerRewardsFactory
         ODefaultStakerRewards stakerRewards = new ODefaultStakerRewards(i_networkMiddlewareService, vault, i_network);
 
         address proxy = address(new ERC1967Proxy((address(stakerRewards)), ""));
-        ODefaultStakerRewards(proxy).initialize(i_operatorRewards, params);
+        ODefaultStakerRewards(proxy).initialize(i_operatorRewards, vault, params);
         _addEntity(proxy);
 
         return proxy;

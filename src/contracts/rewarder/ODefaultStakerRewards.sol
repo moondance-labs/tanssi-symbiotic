@@ -90,25 +90,24 @@ contract ODefaultStakerRewards is
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    address public immutable i_vault;
+    address public immutable i_network;
 
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    address public immutable i_network;
+    address public vault;
 
-    constructor(address networkMiddlewareService, address vault, address network) {
+    constructor(address networkMiddlewareService, address network) {
         _disableInitializers();
 
         if (network == address(0) || networkMiddlewareService == address(0) || vault == address(0)) {
             revert ODefaultStakerRewards__InvalidAddress();
         }
         i_networkMiddlewareService = networkMiddlewareService;
-        i_vault = vault;
         i_network = network;
     }
 
-    function initialize(address operatorRewards, InitParams calldata params) external initializer {
+    function initialize(address operatorRewards, address vault_, InitParams calldata params) external initializer {
         if (operatorRewards == address(0)) {
             revert ODefaultStakerRewards__InvalidAddress();
         }
@@ -132,6 +131,8 @@ contract ODefaultStakerRewards is
         __ReentrancyGuard_init();
 
         _setAdminFee(params.adminFee);
+
+        vault = vault_;
 
         if (params.defaultAdminRoleHolder != address(0)) {
             _grantRole(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
@@ -337,6 +338,21 @@ contract ODefaultStakerRewards is
         _setAdminFee(adminFee_);
 
         emit SetAdminFee(adminFee_);
+    }
+
+    /**
+     * @dev This function should be called only once and then should be upgraded to a new implementation without this function.
+     */
+    function setVault(
+        address vault_
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (vault_ == address(0)) {
+            revert ODefaultStakerRewards__InvalidAddress();
+        }
+
+        vault = vault_;
+
+        emit SetVault(vault_);
     }
 
     /**
