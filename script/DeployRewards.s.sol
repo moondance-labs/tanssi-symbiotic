@@ -82,7 +82,7 @@ contract DeployRewards is Script {
         address network
     ) public returns (address) {
         if (!isTest) {
-            vm.startBroadcast(ownerPrivateKey);
+            vm.startBroadcast();
         }
         stakerRewardsFactory =
             new ODefaultStakerRewardsFactory(vaultFactory, networkMiddlewareService, operatorRewardsAddress, network);
@@ -107,6 +107,29 @@ contract DeployRewards is Script {
         emit Done();
     }
 
+    function deployStakerRewards(address networkMiddlewareService, address[] memory vaults, address network) external {
+        if (!isTest) {
+            vm.startBroadcast();
+        } else {
+            vm.startPrank(network);
+        }
+        console2.log("Network Middleware Service: ", networkMiddlewareService);
+        console2.log("Network: ", network);
+        for (uint256 i = 0; i < vaults.length; i++) {
+            console2.log("Upgrading Staker Rewards for vault: ", vaults[i]);
+            ODefaultStakerRewards implementation =
+                new ODefaultStakerRewards(networkMiddlewareService, vaults[i], network);
+            console2.log("New Staker Rewards Implementation: ", address(implementation));
+            console2.log("\n\n");
+        }
+
+        if (!isTest) {
+            vm.stopBroadcast();
+        } else {
+            vm.stopPrank();
+        }
+    }
+
     function upgradeStakerRewards(
         address proxyAddress,
         address networkMiddlewareService,
@@ -114,7 +137,7 @@ contract DeployRewards is Script {
         address network
     ) external {
         if (!isTest) {
-            vm.startBroadcast(ownerPrivateKey);
+            vm.startBroadcast();
         } else {
             vm.startPrank(network);
         }
@@ -135,7 +158,7 @@ contract DeployRewards is Script {
 
     function upgradeOperatorRewards(address proxyAddress, address network, address networkMiddlewareService) external {
         if (!isTest) {
-            vm.startBroadcast(ownerPrivateKey);
+            vm.startBroadcast();
         } else {
             vm.startPrank(network);
         }
@@ -144,6 +167,24 @@ contract DeployRewards is Script {
         console2.log("New Operator Rewards Implementation: ", address(implementation));
         proxy.upgradeToAndCall(address(implementation), hex"");
         console2.log("Operator Rewards Upgraded");
+        if (!isTest) {
+            vm.stopBroadcast();
+        } else {
+            vm.stopPrank();
+        }
+    }
+
+    function deployOperatorRewards(address network, address networkMiddlewareService) external {
+        if (!isTest) {
+            vm.startBroadcast();
+        } else {
+            vm.startPrank(network);
+        }
+        console2.log("Network Middleware Service: ", networkMiddlewareService);
+        console2.log("Network: ", network);
+        ODefaultOperatorRewards implementation = new ODefaultOperatorRewards(network, networkMiddlewareService);
+        console2.log("New Operator Rewards Implementation: ", address(implementation));
+
         if (!isTest) {
             vm.stopBroadcast();
         } else {
