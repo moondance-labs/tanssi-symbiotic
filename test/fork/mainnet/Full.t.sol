@@ -108,7 +108,7 @@ contract FullTest is Test {
     uint128 public constant OPERATOR_NETWORK_LIMIT = 500 ether;
     uint256 public constant TOTAL_NETWORK_SHARES = 2;
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
-    uint256 public constant SLASHING_FRACTION = PARTS_PER_BILLION / 10; // 10%
+    uint256 public constant SLASHING_FRACTION = PARTS_PER_BILLION / 20; // 5%
     uint8 public constant ORACLE_DECIMALS = 2;
     int256 public constant ORACLE_CONVERSION_TOKEN = 2000;
 
@@ -1431,9 +1431,9 @@ contract FullTest is Test {
     }
 
     function testSlashingOnOperatorAndExecutingSlashCase1() public {
-        uint48 currentEpoch = middleware.getCurrentEpoch();
+        uint48 initialEpoch = middleware.getCurrentEpoch();
         address operatorAddress = operators.operator1PierTwo.evmAddress;
-        Middleware.ValidatorData[] memory validators = reader.getValidatorSet(currentEpoch);
+        Middleware.ValidatorData[] memory validators = reader.getValidatorSet(initialEpoch);
         uint256 operatorPowerBefore;
         for (uint256 i = 0; i < validators.length; i++) {
             if (validators[i].key == operators.operator1PierTwo.operatorKey) {
@@ -1443,36 +1443,29 @@ contract FullTest is Test {
         }
         assertNotEq(operatorPowerBefore, 0);
         // We need to track by stake and not by power since power uses live oracle which cannot be mocked
-        uint256 totalStakeBefore = reader.getTotalStake(currentEpoch);
-
         vm.prank(address(gateway));
-        middleware.slash(currentEpoch, operators.operator1PierTwo.operatorKey, SLASHING_FRACTION);
+        middleware.slash(initialEpoch, operators.operator1PierTwo.operatorKey, SLASHING_FRACTION);
+        uint48 epochStartTs = reader.getEpochStart(initialEpoch);
 
         vm.warp(block.timestamp + VETO_DURATION + 1);
-        uint256 totalSlash;
 
         // We need to execute the slashes for all the vaults of the operator
         address[] memory vaults = operators.operator1PierTwo.vaults;
         for (uint256 i = 0; i < vaults.length; i++) {
-            uint256 slashedAmout = middleware.executeSlash(vaults[i], 0, hex"");
-            totalSlash += slashedAmout;
-            uint256 operatorStakeBefore =
-                IBaseDelegator(IVault(vaults[i]).delegator()).stake(tanssi.subnetwork(0), operatorAddress);
+            address vault = vaults[i];
+            address vaultCollateral = middleware.vaultToCollateral(vault);
+            uint256 vaultBalanceBefore = IERC20(vaultCollateral).balanceOf(vault);
+            uint256 operatorStakeBefore = IBaseDelegator(IVault(vault).delegator()).stakeAt(
+                tanssi.subnetwork(0), operatorAddress, epochStartTs, new bytes(0)
+            );
             uint256 expectedSlash = operatorStakeBefore.mulDiv(SLASHING_FRACTION, PARTS_PER_BILLION);
-            console2.log("");
-            console2.log("Slashed amount:", slashedAmout);
-            console2.log("Expected slash:", expectedSlash);
-            // assertEq(slashedAmout, expectedSlash);
-        }
 
-        vm.warp(block.timestamp + VAULT_EPOCH_DURATION + 1);
-        uint48 newEpoch = middleware.getCurrentEpoch();
-        uint256 totalStakeAfter = reader.getTotalStake(newEpoch);
-        console2.log("Total stake before  :", totalStakeBefore);
-        console2.log("Total stake after   :", totalStakeAfter);
-        console2.log("Total slash         :", totalSlash);
-        console2.log("Expected total stake:", totalStakeBefore - totalSlash);
-        // assertEq(totalStakeBefore - totalSlash, totalStakeAfter);
+            uint256 slashedAmount = middleware.executeSlash(vault, 0, hex"");
+            uint256 vaultBalanceAfter = IERC20(vaultCollateral).balanceOf(vault);
+
+            assertEq(slashedAmount, expectedSlash);
+            assertEq(vaultBalanceBefore - slashedAmount, vaultBalanceAfter);
+        }
     }
 
     function testOperatorRewardsDistributionCase1() public {
