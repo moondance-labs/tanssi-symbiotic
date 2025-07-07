@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [1.1.1] - 2025-07-02
+
+Commit: [9c3b9c6ebc0905d930845bf1d5e11640b073b4dc](https://github.com/moondance-labs/tanssi-symbiotic/commit/9c3b9c6ebc0905d930845bf1d5e11640b073b4dc)
+
+### Changed
+
+- Updates submodule dependency for bridge relayer
+
 ## [1.1.0] - 2025-06-04
 
 Commit: [4886d16a42a7f33f51ba9328a0f4566feb0c92d3](https://github.com/moondance-labs/tanssi-symbiotic/commit/4886d16a42a7f33f51ba9328a0f4566feb0c92d3)
