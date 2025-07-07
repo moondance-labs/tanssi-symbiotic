@@ -691,8 +691,8 @@ contract OBaseMiddlewareReader is
         StorageMiddleware storage $ = _getMiddlewareStorage();
         StorageMiddlewareCache storage cache = _getMiddlewareStorageCache();
 
-        address[] memory activeOperators = _activeOperators();
-        uint256 activeOperatorsLength = activeOperators.length;
+        address[] memory activeOperators_ = _activeOperators();
+        uint256 activeOperatorsLength = activeOperators_.length;
         if (activeOperatorsLength == 0) {
             // No active operators, no upkeep needed
             return (false, hex"");
@@ -710,7 +710,7 @@ contract OBaseMiddlewareReader is
             // It gets encoded to be used in performUpkeep
 
             for (uint256 i = cacheIndex; i < cacheIndex + maxNumOperatorsToCheck && i < activeOperatorsLength;) {
-                address operator = activeOperators[i];
+                address operator = activeOperators_[i];
                 bytes32 operatorKey = abi.decode(operatorKey(operator), (bytes32));
                 uint256 operatorPower = _getOperatorPowerAt(currentEpochStartTs, operator);
                 validatorsData[i - cacheIndex] = IMiddleware.ValidatorData({key: operatorKey, power: operatorPower});
@@ -721,7 +721,7 @@ contract OBaseMiddlewareReader is
             }
 
             // encode values to be used in performUpkeep
-            return (true, abi.encode(validatorsData));
+            return (true, abi.encode(CACHE_DATA_COMMAND, validatorsData));
         }
 
         //Should be at least once per epoch
@@ -729,7 +729,7 @@ contract OBaseMiddlewareReader is
         if (upkeepNeeded) {
             // This will use the cached values, resulting in just a simple sorting operation. We can know a priori how much it cost since it's just an address with a uint256 power. Worst case we can split this too.
             bytes32[] memory sortedKeys = sortOperatorsByPower(epoch);
-            performData = abi.encode(sortedKeys);
+            performData = abi.encode(SEND_DATA_COMMAND, sortedKeys);
             return (true, performData);
         }
 

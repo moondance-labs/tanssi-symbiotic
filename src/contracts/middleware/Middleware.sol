@@ -335,7 +335,12 @@ contract Middleware is
         uint256 pendingOperatorsToCache = activeOperatorsLength - cacheIndex;
 
         if (pendingOperatorsToCache > 0) {
-            ValidatorData[] memory validatorsData = abi.decode(performData, (ValidatorData[]));
+            (uint8 command, ValidatorData[] memory validatorsData) = abi.decode(performData, (uint8, ValidatorData[]));
+
+            if (command != CACHE_DATA_COMMAND) {
+                revert Middleware__InvalidCommand(command);
+            }
+
             uint256 validatorsDataLength = validatorsData.length;
             for (uint256 i = 0; i < validatorsDataLength;) {
                 ValidatorData memory validatorData = validatorsData[i];
@@ -360,7 +365,11 @@ contract Middleware is
                 $.lastTimestamp = currentTimestamp;
 
                 // Decode the sorted keys and the epoch from performData
-                bytes32[] memory sortedKeys = abi.decode(performData, (bytes32[]));
+                (uint8 command, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
+
+                if (command != SEND_DATA_COMMAND) {
+                    revert Middleware__InvalidCommand(command);
+                }
 
                 IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);
             }

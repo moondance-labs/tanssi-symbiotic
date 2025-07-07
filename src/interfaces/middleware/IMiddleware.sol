@@ -47,6 +47,7 @@ interface IMiddleware {
     error Middleware__AlreadyCached();
     error Middleware__TooOldEpoch();
     error Middleware__InvalidEpoch();
+    error Middleware__InvalidCommand(uint8 command);
     error Middleware__InvalidEpochDuration();
     error Middleware__InvalidAddress();
     error Middleware__InvalidKey();

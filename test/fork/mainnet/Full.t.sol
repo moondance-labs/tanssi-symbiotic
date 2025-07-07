@@ -1238,7 +1238,8 @@ contract FullTest is Test {
         assertEq(upkeepNeeded, true);
         assertLt(beforeGas - afterGas, 10 ** 7); // Check that gas is lower than 10M
 
-        bytes32[] memory sortedKeys = abi.decode(performData, (bytes32[]));
+        (uint8 command, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
+        assertEq(command, middleware.SEND_DATA_COMMAND());
         assertEq(sortedKeys.length, TOTAL_OPERATORS);
 
         vm.prank(forwarder);

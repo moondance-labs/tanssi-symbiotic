@@ -42,10 +42,12 @@ abstract contract MiddlewareStorage {
         0x93540b1a1dc30969947272428a8d0331ac0b23f753e3edd38c70f80cf0835100;
 
     uint8 public constant DEFAULT_DECIMALS = 18;
+    uint8 public constant CACHE_DATA_COMMAND = 1;
+    uint8 public constant SEND_DATA_COMMAND = 2;
     uint256 public constant VERSION = 1;
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
     uint256 public constant MIN_INTERVAL_TO_SEND_OPERATOR_KEYS = 50; // 600 seconds ≈ 10 minutes
-    uint256 public constant MAX_OPERATORS_TO_PROCESS = 40;
+    uint256 public constant MAX_OPERATORS_TO_PROCESS = 20;
     bytes32 internal constant GATEWAY_ROLE = keccak256("GATEWAY_ROLE");
     bytes32 internal constant FORWARDER_ROLE = keccak256("FORWARDER_ROLE");
 
