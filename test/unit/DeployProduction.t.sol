@@ -41,7 +41,7 @@ contract DeployProductionTest is Test {
             DeployProduction.Entities({admin: admin, tanssi: tanssi, gateway: gateway, forwarder: forwarder});
 
         uint256 adminPrivateKey =
-            vm.envOr("PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
+            vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
         address initialAdmin = vm.addr(adminPrivateKey);
 
         _checkAddressesAndRoles(
