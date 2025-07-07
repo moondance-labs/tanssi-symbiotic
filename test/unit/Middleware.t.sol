@@ -2543,7 +2543,7 @@ contract MiddlewareTest is Test {
 
         (uint8 command, IMiddleware.ValidatorData[] memory validatorsData) =
             abi.decode(performData, (uint8, IMiddleware.ValidatorData[]));
-        assertEq(command, middleware.SEND_DATA_COMMAND());
+        assertEq(command, middleware.CACHE_DATA_COMMAND());
         assertEq(validatorsData.length, 2);
         vm.startPrank(forwarder);
         middleware.performUpkeep(performData);
