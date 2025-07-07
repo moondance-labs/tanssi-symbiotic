@@ -8,7 +8,7 @@
   "gatewayImplementation": "0x773bb5b243b0eab2a186d00a110a74db85358676",
   "middleware": "0x1bbd37e4325d931aef5fedef1f87e8343835ace4",
   "middlewareImplementation": "0xf48076c6a83d5e1848976e0d5d405b9674dd0be0",
-  "middlewareReader": "0x73fee9c8ef1e48cb76fa16321cfc27eb1c032a22",
+  "middlewareReader": "0x1085D5150AAc228ADefB5068c5D46B53f4A17Fc6",
   "operatorRewards": "0xc4bd651bbc730c77459aa92500ad642fe4faa874",
   "operatorRewardsImplementation": "0x454F25281598A99DDa13eCE2fea9725C2b726ADF",
   "stakerRewardsFactory": "0xaac8c9b41a8cbbfb9344d43176ea17875339fe8b",
@@ -69,7 +69,7 @@
       "slasher": "0x04a216411317A334C234C6ABDD589bB94d303d5b",
       "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
       "stakerRewards": "0x36D627d6aB064C5Eb295CB23Ce9d11cb0EfB4377",
-      "stakerRewardsImplementation": "0x18CcA2BF8958E25C150C2C008ebBd582bEE7cb53"
+      "stakerRewardsImplementation": "0xfcfaf651e418365c6d30353d0ce3863781993293"
     },
     {
       "name": "MEV Capital wstETH Vault",
