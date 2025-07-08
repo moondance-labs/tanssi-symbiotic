@@ -60,7 +60,7 @@ anvil :; anvil -m 'test test test test test test test test test test test junk' 
 RPC_URL ?= http://localhost:8545
 PRIVATE_KEY ?= ${DEFAULT_ANVIL_KEY}
 GAS_PRICE = 2000000000 # 2 Gwei
-ADDITIONAL_ARGS_BASE = --account mainnetDeployer --sender 0x008f37a7307aba7d5d9bca771c4a56f853755d1f --with-gas-price GAS_PRICE
+ADDITIONAL_ARGS_BASE = --account mainnetDeployer --sender 0x008f37a7307aba7d5d9bca771c4a56f853755d1f --with-gas-price $(GAS_PRICE)
 
 # Flag: set to 1 to use private key, 0 to use base args
 USE_PRIVATE_KEY ?= 0
@@ -117,7 +117,7 @@ deploy-staker-rewards-factory:
 
 deploy-middleware:
 	@echo "📡 Deploying Middleware Implementation..."
-	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem $(NETWORK_ARGS) --sig "deployMiddleware(address,address,bool)" $(OPERATOR_REWARDS_PROXY_ADDRESS) $(STAKE_REWARDS_FACTORY_ADDRESS) $(SHOULD_DEPLOY_READER) -vv
+	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem $(NETWORK_ARGS) --sig "deployOnlyMiddleware(address,address,bool)" $(OPERATOR_REWARDS_PROXY_ADDRESS) $(STAKE_REWARDS_FACTORY_ADDRESS) $(SHOULD_DEPLOY_READER) -vv
 	@echo "✅ Middleware Implementation deployment completed"
 
 deploy-operator-rewards:

@@ -63,7 +63,7 @@ contract DeployRewards is Script {
         address admin
     ) public returns (address) {
         if (!isTest) {
-            vm.startBroadcast(ownerPrivateKey);
+            vm.startBroadcast(broadcaster());
         }
         ODefaultOperatorRewards operatorRewardsImpl = new ODefaultOperatorRewards(network, networkMiddlewareService);
         operatorRewards = ODefaultOperatorRewards(address(new ERC1967Proxy(address(operatorRewardsImpl), "")));
@@ -82,7 +82,7 @@ contract DeployRewards is Script {
         address network
     ) public returns (address) {
         if (!isTest) {
-            vm.startBroadcast();
+            vm.startBroadcast(broadcaster());
         }
         stakerRewardsFactory =
             new ODefaultStakerRewardsFactory(vaultFactory, networkMiddlewareService, operatorRewardsAddress, network);
@@ -107,27 +107,25 @@ contract DeployRewards is Script {
         emit Done();
     }
 
-    function deployStakerRewards(address networkMiddlewareService, address[] memory vaults, address network) external {
-        if (!isTest) {
-            vm.startBroadcast();
-        } else {
-            vm.startPrank(network);
-        }
+    function deployStakerRewards(
+        address networkMiddlewareService,
+        address[] memory vaults,
+        address network
+    ) external returns (ODefaultStakerRewards[] memory implementations) {
+        vm.startBroadcast(broadcaster());
         console2.log("Network Middleware Service: ", networkMiddlewareService);
         console2.log("Network: ", network);
+        implementations = new ODefaultStakerRewards[](vaults.length);
         for (uint256 i = 0; i < vaults.length; i++) {
             console2.log("Upgrading Staker Rewards for vault: ", vaults[i]);
             ODefaultStakerRewards implementation =
                 new ODefaultStakerRewards(networkMiddlewareService, vaults[i], network);
+            implementations[i] = implementation;
             console2.log("New Staker Rewards Implementation: ", address(implementation));
             console2.log("\n\n");
         }
 
-        if (!isTest) {
-            vm.stopBroadcast();
-        } else {
-            vm.stopPrank();
-        }
+        vm.stopBroadcast();
     }
 
     function upgradeStakerRewards(
@@ -137,7 +135,7 @@ contract DeployRewards is Script {
         address network
     ) external {
         if (!isTest) {
-            vm.startBroadcast();
+            vm.startBroadcast(broadcaster());
         } else {
             vm.startPrank(network);
         }
@@ -158,7 +156,7 @@ contract DeployRewards is Script {
 
     function upgradeOperatorRewards(address proxyAddress, address network, address networkMiddlewareService) external {
         if (!isTest) {
-            vm.startBroadcast();
+            vm.startBroadcast(broadcaster());
         } else {
             vm.startPrank(network);
         }
@@ -174,21 +172,23 @@ contract DeployRewards is Script {
         }
     }
 
-    function deployOperatorRewards(address network, address networkMiddlewareService) external {
-        if (!isTest) {
-            vm.startBroadcast();
-        } else {
-            vm.startPrank(network);
-        }
+    function deployOperatorRewards(
+        address network,
+        address networkMiddlewareService
+    ) external returns (ODefaultOperatorRewards implementation) {
+        vm.startBroadcast(broadcaster());
         console2.log("Network Middleware Service: ", networkMiddlewareService);
         console2.log("Network: ", network);
-        ODefaultOperatorRewards implementation = new ODefaultOperatorRewards(network, networkMiddlewareService);
+        implementation = new ODefaultOperatorRewards(network, networkMiddlewareService);
         console2.log("New Operator Rewards Implementation: ", address(implementation));
 
-        if (!isTest) {
-            vm.stopBroadcast();
-        } else {
-            vm.stopPrank();
+        vm.stopBroadcast();
+    }
+
+    function broadcaster() private view returns (address) {
+        if (block.chainid == 1) {
+            return msg.sender;
         }
+        return vm.addr(ownerPrivateKey);
     }
 }
