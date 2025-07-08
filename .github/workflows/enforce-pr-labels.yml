@@ -20,3 +20,56 @@ jobs:
           REQUIRED_LABELS_ANY: "D1-audited👍,D5-nicetohaveaudit⚠️,D9-needsaudit👮,D2-notlive,D3-trivial"
           REQUIRED_LABELS_ALL: ""
           BANNED_LABELS: ""
+
+  enforce-migration-policy:
+    name: Enforce Migration Policy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get list of changed files
+        id: changed_files
+        uses: tj-actions/changed-files@v44
+        with:
+          # We only care about changes to this specific file
+          files: |
+            MIGRATION.md
+
+      - name: Check migration label and file policy
+        env:
+          PR_LABELS: ${{ toJson(github.event.pull_request.labels) }}
+          MIGRATION_FILE_CHANGED: ${{ steps.changed_files.outputs.any_changed }}
+        run: |
+          # Use jq to efficiently parse the labels JSON
+          has_need_migration=$(echo "$PR_LABELS" | jq 'map(.name) | contains(["need-migration"])')
+          has_no_migration=$(echo "$PR_LABELS" | jq 'map(.name) | contains(["no-migration"])')
+
+          echo "Checking migration policy..."
+          echo "Has 'need-migration' label: $has_need_migration"
+          echo "Has 'no-migration' label: $has_no_migration"
+          echo "MIGRATION.md was changed: $MIGRATION_FILE_CHANGED"
+          echo "--------------------------------------------------"
+
+          # Rule 1: PR cannot have both labels
+          if [[ "$has_need_migration" == "true" && "$has_no_migration" == "true" ]]; then
+            echo "❌ Error: PR cannot have both 'need-migration' and 'no-migration' labels."
+            exit 1
+          fi
+
+          # Rule 2: PR must have at least one of the labels
+          if [[ "$has_need_migration" == "false" && "$has_no_migration" == "false" ]]; then
+            echo "❌ Error: PR must have either a 'need-migration' or 'no-migration' label."
+            exit 1
+          fi
+
+          # Rule 3: If 'need-migration' is set, MIGRATION.md must be changed
+          if [[ "$has_need_migration" == "true" && "$MIGRATION_FILE_CHANGED" == "false" ]]; then
+            echo "❌ Error: The 'need-migration' label is present, but MIGRATION.md was not modified."
+            exit 1
+          fi
+
+          # Rule 4: If 'no-migration' is set, MIGRATION.md must NOT be changed
+          if [[ "$has_no_migration" == "true" && "$MIGRATION_FILE_CHANGED" == "true" ]]; then
+            echo "❌ Error: The 'no-migration' label is present, but MIGRATION.md was modified."
+            exit 1
+          fi
+
+          echo "✅ Migration policy checks passed."
