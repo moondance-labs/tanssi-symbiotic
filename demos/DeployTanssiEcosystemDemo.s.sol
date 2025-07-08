@@ -138,7 +138,8 @@ contract DeployTanssiEcosystemDemo is Script {
             collateral: address(tokensAddresses.stETHToken),
             owner: tanssi,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
 
         (vaultAddresses.vault, vaultAddresses.delegator, vaultAddresses.slasher) =

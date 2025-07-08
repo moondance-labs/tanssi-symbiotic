@@ -373,7 +373,8 @@ contract MiddlewareTest is Test {
             collateral: address(stETH),
             owner: _owner,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
 
         (vaultAddresses.vault, vaultAddresses.delegator, vaultAddresses.slasher) = deployVault.createBaseVault(params);
@@ -909,7 +910,8 @@ contract MiddlewareTest is Test {
             collateral: address(usdc),
             owner: tanssi,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
 
         (address vaultUsdc, address vaultDelegatorUsdc,) = deployVault.createBaseVault(params);
@@ -1339,7 +1341,8 @@ contract MiddlewareTest is Test {
             collateral: address(stETH),
             owner: _owner,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
 
         (testVaultAddresses.vault, testVaultAddresses.delegator, testVaultAddresses.slasher) =

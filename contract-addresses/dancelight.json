@@ -26,16 +26,32 @@
       "name": "stETH",
       "address": "0x3e3fe7dbc6b4c189e7128855dd526361c49b40af",
       "oracle": "0x694aa1769357215de4fac081bf1f309adc325306"
+    },
+    {
+      "name": "DANCE",
+      "address": "0x43609791BC5F1B42DF1747cddabab77af65a5fE3",
+      "oracle": ""
     }
   ],
+  "totalVaults": 2,
   "vaults": [
     {
       "name": "Slashable",
       "vault": "0xb94f8852443fb4fab18363d22a45ca64a8cf4482",
       "delegator": "0x3f2e1db3f2bb165e50f2960e728099071353ed63",
       "slasher": "0x583f9a77af8f4d7aee735a2f7645bbd7a012af1b",
+      "collateral": "0x3e3fe7dbc6b4c189e7128855dd526361c49b40af",
       "stakerRewards": "0x54c3fddfafa33e7a0ece37c61e0057bff3a9ef96",
       "stakerRewardsImplementation": "0x34e4d6acc204595b7e35ad2b9dee4ab85a6a2216"
+    },
+    {
+      "name": "Tanssi",
+      "vault": "0x08e89DC0bae29eE531C07BEf6Fd322AF04C32F43",
+      "delegator": "0x0eFee7C2d49909e40EF75fF1f00ade045316dd09",
+      "slasher": "0xbeA63923197a6c79691F9a65Ca7E79C2a854CF5B",
+      "collateral": "0x43609791BC5F1B42DF1747cddabab77af65a5fE3",
+      "stakerRewards": "",
+      "stakerRewardsImplementation": ""
     }
   ]
 }

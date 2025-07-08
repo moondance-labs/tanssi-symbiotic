@@ -232,7 +232,8 @@ contract DeployTest is Test {
             collateral: address(0),
             owner: tanssi,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
 
         vm.expectRevert(DeployVault.DeployVault__VaultConfiguratorOrCollateralNotDeployed.selector);
@@ -263,12 +264,13 @@ contract DeployTest is Test {
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
             depositLimit: 0,
-            delegatorIndex: uint64(0),
+            delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
             withSlasher: true,
-            slasherIndex: 0,
+            slasherIndex: VaultManager.SlasherType.INSTANT,
             vetoDuration: 0,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
 
         (vault,,) = deployVault.deployVault(deployParams);
@@ -328,6 +330,12 @@ contract DeployTest is Test {
 
         bytes32[] memory sortedKeys = OBaseMiddlewareReader(address(middleware)).sortOperatorsByPower(currentEpoch);
         assertEq(sortedKeys.length, 3);
+    }
+
+    function testDeployTanssiVault() public {
+        (address vaultConfiguratorAddress,,,,,,,,) = helperConfig.activeNetworkConfig();
+        address tanssiToken = deployCollateral.deployCollateral("TANSSI");
+        deployVault.createTanssiVault(vaultConfiguratorAddress, tanssi, tanssiToken);
     }
 
     //**************************************************************************************************

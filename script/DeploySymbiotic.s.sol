@@ -123,12 +123,6 @@ contract DeploySymbiotic is Script {
         OptInService operatorNetworkOptInService;
     }
 
-    enum VaultSlashType {
-        SLASH, // 0
-        VETO // 1
-
-    }
-
     function setCollateral(
         address collateralAddress
     ) public {
