@@ -29,6 +29,7 @@
     },
     {
       "name": "DANCE",
+      "symbol": "DANCE",
       "address": "0x43609791BC5F1B42DF1747cddabab77af65a5fE3",
       "oracle": ""
     }
@@ -50,8 +51,8 @@
       "delegator": "0x0eFee7C2d49909e40EF75fF1f00ade045316dd09",
       "slasher": "0xbeA63923197a6c79691F9a65Ca7E79C2a854CF5B",
       "collateral": "0x43609791BC5F1B42DF1747cddabab77af65a5fE3",
-      "stakerRewards": "",
-      "stakerRewardsImplementation": ""
+      "stakerRewards": "0x000c527D9263345B91F946e2579e76d4Ded0AbDC",
+      "stakerRewardsImplementation": "0x34aD604B12bDd22f073630c708f978d5fbE68453"
     }
   ]
 }
