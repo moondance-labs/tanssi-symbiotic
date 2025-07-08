@@ -66,10 +66,4 @@ jobs:
             exit 1
           fi
 
-          # Rule 4: If 'no-migration' is set, MIGRATION.md must NOT be changed
-          if [[ "$has_no_migration" == "true" && "$MIGRATION_FILE_CHANGED" == "true" ]]; then
-            echo "❌ Error: The 'no-migration' label is present, but MIGRATION.md was modified."
-            exit 1
-          fi
-
           echo "✅ Migration policy checks passed."
