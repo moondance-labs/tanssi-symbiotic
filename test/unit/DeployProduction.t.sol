@@ -74,7 +74,6 @@ contract DeployProductionTest is Test {
             HelperConfig.Entities memory entities,
             HelperConfig.NetworkConfig memory networkConfig,
             HelperConfig.TokensConfig memory tokensConfig,
-            HelperConfig.FullTokenConfig memory fullTokensConfig,
             HelperConfig.VaultsConfigA memory vaultsConfigA,
             HelperConfig.VaultsConfigB memory vaultsConfigB,
             HelperConfig.OperatorConfig memory operators
@@ -96,19 +95,12 @@ contract DeployProductionTest is Test {
         assertNotEq(networkConfig.operatorVaultOptInService, address(0));
         assertNotEq(networkConfig.networkMiddlewareService, address(0));
 
-        assertNotEq(tokensConfig.wstETH, address(0));
-        assertNotEq(tokensConfig.rETH, address(0));
-        assertNotEq(tokensConfig.swETH, address(0));
-        assertNotEq(tokensConfig.wBETH, address(0));
-        assertNotEq(tokensConfig.LsETH, address(0));
-        assertNotEq(tokensConfig.cbETH, address(0));
-
-        assertNotEq(fullTokensConfig.wstETH.collateral, address(0));
-        assertNotEq(fullTokensConfig.rETH.collateral, address(0));
-        assertNotEq(fullTokensConfig.swETH.collateral, address(0));
-        assertNotEq(fullTokensConfig.wBETH.collateral, address(0));
-        assertNotEq(fullTokensConfig.LsETH.collateral, address(0));
-        assertNotEq(fullTokensConfig.cbETH.collateral, address(0));
+        assertNotEq(tokensConfig.wstETH.collateral, address(0));
+        assertNotEq(tokensConfig.rETH.collateral, address(0));
+        assertNotEq(tokensConfig.swETH.collateral, address(0));
+        assertNotEq(tokensConfig.wBETH.collateral, address(0));
+        assertNotEq(tokensConfig.LsETH.collateral, address(0));
+        assertNotEq(tokensConfig.cbETH.collateral, address(0));
 
         assertNotEq(vaultsConfigA.opslayer.vault, address(0));
         assertNotEq(vaultsConfigA.opslayer.delegator, address(0));

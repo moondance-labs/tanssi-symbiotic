@@ -219,7 +219,7 @@ contract FullTest is Test {
     OBaseMiddlewareReader reader;
     ODefaultOperatorRewards operatorRewards;
     Token rewardsToken;
-    HelperConfig.FullTokenConfig public fullTokensConfig;
+    HelperConfig.TokensConfig public tokensConfig;
     HelperConfig.OperatorConfig public operators;
     ProofAndPointsByOperator public proofAndPointsByOperator;
 
@@ -259,7 +259,7 @@ contract FullTest is Test {
         // Check if it's good for mainnet
         helperConfig = new HelperConfig();
         HelperConfig.Entities memory entities;
-        (entities,,, fullTokensConfig, vaultsAddressesDeployedA, vaultsAddressesDeployedB, operators) =
+        (entities,, tokensConfig, vaultsAddressesDeployedA, vaultsAddressesDeployedB, operators) =
             helperConfig.getChainConfig();
 
         admin = entities.admin;
@@ -1108,8 +1108,8 @@ contract FullTest is Test {
             tanssi.subnetwork(0), operators.operator5QuantNode.evmAddress
         );
 
-        (, int256 oraclePrice,,,) = AggregatorV3Interface(fullTokensConfig.wstETH.oracle).latestRoundData();
-        uint8 oraclePriceDecimals = AggregatorV3Interface(fullTokensConfig.wstETH.oracle).decimals();
+        (, int256 oraclePrice,,,) = AggregatorV3Interface(tokensConfig.wstETH.oracle).latestRoundData();
+        uint8 oraclePriceDecimals = AggregatorV3Interface(tokensConfig.wstETH.oracle).decimals();
 
         uint256 expectedPower = (stake * uint256(oraclePrice)) / 10 ** oraclePriceDecimals;
         assertEq(currentPower, expectedPower);

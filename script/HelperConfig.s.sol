@@ -41,15 +41,6 @@ contract HelperConfig is Script {
     }
 
     struct TokensConfig {
-        address wstETH;
-        address rETH;
-        address swETH;
-        address wBETH;
-        address LsETH;
-        address cbETH;
-    }
-
-    struct FullTokenConfig {
         CollateralData wstETH;
         CollateralData rETH;
         CollateralData swETH;
@@ -126,7 +117,6 @@ contract HelperConfig is Script {
     Entities public activeEntities;
     NetworkConfig public activeNetworkConfig;
     TokensConfig public activeTokensConfig;
-    FullTokenConfig public activeFullTokenConfig;
     VaultsConfigA public activeVaultsConfigA;
     VaultsConfigB public activeVaultsConfigB;
     OperatorConfig public activeOperatorConfig;
@@ -140,7 +130,6 @@ contract HelperConfig is Script {
                 activeEntities,
                 activeNetworkConfig,
                 activeTokensConfig,
-                activeFullTokenConfig,
                 activeVaultsConfigA,
                 activeVaultsConfigB,
                 activeOperatorConfig
@@ -159,8 +148,7 @@ contract HelperConfig is Script {
         returns (
             Entities memory entities,
             NetworkConfig memory networkConfig,
-            TokensConfig memory tokensConfig,
-            FullTokenConfig memory fullTokenConfig,
+            TokensConfig memory tokenConfig,
             VaultsConfigA memory vaultsConfigA,
             VaultsConfigB memory vaultsConfigB,
             OperatorConfig memory operatorConfig
@@ -202,7 +190,7 @@ contract HelperConfig is Script {
             for (uint256 i = 0; i < totalCollaterals; i++) {
                 CollateralData memory collateral =
                     _loadCollateral(json, string.concat(jsonPath, ".collaterals[", vm.toString(i), "]"));
-                _assignCollateral(collateral, tokensConfig, fullTokenConfig);
+                _assignCollateral(collateral, tokenConfig);
             }
 
             uint256 totalVaults = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".totalVaults")), (uint256));
@@ -219,9 +207,8 @@ contract HelperConfig is Script {
                 _assignOperator(operator, operatorConfig);
             }
         } else {
-            networkConfig.collateral =
-                abi.decode(vm.parseJson(json, string.concat(jsonPath, ".collaterals[0].address")), (address));
-            tokensConfig.wstETH = networkConfig.collateral;
+            tokenConfig.wstETH = _loadCollateral(json, string.concat(jsonPath, ".collaterals[0]"));
+            networkConfig.collateral = tokenConfig.wstETH.collateral;
 
             if (block.chainid == 11_155_111) {
                 VaultData memory vault = _loadVault(json, string.concat(jsonPath, ".vaults[0]"));
@@ -271,29 +258,19 @@ contract HelperConfig is Script {
         operator.operatorKey = operatorKey;
     }
 
-    function _assignCollateral(
-        CollateralData memory collateral,
-        TokensConfig memory tokensConfig,
-        FullTokenConfig memory fullTokenConfig
-    ) private pure {
+    function _assignCollateral(CollateralData memory collateral, TokensConfig memory tokenConfig) private pure {
         if (_sameString(collateral.symbol, "rETH")) {
-            tokensConfig.rETH = collateral.collateral;
-            fullTokenConfig.rETH = collateral;
+            tokenConfig.rETH = collateral;
         } else if (_sameString(collateral.symbol, "swETH")) {
-            tokensConfig.swETH = collateral.collateral;
-            fullTokenConfig.swETH = collateral;
+            tokenConfig.swETH = collateral;
         } else if (_sameString(collateral.symbol, "wBETH")) {
-            tokensConfig.wBETH = collateral.collateral;
-            fullTokenConfig.wBETH = collateral;
+            tokenConfig.wBETH = collateral;
         } else if (_sameString(collateral.symbol, "LsETH")) {
-            tokensConfig.LsETH = collateral.collateral;
-            fullTokenConfig.LsETH = collateral;
+            tokenConfig.LsETH = collateral;
         } else if (_sameString(collateral.symbol, "cbETH")) {
-            tokensConfig.cbETH = collateral.collateral;
-            fullTokenConfig.cbETH = collateral;
+            tokenConfig.cbETH = collateral;
         } else if (_sameString(collateral.symbol, "wstETH")) {
-            tokensConfig.wstETH = collateral.collateral;
-            fullTokenConfig.wstETH = collateral;
+            tokenConfig.wstETH = collateral;
         }
     }
 
