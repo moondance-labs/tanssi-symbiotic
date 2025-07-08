@@ -23,7 +23,8 @@
   "networkMiddlewareService": "0x62a1ddfd86b4c1636759d9286d3a0ec722d086e3",
   "collaterals": [
     {
-      "name": "stETH",
+      "name": "Liquid staked Ether 2.0",
+      "symbol": "stETH",
       "address": "0x3e3fe7dbc6b4c189e7128855dd526361c49b40af",
       "oracle": "0x694aa1769357215de4fac081bf1f309adc325306"
     }
