@@ -74,6 +74,7 @@ contract DeployProductionTest is Test {
             HelperConfig.Entities memory entities,
             HelperConfig.NetworkConfig memory networkConfig,
             HelperConfig.TokensConfig memory tokensConfig,
+            HelperConfig.FullTokenConfig memory fullTokensConfig,
             HelperConfig.VaultsConfigA memory vaultsConfigA,
             HelperConfig.VaultsConfigB memory vaultsConfigB,
             HelperConfig.OperatorConfig memory operators
@@ -101,6 +102,13 @@ contract DeployProductionTest is Test {
         assertNotEq(tokensConfig.wBETH, address(0));
         assertNotEq(tokensConfig.LsETH, address(0));
         assertNotEq(tokensConfig.cbETH, address(0));
+
+        assertNotEq(fullTokensConfig.wstETH.collateral, address(0));
+        assertNotEq(fullTokensConfig.rETH.collateral, address(0));
+        assertNotEq(fullTokensConfig.swETH.collateral, address(0));
+        assertNotEq(fullTokensConfig.wBETH.collateral, address(0));
+        assertNotEq(fullTokensConfig.LsETH.collateral, address(0));
+        assertNotEq(fullTokensConfig.cbETH.collateral, address(0));
 
         assertNotEq(vaultsConfigA.opslayer.vault, address(0));
         assertNotEq(vaultsConfigA.opslayer.delegator, address(0));

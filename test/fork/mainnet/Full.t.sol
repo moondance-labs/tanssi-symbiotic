@@ -145,51 +145,10 @@ contract FullTest is Test {
 
     bytes32 public constant DEPOSIT_WHITELIST_SET_ROLE = keccak256("DEPOSIT_WHITELIST_SET_ROLE");
 
-    address public resolver1 = makeAddr("resolver1");
-    address public resolver2 = makeAddr("resolver2");
-
-    address public relayer = makeAddr("relayer");
-
-    address public oracle = makeAddr("oracle");
     address public forwarder = makeAddr("forwarder");
-
-    // remote fees in DOT
-    uint128 public outboundFee = 1e10;
-    uint128 public registerTokenFee = 0;
-    uint128 public sendTokenFee = 1e10;
-    uint128 public createTokenFee = 1e10;
-    uint128 public maxDestinationFee = 1e11;
-
-    ParaID public bridgeHubParaID = ParaID.wrap(1013);
-    bytes32 public bridgeHubAgentID = 0x03170a2e7597b7b7e3d84c05391d139a62b157e78786d8c082f29dcf4c111314;
-    address public bridgeHubAgent;
-
-    ParaID public assetHubParaID = ParaID.wrap(1000);
-    bytes32 public assetHubAgentID = 0x81c5ab2571199e3188135178f3c2c8e2d268be1313d029b30f534fa579b69b79;
 
     HelperConfig helperConfig;
     string public json;
-
-    struct VaultStakeBeforeDepositA {
-        uint256 mevRestakedETH;
-        uint256 mevCapitalETH;
-        uint256 hashKeyCloudETH;
-        uint256 renzoRestakedETH;
-        uint256 re7LabsETH;
-        uint256 re7LabsRestakingETH;
-        uint256 cp0xLrtETH;
-        uint256 etherfiwstETH;
-        uint256 restakedLsETHVault;
-        uint256 opslayer;
-    }
-
-    struct VaultStakeBeforeDepositB {
-        uint256 gauntletRestakedWstETH;
-        uint256 gauntletRestakedSwETH;
-        uint256 gauntletRestakedRETH;
-        uint256 gauntletRestakedWBETH;
-        uint256 gauntletRestakedcBETH;
-    }
 
     struct TotalSharesA {
         uint256 mevRestakedETH;
@@ -260,15 +219,12 @@ contract FullTest is Test {
     OBaseMiddlewareReader reader;
     ODefaultOperatorRewards operatorRewards;
     Token rewardsToken;
-    HelperConfig.TokensConfig public tokensConfig;
+    HelperConfig.FullTokenConfig public fullTokensConfig;
     HelperConfig.OperatorConfig public operators;
     ProofAndPointsByOperator public proofAndPointsByOperator;
 
     HelperConfig.VaultsConfigA public vaultsAddressesDeployedA;
     HelperConfig.VaultsConfigB public vaultsAddressesDeployedB;
-
-    VaultStakeBeforeDepositA public vaultStakeBeforeDepositA;
-    VaultStakeBeforeDepositB public vaultStakeBeforeDepositB;
 
     mapping(address vault => address stakerRewards) vaultToStakerRewards;
 
@@ -289,7 +245,6 @@ contract FullTest is Test {
         _setupOperators();
         _registerEntitiesToMiddleware();
 
-        _saveStakeBeforeDepositing();
         _saveTotalShares();
 
         /// middleware.setCollateralToOracle(xxx, oracle); Already alled for each collateral: wstETH, rETH, swETH, wBETH, LsETH, cbETH
@@ -304,7 +259,7 @@ contract FullTest is Test {
         // Check if it's good for mainnet
         helperConfig = new HelperConfig();
         HelperConfig.Entities memory entities;
-        (entities,, tokensConfig, vaultsAddressesDeployedA, vaultsAddressesDeployedB, operators) =
+        (entities,,, fullTokensConfig, vaultsAddressesDeployedA, vaultsAddressesDeployedB, operators) =
             helperConfig.getChainConfig();
 
         admin = entities.admin;
@@ -545,12 +500,6 @@ contract FullTest is Test {
         operators.operator11Opslayer.vaults.push(vaultsAddressesDeployedA.opslayer.vault);
     }
 
-    function _getTotalPower(
-        address vault
-    ) private view returns (uint256) {
-        return (IVault(vault).activeStake() * uint256(ORACLE_CONVERSION_TOKEN)) / 10 ** ORACLE_DECIMALS;
-    }
-
     function _depositToVault(IVault vault, address operator, uint256 amount, IERC20 collateral) public {
         deal(address(collateral), operator, amount);
         collateral.approve(address(vault), amount);
@@ -699,16 +648,6 @@ contract FullTest is Test {
         _setMaxNetworkLimits();
         _setNetworkLimits();
         _setOperatorShares();
-
-        // Mock the oracle to return the correct conversion token
-        vm.mockCall(
-            oracle,
-            abi.encodeWithSelector(AggregatorV3Interface.latestRoundData.selector),
-            abi.encode(uint80(0), ORACLE_CONVERSION_TOKEN, uint256(0), uint256(0), uint80(0))
-        );
-        vm.mockCall(
-            oracle, abi.encodeWithSelector(AggregatorV3Interface.decimals.selector), abi.encode(uint8(ORACLE_DECIMALS))
-        );
     }
 
     function _setMaxNetworkLimits() private {
@@ -1033,32 +972,6 @@ contract FullTest is Test {
         }
     }
 
-    function _saveStakeBeforeDepositing() private {
-        vaultStakeBeforeDepositA.mevRestakedETH = IVault(vaultsAddressesDeployedA.mevRestakedETH.vault).activeStake();
-        vaultStakeBeforeDepositA.mevCapitalETH = IVault(vaultsAddressesDeployedA.mevCapitalETH.vault).activeStake();
-        vaultStakeBeforeDepositA.hashKeyCloudETH = IVault(vaultsAddressesDeployedA.hashKeyCloudETH.vault).activeStake();
-        vaultStakeBeforeDepositA.renzoRestakedETH =
-            IVault(vaultsAddressesDeployedA.renzoRestakedETH.vault).activeStake();
-        vaultStakeBeforeDepositA.re7LabsETH = IVault(vaultsAddressesDeployedA.re7LabsETH.vault).activeStake();
-        vaultStakeBeforeDepositA.re7LabsRestakingETH =
-            IVault(vaultsAddressesDeployedA.re7LabsRestakingETH.vault).activeStake();
-        vaultStakeBeforeDepositA.cp0xLrtETH = IVault(vaultsAddressesDeployedA.cp0xLrtETH.vault).activeStake();
-        vaultStakeBeforeDepositB.gauntletRestakedWstETH =
-            IVault(vaultsAddressesDeployedB.gauntletRestakedWstETH.vault).activeStake();
-        vaultStakeBeforeDepositB.gauntletRestakedSwETH =
-            IVault(vaultsAddressesDeployedB.gauntletRestakedSwETH.vault).activeStake();
-        vaultStakeBeforeDepositB.gauntletRestakedRETH =
-            IVault(vaultsAddressesDeployedB.gauntletRestakedRETH.vault).activeStake();
-
-        vaultStakeBeforeDepositB.gauntletRestakedWBETH =
-            IVault(vaultsAddressesDeployedB.gauntletRestakedWBETH.vault).activeStake();
-        vaultStakeBeforeDepositB.gauntletRestakedcBETH =
-            IVault(vaultsAddressesDeployedB.gauntletRestakedcBETH.vault).activeStake();
-        vaultStakeBeforeDepositA.etherfiwstETH = IVault(vaultsAddressesDeployedA.etherfiwstETH.vault).activeStake();
-        vaultStakeBeforeDepositA.restakedLsETHVault =
-            IVault(vaultsAddressesDeployedA.restakedLsETHVault.vault).activeStake();
-    }
-
     function _saveTotalShares() private {
         totalSharesA.mevRestakedETH = _getTotalShares(vaultsAddressesDeployedA.mevRestakedETH.delegator);
         totalSharesA.mevCapitalETH = _getTotalShares(vaultsAddressesDeployedA.mevCapitalETH.delegator);
@@ -1093,22 +1006,22 @@ contract FullTest is Test {
     }
 
     function _saveAllOperatorPowers() private {
-        uint48 currentEpoch = middleware.getCurrentEpoch();
-        uint48 epochStartTs = middleware.getEpochStart(currentEpoch);
-        _saveOperatorPowersPerVault(operators.operator1PierTwo, epochStartTs);
-        _saveOperatorPowersPerVault(operators.operator2P2P, epochStartTs);
-        _saveOperatorPowersPerVault(operators.operator3Nodeinfra, epochStartTs);
-        _saveOperatorPowersPerVault(operators.operator4Blockscape, epochStartTs);
-        _saveOperatorPowersPerVault(operators.operator5QuantNode, epochStartTs);
-        _saveOperatorPowersPerVault(operators.operator6NodeMonster, epochStartTs);
-        _saveOperatorPowersPerVault(operators.operator7BlockBones, epochStartTs);
-        _saveOperatorPowersPerVault(operators.operator8CP0XStakrspace, epochStartTs);
-        _saveOperatorPowersPerVault(operators.operator9HashkeyCloud, epochStartTs);
-        _saveOperatorPowersPerVault(operators.operator10Alchemy, epochStartTs);
-        _saveOperatorPowersPerVault(operators.operator11Opslayer, epochStartTs);
+        _saveOperatorPowersPerVault(operators.operator1PierTwo);
+        _saveOperatorPowersPerVault(operators.operator2P2P);
+        _saveOperatorPowersPerVault(operators.operator3Nodeinfra);
+        _saveOperatorPowersPerVault(operators.operator4Blockscape);
+        _saveOperatorPowersPerVault(operators.operator5QuantNode);
+        _saveOperatorPowersPerVault(operators.operator6NodeMonster);
+        _saveOperatorPowersPerVault(operators.operator7BlockBones);
+        _saveOperatorPowersPerVault(operators.operator8CP0XStakrspace);
+        _saveOperatorPowersPerVault(operators.operator9HashkeyCloud);
+        _saveOperatorPowersPerVault(operators.operator10Alchemy);
+        _saveOperatorPowersPerVault(operators.operator11Opslayer);
     }
 
-    function _saveOperatorPowersPerVault(HelperConfig.OperatorData storage operator, uint48 epochStartTs) private {
+    function _saveOperatorPowersPerVault(
+        HelperConfig.OperatorData storage operator
+    ) private {
         for (uint256 i; i < operator.vaults.length;) {
             operator.powers.push(
                 reader.getOperatorPower(operator.evmAddress, operator.vaults[i], tanssi.subnetwork(0).identifier())
@@ -1183,6 +1096,23 @@ contract FullTest is Test {
         assertEq(validators[0].key, validatorsPreviousEpoch[0].key);
         assertEq(validators[1].key, validatorsPreviousEpoch[1].key);
         assertEq(validators[2].key, validatorsPreviousEpoch[2].key);
+    }
+
+    function testPowerIsExpectedAccordingToOraclePrice() public view {
+        uint256 currentPower = reader.getOperatorPower(
+            operators.operator5QuantNode.evmAddress,
+            vaultsAddressesDeployedA.re7LabsETH.vault,
+            tanssi.subnetwork(0).identifier()
+        );
+        uint256 stake = IBaseDelegator(IVault(vaultsAddressesDeployedA.re7LabsETH.vault).delegator()).stake(
+            tanssi.subnetwork(0), operators.operator5QuantNode.evmAddress
+        );
+
+        (, int256 oraclePrice,,,) = AggregatorV3Interface(fullTokensConfig.wstETH.oracle).latestRoundData();
+        uint8 oraclePriceDecimals = AggregatorV3Interface(fullTokensConfig.wstETH.oracle).decimals();
+
+        uint256 expectedPower = (stake * uint256(oraclePrice)) / 10 ** oraclePriceDecimals;
+        assertEq(currentPower, expectedPower);
     }
 
     function testWithdrawForEachVault() public {
