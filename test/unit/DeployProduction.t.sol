@@ -95,12 +95,12 @@ contract DeployProductionTest is Test {
         assertNotEq(networkConfig.operatorVaultOptInService, address(0));
         assertNotEq(networkConfig.networkMiddlewareService, address(0));
 
-        assertNotEq(tokensConfig.wstETH, address(0));
-        assertNotEq(tokensConfig.rETH, address(0));
-        assertNotEq(tokensConfig.swETH, address(0));
-        assertNotEq(tokensConfig.wBETH, address(0));
-        assertNotEq(tokensConfig.LsETH, address(0));
-        assertNotEq(tokensConfig.cbETH, address(0));
+        assertNotEq(tokensConfig.wstETH.collateral, address(0));
+        assertNotEq(tokensConfig.rETH.collateral, address(0));
+        assertNotEq(tokensConfig.swETH.collateral, address(0));
+        assertNotEq(tokensConfig.wBETH.collateral, address(0));
+        assertNotEq(tokensConfig.LsETH.collateral, address(0));
+        assertNotEq(tokensConfig.cbETH.collateral, address(0));
 
         assertNotEq(vaultsConfigA.opslayer.vault, address(0));
         assertNotEq(vaultsConfigA.opslayer.delegator, address(0));
