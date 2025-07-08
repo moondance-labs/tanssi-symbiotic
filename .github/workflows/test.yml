@@ -186,7 +186,7 @@ jobs:
         with:
           # We only need the list of files, not the git diff
           files: |
-            migration.md
+            MIGRATION.md
 
       - name: Enforce migration label and file policy
         env:
@@ -202,7 +202,7 @@ jobs:
           echo "Checking PR labels and migration file..."
           echo "Has 'need-migration' label: $has_need_migration"
           echo "Has 'no-migration' label: $has_no_migration"
-          echo "migration.md was changed: $MIGRATION_FILE_CHANGED"
+          echo "MIGRATION.md was changed: $MIGRATION_FILE_CHANGED"
           echo "--------------------------------------------------"
 
           # Rule 1: PR cannot have both labels
@@ -217,24 +217,24 @@ jobs:
             exit 1
           fi
 
-          # Rule 3: If 'need-migration' is set, migration.md must be changed
+          # Rule 3: If 'need-migration' is set, MIGRATION.md must be changed
           if [[ "$has_need_migration" == "true" ]]; then
             if [[ "$MIGRATION_FILE_CHANGED" == "true" ]]; then
-              echo "✅ OK: 'need-migration' label is present and migration.md was modified."
+              echo "✅ OK: 'need-migration' label is present and MIGRATION.md was modified."
               exit 0
             else
-              echo "❌ Error: The 'need-migration' label is present, but migration.md was not modified."
+              echo "❌ Error: The 'need-migration' label is present, but MIGRATION.md was not modified."
               exit 1
             fi
           fi
 
-          # Rule 4: If 'no-migration' is set, migration.md must NOT be changed
+          # Rule 4: If 'no-migration' is set, MIGRATION.md must NOT be changed
           if [[ "$has_no_migration" == "true" ]]; then
             if [[ "$MIGRATION_FILE_CHANGED" == "true" ]]; then
-              echo "❌ Error: The 'no-migration' label is present, but migration.md was modified."
+              echo "❌ Error: The 'no-migration' label is present, but MIGRATION.md was modified."
               exit 1
             else
-              echo "✅ OK: 'no-migration' label is present and migration.md was not modified."
+              echo "✅ OK: 'no-migration' label is present and MIGRATION.md was not modified."
               exit 0
             fi
           fi
