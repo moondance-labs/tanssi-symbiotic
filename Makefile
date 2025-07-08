@@ -59,7 +59,18 @@ anvil :; anvil -m 'test test test test test test test test test test test junk' 
 
 RPC_URL ?= http://localhost:8545
 PRIVATE_KEY ?= ${DEFAULT_ANVIL_KEY}
-NETWORK_ARGS := --rpc-url ${RPC_URL} --private-key ${PRIVATE_KEY} --broadcast --verify --etherscan-api-key ${ETHERSCAN_API_KEY}
+GAS_PRICE = 2000000000 # 2 Gwei
+ADDITIONAL_ARGS_BASE = --account mainnetDeployer --sender 0x008f37a7307aba7d5d9bca771c4a56f853755d1f --with-gas-price $(GAS_PRICE)
+
+# Flag: set to 1 to use private key, 0 to use base args
+USE_PRIVATE_KEY ?= 0
+
+ifeq ($(USE_PRIVATE_KEY),1)
+  ADDITIONAL_ARGS = --private-key $(PRIVATE_KEY)
+else
+  ADDITIONAL_ARGS = $(ADDITIONAL_ARGS_BASE)
+endif
+NETWORK_ARGS := --rpc-url ${RPC_URL} --broadcast --verify --etherscan-api-key ${ETHERSCAN_API_KEY} ${ADDITIONAL_ARGS}
 
 
 deploy:
@@ -101,19 +112,34 @@ deploy-rewards:
 
 deploy-staker-rewards-factory:
 	@echo "📡 Deploying Staker Rewards Factory..."
-	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "deployStakerRewardsFactoryContract(address,address,address,address)" $(VAULT_FACTORY_ADDRESS) $(NETWORK_MIDDLEWARE_SERVICE) $(OPERATOR_REWARDS_ADDRESS) $(NETWORK) -vv
+	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "deployStakerRewardsFactoryContract(address,address,address,address)" $(VAULT_FACTORY_ADDRESS) $(NETWORK_MIDDLEWARE_SERVICE) $(OPERATOR_REWARDS_PROXY_ADDRESS) $(NETWORK) -vv
 	@echo "✅ Staker Rewards Factory deployment completed"
 
-upgrade-operator-rewards:
-	@echo "📡 Upgrading Operator Rewards..."
-	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "upgradeOperatorRewards(address,address,address)" $(OPERATOR_REWARDS_ADDRESS) $(NETWORK) $(NETWORK_MIDDLEWARE_SERVICE) -vv
-	@echo "✅ Operator Rewards upgrade completed"
+deploy-middleware:
+	@echo "📡 Deploying Middleware Implementation..."
+	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem $(NETWORK_ARGS) --sig "deployOnlyMiddleware(address,address,bool)" $(OPERATOR_REWARDS_PROXY_ADDRESS) $(STAKE_REWARDS_FACTORY_ADDRESS) $(SHOULD_DEPLOY_READER) -vv
+	@echo "✅ Middleware Implementation deployment completed"
+
+deploy-operator-rewards:
+	@echo "📡 Deploying Operator Rewards Implementation..."
+	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "deployOperatorRewards(address,address)" $(NETWORK) $(NETWORK_MIDDLEWARE_SERVICE) -vv
+	@echo "✅ Operator Rewards Implementation deployment completed"
+
+deploy-staker-rewards:
+	@echo "📡 Deploying Staker Rewards Implementation..."
+	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "deployStakerRewards(address,address[],address)" $(NETWORK_MIDDLEWARE_SERVICE) $(VAULTS) $(NETWORK) -vv
+	@echo "✅ Staker Rewards Implementation deployment completed"
 
 upgrade-middleware:
 	@echo "📡 Upgrading Middleware..."
 	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem $(NETWORK_ARGS) --sig "upgradeMiddleware(address,uint256,address,address,address)" $(MIDDLEWARE_ADDRESS) $(CURRENT_MIDDLEWARE_VERSION) $(OPERATOR_REWARDS_ADDRESS) $(STAKE_REWARDS_FACTORY_ADDRESS) 0x0000000000000000000000000000000000000000 -vv
 	@echo "✅ Middleware upgrade completed"
 
+upgrade-operator-rewards:
+	@echo "📡 Upgrading Operator Rewards..."
+	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "upgradeOperatorRewards(address,address,address)" $(OPERATOR_REWARDS_PROXY_ADDRESS) $(NETWORK) $(NETWORK_MIDDLEWARE_SERVICE) -vv
+	@echo "✅ Operator Rewards upgrade completed"
+	
 upgrade-staker-rewards:
 	@echo "📡 Upgrading Staker Rewards..."
 	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "upgradeStakerRewards(address,address,address,address)" $(STAKER_REWARDS_PROXY_ADDRESS) $(NETWORK_MIDDLEWARE_SERVICE) $(VAULT_ADDRESS) $(NETWORK) -vv

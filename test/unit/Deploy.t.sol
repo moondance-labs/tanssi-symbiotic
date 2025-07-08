@@ -35,6 +35,7 @@ import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
+import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {Token} from "test/mocks/Token.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
@@ -237,6 +238,28 @@ contract DeployTest is Test {
         );
         assertEq(Middleware(middleware).i_operatorRewards(), newOperatorRewardsAddress);
         assertEq(Middleware(middleware).i_stakerRewardsFactory(), newStakerRewardsFactoryAddress);
+    }
+
+    function testDeployOnlyMiddlewareWithReader() public {
+        address newOperatorRewardsAddress = makeAddr("newOperatorRewardsAddress");
+        address newStakerRewardsFactoryAddress = makeAddr("newStakerRewardsFactoryAddress");
+        (Middleware middleware, OBaseMiddlewareReader reader) =
+            deployTanssiEcosystem.deployOnlyMiddleware(newOperatorRewardsAddress, newStakerRewardsFactoryAddress, true);
+        assertTrue(address(middleware) != ZERO_ADDRESS);
+        assertEq(Middleware(middleware).i_operatorRewards(), newOperatorRewardsAddress);
+        assertEq(Middleware(middleware).i_stakerRewardsFactory(), newStakerRewardsFactoryAddress);
+        assertTrue(address(reader) != ZERO_ADDRESS);
+    }
+
+    function testDeployOnlyMiddleware() public {
+        address newOperatorRewardsAddress = makeAddr("newOperatorRewardsAddress");
+        address newStakerRewardsFactoryAddress = makeAddr("newStakerRewardsFactoryAddress");
+        (Middleware middleware, OBaseMiddlewareReader reader) =
+            deployTanssiEcosystem.deployOnlyMiddleware(newOperatorRewardsAddress, newStakerRewardsFactoryAddress, false);
+        assertTrue(address(middleware) != ZERO_ADDRESS);
+        assertEq(middleware.i_operatorRewards(), newOperatorRewardsAddress);
+        assertEq(middleware.i_stakerRewardsFactory(), newStakerRewardsFactoryAddress);
+        assertEq(address(reader), ZERO_ADDRESS);
     }
 
     function testUpgradeMiddlewareFailsIfUnexpectedVersion() public {
@@ -726,12 +749,33 @@ contract DeployTest is Test {
         deployRewards.run(params);
     }
 
-    function testDeployRewardsOperator() public {
+    function testDeployRewardsOperatorContract() public {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
 
         address operatorRewards =
             deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20, tanssi);
         assertNotEq(operatorRewards, ZERO_ADDRESS);
+    }
+
+    function testDeployRewardsOperator() public {
+        DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
+
+        ODefaultOperatorRewards operatorRewards =
+            deployRewards.deployOperatorRewards(tanssi, addresses.networkMiddlewareService);
+        assertNotEq(address(operatorRewards), ZERO_ADDRESS);
+        assertEq(operatorRewards.i_network(), tanssi);
+        assertEq(operatorRewards.i_networkMiddlewareService(), addresses.networkMiddlewareService);
+    }
+
+    function testDeployRewardsOperatorMainnet() public {
+        vm.chainId(1);
+        DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
+
+        ODefaultOperatorRewards operatorRewards =
+            deployRewards.deployOperatorRewards(tanssi, addresses.networkMiddlewareService);
+        assertNotEq(address(operatorRewards), ZERO_ADDRESS);
+        assertEq(operatorRewards.i_network(), tanssi);
+        assertEq(operatorRewards.i_networkMiddlewareService(), addresses.networkMiddlewareService);
     }
 
     function testUpgradeRewardsOperator() public {
@@ -763,6 +807,36 @@ contract DeployTest is Test {
             addresses.vaultFactory, addresses.networkMiddlewareService, operatorRewards, tanssi
         );
         assertNotEq(stakerFactory, ZERO_ADDRESS);
+    }
+
+    function testDeployStakerRewardsWithSingleVault() public {
+        DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
+        address[] memory vaults = new address[](1);
+        vaults[0] = makeAddr("vault1");
+
+        ODefaultStakerRewards[] memory implementations =
+            deployRewards.deployStakerRewards(tanssi, vaults, addresses.networkMiddlewareService);
+
+        assertEq(implementations.length, 1);
+        assertNotEq(address(implementations[0]), ZERO_ADDRESS);
+    }
+
+    function testDeployStakerRewardsWithMultipleVaults() public {
+        DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
+        address[] memory vaults = new address[](5);
+        vaults[0] = makeAddr("vault1");
+        vaults[1] = makeAddr("vault2");
+        vaults[2] = makeAddr("vault3");
+        vaults[3] = makeAddr("vault4");
+        vaults[4] = makeAddr("vault5");
+
+        ODefaultStakerRewards[] memory implementations =
+            deployRewards.deployStakerRewards(tanssi, vaults, addresses.networkMiddlewareService);
+
+        assertEq(implementations.length, 5);
+        for (uint256 i = 0; i < implementations.length; i++) {
+            assertNotEq(address(implementations[i]), ZERO_ADDRESS);
+        }
     }
 
     //**************************************************************************************************
