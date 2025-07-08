@@ -1087,6 +1087,7 @@ contract MiddlewareTest is Test {
             }
             bytes32 operatorKey = bytes32(uint256(i + 4));
             middleware.registerOperator(_operator, abi.encode(operatorKey), address(0));
+            vm.stopPrank();
         }
     }
 
@@ -1278,7 +1279,7 @@ contract MiddlewareTest is Test {
         middleware.setForwarder(forwarder);
         // It's not needed, it's just for explaining and showing the flow
         address offlineKeepers = makeAddr("offlineKeepers");
-        vm.prank(offlineKeepers);
+        vm.startPrank(offlineKeepers);
         (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, false);
 
@@ -1286,13 +1287,242 @@ contract MiddlewareTest is Test {
         (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
 
-        bytes32[] memory sortedKeys = abi.decode(performData, (bytes32[]));
-        assertEq(sortedKeys.length, 3);
+        vm.startPrank(forwarder);
+        middleware.performUpkeep(performData);
+        uint48 epoch = middleware.getCurrentEpoch();
 
-        vm.prank(forwarder);
+        uint256 operator1Power = middleware.getOperatorToPower(epoch, OPERATOR_KEY);
+        uint256 operator2Power = middleware.getOperatorToPower(epoch, OPERATOR2_KEY);
+        uint256 operator3Power = middleware.getOperatorToPower(epoch, OPERATOR3_KEY);
+
+        (uint256 totalOperatorPowerAfter,) = _calculateOperatorPower(totalPowerVault, 0, 0);
+        (uint256 totalOperator2PowerAfter,) =
+            _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, 0);
+        (uint256 totalOperator3PowerAfter,) =
+            _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, totalFullRestakePower, 0);
+
+        assertEq(operator1Power, totalOperatorPowerAfter);
+        assertEq(operator2Power, totalOperator2PowerAfter);
+        assertEq(operator3Power, totalOperator3PowerAfter);
+
+        vm.startPrank(offlineKeepers);
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+
+        (uint8 command, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
+        assertEq(command, middleware.SEND_DATA_COMMAND());
+
+        vm.startPrank(forwarder);
         vm.expectEmit(true, false, false, false);
         emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
         middleware.performUpkeep(performData);
+
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+        assertEq(performData.length, 0);
+    }
+
+    function testUpkeepFor100OperatorsIn3VaultsSorted() public {
+        uint16 count = 100;
+        _addOperatorsToNetwork(count);
+        count += 3; // 3 operators are already registered
+        vm.prank(owner);
+        middleware.setForwarder(forwarder);
+
+        address offlineKeepers = makeAddr("offlineKeepers");
+
+        vm.startPrank(offlineKeepers);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+        // This will exhaust and fill the cache in n (count/max_operators_to_process) times
+        uint256 totalGasUsedForCheck = 0;
+        uint256 totalGasUsedForPerform = 0;
+        {
+            uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
+            for (uint256 i = 0; i < (count + max - 1) / max; i++) {
+                uint256 gasBeforeCheck = gasleft();
+                (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+                uint256 gasAfterCheck = gasleft();
+                uint256 gasUsedCheck = gasBeforeCheck - gasAfterCheck;
+                totalGasUsedForCheck += gasUsedCheck;
+
+                console2.log("Gas used for check: ", gasUsedCheck);
+                assertEq(upkeepNeeded, true);
+
+                vm.startPrank(forwarder);
+                uint256 gasBeforePerform = gasleft();
+                middleware.performUpkeep(performData);
+                uint256 gasAfterPerform = gasleft();
+                uint256 gasUsedPerform = gasBeforePerform - gasAfterPerform;
+                totalGasUsedForPerform += gasUsedPerform;
+                console2.log("Gas used for perform: ", gasUsedPerform);
+            }
+        }
+
+        // After the loop, we should have all operators processed and cache filled
+        // Now the keepers will call performUpkeep with the cache and sending the operators keys to the gateway
+        uint256 gasBeforeFinalCheck = gasleft();
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        uint256 gasAfterFinalCheck = gasleft();
+        uint256 gasUsedFinalCheck = gasBeforeFinalCheck - gasAfterFinalCheck;
+        totalGasUsedForCheck += gasUsedFinalCheck;
+        console2.log("Gas used for final check: ", gasUsedFinalCheck);
+        assertEq(upkeepNeeded, true);
+
+        (uint8 command, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
+        assertEq(command, middleware.SEND_DATA_COMMAND());
+        assertEq(sortedKeys.length, count);
+
+        {
+            vm.startPrank(forwarder);
+            vm.expectEmit(true, false, false, false);
+            emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
+            uint256 gasBeforeFinalPerform = gasleft();
+            middleware.performUpkeep(performData);
+            uint256 gasAfterFinalPerform = gasleft();
+            uint256 gasUsedFinalPerform = gasBeforeFinalPerform - gasAfterFinalPerform;
+            totalGasUsedForPerform += gasUsedFinalPerform;
+            console2.log("Gas used for final perform: ", gasUsedFinalPerform);
+        }
+
+        console2.log("Total gas used for check: ", totalGasUsedForCheck);
+        console2.log("Total gas used for perform: ", totalGasUsedForPerform);
+        console2.log("Total gas used for upkeep: ", totalGasUsedForCheck + totalGasUsedForPerform);
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+        vm.roll(50);
+        uint256 gasBefore = gasleft();
+        bytes32[] memory sortedValidators = middleware.sendCurrentOperatorsKeys();
+        uint256 gasAfter = gasleft();
+        uint256 gasSorted = gasBefore - gasAfter;
+        console2.log("Total gas used for sorting manually: ", gasSorted);
+    }
+
+    function testUpkeepShouldFailDueToWrongCacheCommand() public {
+        uint16 count = 37;
+        _addOperatorsToNetwork(count);
+        count += 3; // 3 operators are already registered
+        vm.prank(owner);
+        middleware.setForwarder(forwarder);
+
+        address offlineKeepers = makeAddr("offlineKeepers");
+
+        vm.startPrank(offlineKeepers);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+
+        uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
+        for (uint256 i = 0; i < (count + max - 1) / max; i++) {
+            (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+            assertEq(upkeepNeeded, true);
+
+            vm.startPrank(forwarder);
+            middleware.performUpkeep(performData);
+        }
+
+        vm.expectRevert(
+            abi.encodeWithSelector(IMiddleware.Middleware__InvalidCommand.selector, middleware.CACHE_DATA_COMMAND())
+        );
+        middleware.performUpkeep(performData);
+    }
+
+    function testUpkeepShouldFailDueToWrongSendCommand() public {
+        uint16 count = 37;
+        _addOperatorsToNetwork(count);
+        count += 3; // 3 operators are already registered
+        vm.prank(owner);
+        middleware.setForwarder(forwarder);
+
+        address offlineKeepers = makeAddr("offlineKeepers");
+
+        vm.startPrank(offlineKeepers);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+
+        (uint8 command, IMiddleware.ValidatorData[] memory data) =
+            abi.decode(performData, (uint8, IMiddleware.ValidatorData[]));
+        assertEq(command, middleware.CACHE_DATA_COMMAND());
+
+        performData = abi.encode(middleware.SEND_DATA_COMMAND(), data);
+
+        vm.startPrank(forwarder);
+        vm.expectRevert(
+            abi.encodeWithSelector(IMiddleware.Middleware__InvalidCommand.selector, middleware.SEND_DATA_COMMAND())
+        );
+        middleware.performUpkeep(performData);
+    }
+
+    function testUpkeepShouldFailToDecodeIfUsingValidatorsKeysInsteadOfValidatorsData() public {
+        uint16 count = 37;
+        _addOperatorsToNetwork(count);
+        count += 3; // 3 operators are already registered
+        vm.prank(owner);
+        middleware.setForwarder(forwarder);
+
+        address offlineKeepers = makeAddr("offlineKeepers");
+
+        vm.startPrank(offlineKeepers);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+
+        uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
+        for (uint256 i = 0; i < (count + max - 1) / max; i++) {
+            (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+            assertEq(upkeepNeeded, true);
+
+            vm.startPrank(forwarder);
+            middleware.performUpkeep(performData);
+        }
+
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+
+        vm.expectRevert();
+        middleware.performUpkeep(performData);
+    }
+
+    function testUpkeepCacheIsAlwaysLessOrEqualThanActiveOperators() public {
+        uint16 count = 100;
+        _addOperatorsToNetwork(count);
+        count += 3; // 3 operators are already registered
+        vm.prank(owner);
+        middleware.setForwarder(forwarder);
+
+        address offlineKeepers = makeAddr("offlineKeepers");
+
+        vm.startPrank(offlineKeepers);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+        uint48 epoch = middleware.getCurrentEpoch();
+        uint256 activeOperatorsLength = (OBaseMiddlewareReader(address(middleware)).activeOperators()).length;
+        {
+            uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
+            for (uint256 i = 0; i < (count + max - 1) / max; i++) {
+                (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+
+                uint256 cacheIndex = middleware.getEpochCacheIndex(epoch);
+                assertGe(activeOperatorsLength, cacheIndex);
+                assertEq(upkeepNeeded, true);
+
+                vm.startPrank(forwarder);
+                middleware.performUpkeep(performData);
+            }
+        }
     }
 
     function testWhenRegisteringVaultThenStakerRewardsAreDeployed() public {

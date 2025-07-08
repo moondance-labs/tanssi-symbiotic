@@ -171,6 +171,10 @@ interface IOBaseMiddlewareReader {
         uint48 epoch
     ) external view returns (bytes32[] memory sortedKeys);
 
+    function sortOperatorsByPower(
+        IMiddleware.ValidatorData[] memory validatorSet
+    ) external view returns (bytes32[] memory sortedKeys);
+
     function getOperatorVaults(
         address operator,
         uint48 epochStartTs
@@ -189,4 +193,6 @@ interface IOBaseMiddlewareReader {
     function getEpochAtTs(
         uint48 timestamp
     ) external view returns (uint48 epoch);
+
+    function auxiliaryCheckUpkeep() external view returns (bool upkeepNeeded, bytes memory performData);
 }
