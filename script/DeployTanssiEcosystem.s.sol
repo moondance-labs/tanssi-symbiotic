@@ -199,7 +199,7 @@ contract DeployTanssiEcosystem is Script {
         }
 
         if (!isTest) {
-            vm.startBroadcast(ownerPrivateKey);
+            vm.startBroadcast(broadcaster());
         }
         return vaultAddresses;
     }
@@ -310,7 +310,7 @@ contract DeployTanssiEcosystem is Script {
         );
 
         if (!isTest) {
-            vm.startBroadcast(ownerPrivateKey);
+            vm.startBroadcast(broadcaster());
         }
 
         IMiddleware.InitParams memory params = IMiddleware.InitParams({
@@ -375,7 +375,7 @@ contract DeployTanssiEcosystem is Script {
         address stakerRewardsFactoryAddress,
         address networkMiddlewareServiceAddress
     ) external returns (address) {
-        vm.startBroadcast(ownerPrivateKey);
+        vm.startBroadcast(broadcaster());
 
         ecosystemEntities.middleware =
             deployMiddlewareWithProxy(params, operatorRewardsAddress, stakerRewardsFactoryAddress);
@@ -396,7 +396,7 @@ contract DeployTanssiEcosystem is Script {
         IODefaultStakerRewards.InitParams memory stakerRewardsParams
     ) external {
         Middleware middleware = Middleware(middlewareAddress);
-        vm.startBroadcast(ownerPrivateKey);
+        vm.startBroadcast(broadcaster());
         middleware.registerSharedVault(vaultAddress, stakerRewardsParams);
         vm.stopBroadcast();
     }
@@ -405,7 +405,7 @@ contract DeployTanssiEcosystem is Script {
         address networkMiddlewareServiceAddress
     ) external {
         INetworkMiddlewareService networkMiddlewareService = INetworkMiddlewareService(networkMiddlewareServiceAddress);
-        vm.startBroadcast(ownerPrivateKey);
+        vm.startBroadcast(broadcaster());
         networkMiddlewareService.setMiddleware(address(ecosystemEntities.middleware));
         vm.stopBroadcast();
     }
@@ -425,7 +425,7 @@ contract DeployTanssiEcosystem is Script {
         isTest = false;
         _initScriptsAndEntities(new HelperConfig());
 
-        vm.startBroadcast(ownerPrivateKey);
+        vm.startBroadcast(broadcaster());
         _deploy();
         vm.stopBroadcast();
     }
@@ -450,7 +450,7 @@ contract DeployTanssiEcosystem is Script {
         address contractOwner
     ) public {
         if (!isTest) {
-            vm.startBroadcast(ownerPrivateKey);
+            vm.startBroadcast(broadcaster());
         } else {
             vm.startPrank(contractOwner);
         }
@@ -469,8 +469,33 @@ contract DeployTanssiEcosystem is Script {
         }
     }
 
+    function deployOnlyMiddleware(
+        address operatorRewardsAddress,
+        address stakerRewardsFactoryAddress,
+        bool deployReader
+    ) public returns (Middleware newImplementation, OBaseMiddlewareReader reader) {
+        vm.startBroadcast(broadcaster());
+        console2.log("Operator rewards address: ", operatorRewardsAddress);
+        console2.log("Staker rewards factory address: ", stakerRewardsFactoryAddress);
+        newImplementation = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        if (deployReader) {
+            reader = new OBaseMiddlewareReader();
+            console2.log("Reader: ", address(reader));
+        }
+        console2.log("New implementation: ", address(newImplementation));
+
+        vm.stopBroadcast();
+    }
+
     function getStETHCollateralAddress() external view returns (address) {
         return collateralAddresses.stETH;
+    }
+
+    function broadcaster() private view returns (address) {
+        if (block.chainid == 1) {
+            return msg.sender;
+        }
+        return vm.addr(ownerPrivateKey);
     }
 
     function _initScriptsAndEntities(
