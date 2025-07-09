@@ -69,6 +69,7 @@ import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRe
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {MiddlewareV2} from "test/unit/utils/MiddlewareV2.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
+import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
 import {Token} from "test/mocks/Token.sol";
 
@@ -1266,6 +1267,18 @@ contract FullTest is Test {
         // It's not needed (anyone can call it), it's just for explaining and showing the flow
         address offlineKeepers = makeAddr("offlineKeepers");
 
+        // TODO: The upgrade is needed only because it didn't happen on mainnet yet
+        DeployTanssiEcosystem deployTanssiEcosystem = new DeployTanssiEcosystem();
+        address stakerRewardsFactory = middleware.i_stakerRewardsFactory();
+        deployTanssiEcosystem.upgradeMiddleware(
+            address(middleware), 1, address(operatorRewards), stakerRewardsFactory, admin
+        );
+
+        OBaseMiddlewareReader newReader = new OBaseMiddlewareReader();
+        vm.prank(admin);
+        middleware.setReader(address(newReader));
+        // Remove the code on top once mainnet is upgraded
+
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
 
         vm.prank(offlineKeepers);
@@ -1276,7 +1289,26 @@ contract FullTest is Test {
         assertEq(upkeepNeeded, true);
         assertLt(beforeGas - afterGas, 10 ** 7); // Check that gas is lower than 10M
 
-        (uint8 command, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
+        (uint8 command, IMiddleware.ValidatorData[] memory validatorsData) =
+            abi.decode(performData, (uint8, IMiddleware.ValidatorData[]));
+        assertEq(command, middleware.CACHE_DATA_COMMAND());
+        assertEq(validatorsData.length, TOTAL_OPERATORS);
+
+        vm.prank(forwarder);
+        beforeGas = gasleft();
+        middleware.performUpkeep(performData);
+        afterGas = gasleft();
+        assertLt(beforeGas - afterGas, 10 ** 7); // Check that gas is lower than 10M
+
+        beforeGas = gasleft();
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        afterGas = gasleft();
+
+        assertEq(upkeepNeeded, true);
+        assertLt(beforeGas - afterGas, 10 ** 7); // Check that gas is lower than 10M
+
+        bytes32[] memory sortedKeys;
+        (command, sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
         assertEq(command, middleware.SEND_DATA_COMMAND());
         assertEq(sortedKeys.length, TOTAL_OPERATORS);
 
