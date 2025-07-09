@@ -227,6 +227,18 @@ contract DeployTest is Test {
         assertEq(address(reader), ZERO_ADDRESS);
     }
 
+    function testDeployOnlyMiddlewareOnMainnet() public {
+        vm.chainId(1);
+        address newOperatorRewardsAddress = makeAddr("newOperatorRewardsAddress");
+        address newStakerRewardsFactoryAddress = makeAddr("newStakerRewardsFactoryAddress");
+        (Middleware middleware, OBaseMiddlewareReader reader) =
+            deployTanssiEcosystem.deployOnlyMiddleware(newOperatorRewardsAddress, newStakerRewardsFactoryAddress, false);
+        assertTrue(address(middleware) != ZERO_ADDRESS);
+        assertEq(middleware.i_operatorRewards(), newOperatorRewardsAddress);
+        assertEq(middleware.i_stakerRewardsFactory(), newStakerRewardsFactoryAddress);
+        assertEq(address(reader), ZERO_ADDRESS);
+    }
+
     function testUpgradeMiddlewareFailsIfUnexpectedVersion() public {
         address middleware = _deployMiddleware();
 
@@ -306,6 +318,16 @@ contract DeployTest is Test {
     function testDeployOperatorRewards() public {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
 
+        address operatorRewards =
+            deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20, tanssi);
+        assertNotEq(operatorRewards, ZERO_ADDRESS);
+    }
+
+    function testDeployOperatorRewardsMainnet() public {
+        vm.chainId(1);
+        DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
+
+        deployRewards.setIsTest(false);
         address operatorRewards =
             deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20, tanssi);
         assertNotEq(operatorRewards, ZERO_ADDRESS);
