@@ -14,7 +14,7 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
-import {Test, Vm} from "forge-std/Test.sol";
+import {Test, Vm, console2} from "forge-std/Test.sol";
 
 //**************************************************************************************************
 //                                      SYMBIOTIC
@@ -369,7 +369,7 @@ contract DeployTest is Test {
         deployTanssiEcosystemDemo.run();
 
         vm.warp(block.timestamp + deployTanssiEcosystemDemo.NETWORK_EPOCH_DURATION() * 5 + 1);
-        (Middleware middleware,) = deployTanssiEcosystemDemo.ecosystemEntities();
+        (Middleware middleware,,) = deployTanssiEcosystemDemo.ecosystemEntities();
         uint48 currentEpoch = middleware.getCurrentEpoch();
         assertEq(currentEpoch, 5);
 
