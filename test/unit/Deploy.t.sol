@@ -35,6 +35,7 @@ import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
+import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {Token} from "test/mocks/Token.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
@@ -202,6 +203,28 @@ contract DeployTest is Test {
         );
         assertEq(Middleware(middleware).i_operatorRewards(), newOperatorRewardsAddress);
         assertEq(Middleware(middleware).i_stakerRewardsFactory(), newStakerRewardsFactoryAddress);
+    }
+
+    function testDeployOnlyMiddlewareWithReader() public {
+        address newOperatorRewardsAddress = makeAddr("newOperatorRewardsAddress");
+        address newStakerRewardsFactoryAddress = makeAddr("newStakerRewardsFactoryAddress");
+        (Middleware middleware, OBaseMiddlewareReader reader) =
+            deployTanssiEcosystem.deployOnlyMiddleware(newOperatorRewardsAddress, newStakerRewardsFactoryAddress, true);
+        assertTrue(address(middleware) != ZERO_ADDRESS);
+        assertEq(Middleware(middleware).i_operatorRewards(), newOperatorRewardsAddress);
+        assertEq(Middleware(middleware).i_stakerRewardsFactory(), newStakerRewardsFactoryAddress);
+        assertTrue(address(reader) != ZERO_ADDRESS);
+    }
+
+    function testDeployOnlyMiddleware() public {
+        address newOperatorRewardsAddress = makeAddr("newOperatorRewardsAddress");
+        address newStakerRewardsFactoryAddress = makeAddr("newStakerRewardsFactoryAddress");
+        (Middleware middleware, OBaseMiddlewareReader reader) =
+            deployTanssiEcosystem.deployOnlyMiddleware(newOperatorRewardsAddress, newStakerRewardsFactoryAddress, false);
+        assertTrue(address(middleware) != ZERO_ADDRESS);
+        assertEq(middleware.i_operatorRewards(), newOperatorRewardsAddress);
+        assertEq(middleware.i_stakerRewardsFactory(), newStakerRewardsFactoryAddress);
+        assertEq(address(reader), ZERO_ADDRESS);
     }
 
     function testUpgradeMiddlewareFailsIfUnexpectedVersion() public {

@@ -61,7 +61,7 @@ contract DeployRewards is Script {
         address admin
     ) public returns (address) {
         if (!isTest) {
-            vm.startBroadcast(ownerPrivateKey);
+            vm.startBroadcast(broadcaster());
         }
         ODefaultOperatorRewards operatorRewardsImpl = new ODefaultOperatorRewards(network, networkMiddlewareService);
         operatorRewards = ODefaultOperatorRewards(address(new ERC1967Proxy(address(operatorRewardsImpl), "")));
@@ -80,7 +80,7 @@ contract DeployRewards is Script {
         address network
     ) public returns (address) {
         if (!isTest) {
-            vm.startBroadcast(ownerPrivateKey);
+            vm.startBroadcast(broadcaster());
         }
         stakerRewardsFactory =
             new ODefaultStakerRewardsFactory(vaultFactory, networkMiddlewareService, operatorRewardsAddress, network);
@@ -100,7 +100,7 @@ contract DeployRewards is Script {
         address network
     ) external {
         if (!isTest) {
-            vm.startBroadcast(ownerPrivateKey);
+            vm.startBroadcast(broadcaster());
         } else {
             vm.startPrank(network);
         }
@@ -121,7 +121,7 @@ contract DeployRewards is Script {
 
     function upgradeOperatorRewards(address proxyAddress, address network, address networkMiddlewareService) external {
         if (!isTest) {
-            vm.startBroadcast(ownerPrivateKey);
+            vm.startBroadcast(broadcaster());
         } else {
             vm.startPrank(network);
         }
@@ -135,5 +135,12 @@ contract DeployRewards is Script {
         } else {
             vm.stopPrank();
         }
+    }
+
+    function broadcaster() private view returns (address) {
+        if (block.chainid == 1) {
+            return msg.sender;
+        }
+        return vm.addr(ownerPrivateKey);
     }
 }

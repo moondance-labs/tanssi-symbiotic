@@ -51,7 +51,7 @@ contract DeployTanssiEcosystem is Script {
         address stakerRewardsFactoryAddress,
         address networkMiddlewareServiceAddress
     ) external returns (address middleware) {
-        vm.startBroadcast(ownerPrivateKey);
+        vm.startBroadcast(broadcaster());
 
         middleware = address(deployMiddlewareWithProxy(params, operatorRewardsAddress, stakerRewardsFactoryAddress));
 
@@ -82,7 +82,7 @@ contract DeployTanssiEcosystem is Script {
         address contractOwner
     ) public {
         if (!isTest) {
-            vm.startBroadcast(ownerPrivateKey);
+            vm.startBroadcast(broadcaster());
         } else {
             vm.startPrank(contractOwner);
         }
@@ -99,5 +99,30 @@ contract DeployTanssiEcosystem is Script {
         } else {
             vm.stopPrank();
         }
+    }
+
+    function deployOnlyMiddleware(
+        address operatorRewardsAddress,
+        address stakerRewardsFactoryAddress,
+        bool deployReader
+    ) public returns (Middleware newImplementation, OBaseMiddlewareReader reader) {
+        vm.startBroadcast(broadcaster());
+        console2.log("Operator rewards address: ", operatorRewardsAddress);
+        console2.log("Staker rewards factory address: ", stakerRewardsFactoryAddress);
+        newImplementation = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        if (deployReader) {
+            reader = new OBaseMiddlewareReader();
+            console2.log("Reader: ", address(reader));
+        }
+        console2.log("New implementation: ", address(newImplementation));
+
+        vm.stopBroadcast();
+    }
+
+    function broadcaster() private view returns (address) {
+        if (block.chainid == 1) {
+            return msg.sender;
+        }
+        return vm.addr(ownerPrivateKey);
     }
 }

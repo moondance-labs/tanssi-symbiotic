@@ -14,7 +14,7 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, console2} from "forge-std/Test.sol";
 
 //**************************************************************************************************
 //                                      SYMBIOTIC
@@ -675,7 +675,9 @@ contract FullTest is Test {
                 data: additionalData
             });
 
+            uint256 gasBefore = gasleft();
             operatorRewards.claimRewards(claimRewardsData);
+            console2.log("Total gas consumed for", gasBefore - gasleft());
         }
 
         expectedRewardsForStakers =
@@ -1264,6 +1266,18 @@ contract FullTest is Test {
         uint256 expectedRewardsForStakersFromOperator1;
         uint256 expectedRewardsForStakersFromOperator2;
         uint256 expectedRewardsForStakersFromOperator3;
+
+        {
+            vm.prank(owner);
+            middleware.setForwarder(forwarder);
+
+            (, bytes memory performData) = middleware.checkUpkeep(hex"");
+
+            vm.startPrank(forwarder);
+            uint256 gasBefore = gasleft();
+            middleware.performUpkeep(performData);
+            console2.log("Gas used to performUpkeep:", gasBefore - gasleft());
+        }
 
         // Operator 1
         {
