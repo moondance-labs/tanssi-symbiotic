@@ -113,6 +113,8 @@ contract FullTest is Test {
     uint8 public constant ORACLE_DECIMALS = 2;
     int256 public constant ORACLE_CONVERSION_TOKEN = 2000;
 
+    uint256 public constant MAX_CHAINLINK_PROCESSABLE_BYTES = 2000;
+
     uint256 public constant PIER_TWO_VAULTS = 10;
     uint256 public constant P2P_VAULTS = 8;
     uint256 public constant NODE_INFRA = 3;
@@ -1261,6 +1263,38 @@ contract FullTest is Test {
         assertEq(validators.length, TOTAL_OPERATORS);
     }
 
+    function testOldUpkeep() public {
+        vm.prank(admin);
+        middleware.setForwarder(forwarder);
+        // It's not needed (anyone can call it), it's just for explaining and showing the flow
+        address offlineKeepers = makeAddr("offlineKeepers");
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+
+        vm.prank(offlineKeepers);
+        uint256 beforeGas = gasleft();
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        uint256 afterGas = gasleft();
+
+        assertEq(upkeepNeeded, true);
+        assertLt(beforeGas - afterGas, 10 ** 7); // Check that gas is lower than 10M
+
+        bytes32[] memory sortedKeys = abi.decode(performData, (bytes32[]));
+        assertEq(sortedKeys.length, TOTAL_OPERATORS);
+        assertLe(performData.length, MAX_CHAINLINK_PROCESSABLE_BYTES);
+
+        vm.prank(forwarder);
+        beforeGas = gasleft();
+        vm.expectEmit(true, false, false, false);
+        emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
+        middleware.performUpkeep(performData);
+        afterGas = gasleft();
+        assertLt(beforeGas - afterGas, 5 * 10 ** 6); // Check that gas is lower than 10M
+
+        (upkeepNeeded,) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+    }
+
     function testUpkeep() public {
         vm.prank(admin);
         middleware.setForwarder(forwarder);
@@ -1318,7 +1352,7 @@ contract FullTest is Test {
         emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
         middleware.performUpkeep(performData);
         afterGas = gasleft();
-        assertLt(beforeGas - afterGas, 10 ** 7); // Check that gas is lower than 10M
+        assertLt(beforeGas - afterGas, 5 * 10 ** 6); // Check that gas is lower than 10M
 
         (upkeepNeeded,) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, false);
