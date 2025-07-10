@@ -1279,7 +1279,7 @@ contract FullTest is Test {
         uint256 afterGas = gasleft();
 
         assertEq(upkeepNeeded, true);
-        assertLt(beforeGas - MAX_CHAINLINK_CHECKUPKEEP_GAS); // Check that gas is lower than 10M limit
+        assertLt(beforeGas - afterGas, MAX_CHAINLINK_CHECKUPKEEP_GAS); // Check that gas is lower than 10M limit
 
         bytes32[] memory sortedKeys = abi.decode(performData, (bytes32[]));
         assertEq(sortedKeys.length, TOTAL_OPERATORS);
