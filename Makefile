@@ -63,7 +63,7 @@ GAS_PRICE = 2000000000 # 2 Gwei
 ADDITIONAL_ARGS_BASE = --account mainnetDeployer --sender 0x008f37a7307aba7d5d9bca771c4a56f853755d1f --with-gas-price $(GAS_PRICE)
 
 # Flag: set to 1 to use private key, 0 to use base args
-USE_PRIVATE_KEY ?= 0
+USE_PRIVATE_KEY ?= 1
 
 ifeq ($(USE_PRIVATE_KEY),1)
   ADDITIONAL_ARGS = --private-key $(PRIVATE_KEY)
@@ -114,7 +114,7 @@ deploy-staker-rewards:
 
 upgrade-middleware:
 	@echo "📡 Upgrading Middleware..."
-	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem $(NETWORK_ARGS) --sig "upgradeMiddleware(address,uint256,address,address,address)" $(MIDDLEWARE_ADDRESS) $(CURRENT_MIDDLEWARE_VERSION) $(OPERATOR_REWARDS_ADDRESS) $(STAKE_REWARDS_FACTORY_ADDRESS) 0x0000000000000000000000000000000000000000 -vv
+	@forge script script/DeployTanssiEcosystem.s.sol $(NETWORK_ARGS) --sig "upgradeMiddleware(address,uint256,address,address,address)" $(MIDDLEWARE_ADDRESS) $(CURRENT_MIDDLEWARE_VERSION) $(OPERATOR_REWARDS_ADDRESS) $(STAKE_REWARDS_FACTORY_ADDRESS) 0x0000000000000000000000000000000000000000 -vv
 	@echo "✅ Middleware upgrade completed"
 
 upgrade-operator-rewards:
