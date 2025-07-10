@@ -114,6 +114,8 @@ contract FullTest is Test {
     int256 public constant ORACLE_CONVERSION_TOKEN = 2000;
 
     uint256 public constant MAX_CHAINLINK_PROCESSABLE_BYTES = 2000;
+    uint256 public constant MAX_CHAINLINK_CHECKUPKEEP_GAS = 10 ** 7; // 10M gas
+    uint256 public constant MAX_CHAINLINK_PERFORMUPKEEP_GAS = 5 * 10 ** 6; // 5 gas
 
     uint256 public constant PIER_TWO_VAULTS = 10;
     uint256 public constant P2P_VAULTS = 8;
@@ -1277,7 +1279,7 @@ contract FullTest is Test {
         uint256 afterGas = gasleft();
 
         assertEq(upkeepNeeded, true);
-        assertLt(beforeGas - afterGas, 10 ** 7); // Check that gas is lower than 10M
+        assertLt(beforeGas - MAX_CHAINLINK_CHECKUPKEEP_GAS); // Check that gas is lower than 10M
 
         bytes32[] memory sortedKeys = abi.decode(performData, (bytes32[]));
         assertEq(sortedKeys.length, TOTAL_OPERATORS);
@@ -1289,7 +1291,7 @@ contract FullTest is Test {
         emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
         middleware.performUpkeep(performData);
         afterGas = gasleft();
-        assertLt(beforeGas - afterGas, 5 * 10 ** 6); // Check that gas is lower than 10M
+        assertLt(beforeGas - afterGas, MAX_CHAINLINK_PERFORMUPKEEP_GAS); // Check that gas is lower than 5M
 
         (upkeepNeeded,) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, false);
