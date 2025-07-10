@@ -1354,7 +1354,7 @@ contract FullTest is Test {
         emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
         middleware.performUpkeep(performData);
         afterGas = gasleft();
-        assertLt(beforeGas - afterGas, 5 * 10 ** 6); // Check that gas is lower than 10M
+        assertLt(beforeGas - afterGas, MAX_CHAINLINK_PERFORMUPKEEP_GAS); // Check that gas is lower than limit
 
         (upkeepNeeded,) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, false);
