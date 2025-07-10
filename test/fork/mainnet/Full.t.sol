@@ -1279,7 +1279,7 @@ contract FullTest is Test {
         uint256 afterGas = gasleft();
 
         assertEq(upkeepNeeded, true);
-        assertLt(beforeGas - MAX_CHAINLINK_CHECKUPKEEP_GAS); // Check that gas is lower than 10M
+        assertLt(beforeGas - MAX_CHAINLINK_CHECKUPKEEP_GAS); // Check that gas is lower than 10M limit
 
         bytes32[] memory sortedKeys = abi.decode(performData, (bytes32[]));
         assertEq(sortedKeys.length, TOTAL_OPERATORS);
@@ -1291,7 +1291,7 @@ contract FullTest is Test {
         emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
         middleware.performUpkeep(performData);
         afterGas = gasleft();
-        assertLt(beforeGas - afterGas, MAX_CHAINLINK_PERFORMUPKEEP_GAS); // Check that gas is lower than 5M
+        assertLt(beforeGas - afterGas, MAX_CHAINLINK_PERFORMUPKEEP_GAS); // Check that gas is lower than 5M limit
 
         (upkeepNeeded,) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, false);
@@ -1323,7 +1323,7 @@ contract FullTest is Test {
         uint256 afterGas = gasleft();
 
         assertEq(upkeepNeeded, true);
-        assertLt(beforeGas - afterGas, 10 ** 7); // Check that gas is lower than 10M
+        assertLt(beforeGas - afterGas, MAX_CHAINLINK_CHECKUPKEEP_GAS); // Check that gas is lower than 10M limit
 
         (uint8 command, IMiddleware.ValidatorData[] memory validatorsData) =
             abi.decode(performData, (uint8, IMiddleware.ValidatorData[]));
@@ -1334,14 +1334,14 @@ contract FullTest is Test {
         beforeGas = gasleft();
         middleware.performUpkeep(performData);
         afterGas = gasleft();
-        assertLt(beforeGas - afterGas, 10 ** 7); // Check that gas is lower than 10M
+        assertLt(beforeGas - afterGas, MAX_CHAINLINK_CHECKUPKEEP_GAS); // Check that gas is lower than 10M limit
 
         beforeGas = gasleft();
         (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
         afterGas = gasleft();
 
         assertEq(upkeepNeeded, true);
-        assertLt(beforeGas - afterGas, 10 ** 7); // Check that gas is lower than 10M
+        assertLt(beforeGas - afterGas, MAX_CHAINLINK_CHECKUPKEEP_GAS); // Check that gas is lower than 10M limit
 
         bytes32[] memory sortedKeys;
         (command, sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
@@ -1354,7 +1354,7 @@ contract FullTest is Test {
         emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
         middleware.performUpkeep(performData);
         afterGas = gasleft();
-        assertLt(beforeGas - afterGas, MAX_CHAINLINK_PERFORMUPKEEP_GAS); // Check that gas is lower than limit
+        assertLt(beforeGas - afterGas, MAX_CHAINLINK_PERFORMUPKEEP_GAS); // Check that gas is lower than 5M limit
 
         (upkeepNeeded,) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, false);
