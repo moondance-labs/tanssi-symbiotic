@@ -49,7 +49,7 @@ import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
 
-contract DeployTanssiEcosystem is Script {
+contract DeployTanssiEcosystemDemo is Script {
     using Subnetwork for address;
 
     uint48 public constant VAULT_EPOCH_DURATION = 12 days;
@@ -174,7 +174,8 @@ contract DeployTanssiEcosystem is Script {
                 : address(tokensAddresses.stETHToken),
             owner: tanssi,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0)
         });
 
         if (!isTest) {
@@ -260,26 +261,56 @@ contract DeployTanssiEcosystem is Script {
         _vault.deposit(_operator, _amount);
     }
 
-    function _deploy() private {
+    function _getEntities()
+        private
+        returns (
+            INetworkRegistry networkRegistry,
+            IOperatorRegistry operatorRegistry,
+            INetworkMiddlewareService networkMiddlewareService,
+            IOptInService operatorNetworkOptInService,
+            IOptInService operatorVaultOptInService,
+            MockV3Aggregator collateralOracle,
+            address vaultRegistryAddress
+        )
+    {
+        address vaultConfiguratorAddress;
+        address operatorRegistryAddress;
+        address networkRegistryAddress;
+        address operatorNetworkOptInServiceAddress;
+        address operatorVaultOptInServiceAddress;
+        address networkMiddlewareServiceAddress;
+        address stETHAddress;
         (
-            address vaultConfiguratorAddress,
-            address operatorRegistryAddress,
-            address networkRegistryAddress,
-            address vaultRegistryAddress,
-            address operatorNetworkOptInServiceAddress,
-            address operatorVaultOptInServiceAddress,
-            address networkMiddlewareServiceAddress,
-            address stETHAddress,
+            vaultConfiguratorAddress,
+            operatorRegistryAddress,
+            networkRegistryAddress,
+            vaultRegistryAddress,
+            operatorNetworkOptInServiceAddress,
+            operatorVaultOptInServiceAddress,
+            networkMiddlewareServiceAddress,
+            stETHAddress,
         ) = contractScripts.helperConfig.activeNetworkConfig();
 
         ecosystemEntities.vaultConfigurator = IVaultConfigurator(vaultConfiguratorAddress);
 
-        INetworkRegistry networkRegistry = INetworkRegistry(networkRegistryAddress);
-        IOperatorRegistry operatorRegistry = IOperatorRegistry(operatorRegistryAddress);
-        INetworkMiddlewareService networkMiddlewareService = INetworkMiddlewareService(networkMiddlewareServiceAddress);
-        IOptInService operatorNetworkOptInService = IOptInService(operatorNetworkOptInServiceAddress);
-        IOptInService operatorVaultOptInService = IOptInService(operatorVaultOptInServiceAddress);
-        MockV3Aggregator collateralOracle = new MockV3Aggregator(ORACLE_DECIMALS, ORACLE_CONVERSION_TOKEN);
+        networkRegistry = INetworkRegistry(networkRegistryAddress);
+        operatorRegistry = IOperatorRegistry(operatorRegistryAddress);
+        networkMiddlewareService = INetworkMiddlewareService(networkMiddlewareServiceAddress);
+        operatorNetworkOptInService = IOptInService(operatorNetworkOptInServiceAddress);
+        operatorVaultOptInService = IOptInService(operatorVaultOptInServiceAddress);
+        collateralOracle = new MockV3Aggregator(ORACLE_DECIMALS, ORACLE_CONVERSION_TOKEN);
+    }
+
+    function _deploy() private {
+        (
+            INetworkRegistry networkRegistry,
+            IOperatorRegistry operatorRegistry,
+            INetworkMiddlewareService networkMiddlewareService,
+            IOptInService operatorNetworkOptInService,
+            IOptInService operatorVaultOptInService,
+            MockV3Aggregator collateralOracle,
+            address vaultRegistryAddress
+        ) = _getEntities();
 
         if (block.chainid == 31_337) {
             // Deploy simple ERC20 collateral tokens
@@ -327,21 +358,21 @@ contract DeployTanssiEcosystem is Script {
         vm.stopBroadcast();
 
         address operatorRewardsAddress = contractScripts.deployRewards.deployOperatorRewardsContract(
-            tanssi, networkMiddlewareServiceAddress, 2000, tanssi
+            tanssi, address(networkMiddlewareService), 2000, tanssi
         );
         ODefaultOperatorRewards operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
         address stakerRewardsFactoryAddress = contractScripts.deployRewards.deployStakerRewardsFactoryContract(
-            vaultRegistryAddress, networkMiddlewareServiceAddress, operatorRewardsAddress, tanssi
+            vaultRegistryAddress, address(networkMiddlewareService), operatorRewardsAddress, tanssi
         );
 
         vm.startBroadcast(ownerPrivateKey);
 
         IMiddleware.InitParams memory params = IMiddleware.InitParams({
             network: tanssi,
-            operatorRegistry: operatorRegistryAddress,
+            operatorRegistry: address(operatorRegistry),
             vaultRegistry: vaultRegistryAddress,
-            operatorNetworkOptIn: operatorNetworkOptInServiceAddress,
+            operatorNetworkOptIn: address(operatorNetworkOptInService),
             owner: tanssi,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,

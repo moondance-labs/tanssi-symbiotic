@@ -78,7 +78,6 @@ import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRew
 
 contract FullTest is Test {
     using Subnetwork for address;
-    using Subnetwork for bytes32;
     using Math for uint256;
 
     uint48 public constant VAULT_EPOCH_DURATION = 7 days;
@@ -368,7 +367,8 @@ contract FullTest is Test {
             collateral: address(usdc),
             owner: _owner,
             operator: operator1,
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
         (vault, delegator,) = deployVault.createBaseVault(params);
         vaultsData.v1.vault = IVault(vault);
@@ -783,7 +783,8 @@ contract FullTest is Test {
                 collateral: address(wBTC),
                 owner: owner,
                 operator: address(0),
-                network: address(0)
+                network: address(0),
+                burner: address(0xDead)
             });
             (address vault, address delegator,) = deployVault.createSlashableVault(params);
 
@@ -964,7 +965,8 @@ contract FullTest is Test {
             collateral: address(wBTC),
             owner: owner,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
         (address vault, address delegator,) = deployVault.createSlashableVault(params);
 
@@ -1984,7 +1986,8 @@ contract FullTest is Test {
             collateral: address(usdc),
             owner: owner,
             operator: operator1,
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
 
         (address vault,, address slasher) = deployVault.createVaultVetoed(params, vetoDuration);
@@ -2013,7 +2016,8 @@ contract FullTest is Test {
             collateral: address(usdc),
             owner: owner,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
 
         (address vault,, address slasher) = deployVault.createVaultVetoed(params, vetoDuration);

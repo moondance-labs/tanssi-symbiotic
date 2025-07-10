@@ -94,7 +94,6 @@ import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerReward
 
 contract MiddlewareTest is Test {
     using Subnetwork for address;
-    using Subnetwork for bytes32;
     using Math for uint256;
 
     uint48 public constant VAULT_EPOCH_DURATION = 8 days;
@@ -374,7 +373,8 @@ contract MiddlewareTest is Test {
             collateral: address(stETH),
             owner: _owner,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
 
         (vaultAddresses.vault, vaultAddresses.delegator, vaultAddresses.slasher) = deployVault.createBaseVault(params);
@@ -910,7 +910,8 @@ contract MiddlewareTest is Test {
             collateral: address(usdc),
             owner: tanssi,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
 
         (address vaultUsdc, address vaultDelegatorUsdc,) = deployVault.createBaseVault(params);
@@ -1610,7 +1611,8 @@ contract MiddlewareTest is Test {
             collateral: address(stETH),
             owner: _owner,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
 
         (testVaultAddresses.vault, testVaultAddresses.delegator, testVaultAddresses.slasher) =

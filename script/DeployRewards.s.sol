@@ -19,10 +19,8 @@ import {Script, console2} from "forge-std/Script.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
-import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
-import {Middleware} from "src/contracts/middleware/Middleware.sol";
 
 contract DeployRewards is Script {
     ODefaultStakerRewardsFactory public stakerRewardsFactory;
@@ -95,39 +93,6 @@ contract DeployRewards is Script {
         return address(stakerRewardsFactory);
     }
 
-    function run(
-        DeployParams calldata params
-    ) external {
-        address operatorRewardsAddress = deployOperatorRewardsContract(
-            params.network, params.networkMiddlewareService, params.operatorShare, params.defaultAdminRole
-        );
-        deployStakerRewardsFactoryContract(
-            params.vaultFactory, params.networkMiddlewareService, operatorRewardsAddress, params.network
-        );
-        emit Done();
-    }
-
-    function deployStakerRewards(
-        address networkMiddlewareService,
-        address[] memory vaults,
-        address network
-    ) external returns (ODefaultStakerRewards[] memory implementations) {
-        vm.startBroadcast(broadcaster());
-        console2.log("Network Middleware Service: ", networkMiddlewareService);
-        console2.log("Network: ", network);
-        implementations = new ODefaultStakerRewards[](vaults.length);
-        for (uint256 i = 0; i < vaults.length; i++) {
-            console2.log("Upgrading Staker Rewards for vault: ", vaults[i]);
-            ODefaultStakerRewards implementation =
-                new ODefaultStakerRewards(networkMiddlewareService, vaults[i], network);
-            implementations[i] = implementation;
-            console2.log("New Staker Rewards Implementation: ", address(implementation));
-            console2.log("\n\n");
-        }
-
-        vm.stopBroadcast();
-    }
-
     function upgradeStakerRewards(
         address proxyAddress,
         address networkMiddlewareService,
@@ -170,19 +135,6 @@ contract DeployRewards is Script {
         } else {
             vm.stopPrank();
         }
-    }
-
-    function deployOperatorRewards(
-        address network,
-        address networkMiddlewareService
-    ) external returns (ODefaultOperatorRewards implementation) {
-        vm.startBroadcast(broadcaster());
-        console2.log("Network Middleware Service: ", networkMiddlewareService);
-        console2.log("Network: ", network);
-        implementation = new ODefaultOperatorRewards(network, networkMiddlewareService);
-        console2.log("New Operator Rewards Implementation: ", address(implementation));
-
-        vm.stopBroadcast();
     }
 
     function broadcaster() private view returns (address) {
