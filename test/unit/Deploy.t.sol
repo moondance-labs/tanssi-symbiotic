@@ -47,6 +47,7 @@ import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
 import {DeployVault} from "script/DeployVault.s.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
+import {DeployTanssiEcosystemDemo} from "demos/DeployTanssiEcosystemDemo.s.sol";
 
 contract DeployTest is Test {
     using Subnetwork for address;
@@ -169,6 +170,35 @@ contract DeployTest is Test {
         deploySymbiotic.setCollateral(tokenAddress);
         address collateralAddress = deploySymbiotic.getCollateral();
         assertEq(collateralAddress, tokenAddress);
+    }
+
+    function testDemo() public {
+        DeployTanssiEcosystemDemo deployTanssiEcosystemDemo = new DeployTanssiEcosystemDemo();
+        deployTanssiEcosystemDemo.run();
+
+        (Middleware middleware,,) = deployTanssiEcosystemDemo.ecosystemEntities();
+
+        vm.warp(block.timestamp + 12 days + 1);
+
+        uint48 epoch = middleware.getCurrentEpoch();
+        IMiddleware.OperatorVaultPair[] memory operatorVaultPairs =
+            OBaseMiddlewareReader(address(middleware)).getOperatorVaultPairs(epoch);
+
+        address gateway = makeAddr("gateway");
+        address tanssi_ = deployTanssiEcosystemDemo.tanssi();
+        vm.prank(tanssi_);
+        middleware.setGateway(gateway);
+
+        address operator = operatorVaultPairs[2].operator;
+        address vault = operatorVaultPairs[2].vaults[0];
+        bytes memory operatorKey = middleware.operatorKey(operator);
+
+        vm.startPrank(gateway);
+        middleware.slash(epoch, abi.decode(operatorKey, (bytes32)), 1000);
+
+        IBaseSlasher slasher = IBaseSlasher(IVault(vault).slasher());
+        assertEq(slasher.TYPE(), uint8(VaultManager.SlasherType.INSTANT));
+        assertGt(slasher.cumulativeSlash(tanssi_.subnetwork(0), operator), 0);
     }
 
     //**************************************************************************************************
