@@ -114,7 +114,6 @@ contract FullTest is Test {
     uint8 public constant ORACLE_DECIMALS = 2;
     int256 public constant ORACLE_CONVERSION_TOKEN = 2000;
 
-
     uint256 TANSSI_VAULT_DEPOSIT_AMOUNT = 500_000 * 10 ** 12; // 500k TANSSI
     uint8 public constant TANSSI_ORACLE_DECIMALS = 3;
     int256 public constant TANSSI_ORACLE_CONVERSION_TOKEN = 80; // 0.08 USD
