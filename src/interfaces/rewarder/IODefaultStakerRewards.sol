@@ -89,12 +89,14 @@ interface IODefaultStakerRewards {
      * @param defaultAdminRoleHolder address of the initial DEFAULT_ADMIN_ROLE holder
      * @param adminFeeClaimRoleHolder address of the initial ADMIN_FEE_CLAIM_ROLE holder
      * @param adminFeeSetRoleHolder address of the initial ADMIN_FEE_SET_ROLE holder
+     * @param implementationStakerRewards implementation's address of the staker rewards contract
      */
     struct InitParams {
         uint256 adminFee;
         address defaultAdminRoleHolder;
         address adminFeeClaimRoleHolder;
         address adminFeeSetRoleHolder;
+        address implementationStakerRewards;
     }
 
     /**

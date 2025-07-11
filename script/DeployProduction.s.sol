@@ -107,7 +107,7 @@ contract DeployProduction is Script {
             entities.tanssi, networkMiddlewareServiceAddress, OPERATOR_SHARE, initialAdmin
         );
         stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
-            vaultRegistryAddress, networkMiddlewareServiceAddress, operatorRewardsAddress, entities.tanssi
+            vaultRegistryAddress, networkMiddlewareServiceAddress, operatorRewardsAddress, entities.tanssi, initialAdmin
         );
 
         if (isTest) {
@@ -125,10 +125,12 @@ contract DeployProduction is Script {
             owner: initialAdmin,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
-            reader: reader
+            reader: reader,
+            operatorRewards: operatorRewardsAddress,
+            stakerRewardsFactory: stakerRewardsFactoryAddress
         });
 
-        Middleware middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        Middleware middlewareImpl = new Middleware();
         middlewareAddress = address(new MiddlewareProxy(address(middlewareImpl), ""));
         middleware = Middleware(middlewareAddress);
         middleware.initialize(params);

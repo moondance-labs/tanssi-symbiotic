@@ -95,12 +95,12 @@ contract ODefaultStakerRewards is
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    address public vault;
+    address public i_vault;
 
     constructor(address networkMiddlewareService, address network) {
         _disableInitializers();
 
-        if (network == address(0) || networkMiddlewareService == address(0) || vault == address(0)) {
+        if (network == address(0) || networkMiddlewareService == address(0)) {
             revert ODefaultStakerRewards__InvalidAddress();
         }
         i_networkMiddlewareService = networkMiddlewareService;
@@ -132,7 +132,7 @@ contract ODefaultStakerRewards is
 
         _setAdminFee(params.adminFee);
 
-        vault = vault_;
+        i_vault = vault_;
 
         if (params.defaultAdminRoleHolder != address(0)) {
             _grantRole(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
@@ -161,7 +161,7 @@ contract ODefaultStakerRewards is
         uint48 epochTs = EpochCapture(INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network))
             .getEpochStart(epoch);
 
-        amount = IVault(vault).activeSharesOfAt(account, epochTs, new bytes(0)).mulDiv(
+        amount = IVault(i_vault).activeSharesOfAt(account, epochTs, new bytes(0)).mulDiv(
             rewardsPerEpoch, $.activeSharesCache[epoch]
         );
 
@@ -229,8 +229,8 @@ contract ODefaultStakerRewards is
         bytes memory activeStakeHint
     ) private {
         if ($.activeSharesCache[epoch] == 0) {
-            uint256 activeShares_ = IVault(vault).activeSharesAt(epochTs, activeSharesHint);
-            uint256 activeStake_ = IVault(vault).activeStakeAt(epochTs, activeStakeHint);
+            uint256 activeShares_ = IVault(i_vault).activeSharesAt(epochTs, activeSharesHint);
+            uint256 activeStake_ = IVault(i_vault).activeStakeAt(epochTs, activeStakeHint);
 
             if (activeShares_ == 0 || activeStake_ == 0) {
                 revert ODefaultStakerRewards__InvalidRewardTimestamp();
@@ -282,7 +282,7 @@ contract ODefaultStakerRewards is
             revert ODefaultStakerRewards__NoRewardsToClaim();
         }
 
-        uint256 amount = IVault(vault).activeSharesOfAt(recipient, epochTs, activeSharesOfHints).mulDiv(
+        uint256 amount = IVault(i_vault).activeSharesOfAt(recipient, epochTs, activeSharesOfHints).mulDiv(
             rewardsPerEpoch, activeSharesCache_
         );
 
@@ -350,7 +350,7 @@ contract ODefaultStakerRewards is
             revert ODefaultStakerRewards__InvalidAddress();
         }
 
-        vault = vault_;
+        i_vault = vault_;
 
         emit SetVault(vault_);
     }

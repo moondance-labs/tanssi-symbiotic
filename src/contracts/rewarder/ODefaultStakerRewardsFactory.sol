@@ -15,19 +15,31 @@
 pragma solidity 0.8.25;
 
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 import {Registry} from "@symbioticfi/core/src/contracts/common/Registry.sol";
 
 import {ODefaultStakerRewards} from "./ODefaultStakerRewards.sol";
 import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
 
-contract ODefaultStakerRewardsFactory is Registry, IODefaultStakerRewardsFactory {
+contract ODefaultStakerRewardsFactory is Ownable2Step, Registry, IODefaultStakerRewardsFactory {
+    using EnumerableSet for EnumerableSet.AddressSet;
+
+    EnumerableSet.AddressSet private _whitelistedImplementations;
+
     address private immutable i_vaultFactory;
     address private immutable i_networkMiddlewareService;
     address private immutable i_operatorRewards;
     address private immutable i_network;
 
-    constructor(address vaultFactory, address networkMiddlewareService, address operatorRewards, address network) {
+    constructor(
+        address vaultFactory,
+        address networkMiddlewareService,
+        address operatorRewards,
+        address network
+    ) Ownable(msg.sender) {
         if (
             vaultFactory == address(0) || networkMiddlewareService == address(0) || operatorRewards == address(0)
                 || network == address(0)
@@ -44,14 +56,48 @@ contract ODefaultStakerRewardsFactory is Registry, IODefaultStakerRewardsFactory
     /**
      * @inheritdoc IODefaultStakerRewardsFactory
      */
+    function lastVersion() public view returns (uint64) {
+        return uint64(_whitelistedImplementations.length());
+    }
+
+    /**
+     * @inheritdoc IODefaultStakerRewardsFactory
+     */
+    function implementation(
+        uint64 version
+    ) public view returns (address) {
+        if (version == 0 || version > lastVersion()) {
+            revert ODefaultStakerRewardsFactory__InvalidVersion();
+        }
+        return _whitelistedImplementations.at(version - 1);
+    }
+
+    /**
+     * @inheritdoc IODefaultStakerRewardsFactory
+     */
+    function whitelist(
+        address implementation_
+    ) external onlyOwner {
+        if (!_whitelistedImplementations.add(implementation_)) {
+            revert ODefaultStakerRewardsFactory__AlreadyWhitelisted();
+        }
+
+        emit Whitelist(implementation_);
+    }
+
+    /**
+     * @inheritdoc IODefaultStakerRewardsFactory
+     */
     function create(address vault, ODefaultStakerRewards.InitParams calldata params) external returns (address) {
         if (vault == address(0) || !Registry(i_vaultFactory).isEntity(vault)) {
             revert ODefaultStakerRewardsFactory__NotVault();
         }
 
-        ODefaultStakerRewards stakerRewards = new ODefaultStakerRewards(i_networkMiddlewareService, vault, i_network);
+        if (implementation(uint64(_whitelistedImplementations.length())) != params.implementationStakerRewards) {
+            revert ODefaultStakerRewardsFactory__InvalidImplementation();
+        }
 
-        address proxy = address(new ERC1967Proxy((address(stakerRewards)), ""));
+        address proxy = address(new ERC1967Proxy(params.implementationStakerRewards, ""));
         ODefaultStakerRewards(proxy).initialize(i_operatorRewards, vault, params);
         _addEntity(proxy);
 

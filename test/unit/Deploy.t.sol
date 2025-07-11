@@ -182,71 +182,54 @@ contract DeployTest is Test {
 
     function testUpgradeMiddleware() public {
         address middleware = _deployMiddleware();
+        address previousOperatorRewards = Middleware(middleware).i_operatorRewards();
+        address previousStakerRewardsFactory = Middleware(middleware).i_stakerRewardsFactory();
 
-        address newOperatorRewardsAddress = makeAddr("newOperatorRewardsAddress");
-        address newStakerRewardsFactoryAddress = makeAddr("newStakerRewardsFactoryAddress");
-        deployTanssiEcosystem.upgradeMiddleware(
-            middleware, 1, newOperatorRewardsAddress, newStakerRewardsFactoryAddress, tanssi
-        );
-        assertEq(Middleware(middleware).i_operatorRewards(), newOperatorRewardsAddress);
-        assertEq(Middleware(middleware).i_stakerRewardsFactory(), newStakerRewardsFactoryAddress);
+        deployTanssiEcosystem.upgradeMiddleware(middleware, 1, tanssi);
+        assertEq(Middleware(middleware).i_operatorRewards(), previousOperatorRewards);
+        assertEq(Middleware(middleware).i_stakerRewardsFactory(), previousStakerRewardsFactory);
     }
 
     function testUpgradeMiddlewareWithBroadcast() public {
         address middleware = _deployMiddleware();
 
-        address newOperatorRewardsAddress = makeAddr("newOperatorRewardsAddress");
-        address newStakerRewardsFactoryAddress = makeAddr("newStakerRewardsFactoryAddress");
-        deployTanssiEcosystem.upgradeMiddlewareBroadcast(
-            middleware, 1, newOperatorRewardsAddress, newStakerRewardsFactoryAddress
-        );
-        assertEq(Middleware(middleware).i_operatorRewards(), newOperatorRewardsAddress);
-        assertEq(Middleware(middleware).i_stakerRewardsFactory(), newStakerRewardsFactoryAddress);
+        address previousOperatorRewards = Middleware(middleware).i_operatorRewards();
+        address previousStakerRewardsFactory = Middleware(middleware).i_stakerRewardsFactory();
+        deployTanssiEcosystem.upgradeMiddlewareBroadcast(middleware, 1);
+        assertEq(Middleware(middleware).i_operatorRewards(), previousOperatorRewards);
+        assertEq(Middleware(middleware).i_stakerRewardsFactory(), previousStakerRewardsFactory);
     }
 
     function testDeployOnlyMiddlewareWithReader() public {
-        address newOperatorRewardsAddress = makeAddr("newOperatorRewardsAddress");
-        address newStakerRewardsFactoryAddress = makeAddr("newStakerRewardsFactoryAddress");
-        (Middleware middleware, OBaseMiddlewareReader reader) =
-            deployTanssiEcosystem.deployOnlyMiddleware(newOperatorRewardsAddress, newStakerRewardsFactoryAddress, true);
+        (Middleware middleware, OBaseMiddlewareReader reader) = deployTanssiEcosystem.deployOnlyMiddleware(true);
         assertTrue(address(middleware) != ZERO_ADDRESS);
-        assertEq(Middleware(middleware).i_operatorRewards(), newOperatorRewardsAddress);
-        assertEq(Middleware(middleware).i_stakerRewardsFactory(), newStakerRewardsFactoryAddress);
+        // We query something random just to make sure the middleware is deployed
+        assertGt(middleware.MIN_INTERVAL_TO_SEND_OPERATOR_KEYS(), 0);
         assertTrue(address(reader) != ZERO_ADDRESS);
     }
 
     function testDeployOnlyMiddleware() public {
-        address newOperatorRewardsAddress = makeAddr("newOperatorRewardsAddress");
-        address newStakerRewardsFactoryAddress = makeAddr("newStakerRewardsFactoryAddress");
-        (Middleware middleware, OBaseMiddlewareReader reader) =
-            deployTanssiEcosystem.deployOnlyMiddleware(newOperatorRewardsAddress, newStakerRewardsFactoryAddress, false);
+        (Middleware middleware, OBaseMiddlewareReader reader) = deployTanssiEcosystem.deployOnlyMiddleware(false);
         assertTrue(address(middleware) != ZERO_ADDRESS);
-        assertEq(middleware.i_operatorRewards(), newOperatorRewardsAddress);
-        assertEq(middleware.i_stakerRewardsFactory(), newStakerRewardsFactoryAddress);
+        // We query something random just to make sure the middleware is deployed
+        assertGt(middleware.MIN_INTERVAL_TO_SEND_OPERATOR_KEYS(), 0);
         assertEq(address(reader), ZERO_ADDRESS);
     }
 
     function testDeployOnlyMiddlewareOnMainnet() public {
         vm.chainId(1);
-        address newOperatorRewardsAddress = makeAddr("newOperatorRewardsAddress");
-        address newStakerRewardsFactoryAddress = makeAddr("newStakerRewardsFactoryAddress");
-        (Middleware middleware, OBaseMiddlewareReader reader) =
-            deployTanssiEcosystem.deployOnlyMiddleware(newOperatorRewardsAddress, newStakerRewardsFactoryAddress, false);
+        (Middleware middleware, OBaseMiddlewareReader reader) = deployTanssiEcosystem.deployOnlyMiddleware(false);
         assertTrue(address(middleware) != ZERO_ADDRESS);
-        assertEq(middleware.i_operatorRewards(), newOperatorRewardsAddress);
-        assertEq(middleware.i_stakerRewardsFactory(), newStakerRewardsFactoryAddress);
+        // We query something random just to make sure the middleware is deployed
+        assertGt(middleware.MIN_INTERVAL_TO_SEND_OPERATOR_KEYS(), 0);
         assertEq(address(reader), ZERO_ADDRESS);
     }
 
     function testUpgradeMiddlewareFailsIfUnexpectedVersion() public {
         address middleware = _deployMiddleware();
 
-        address newOperatorRewardsAddress = makeAddr("newOperatorRewardsAddress");
-        address newStakerRewardsFactoryAddress = makeAddr("newStakerRewardsFactoryAddress");
         vm.expectRevert("Middleware version is not expected, cannot upgrade");
-        deployTanssiEcosystem.upgradeMiddleware(
-            middleware, 2, newOperatorRewardsAddress, newStakerRewardsFactoryAddress, tanssi
-        );
+        deployTanssiEcosystem.upgradeMiddleware(middleware, 2, tanssi);
     }
 
     //**************************************************************************************************
@@ -358,7 +341,7 @@ contract DeployTest is Test {
             deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20, tanssi);
 
         address stakerFactory = deployRewards.deployStakerRewardsFactoryContract(
-            addresses.vaultFactory, addresses.networkMiddlewareService, operatorRewards, tanssi
+            addresses.vaultFactory, addresses.networkMiddlewareService, operatorRewards, tanssi, tanssi
         );
         assertNotEq(stakerFactory, ZERO_ADDRESS);
     }
@@ -388,11 +371,11 @@ contract DeployTest is Test {
             owner: tanssi,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: 8 days,
-            reader: address(0)
+            reader: address(0),
+            operatorRewards: operatorRewardsAddress,
+            stakerRewardsFactory: stakerRewardsFactoryAddress
         });
-        address middleware = deployTanssiEcosystem.deployMiddleware(
-            params, operatorRewardsAddress, stakerRewardsFactoryAddress, networkMiddlewareService
-        );
+        address middleware = deployTanssiEcosystem.deployMiddleware(params, networkMiddlewareService);
         return middleware;
     }
 }

@@ -117,6 +117,7 @@ contract RewardsTest is Test {
 
     NetworkMiddlewareService networkMiddlewareService;
     ODefaultOperatorRewards operatorRewards;
+    address stakerRewardsImplementation;
     ODefaultStakerRewards stakerRewards;
     ODefaultStakerRewardsFactory stakerRewardsFactory;
     DelegatorMock delegator;
@@ -180,21 +181,25 @@ contract RewardsTest is Test {
         );
 
         address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
-            address(vaultFactory), address(networkMiddlewareService), operatorRewardsAddress, tanssi
+            address(vaultFactory), address(networkMiddlewareService), operatorRewardsAddress, tanssi, owner
         );
         stakerRewardsFactory = ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress);
 
+        stakerRewardsImplementation = address(new ODefaultStakerRewards(address(networkMiddlewareService), tanssi));
         IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
             adminFee: ADMIN_FEE,
             defaultAdminRoleHolder: address(tanssi),
             adminFeeClaimRoleHolder: address(tanssi),
-            adminFeeSetRoleHolder: address(tanssi)
+            adminFeeSetRoleHolder: address(tanssi),
+            implementationStakerRewards: address(stakerRewardsImplementation)
         });
+
+        vm.startPrank(owner);
+        stakerRewardsFactory.whitelist(stakerRewardsImplementation);
         stakerRewards = ODefaultStakerRewards(stakerRewardsFactory.create(address(vault), stakerRewardsParams));
 
-        Middleware _middlewareImpl = new Middleware(operatorRewardsAddress, address(stakerRewards));
+        Middleware _middlewareImpl = new Middleware();
         middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
-        vm.startPrank(owner);
         operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
         operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware));
         vm.stopPrank();
@@ -206,7 +211,9 @@ contract RewardsTest is Test {
             owner: tanssi,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
-            reader: readHelper
+            reader: readHelper,
+            operatorRewards: address(operatorRewards),
+            stakerRewardsFactory: address(stakerRewardsFactory)
         });
         Middleware(address(middleware)).initialize(params);
 
@@ -365,7 +372,6 @@ contract RewardsTest is Test {
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__InvalidAddress.selector);
         stakerRewards = new ODefaultStakerRewards(
             address(networkMiddlewareService), // networkMiddlewareService
-            address(vault), // vault
             address(0) // network
         );
     }
@@ -374,16 +380,6 @@ contract RewardsTest is Test {
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__InvalidAddress.selector);
         stakerRewards = new ODefaultStakerRewards(
             address(0), // networkMiddlewareService
-            address(vault), // vault
-            tanssi // network
-        );
-    }
-
-    function testCreateStakerRewardsWithNoVault() public {
-        vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__InvalidAddress.selector);
-        stakerRewards = new ODefaultStakerRewards(
-            address(networkMiddlewareService), // networkMiddlewareService
-            address(0), // vault
             tanssi // network
         );
     }
@@ -391,7 +387,6 @@ contract RewardsTest is Test {
     function testInitializeStakerRewardsWithNoOperatorRewards() public {
         stakerRewards = new ODefaultStakerRewards(
             address(networkMiddlewareService), // networkMiddlewareService
-            address(vault), // vault
             tanssi // network
         );
 
@@ -399,12 +394,13 @@ contract RewardsTest is Test {
             adminFee: 0,
             defaultAdminRoleHolder: address(middleware),
             adminFeeClaimRoleHolder: address(middleware),
-            adminFeeSetRoleHolder: address(middleware)
+            adminFeeSetRoleHolder: address(middleware),
+            implementationStakerRewards: stakerRewardsImplementation
         });
         address proxy = address(new ERC1967Proxy((address(stakerRewards)), ""));
 
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__InvalidAddress.selector);
-        ODefaultStakerRewards(proxy).initialize(address(0), params);
+        ODefaultStakerRewards(proxy).initialize(address(0), address(vault), params);
     }
 
     //**************************************************************************************************
@@ -933,28 +929,28 @@ contract RewardsTest is Test {
     function testStakerRewardsFactoryConstructorNoVaultFactory() public {
         vm.expectRevert(IODefaultStakerRewardsFactory.ODefaultStakerRewardsFactory__InvalidAddress.selector);
         deployRewards.deployStakerRewardsFactoryContract(
-            address(0), address(networkMiddlewareService), address(operatorRewards), tanssi
+            address(0), address(networkMiddlewareService), address(operatorRewards), tanssi, owner
         );
     }
 
     function testStakerRewardsFactoryConstructorNoNetworkMiddlewareService() public {
         vm.expectRevert(IODefaultStakerRewardsFactory.ODefaultStakerRewardsFactory__InvalidAddress.selector);
         deployRewards.deployStakerRewardsFactoryContract(
-            address(vaultFactory), address(0), address(operatorRewards), tanssi
+            address(vaultFactory), address(0), address(operatorRewards), tanssi, owner
         );
     }
 
     function testStakerRewardsFactoryConstructorNoOperatorRewards() public {
         vm.expectRevert(IODefaultStakerRewardsFactory.ODefaultStakerRewardsFactory__InvalidAddress.selector);
         deployRewards.deployStakerRewardsFactoryContract(
-            address(vaultFactory), address(networkMiddlewareService), address(0), tanssi
+            address(vaultFactory), address(networkMiddlewareService), address(0), tanssi, owner
         );
     }
 
     function testStakerRewardsFactoryConstructorNoNetwork() public {
         vm.expectRevert(IODefaultStakerRewardsFactory.ODefaultStakerRewardsFactory__InvalidAddress.selector);
         deployRewards.deployStakerRewardsFactoryContract(
-            address(vaultFactory), address(networkMiddlewareService), address(operatorRewards), address(0)
+            address(vaultFactory), address(networkMiddlewareService), address(operatorRewards), address(0), owner
         );
     }
 
@@ -971,7 +967,8 @@ contract RewardsTest is Test {
             adminFee: 0,
             defaultAdminRoleHolder: address(0),
             adminFeeClaimRoleHolder: address(0),
-            adminFeeSetRoleHolder: address(middleware)
+            adminFeeSetRoleHolder: address(middleware),
+            implementationStakerRewards: stakerRewardsImplementation
         });
 
         vm.mockCall(
@@ -989,7 +986,8 @@ contract RewardsTest is Test {
             adminFee: 0,
             defaultAdminRoleHolder: address(0),
             adminFeeClaimRoleHolder: address(0),
-            adminFeeSetRoleHolder: address(middleware)
+            adminFeeSetRoleHolder: address(middleware),
+            implementationStakerRewards: stakerRewardsImplementation
         });
 
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__MissingRoles.selector);
@@ -1001,7 +999,8 @@ contract RewardsTest is Test {
             adminFee: 0,
             defaultAdminRoleHolder: address(0),
             adminFeeClaimRoleHolder: address(middleware),
-            adminFeeSetRoleHolder: address(middleware)
+            adminFeeSetRoleHolder: address(middleware),
+            implementationStakerRewards: stakerRewardsImplementation
         });
 
         IODefaultStakerRewards newStakerRewards =
@@ -1015,7 +1014,8 @@ contract RewardsTest is Test {
             adminFee: stakerRewards.ADMIN_FEE_BASE() + 1,
             defaultAdminRoleHolder: address(middleware),
             adminFeeClaimRoleHolder: address(middleware),
-            adminFeeSetRoleHolder: address(middleware)
+            adminFeeSetRoleHolder: address(middleware),
+            implementationStakerRewards: stakerRewardsImplementation
         });
 
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__InvalidAdminFee.selector);
@@ -1027,7 +1027,8 @@ contract RewardsTest is Test {
             adminFee: 0,
             defaultAdminRoleHolder: address(0),
             adminFeeClaimRoleHolder: address(middleware),
-            adminFeeSetRoleHolder: address(0)
+            adminFeeSetRoleHolder: address(0),
+            implementationStakerRewards: stakerRewardsImplementation
         });
 
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__MissingRoles.selector);
@@ -1039,7 +1040,8 @@ contract RewardsTest is Test {
             adminFee: ADMIN_FEE,
             defaultAdminRoleHolder: address(0),
             adminFeeClaimRoleHolder: address(0),
-            adminFeeSetRoleHolder: address(middleware)
+            adminFeeSetRoleHolder: address(middleware),
+            implementationStakerRewards: stakerRewardsImplementation
         });
 
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__MissingRoles.selector);
@@ -1051,7 +1053,8 @@ contract RewardsTest is Test {
             adminFee: ADMIN_FEE,
             defaultAdminRoleHolder: address(0),
             adminFeeClaimRoleHolder: address(middleware),
-            adminFeeSetRoleHolder: address(middleware)
+            adminFeeSetRoleHolder: address(middleware),
+            implementationStakerRewards: stakerRewardsImplementation
         });
 
         IODefaultStakerRewards newStakerRewards =
@@ -1160,11 +1163,13 @@ contract RewardsTest is Test {
         uint48 epoch = 0;
         uint48 eraIndex = 0;
         vm.warp(NETWORK_EPOCH_DURATION);
+
         IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
             adminFee: ADMIN_FEE,
             defaultAdminRoleHolder: address(middleware),
             adminFeeClaimRoleHolder: address(middleware),
-            adminFeeSetRoleHolder: address(middleware)
+            adminFeeSetRoleHolder: address(middleware),
+            implementationStakerRewards: stakerRewardsImplementation
         });
         IODefaultStakerRewards newStakerRewards =
             IODefaultStakerRewards(stakerRewardsFactory.create(address(vault), params));
@@ -1187,7 +1192,8 @@ contract RewardsTest is Test {
             adminFee: ADMIN_FEE,
             defaultAdminRoleHolder: address(middleware),
             adminFeeClaimRoleHolder: address(middleware),
-            adminFeeSetRoleHolder: address(middleware)
+            adminFeeSetRoleHolder: address(middleware),
+            implementationStakerRewards: stakerRewardsImplementation
         });
         IODefaultStakerRewards newStakerRewards =
             IODefaultStakerRewards(stakerRewardsFactory.create(address(vault), params));
@@ -1412,6 +1418,38 @@ contract RewardsTest is Test {
     }
 
     //**************************************************************************************************
+    //                                      setVault
+    //**************************************************************************************************
+
+    function testSetVault() public {
+        address newVault = makeAddr("newVault");
+        vm.startPrank(address(tanssi));
+        vm.expectEmit(true, false, false, true);
+        emit IODefaultStakerRewards.SetVault(newVault);
+        stakerRewards.setVault(newVault);
+        assertEq(stakerRewards.i_vault(), newVault);
+    }
+
+    function testSetVaultButZeroAddress() public {
+        vm.startPrank(address(tanssi));
+        vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__InvalidAddress.selector);
+        stakerRewards.setVault(address(0));
+    }
+
+    function testSetVaultWithInvalidRole() public {
+        address newVault = makeAddr("newVault");
+        address randomUser = makeAddr("randomUser");
+        bytes32 defaultAdminRole = stakerRewards.DEFAULT_ADMIN_ROLE();
+        vm.startPrank(randomUser);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, randomUser, defaultAdminRole
+            )
+        );
+        stakerRewards.setVault(newVault);
+    }
+
+    //**************************************************************************************************
     //                                      claimAdminFee
     //**************************************************************************************************
 
@@ -1491,8 +1529,7 @@ contract RewardsTest is Test {
         _setClaimableAdminFee(epoch, address(token), STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT);
 
         vm.startPrank(address(tanssi));
-        ODefaultStakerRewards newStakerRewards =
-            new ODefaultStakerRewards(address(networkMiddlewareService), address(vault), tanssi);
+        ODefaultStakerRewards newStakerRewards = new ODefaultStakerRewards(address(networkMiddlewareService), tanssi);
 
         stakerRewards.upgradeToAndCall(address(newStakerRewards), hex"");
 
@@ -1505,8 +1542,7 @@ contract RewardsTest is Test {
     }
 
     function testUpgradeStakerRewardsNotAuthorized() public {
-        ODefaultStakerRewards newStakerRewards =
-            new ODefaultStakerRewards(address(networkMiddlewareService), address(vault), tanssi);
+        ODefaultStakerRewards newStakerRewards = new ODefaultStakerRewards(address(networkMiddlewareService), tanssi);
         bytes32 adminRole = stakerRewards.DEFAULT_ADMIN_ROLE();
 
         address randomUser = makeAddr("randomUser");
@@ -1524,9 +1560,7 @@ contract RewardsTest is Test {
     function testUpgradeStakerRewardsWithScript() public {
         vm.warp(NETWORK_EPOCH_DURATION);
 
-        deployRewards.upgradeStakerRewards(
-            address(stakerRewards), address(networkMiddlewareService), address(vault), address(tanssi)
-        );
+        deployRewards.upgradeStakerRewards(address(stakerRewards), address(networkMiddlewareService), address(tanssi));
 
         assertEq(stakerRewards.i_vault(), address(vault));
         assertEq(stakerRewards.i_network(), address(tanssi));
@@ -1543,12 +1577,89 @@ contract RewardsTest is Test {
         vm.warp(NETWORK_EPOCH_DURATION);
 
         deployRewards.setIsTest(false);
-        deployRewards.upgradeStakerRewards(
-            address(stakerRewards), address(networkMiddlewareService), address(vault), address(tanssi)
-        );
+        deployRewards.upgradeStakerRewards(address(stakerRewards), address(networkMiddlewareService), address(tanssi));
 
         assertEq(stakerRewards.i_vault(), address(vault));
         assertEq(stakerRewards.i_network(), address(tanssi));
         assertEq(stakerRewards.i_networkMiddlewareService(), address(networkMiddlewareService));
+    }
+
+    //**************************************************************************************************
+    //                                      ODefaultStakerRewardsFactory
+    //**************************************************************************************************
+
+    function testStakerRewardsFactoryCreate() public {
+        IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
+            adminFee: ADMIN_FEE,
+            defaultAdminRoleHolder: address(0),
+            adminFeeClaimRoleHolder: address(middleware),
+            adminFeeSetRoleHolder: address(middleware),
+            implementationStakerRewards: stakerRewardsImplementation
+        });
+
+        vm.mockCall(
+            address(vaultFactory), abi.encodeWithSelector(IRegistry.isEntity.selector, address(vault)), abi.encode(true)
+        );
+
+        IODefaultStakerRewards newStakerRewards =
+            IODefaultStakerRewards(stakerRewardsFactory.create(address(vault), params));
+
+        assertEq(newStakerRewards.i_vault(), address(vault));
+        assertEq(newStakerRewards.adminFee(), ADMIN_FEE);
+    }
+
+    function testLastVersion() public {
+        assertEq(stakerRewardsFactory.lastVersion(), 1);
+    }
+
+    function testImplementation() public {
+        assertEq(stakerRewardsFactory.implementation(1), stakerRewardsImplementation);
+    }
+
+    function testImplementationRevertsWithVersion0() public {
+        vm.expectRevert(IODefaultStakerRewardsFactory.ODefaultStakerRewardsFactory__InvalidVersion.selector);
+        stakerRewardsFactory.implementation(0);
+    }
+
+    function testImplementationRevertsWithVersionGreaterThanLast() public {
+        vm.expectRevert(IODefaultStakerRewardsFactory.ODefaultStakerRewardsFactory__InvalidVersion.selector);
+        stakerRewardsFactory.implementation(2);
+    }
+
+    function testWhitelist() public {
+        address newImplementation = makeAddr("newImplementation");
+        vm.startPrank(owner);
+        vm.expectEmit(true, true, false, true);
+        emit IODefaultStakerRewardsFactory.Whitelist(newImplementation);
+        stakerRewardsFactory.whitelist(newImplementation);
+        assertEq(stakerRewardsFactory.implementation(2), newImplementation);
+    }
+
+    function testWhitelistAlreadyWhitelisted() public {
+        vm.startPrank(owner);
+        vm.expectRevert(IODefaultStakerRewardsFactory.ODefaultStakerRewardsFactory__AlreadyWhitelisted.selector);
+        stakerRewardsFactory.whitelist(stakerRewardsImplementation);
+    }
+
+    function testCreateWithInvalidImplementation() public {
+        address invalidImplementation = makeAddr("invalidImplementation");
+        address newVault = makeAddr("newVault");
+
+        vm.startPrank(owner);
+        vm.mockCall(
+            address(vaultFactory),
+            abi.encodeWithSelector(IRegistry.isEntity.selector, address(newVault)),
+            abi.encode(true)
+        );
+
+        IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
+            adminFee: ADMIN_FEE,
+            defaultAdminRoleHolder: address(0),
+            adminFeeClaimRoleHolder: address(middleware),
+            adminFeeSetRoleHolder: address(middleware),
+            implementationStakerRewards: invalidImplementation
+        });
+        vm.expectRevert(IODefaultStakerRewardsFactory.ODefaultStakerRewardsFactory__InvalidImplementation.selector);
+        stakerRewardsFactory.create(newVault, params);
     }
 }

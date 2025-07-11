@@ -85,17 +85,9 @@ contract Middleware is
 
     /*
      * @notice Constructor for the middleware
-     * @param operatorRewards The operator rewards address
-     * @param stakerRewardsFactory The staker rewards factory address
      */
-    constructor(
-        address operatorRewards,
-        address stakerRewardsFactory
-    ) notZeroAddress(operatorRewards) notZeroAddress(stakerRewardsFactory) {
+    constructor() {
         _disableInitializers();
-
-        i_operatorRewards = operatorRewards;
-        i_stakerRewardsFactory = stakerRewardsFactory;
     }
 
     /*
@@ -108,6 +100,8 @@ contract Middleware is
      * @param epochDuration The epoch duration
      * @param slashingWindow The slashing window
      * @param reader The reader address
+     * @param operatorRewards The operator rewards address
+     * @param stakerRewardsFactory The staker rewards factory address
      */
     function initialize(
         InitParams memory params
@@ -118,6 +112,8 @@ contract Middleware is
             StorageMiddleware storage $ = _getMiddlewareStorage();
             $.lastTimestamp = Time.timestamp();
             $.interval = params.epochDuration;
+            i_operatorRewards = params.operatorRewards;
+            i_stakerRewardsFactory = params.stakerRewardsFactory;
         }
 
         __BaseMiddleware_init(
@@ -138,6 +134,19 @@ contract Middleware is
         _setSelectorRole(this.performUpkeep.selector, FORWARDER_ROLE);
     }
 
+    /*
+     * @notice Reinitialize the middleware with only operator rewards and staker rewards factory addresses
+     * @param operatorRewards The operator rewards address
+     * @param stakerRewardsFactory The staker rewards factory address
+     */
+    function initializeV2(
+        address operatorRewards,
+        address stakerRewardsFactory
+    ) external reinitializer(2) notZeroAddress(operatorRewards) notZeroAddress(stakerRewardsFactory) {
+        i_operatorRewards = operatorRewards;
+        i_stakerRewardsFactory = stakerRewardsFactory;
+    }
+
     function _validateInitParams(
         InitParams memory params
     )
@@ -149,6 +158,8 @@ contract Middleware is
         notZeroAddress(params.operatorNetworkOptIn)
         notZeroAddress(params.owner)
         notZeroAddress(params.reader)
+        notZeroAddress(params.operatorRewards)
+        notZeroAddress(params.stakerRewardsFactory)
     {
         if (params.epochDuration == 0 || params.slashingWindow == 0) {
             revert Middleware__InvalidEpochDuration();

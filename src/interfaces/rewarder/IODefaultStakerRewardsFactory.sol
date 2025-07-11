@@ -18,8 +18,42 @@ import {IODefaultStakerRewards} from "./IODefaultStakerRewards.sol";
 import {IRegistry} from "@symbioticfi/core/src/interfaces/common/IRegistry.sol";
 
 interface IODefaultStakerRewardsFactory is IRegistry {
+    error ODefaultStakerRewardsFactory__AlreadyWhitelisted();
     error ODefaultStakerRewardsFactory__InvalidAddress();
+    error ODefaultStakerRewardsFactory__InvalidImplementation();
+    error ODefaultStakerRewardsFactory__InvalidVersion();
     error ODefaultStakerRewardsFactory__NotVault();
+
+    /**
+     * @notice Emitted when a new implementation is whitelisted.
+     * @param implementation address of the new implementation
+     */
+    event Whitelist(address indexed implementation);
+
+    /**
+     * @notice Get the last available version.
+     * @return version of the last implementation
+     * @dev If zero, no implementations are whitelisted.
+     */
+    function lastVersion() external view returns (uint64);
+
+    /**
+     * @notice Get the implementation for a given version.
+     * @param version version to get the implementation for
+     * @return address of the implementation
+     * @dev Reverts when an invalid version.
+     */
+    function implementation(
+        uint64 version
+    ) external view returns (address);
+
+    /**
+     * @notice Whitelist a new implementation for entities.
+     * @param implementation address of the new implementation
+     */
+    function whitelist(
+        address implementation
+    ) external;
 
     /**
      * @notice Create a default staker rewards contract for a given vault.

@@ -516,7 +516,8 @@ contract FullTest is Test {
             adminFee: 0,
             defaultAdminRoleHolder: admin,
             adminFeeClaimRoleHolder: admin,
-            adminFeeSetRoleHolder: admin
+            adminFeeSetRoleHolder: admin,
+            implementationStakerRewards: address(0)
         });
 
         vm.startPrank(admin);
@@ -1306,9 +1307,7 @@ contract FullTest is Test {
         // TODO: The upgrade is needed only because it didn't happen on mainnet yet
         DeployTanssiEcosystem deployTanssiEcosystem = new DeployTanssiEcosystem();
         address stakerRewardsFactory = middleware.i_stakerRewardsFactory();
-        deployTanssiEcosystem.upgradeMiddleware(
-            address(middleware), 1, address(operatorRewards), stakerRewardsFactory, admin
-        );
+        deployTanssiEcosystem.upgradeMiddleware(address(middleware), 1, admin);
 
         OBaseMiddlewareReader newReader = new OBaseMiddlewareReader();
         vm.prank(admin);
@@ -1361,9 +1360,7 @@ contract FullTest is Test {
     }
 
     function testMiddlewareIsUpgradeable() public {
-        address operatorRewardsAddress = makeAddr("operatorRewards");
-        address stakerRewardsFactoryAddress = makeAddr("stakerRewardsFactory");
-        Middleware middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        Middleware middlewareImpl = new Middleware();
 
         vm.startPrank(admin);
         assertEq(middleware.VERSION(), 1);
