@@ -23,19 +23,29 @@
   "networkMiddlewareService": "0x62a1ddfd86b4c1636759d9286d3a0ec722d086e3",
   "collaterals": [
     {
-      "name": "stETH",
+      "name": "Liquid staked Ether 2.0",
+      "symbol": "stETH",
       "address": "0x3e3fe7dbc6b4c189e7128855dd526361c49b40af",
       "oracle": "0x694aa1769357215de4fac081bf1f309adc325306"
     }
   ],
   "vaults": [
     {
-      "name": "Slashable",
+      "name": "Opslayer Vault",
       "vault": "0x94ba7bb350d8d15720c70ba9216985aa3165b67e",
       "delegator": "0xbeb9c27535159824c4313c19c12c7649fb5ce532",
       "slasher": "0xa2f02442fe12b42929ce9563a289a923f0631a9c",
+      "collateral": "0x3e3fe7dbc6b4c189e7128855dd526361c49b40af",
       "stakerRewards": "0x14453f57a92881ba788d0caf29ad6cce1f9028f1",
       "stakerRewardsImplementation": "0x9ad391e9ea067a43077b090b3027b21623cd62d5"
+    }
+  ],
+  "totalOperators": 1,
+  "operators": [
+    {
+      "name": "Opslayer",
+      "evmAddress": "0x72158193a23E35817e86076246c4A3d68f8F4749",
+      "operatorKey": "0xe86f7e1076c1cbcf4fbbb79d9aeafaa3b8450ab3a12bfa4b1ae52841ab396c10"
     }
   ]
 }

@@ -73,6 +73,7 @@ contract Middleware is
     using PauseableEnumerableSet for PauseableEnumerableSet.AddressSet;
     using PauseableEnumerableSet for PauseableEnumerableSet.Status;
     using Subnetwork for address;
+    using Subnetwork for bytes32;
     using Math for uint256;
 
     modifier notZeroAddress(
@@ -305,14 +306,7 @@ contract Middleware is
     function checkUpkeep(
         bytes calldata /* checkData */
     ) external view override returns (bool upkeepNeeded, bytes memory performData) {
-        uint48 epoch = getCurrentEpoch();
-        bytes32[] memory sortedKeys = IOBaseMiddlewareReader(address(this)).sortOperatorsByPower(epoch);
-        StorageMiddleware storage $ = _getMiddlewareStorage();
-
-        //Should be at least once per epoch
-        upkeepNeeded = (Time.timestamp() - $.lastTimestamp) > $.interval;
-
-        performData = abi.encode(sortedKeys, epoch);
+        (upkeepNeeded, performData) = IOBaseMiddlewareReader(address(this)).auxiliaryCheckUpkeep();
     }
 
     /**
@@ -322,20 +316,63 @@ contract Middleware is
     function performUpkeep(
         bytes calldata performData
     ) external override checkAccess {
+        if (performData.length == 0) {
+            revert Middleware__NoPerformData();
+        }
+
         StorageMiddleware storage $ = _getMiddlewareStorage();
         address gateway = $.gateway;
         if (gateway == address(0)) {
             revert Middleware__GatewayNotSet();
         }
 
-        uint48 currentTimestamp = Time.timestamp();
-        if ((currentTimestamp - $.lastTimestamp) > $.interval) {
-            $.lastTimestamp = currentTimestamp;
+        uint48 epoch = getCurrentEpoch();
+        StorageMiddlewareCache storage cache = _getMiddlewareStorageCache();
 
-            // Decode the sorted keys and the epoch from performData
-            (bytes32[] memory sortedKeys, uint48 epoch) = abi.decode(performData, (bytes32[], uint48));
+        address[] memory activeOperators = _activeOperators();
+        uint256 activeOperatorsLength = activeOperators.length;
+        uint256 cacheIndex = cache.epochToCacheIndex[epoch];
+        uint256 pendingOperatorsToCache = activeOperatorsLength - cacheIndex;
 
-            IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);
+        if (pendingOperatorsToCache > 0) {
+            (uint8 command, ValidatorData[] memory validatorsData) = abi.decode(performData, (uint8, ValidatorData[]));
+
+            if (command != CACHE_DATA_COMMAND) {
+                revert Middleware__InvalidCommand(command);
+            }
+
+            uint256 validatorsDataLength = validatorsData.length;
+            for (uint256 i = 0; i < validatorsDataLength;) {
+                ValidatorData memory validatorData = validatorsData[i];
+                bytes32 validatorKey = validatorData.key;
+                // Update the cache with the operator power and the operator
+                if (cache.operatorKeyToPower[epoch][validatorKey] != 0) {
+                    revert Middleware__AlreadyCached();
+                }
+
+                cache.operatorKeyToPower[epoch][validatorKey] = validatorData.power;
+                unchecked {
+                    ++i;
+                }
+            }
+
+            unchecked {
+                cache.epochToCacheIndex[epoch] += validatorsDataLength;
+            }
+        } else {
+            uint48 currentTimestamp = Time.timestamp();
+            if ((currentTimestamp - $.lastTimestamp) > $.interval) {
+                $.lastTimestamp = currentTimestamp;
+
+                // Decode the sorted keys and the epoch from performData
+                (uint8 command, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
+
+                if (command != SEND_DATA_COMMAND) {
+                    revert Middleware__InvalidCommand(command);
+                }
+
+                IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);
+            }
         }
     }
 

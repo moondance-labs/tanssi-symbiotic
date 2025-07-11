@@ -19,10 +19,8 @@ import {Script, console2} from "forge-std/Script.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
-import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
-import {Middleware} from "src/contracts/middleware/Middleware.sol";
 
 contract DeployRewards is Script {
     ODefaultStakerRewardsFactory public stakerRewardsFactory;
@@ -63,7 +61,7 @@ contract DeployRewards is Script {
         address admin
     ) public returns (address) {
         if (!isTest) {
-            vm.startBroadcast(ownerPrivateKey);
+            vm.startBroadcast(broadcaster());
         }
         ODefaultOperatorRewards operatorRewardsImpl = new ODefaultOperatorRewards(network, networkMiddlewareService);
         operatorRewards = ODefaultOperatorRewards(address(new ERC1967Proxy(address(operatorRewardsImpl), "")));
@@ -82,7 +80,7 @@ contract DeployRewards is Script {
         address network
     ) public returns (address) {
         if (!isTest) {
-            vm.startBroadcast(ownerPrivateKey);
+            vm.startBroadcast(broadcaster());
         }
         stakerRewardsFactory =
             new ODefaultStakerRewardsFactory(vaultFactory, networkMiddlewareService, operatorRewardsAddress, network);
@@ -95,18 +93,6 @@ contract DeployRewards is Script {
         return address(stakerRewardsFactory);
     }
 
-    function run(
-        DeployParams calldata params
-    ) external {
-        address operatorRewardsAddress = deployOperatorRewardsContract(
-            params.network, params.networkMiddlewareService, params.operatorShare, params.defaultAdminRole
-        );
-        deployStakerRewardsFactoryContract(
-            params.vaultFactory, params.networkMiddlewareService, operatorRewardsAddress, params.network
-        );
-        emit Done();
-    }
-
     function upgradeStakerRewards(
         address proxyAddress,
         address networkMiddlewareService,
@@ -114,7 +100,7 @@ contract DeployRewards is Script {
         address network
     ) external {
         if (!isTest) {
-            vm.startBroadcast(ownerPrivateKey);
+            vm.startBroadcast(broadcaster());
         } else {
             vm.startPrank(network);
         }
@@ -135,7 +121,7 @@ contract DeployRewards is Script {
 
     function upgradeOperatorRewards(address proxyAddress, address network, address networkMiddlewareService) external {
         if (!isTest) {
-            vm.startBroadcast(ownerPrivateKey);
+            vm.startBroadcast(broadcaster());
         } else {
             vm.startPrank(network);
         }
@@ -149,5 +135,12 @@ contract DeployRewards is Script {
         } else {
             vm.stopPrank();
         }
+    }
+
+    function broadcaster() private view returns (address) {
+        if (block.chainid == 1) {
+            return msg.sender;
+        }
+        return vm.addr(ownerPrivateKey);
     }
 }

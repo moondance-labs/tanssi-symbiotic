@@ -43,6 +43,7 @@ import {ScaleCodec} from "@tanssi-bridge-relayer/snowbridge/contracts/src/utils/
 import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
+import {Middleware} from "src/contracts/middleware/Middleware.sol";
 
 contract ODefaultOperatorRewards is
     OzAccessControl,
@@ -217,6 +218,7 @@ contract ODefaultOperatorRewards is
         if (totalVaults == 0) {
             revert ODefaultOperatorRewards__NoVaults();
         }
+
         uint256[] memory amountPerVault = _getRewardsAmountPerVault(
             operatorVaults, totalVaults, epochStartTs, operator, middlewareAddress, stakerAmount
         );
@@ -274,12 +276,11 @@ contract ODefaultOperatorRewards is
         uint256 totalPower;
         for (uint256 i; i < totalVaults;) {
             vaultPowers[i] = reader.getOperatorPowerAt(epochStartTs, operator, operatorVaults[i], subnetwork);
-            totalPower += vaultPowers[i];
             unchecked {
+                totalPower += vaultPowers[i];
                 ++i;
             }
         }
-
         // Then we calculate the rewards according to the operator power on each vault
         uint256 distributedAmount;
         amountPerVault = new uint256[](totalVaults);
