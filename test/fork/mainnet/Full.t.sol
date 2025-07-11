@@ -114,9 +114,14 @@ contract FullTest is Test {
     uint8 public constant ORACLE_DECIMALS = 2;
     int256 public constant ORACLE_CONVERSION_TOKEN = 2000;
 
+
     uint256 TANSSI_VAULT_DEPOSIT_AMOUNT = 500_000 * 10 ** 12; // 500k TANSSI
     uint8 public constant TANSSI_ORACLE_DECIMALS = 3;
     int256 public constant TANSSI_ORACLE_CONVERSION_TOKEN = 80; // 0.08 USD
+
+    uint256 public constant MAX_CHAINLINK_PROCESSABLE_BYTES = 2000;
+    uint256 public constant MAX_CHAINLINK_CHECKUPKEEP_GAS = 10 ** 7; // 10M gas
+    uint256 public constant MAX_CHAINLINK_PERFORMUPKEEP_GAS = 5 * 10 ** 6; // 5M gas
 
     uint256 public constant PIER_TWO_VAULTS = 10;
     uint256 public constant P2P_VAULTS = 8;
@@ -1268,6 +1273,38 @@ contract FullTest is Test {
         assertEq(validators.length, TOTAL_OPERATORS);
     }
 
+    function testOldUpkeep() public {
+        vm.prank(admin);
+        middleware.setForwarder(forwarder);
+        // It's not needed (anyone can call it), it's just for explaining and showing the flow
+        address offlineKeepers = makeAddr("offlineKeepers");
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+
+        vm.prank(offlineKeepers);
+        uint256 beforeGas = gasleft();
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        uint256 afterGas = gasleft();
+
+        assertEq(upkeepNeeded, true);
+        assertLt(beforeGas - afterGas, MAX_CHAINLINK_CHECKUPKEEP_GAS); // Check that gas is lower than 10M limit
+
+        bytes32[] memory sortedKeys = abi.decode(performData, (bytes32[]));
+        assertEq(sortedKeys.length, TOTAL_OPERATORS);
+        assertLe(performData.length, MAX_CHAINLINK_PROCESSABLE_BYTES);
+
+        vm.prank(forwarder);
+        beforeGas = gasleft();
+        vm.expectEmit(true, false, false, false);
+        emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
+        middleware.performUpkeep(performData);
+        afterGas = gasleft();
+        assertLt(beforeGas - afterGas, MAX_CHAINLINK_PERFORMUPKEEP_GAS); // Check that gas is lower than 5M limit
+
+        (upkeepNeeded,) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+    }
+
     function testUpkeep() public {
         vm.prank(admin);
         middleware.setForwarder(forwarder);
@@ -1294,7 +1331,7 @@ contract FullTest is Test {
         uint256 afterGas = gasleft();
 
         assertEq(upkeepNeeded, true);
-        assertLt(beforeGas - afterGas, 10 ** 7); // Check that gas is lower than 10M
+        assertLt(beforeGas - afterGas, MAX_CHAINLINK_CHECKUPKEEP_GAS); // Check that gas is lower than 10M limit
 
         (uint8 command, IMiddleware.ValidatorData[] memory validatorsData) =
             abi.decode(performData, (uint8, IMiddleware.ValidatorData[]));
@@ -1305,14 +1342,14 @@ contract FullTest is Test {
         beforeGas = gasleft();
         middleware.performUpkeep(performData);
         afterGas = gasleft();
-        assertLt(beforeGas - afterGas, 10 ** 7); // Check that gas is lower than 10M
+        assertLt(beforeGas - afterGas, MAX_CHAINLINK_CHECKUPKEEP_GAS); // Check that gas is lower than 10M limit
 
         beforeGas = gasleft();
         (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
         afterGas = gasleft();
 
         assertEq(upkeepNeeded, true);
-        assertLt(beforeGas - afterGas, 10 ** 7); // Check that gas is lower than 10M
+        assertLt(beforeGas - afterGas, MAX_CHAINLINK_CHECKUPKEEP_GAS); // Check that gas is lower than 10M limit
 
         bytes32[] memory sortedKeys;
         (command, sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
@@ -1325,7 +1362,7 @@ contract FullTest is Test {
         emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
         middleware.performUpkeep(performData);
         afterGas = gasleft();
-        assertLt(beforeGas - afterGas, 10 ** 7); // Check that gas is lower than 10M
+        assertLt(beforeGas - afterGas, MAX_CHAINLINK_PERFORMUPKEEP_GAS); // Check that gas is lower than 5M limit
 
         (upkeepNeeded,) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, false);
