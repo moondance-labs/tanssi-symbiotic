@@ -512,6 +512,7 @@ contract FullTest is Test {
     }
 
     function _registerEntitiesToMiddleware() public {
+        // TODO: this needs to be done
         IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
             adminFee: 0,
             defaultAdminRoleHolder: admin,
