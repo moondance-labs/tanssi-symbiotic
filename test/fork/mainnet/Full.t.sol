@@ -1675,7 +1675,6 @@ contract FullTest is Test {
     }
 
     function testTanssiVaultCanDistributeOperatorRewards() public {
-        vm.skip(true); // TODO: Unskip once staker rewards factory is fixed on mainnet.
         _configureTanssiVault();
 
         // We reuse case 3 were opslayer has rewards.
@@ -1693,7 +1692,6 @@ contract FullTest is Test {
     }
 
     function testTanssiVaultCanDistributeStakerRewards() public {
-        vm.skip(true); // TODO: Unskip once staker rewards factory is fixed on mainnet.
         _configureTanssiVault();
 
         // We reuse case 3 were opslayer has rewards.
@@ -1727,6 +1725,20 @@ contract FullTest is Test {
 
     function _configureTanssiVault() private returns (HelperConfig.VaultData memory vaultData) {
         (address vaultConfigurator,,,,,,,,) = helperConfig.activeNetworkConfig();
+
+        // TODO: Remove when factory is fixed, currently it points the wrong network and operator rewards
+        {
+            (,,, address vaultRegistry,,, address networkMiddlewareService,,) = helperConfig.activeNetworkConfig();
+            DeployRewards deployRewards = new DeployRewards();
+            address stakerRewardsFactory = deployRewards.deployStakerRewardsFactoryContract(
+                vaultRegistry, networkMiddlewareService, address(operatorRewards), tanssi
+            );
+            DeployTanssiEcosystem deployTanssiEcosystem = new DeployTanssiEcosystem();
+            deployTanssiEcosystem.upgradeMiddleware(
+                address(middleware), 1, address(operatorRewards), stakerRewardsFactory, admin
+            );
+        }
+        // Remove until here
 
         DeployVault deployVault = new DeployVault();
         (address tanssiVaultAddress, address tanssiDelegatorAddress, address tanssiSlasherAddress) =
