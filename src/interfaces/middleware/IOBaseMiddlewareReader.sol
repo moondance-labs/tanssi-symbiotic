@@ -195,4 +195,8 @@ interface IOBaseMiddlewareReader {
     ) external view returns (uint48 epoch);
 
     function auxiliaryCheckUpkeep() external view returns (bool upkeepNeeded, bytes memory performData);
+
+    function checkTotalActiveVaults(
+        address operator
+    ) external view;
 }

@@ -58,6 +58,8 @@ contract OBaseMiddlewareReader is
     using Subnetwork for bytes32;
     using Math for uint256;
 
+    error Middleware__TooManyActiveVaults();
+
     // ** OLD BASE MIDDLEWARE READER LOGIC **
 
     /**
@@ -704,21 +706,8 @@ contract OBaseMiddlewareReader is
         // Check if cache is still not filled with the current epoch validators
         if (pendingOperatorsToCache > 0) {
             uint256 maxNumOperatorsToCheck = Math.min(pendingOperatorsToCache, MAX_OPERATORS_TO_PROCESS);
-            IMiddleware.ValidatorData[] memory validatorsData = new IMiddleware.ValidatorData[](maxNumOperatorsToCheck);
-
-            // Populate validatorsData with the new operators' keys and their powers
-            // It gets encoded to be used in performUpkeep
-
-            for (uint256 i = cacheIndex; i < cacheIndex + maxNumOperatorsToCheck && i < activeOperatorsLength;) {
-                address operator = activeOperators_[i];
-                bytes32 operatorKey = abi.decode(operatorKey(operator), (bytes32));
-                uint256 operatorPower = _getOperatorPowerAt(currentEpochStartTs, operator);
-                validatorsData[i - cacheIndex] = IMiddleware.ValidatorData({key: operatorKey, power: operatorPower});
-
-                unchecked {
-                    ++i;
-                }
-            }
+            IMiddleware.ValidatorData[] memory validatorsData =
+                _getValidatorDataForOperators(maxNumOperatorsToCheck, cacheIndex, currentEpochStartTs, activeOperators_);
 
             // encode values to be used in performUpkeep
             return (true, abi.encode(CACHE_DATA_COMMAND, validatorsData));
@@ -734,5 +723,83 @@ contract OBaseMiddlewareReader is
         }
 
         return (upkeepNeeded, hex"");
+    }
+
+    function _getValidatorDataForOperators(
+        uint256 maxNumOperatorsToCheck,
+        uint256 cacheIndex,
+        uint48 timestamp,
+        address[] memory activeOperators_
+    ) private view returns (IMiddleware.ValidatorData[] memory validatorsData) {
+        // Populate validatorsData with the new operators' keys and their powers
+        // It gets encoded to be used in performUpkeep
+        validatorsData = new IMiddleware.ValidatorData[](maxNumOperatorsToCheck);
+
+        VaultManagerStorage storage $ = _getVaultManagerStorage();
+        address[] memory sharedVaults = $._sharedVaults.getActive(timestamp);
+        uint160[] memory subnetworks = _activeSubnetworksAt(timestamp);
+        uint256 activeOperatorsLength = activeOperators_.length;
+
+        for (uint256 i = cacheIndex; i < cacheIndex + maxNumOperatorsToCheck && i < activeOperatorsLength;) {
+            address operator = activeOperators_[i];
+            bytes32 operatorKey = abi.decode(operatorKey(operator), (bytes32));
+            uint256 operatorPower = _optmizedGetOperatorPowerAt(timestamp, sharedVaults, subnetworks, operator);
+            validatorsData[i - cacheIndex] = IMiddleware.ValidatorData({key: operatorKey, power: operatorPower});
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /**
+     * @dev If an operator can be active more than MAX_ACTIVE_VAULTS, we ignore it by letting power be 0. This is necessary because after the threshold, slashing and distributing rewards will revert due to max execution gas.
+     * @dev This version is mostly redundant with vault manager code, but it is optimized because it only gets shared vaults and subnetworks once. The original version does it for each operator.
+     */
+    function _optmizedGetOperatorPowerAt(
+        uint48 timestamp,
+        address[] memory sharedVaults,
+        uint160[] memory subnetworks,
+        address operator
+    ) private view returns (uint256 power) {
+        VaultManagerStorage storage $ = _getVaultManagerStorage();
+        address[] memory operatorVaults = $._operatorVaults[operator].getActive(timestamp);
+
+        uint256 totalSharedVaults = sharedVaults.length;
+        uint256 totalOperatorVaults = operatorVaults.length;
+
+        // This check might seem innecesary since we check on vault registration, however if we register first operator vaults and then shared ones, the limit might be reached for an operator without triggering the revert on registration.
+        if (totalSharedVaults + totalOperatorVaults <= MAX_ACTIVE_VAULTS) {
+            address[] memory vaults = new address[](totalSharedVaults + totalOperatorVaults);
+
+            for (uint256 i; i < totalSharedVaults; ++i) {
+                vaults[i] = sharedVaults[i];
+            }
+            for (uint256 i; i < totalOperatorVaults; ++i) {
+                vaults[totalSharedVaults + i] = operatorVaults[i];
+            }
+
+            power = _getOperatorPowerAt(timestamp, operator, vaults, subnetworks);
+        }
+    }
+
+    function checkTotalActiveVaults(
+        address operator
+    ) public view {
+        VaultManagerStorage storage $ = _getVaultManagerStorage();
+        uint48 timestamp = Time.timestamp();
+        address[] memory sharedVaults = $._sharedVaults.getActive(timestamp);
+
+        uint256 totalSharedVaults = sharedVaults.length;
+        uint256 totalOperatorVaults;
+
+        if (operator != address(0)) {
+            address[] memory operatorVaults = $._operatorVaults[operator].getActive(timestamp);
+            totalOperatorVaults = operatorVaults.length;
+        }
+        // If there are too many vaults for this operator slashing and distributing rewards will revert due to max execution gas, so we revert to prevent registration
+        if (totalSharedVaults + totalOperatorVaults >= MAX_ACTIVE_VAULTS) {
+            revert Middleware__TooManyActiveVaults();
+        }
     }
 }

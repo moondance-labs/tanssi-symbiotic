@@ -505,6 +505,8 @@ contract Middleware is
         address sharedVault,
         IODefaultStakerRewards.InitParams memory stakerRewardsParams
     ) internal override {
+        IOBaseMiddlewareReader(address(this)).checkTotalActiveVaults(address(0));
+
         address stakerRewards =
             IODefaultStakerRewardsFactory(i_stakerRewardsFactory).create(sharedVault, stakerRewardsParams);
 
@@ -516,7 +518,8 @@ contract Middleware is
     /**
      * @inheritdoc BaseOperators
      */
-    function _beforeRegisterOperatorVault(address, /* operator */ address vault) internal override {
+    function _beforeRegisterOperatorVault(address operator, address vault) internal override {
+        IOBaseMiddlewareReader(address(this)).checkTotalActiveVaults(operator);
         _setVaultToCollateral(vault);
     }
 
