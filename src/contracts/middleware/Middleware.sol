@@ -112,8 +112,6 @@ contract Middleware is
             StorageMiddleware storage $ = _getMiddlewareStorage();
             $.lastTimestamp = Time.timestamp();
             $.interval = params.epochDuration;
-            i_operatorRewards = params.operatorRewards;
-            i_stakerRewardsFactory = params.stakerRewardsFactory;
         }
 
         __BaseMiddleware_init(
@@ -158,8 +156,6 @@ contract Middleware is
         notZeroAddress(params.operatorNetworkOptIn)
         notZeroAddress(params.owner)
         notZeroAddress(params.reader)
-        notZeroAddress(params.operatorRewards)
-        notZeroAddress(params.stakerRewardsFactory)
     {
         if (params.epochDuration == 0 || params.slashingWindow == 0) {
             revert Middleware__InvalidEpochDuration();
