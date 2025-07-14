@@ -100,8 +100,6 @@ contract Middleware is
      * @param epochDuration The epoch duration
      * @param slashingWindow The slashing window
      * @param reader The reader address
-     * @param operatorRewards The operator rewards address
-     * @param stakerRewardsFactory The staker rewards factory address
      */
     function initialize(
         InitParams memory params
