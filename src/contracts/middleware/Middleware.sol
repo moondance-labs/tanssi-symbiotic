@@ -166,10 +166,12 @@ contract Middleware is
     function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
         address collateral = vaultToCollateral(vault);
         string memory pairSymbol = collateralToPairSymbol(collateral);
-        StorageMiddleware storage $ = _getMiddlewareStorage();
+
         if (pairSymbol.length == 0) {
             revert Middleware__NotSupportedCollateral(collateral);
         }
+
+        StorageMiddleware storage $ = _getMiddlewareStorage();
         (, uint128 price) = PushOracleReceiver($.diaOracleAddress).updates(pairSymbol);
 
         // Normalize power to 18 decimals, since the price is already on 8 decimals
@@ -255,7 +257,7 @@ contract Middleware is
         // pairSymbol is not checked against zero so this can be used to remove the pairSymbol from a collateral
 
         $.collateralToPairSymbol[collateral] = pairSymbol;
-        emit CollateralToPairSymbol(collateral, pairSymbol);
+        emit CollateralToPairSymbolSet(collateral, pairSymbol);
     }
 
     /**

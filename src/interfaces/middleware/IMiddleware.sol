@@ -29,7 +29,7 @@ interface IMiddleware {
      * @param collateral The collateral address
      * @param pairSymbol The string of the pair symbol
      */
-    event CollateralToPairSymbol(address indexed collateral, string indexed pairSymbol);
+    event CollateralToPairSymbolSet(address indexed collateral, string indexed pairSymbol);
 
     /**
      * @notice Emitted when the oracle address is set.
