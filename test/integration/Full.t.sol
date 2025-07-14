@@ -78,7 +78,6 @@ import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRew
 
 contract FullTest is Test {
     using Subnetwork for address;
-    using Subnetwork for bytes32;
     using Math for uint256;
 
     uint48 public constant VAULT_EPOCH_DURATION = 7 days;
@@ -368,7 +367,8 @@ contract FullTest is Test {
             collateral: address(usdc),
             owner: _owner,
             operator: operator1,
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
         (vault, delegator,) = deployVault.createBaseVault(params);
         vaultsData.v1.vault = IVault(vault);
@@ -675,7 +675,9 @@ contract FullTest is Test {
                 data: additionalData
             });
 
+            uint256 gasBefore = gasleft();
             operatorRewards.claimRewards(claimRewardsData);
+            console2.log("Total gas consumed for", gasBefore - gasleft());
         }
 
         expectedRewardsForStakers =
@@ -781,7 +783,8 @@ contract FullTest is Test {
                 collateral: address(wBTC),
                 owner: owner,
                 operator: address(0),
-                network: address(0)
+                network: address(0),
+                burner: address(0xDead)
             });
             (address vault, address delegator,) = deployVault.createSlashableVault(params);
 
@@ -962,7 +965,8 @@ contract FullTest is Test {
             collateral: address(wBTC),
             owner: owner,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
         (address vault, address delegator,) = deployVault.createSlashableVault(params);
 
@@ -1262,6 +1266,18 @@ contract FullTest is Test {
         uint256 expectedRewardsForStakersFromOperator1;
         uint256 expectedRewardsForStakersFromOperator2;
         uint256 expectedRewardsForStakersFromOperator3;
+
+        {
+            vm.prank(owner);
+            middleware.setForwarder(forwarder);
+
+            (, bytes memory performData) = middleware.checkUpkeep(hex"");
+
+            vm.startPrank(forwarder);
+            uint256 gasBefore = gasleft();
+            middleware.performUpkeep(performData);
+            console2.log("Gas used to performUpkeep:", gasBefore - gasleft());
+        }
 
         // Operator 1
         {
@@ -1970,7 +1986,8 @@ contract FullTest is Test {
             collateral: address(usdc),
             owner: owner,
             operator: operator1,
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
 
         (address vault,, address slasher) = deployVault.createVaultVetoed(params, vetoDuration);
@@ -1999,7 +2016,8 @@ contract FullTest is Test {
             collateral: address(usdc),
             owner: owner,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
 
         (address vault,, address slasher) = deployVault.createVaultVetoed(params, vetoDuration);

@@ -14,17 +14,10 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
-import {console2, Script} from "forge-std/Script.sol";
+import {Script} from "forge-std/Script.sol";
 import {DeploySymbiotic} from "./DeploySymbiotic.s.sol";
 
 contract HelperConfig is Script {
-    Entities public activeEntities;
-    NetworkConfig public activeNetworkConfig;
-    TokensConfig public activeTokensConfig;
-    VaultsConfigA public activeVaultsConfigA;
-    VaultsConfigB public activeVaultsConfigB;
-    OperatorConfig public activeOperatorConfig;
-
     struct Entities {
         address admin;
         address tanssi;
@@ -48,12 +41,12 @@ contract HelperConfig is Script {
     }
 
     struct TokensConfig {
-        address wstETH;
-        address rETH;
-        address swETH;
-        address wBETH;
-        address LsETH;
-        address cbETH;
+        CollateralData wstETH;
+        CollateralData rETH;
+        CollateralData swETH;
+        CollateralData wBETH;
+        CollateralData LsETH;
+        CollateralData cbETH;
     }
 
     struct VaultTrifecta {
@@ -63,24 +56,24 @@ contract HelperConfig is Script {
     }
 
     struct VaultsConfigA {
-        VaultTrifecta mevRestakedETH; // MEV Capital restaked ETH
-        VaultTrifecta mevCapitalETH; // MEV Capital wstETH Vault
-        VaultTrifecta hashKeyCloudETH; // HashKey Cloud Restaked ETH
-        VaultTrifecta renzoRestakedETH; // Renzo Restaked LST
-        VaultTrifecta re7LabsETH; // Re7 Labs LRT Vault
-        VaultTrifecta re7LabsRestakingETH; // Restaking Vault ETH [all Networks]
-        VaultTrifecta cp0xLrtETH; // cp0x LRT Conservative Vault
-        VaultTrifecta etherfiwstETH; // Ether.fi - wstETH
-        VaultTrifecta restakedLsETHVault; // Restaked LsETH Vault
-        VaultTrifecta opslayer; // Opslayer Vault
+        VaultData mevRestakedETH; // MEV Capital restaked ETH
+        VaultData mevCapitalETH; // MEV Capital wstETH Vault
+        VaultData hashKeyCloudETH; // HashKey Cloud Restaked ETH
+        VaultData renzoRestakedETH; // Renzo Restaked LST
+        VaultData re7LabsETH; // Re7 Labs LRT Vault
+        VaultData re7LabsRestakingETH; // Restaking Vault ETH [all Networks]
+        VaultData cp0xLrtETH; // cp0x LRT Conservative Vault
+        VaultData etherfiwstETH; // Ether.fi - wstETH
+        VaultData restakedLsETHVault; // Restaked LsETH Vault
+        VaultData opslayer; // Opslayer Vault
     }
 
     struct VaultsConfigB {
-        VaultTrifecta gauntletRestakedWstETH; // Gauntlet Restaked wstETH
-        VaultTrifecta gauntletRestakedSwETH; // Gauntlet Restaked swETH
-        VaultTrifecta gauntletRestakedRETH; // Gauntlet Restaked rETH
-        VaultTrifecta gauntletRestakedWBETH; // Gauntlet Restaked wBETH
-        VaultTrifecta gauntletRestakedcBETH; // Gauntlet Restaked cbETH
+        VaultData gauntletRestakedWstETH; // Gauntlet Restaked wstETH
+        VaultData gauntletRestakedSwETH; // Gauntlet Restaked swETH
+        VaultData gauntletRestakedRETH; // Gauntlet Restaked rETH
+        VaultData gauntletRestakedWBETH; // Gauntlet Restaked wBETH
+        VaultData gauntletRestakedcBETH; // Gauntlet Restaked cbETH
     }
 
     struct CollateralData {
@@ -96,12 +89,15 @@ contract HelperConfig is Script {
         address delegator;
         address slasher;
         address collateral;
+        address stakerRewards;
     }
 
     struct OperatorData {
         string name;
         address evmAddress;
         bytes32 operatorKey;
+        address[] vaults;
+        uint256[] powers; // Indexes match vaults array
     }
 
     struct OperatorConfig {
@@ -118,7 +114,15 @@ contract HelperConfig is Script {
         OperatorData operator11Opslayer;
     }
 
-    uint256 public DEFAULT_ANVIL_PRIVATE_KEY = 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6;
+    Entities public activeEntities;
+    NetworkConfig public activeNetworkConfig;
+    TokensConfig public activeTokensConfig;
+    VaultsConfigA public activeVaultsConfigA;
+    VaultsConfigB public activeVaultsConfigB;
+    OperatorConfig public activeOperatorConfig;
+
+    uint256 public PRIVATE_KEY =
+        vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
 
     constructor() {
         if (block.chainid == 1 || block.chainid == 11_155_111) {
@@ -133,6 +137,8 @@ contract HelperConfig is Script {
         } else {
             // Other configurations can remain empty
             activeNetworkConfig = getAnvilEthConfig();
+            activeEntities.tanssi = vm.addr(PRIVATE_KEY);
+            activeEntities.admin = activeEntities.tanssi;
         }
     }
 
@@ -142,7 +148,7 @@ contract HelperConfig is Script {
         returns (
             Entities memory entities,
             NetworkConfig memory networkConfig,
-            TokensConfig memory tokensConfig,
+            TokensConfig memory tokenConfig,
             VaultsConfigA memory vaultsConfigA,
             VaultsConfigB memory vaultsConfigB,
             OperatorConfig memory operatorConfig
@@ -184,7 +190,7 @@ contract HelperConfig is Script {
             for (uint256 i = 0; i < totalCollaterals; i++) {
                 CollateralData memory collateral =
                     _loadCollateral(json, string.concat(jsonPath, ".collaterals[", vm.toString(i), "]"));
-                _assignCollateral(collateral, tokensConfig);
+                _assignCollateral(collateral, tokenConfig);
             }
 
             uint256 totalVaults = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".totalVaults")), (uint256));
@@ -201,9 +207,15 @@ contract HelperConfig is Script {
                 _assignOperator(operator, operatorConfig);
             }
         } else {
-            networkConfig.collateral =
-                abi.decode(vm.parseJson(json, string.concat(jsonPath, ".collaterals[0].address")), (address));
-            tokensConfig.wstETH = networkConfig.collateral;
+            tokenConfig.wstETH = _loadCollateral(json, string.concat(jsonPath, ".collaterals[0]"));
+            networkConfig.collateral = tokenConfig.wstETH.collateral;
+
+            if (block.chainid == 11_155_111) {
+                VaultData memory vault = _loadVault(json, string.concat(jsonPath, ".vaults[0]"));
+                _assignVault(vault, vaultsConfigA, vaultsConfigB);
+                OperatorData memory operator = _loadOperator(json, string.concat(jsonPath, ".operators[0]"));
+                _assignOperator(operator, operatorConfig);
+            }
         }
     }
 
@@ -222,29 +234,43 @@ contract HelperConfig is Script {
         address delegator = abi.decode(vm.parseJson(json, string.concat(path, ".delegator")), (address));
         address slasher = abi.decode(vm.parseJson(json, string.concat(path, ".slasher")), (address));
         address collateral = abi.decode(vm.parseJson(json, string.concat(path, ".collateral")), (address));
-        return VaultData({name: name, vault: vault, delegator: delegator, slasher: slasher, collateral: collateral});
+        address stakerRewards = abi.decode(vm.parseJson(json, string.concat(path, ".stakerRewards")), (address));
+        return VaultData({
+            name: name,
+            vault: vault,
+            delegator: delegator,
+            slasher: slasher,
+            collateral: collateral,
+            stakerRewards: stakerRewards
+        });
     }
 
-    function _loadOperator(string memory json, string memory path) private pure returns (OperatorData memory) {
+    function _loadOperator(
+        string memory json,
+        string memory path
+    ) private pure returns (OperatorData memory operator) {
         string memory name = abi.decode(vm.parseJson(json, string.concat(path, ".name")), (string));
         address evmAddress = abi.decode(vm.parseJson(json, string.concat(path, ".evmAddress")), (address));
         bytes32 operatorKey = abi.decode(vm.parseJson(json, string.concat(path, ".operatorKey")), (bytes32));
-        return OperatorData({name: name, evmAddress: evmAddress, operatorKey: operatorKey});
+
+        operator.name = name;
+        operator.evmAddress = evmAddress;
+        operator.operatorKey = operatorKey;
     }
 
-    function _assignCollateral(CollateralData memory collateral, TokensConfig memory tokensConfig) private pure {
+    function _assignCollateral(CollateralData memory collateral, TokensConfig memory tokenConfig) private pure {
         if (_sameString(collateral.symbol, "rETH")) {
-            tokensConfig.rETH = collateral.collateral;
+            tokenConfig.rETH = collateral;
         } else if (_sameString(collateral.symbol, "swETH")) {
-            tokensConfig.swETH = collateral.collateral;
+            tokenConfig.swETH = collateral;
         } else if (_sameString(collateral.symbol, "wBETH")) {
-            tokensConfig.wBETH = collateral.collateral;
+            tokenConfig.wBETH = collateral;
         } else if (_sameString(collateral.symbol, "LsETH")) {
-            tokensConfig.LsETH = collateral.collateral;
+            tokenConfig.LsETH = collateral;
         } else if (_sameString(collateral.symbol, "cbETH")) {
-            tokensConfig.cbETH = collateral.collateral;
+            tokenConfig.cbETH = collateral;
         } else if (_sameString(collateral.symbol, "wstETH")) {
-            tokensConfig.wstETH = collateral.collateral;
+            tokenConfig.wstETH = collateral;
         }
     }
 
@@ -254,65 +280,35 @@ contract HelperConfig is Script {
         VaultsConfigB memory vaultsConfigB
     ) private pure {
         if (_sameString(vault.name, "MEV Capital restaked ETH")) {
-            vaultsConfigA.mevRestakedETH.vault = vault.vault;
-            vaultsConfigA.mevRestakedETH.delegator = vault.delegator;
-            vaultsConfigA.mevRestakedETH.slasher = vault.slasher;
+            vaultsConfigA.mevRestakedETH = vault;
         } else if (_sameString(vault.name, "MEV Capital wstETH Vault")) {
-            vaultsConfigA.mevCapitalETH.vault = vault.vault;
-            vaultsConfigA.mevCapitalETH.delegator = vault.delegator;
-            vaultsConfigA.mevCapitalETH.slasher = vault.slasher;
+            vaultsConfigA.mevCapitalETH = vault;
         } else if (_sameString(vault.name, "Hashkey Cloud")) {
-            vaultsConfigA.hashKeyCloudETH.vault = vault.vault;
-            vaultsConfigA.hashKeyCloudETH.delegator = vault.delegator;
-            vaultsConfigA.hashKeyCloudETH.slasher = vault.slasher;
+            vaultsConfigA.hashKeyCloudETH = vault;
         } else if (_sameString(vault.name, "Renzo restaked LST")) {
-            vaultsConfigA.renzoRestakedETH.vault = vault.vault;
-            vaultsConfigA.renzoRestakedETH.delegator = vault.delegator;
-            vaultsConfigA.renzoRestakedETH.slasher = vault.slasher;
+            vaultsConfigA.renzoRestakedETH = vault;
         } else if (_sameString(vault.name, "Re7 Labs LRT Vault")) {
-            vaultsConfigA.re7LabsETH.vault = vault.vault;
-            vaultsConfigA.re7LabsETH.delegator = vault.delegator;
-            vaultsConfigA.re7LabsETH.slasher = vault.slasher;
+            vaultsConfigA.re7LabsETH = vault;
         } else if (_sameString(vault.name, "Re7 Restaking Vault ETH [All Networks]")) {
-            vaultsConfigA.re7LabsRestakingETH.vault = vault.vault;
-            vaultsConfigA.re7LabsRestakingETH.delegator = vault.delegator;
-            vaultsConfigA.re7LabsRestakingETH.slasher = vault.slasher;
+            vaultsConfigA.re7LabsRestakingETH = vault;
         } else if (_sameString(vault.name, "cp0x LRT conservative vault")) {
-            vaultsConfigA.cp0xLrtETH.vault = vault.vault;
-            vaultsConfigA.cp0xLrtETH.delegator = vault.delegator;
-            vaultsConfigA.cp0xLrtETH.slasher = vault.slasher;
+            vaultsConfigA.cp0xLrtETH = vault;
         } else if (_sameString(vault.name, "Ether fi wstETH")) {
-            vaultsConfigA.etherfiwstETH.vault = vault.vault;
-            vaultsConfigA.etherfiwstETH.delegator = vault.delegator;
-            vaultsConfigA.etherfiwstETH.slasher = vault.slasher;
+            vaultsConfigA.etherfiwstETH = vault;
         } else if (_sameString(vault.name, "Restaked LsETH Vault (Liquid Collective)")) {
-            vaultsConfigA.restakedLsETHVault.vault = vault.vault;
-            vaultsConfigA.restakedLsETHVault.delegator = vault.delegator;
-            vaultsConfigA.restakedLsETHVault.slasher = vault.slasher;
+            vaultsConfigA.restakedLsETHVault = vault;
         } else if (_sameString(vault.name, "Opslayer Vault")) {
-            vaultsConfigA.opslayer.vault = vault.vault;
-            vaultsConfigA.opslayer.delegator = vault.delegator;
-            vaultsConfigA.opslayer.slasher = vault.slasher;
+            vaultsConfigA.opslayer = vault;
         } else if (_sameString(vault.name, "Gauntlet restaked wstETH")) {
-            vaultsConfigB.gauntletRestakedWstETH.vault = vault.vault;
-            vaultsConfigB.gauntletRestakedWstETH.delegator = vault.delegator;
-            vaultsConfigB.gauntletRestakedWstETH.slasher = vault.slasher;
+            vaultsConfigB.gauntletRestakedWstETH = vault;
         } else if (_sameString(vault.name, "Gauntlet restaked swETH")) {
-            vaultsConfigB.gauntletRestakedSwETH.vault = vault.vault;
-            vaultsConfigB.gauntletRestakedSwETH.delegator = vault.delegator;
-            vaultsConfigB.gauntletRestakedSwETH.slasher = vault.slasher;
+            vaultsConfigB.gauntletRestakedSwETH = vault;
         } else if (_sameString(vault.name, "Gauntlet restaked rETH")) {
-            vaultsConfigB.gauntletRestakedRETH.vault = vault.vault;
-            vaultsConfigB.gauntletRestakedRETH.delegator = vault.delegator;
-            vaultsConfigB.gauntletRestakedRETH.slasher = vault.slasher;
+            vaultsConfigB.gauntletRestakedRETH = vault;
         } else if (_sameString(vault.name, "Gauntlet restaked wBETH")) {
-            vaultsConfigB.gauntletRestakedWBETH.vault = vault.vault;
-            vaultsConfigB.gauntletRestakedWBETH.delegator = vault.delegator;
-            vaultsConfigB.gauntletRestakedWBETH.slasher = vault.slasher;
+            vaultsConfigB.gauntletRestakedWBETH = vault;
         } else if (_sameString(vault.name, "Gauntlet restaked cbETH")) {
-            vaultsConfigB.gauntletRestakedcBETH.vault = vault.vault;
-            vaultsConfigB.gauntletRestakedcBETH.delegator = vault.delegator;
-            vaultsConfigB.gauntletRestakedcBETH.slasher = vault.slasher;
+            vaultsConfigB.gauntletRestakedcBETH = vault;
         }
     }
 

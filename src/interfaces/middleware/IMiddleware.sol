@@ -58,12 +58,15 @@ interface IMiddleware {
     // Errors
     error Middleware__GatewayNotSet();
     error Middleware__AlreadySet();
+    error Middleware__AlreadyCached();
     error Middleware__TooOldEpoch();
     error Middleware__InvalidEpoch();
+    error Middleware__InvalidCommand(uint8 command);
     error Middleware__InvalidEpochDuration();
     error Middleware__InvalidAddress();
     error Middleware__InvalidKey();
     error Middleware__InvalidInterval();
+    error Middleware__NoPerformData();
     error Middleware__InsufficientBalance();
     error Middleware__NotSupportedCollateral(address collateral);
     error Middleware__SlashingWindowTooShort();

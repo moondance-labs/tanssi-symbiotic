@@ -49,7 +49,7 @@ import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
 
-contract DeployTanssiEcosystem is Script {
+contract DeployTanssiEcosystemDemo is Script {
     using Subnetwork for address;
 
     uint48 public constant VAULT_EPOCH_DURATION = 12 days;
@@ -83,7 +83,6 @@ contract DeployTanssiEcosystem is Script {
     bytes32 public operatorKey2 = vm.envOr("OPERATOR2_KEY", OPERATOR_KEY2);
     bytes32 public operatorKey3 = vm.envOr("OPERATOR3_KEY", OPERATOR_KEY3);
 
-    bool public isTest = false;
     VaultAddresses public vaultAddresses;
     TokensAddresses public tokensAddresses;
     EcosystemEntity public ecosystemEntities;
@@ -120,10 +119,8 @@ contract DeployTanssiEcosystem is Script {
         address slasherVetoed;
     }
 
-    function deployTokens() public returns (address, address, address) {
-        if (!isTest) {
-            vm.stopBroadcast();
-        }
+    function _deployTokens() private returns (address, address, address) {
+        vm.stopBroadcast();
 
         address stETH = contractScripts.deployCollateral.deployCollateralBroadcast("stETH");
         console2.log(" ");
@@ -154,47 +151,39 @@ contract DeployTanssiEcosystem is Script {
         tokensAddresses.wBTCToken.transfer(operator3, 1000 ether);
         vm.stopBroadcast();
 
-        if (!isTest) {
-            vm.startBroadcast(ownerPrivateKey);
-        }
+        vm.startBroadcast(ownerPrivateKey);
         return (stETH, rETH, wBTC);
-        // return (stETH, address(0), address(0));
     }
 
-    function deployVaults() public returns (VaultAddresses memory) {
+    function _deployVaults() private returns (VaultAddresses memory) {
         DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
             epochDuration: VAULT_EPOCH_DURATION,
             depositWhitelist: false,
             depositLimit: 0,
             delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
-            shouldBroadcast: !isTest,
+            shouldBroadcast: true,
             vaultConfigurator: address(ecosystemEntities.vaultConfigurator),
             collateral: ecosystemEntities.stETHCollateralAddress != address(0)
                 ? ecosystemEntities.stETHCollateralAddress
                 : address(tokensAddresses.stETHToken),
             owner: tanssi,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xdead)
         });
 
-        if (!isTest) {
-            vm.stopBroadcast();
-        }
+        vm.stopBroadcast();
 
         // On real scenario we want to deploy only the slashable vault. TBD
-        if (isTest || block.chainid == 31_337) {
-            (vaultAddresses.vault, vaultAddresses.delegator, vaultAddresses.slasher) =
-                contractScripts.deployVault.createBaseVault(params);
-            console2.log("Vault Collateral: ", IVault(vaultAddresses.vault).collateral());
-            console2.log("Vault: ", vaultAddresses.vault);
-            console2.log("Delegator: ", vaultAddresses.delegator);
-            console2.log("Slasher: ", vaultAddresses.slasher);
-            console2.log(" ");
-        }
+        (vaultAddresses.vault, vaultAddresses.delegator, vaultAddresses.slasher) =
+            contractScripts.deployVault.createBaseVault(params);
+        console2.log("Vault Collateral: ", IVault(vaultAddresses.vault).collateral());
+        console2.log("Vault: ", vaultAddresses.vault);
+        console2.log("Delegator: ", vaultAddresses.delegator);
+        console2.log("Slasher: ", vaultAddresses.slasher);
+        console2.log(" ");
 
-        if (block.chainid == 31_337) {
-            params.collateral = address(tokensAddresses.rETHToken);
-        }
+        params.collateral = address(tokensAddresses.rETHToken);
         (vaultAddresses.vaultSlashable, vaultAddresses.delegatorSlashable, vaultAddresses.slasherSlashable) =
             contractScripts.deployVault.createSlashableVault(params);
         console2.log("VaultSlashable Collateral: ", IVault(vaultAddresses.vaultSlashable).collateral());
@@ -203,36 +192,28 @@ contract DeployTanssiEcosystem is Script {
         console2.log("SlasherSlashable: ", vaultAddresses.slasherSlashable);
         console2.log(" ");
 
-        if (isTest || block.chainid == 31_337) {
-            params.delegatorIndex = VaultManager.DelegatorType.FULL_RESTAKE;
-            if (block.chainid == 31_337) {
-                params.collateral = address(tokensAddresses.wBTCToken);
-            }
-            (vaultAddresses.vaultVetoed, vaultAddresses.delegatorVetoed, vaultAddresses.slasherVetoed) =
-                contractScripts.deployVault.createVaultVetoed(params, 1 days);
-            console2.log("VaultVetoed Collateral: ", IVault(vaultAddresses.vaultVetoed).collateral());
-            console2.log("VaultVetoed: ", vaultAddresses.vaultVetoed);
-            console2.log("DelegatorVetoed: ", vaultAddresses.delegatorVetoed);
-            console2.log("SlasherVetoed: ", vaultAddresses.slasherVetoed);
-            console2.log(" ");
-        }
+        params.delegatorIndex = VaultManager.DelegatorType.FULL_RESTAKE;
+        params.collateral = address(tokensAddresses.wBTCToken);
+        (vaultAddresses.vaultVetoed, vaultAddresses.delegatorVetoed, vaultAddresses.slasherVetoed) =
+            contractScripts.deployVault.createVaultVetoed(params, 1 days);
+        console2.log("VaultVetoed Collateral: ", IVault(vaultAddresses.vaultVetoed).collateral());
+        console2.log("VaultVetoed: ", vaultAddresses.vaultVetoed);
+        console2.log("DelegatorVetoed: ", vaultAddresses.delegatorVetoed);
+        console2.log("SlasherVetoed: ", vaultAddresses.slasherVetoed);
+        console2.log(" ");
 
-        if (!isTest) {
-            vm.startBroadcast(ownerPrivateKey);
-        }
+        vm.startBroadcast(ownerPrivateKey);
         return vaultAddresses;
     }
 
-    function _setDelegatorConfigs() public {
-        if (block.chainid == 31_337 || isTest) {
-            INetworkRestakeDelegator(vaultAddresses.delegator).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
-            INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
+    function _setDelegatorConfigs() private {
+        INetworkRestakeDelegator(vaultAddresses.delegator).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
+        INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
 
-            INetworkRestakeDelegator(vaultAddresses.delegator).setNetworkLimit(tanssi.subnetwork(0), MAX_NETWORK_LIMIT);
-            INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setNetworkLimit(
-                tanssi.subnetwork(0), MAX_NETWORK_LIMIT
-            );
-        }
+        INetworkRestakeDelegator(vaultAddresses.delegator).setNetworkLimit(tanssi.subnetwork(0), MAX_NETWORK_LIMIT);
+        INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setNetworkLimit(
+            tanssi.subnetwork(0), MAX_NETWORK_LIMIT
+        );
 
         INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
         INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setNetworkLimit(
@@ -240,7 +221,7 @@ contract DeployTanssiEcosystem is Script {
         );
     }
 
-    function _registerEntitiesToMiddleware() public {
+    function _registerEntitiesToMiddleware() private {
         IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
             adminFee: 0,
             defaultAdminRoleHolder: tanssi,
@@ -255,39 +236,64 @@ contract DeployTanssiEcosystem is Script {
         ecosystemEntities.middleware.registerOperator(operator3, abi.encode(operatorKey3), address(0));
     }
 
-    function _depositToVault(IVault _vault, address _operator, uint256 _amount, Token collateral) public {
+    function _depositToVault(IVault _vault, address _operator, uint256 _amount, Token collateral) private {
         collateral.approve(address(_vault), _amount * 10);
         _vault.deposit(_operator, _amount);
     }
 
-    function _deploy() private {
+    function _getEntities()
+        private
+        returns (
+            INetworkRegistry networkRegistry,
+            IOperatorRegistry operatorRegistry,
+            INetworkMiddlewareService networkMiddlewareService,
+            IOptInService operatorNetworkOptInService,
+            IOptInService operatorVaultOptInService,
+            MockV3Aggregator collateralOracle,
+            address vaultRegistryAddress
+        )
+    {
+        address vaultConfiguratorAddress;
+        address operatorRegistryAddress;
+        address networkRegistryAddress;
+        address operatorNetworkOptInServiceAddress;
+        address operatorVaultOptInServiceAddress;
+        address networkMiddlewareServiceAddress;
+        address stETHAddress;
         (
-            address vaultConfiguratorAddress,
-            address operatorRegistryAddress,
-            address networkRegistryAddress,
-            address vaultRegistryAddress,
-            address operatorNetworkOptInServiceAddress,
-            address operatorVaultOptInServiceAddress,
-            address networkMiddlewareServiceAddress,
-            address stETHAddress,
+            vaultConfiguratorAddress,
+            operatorRegistryAddress,
+            networkRegistryAddress,
+            vaultRegistryAddress,
+            operatorNetworkOptInServiceAddress,
+            operatorVaultOptInServiceAddress,
+            networkMiddlewareServiceAddress,
+            stETHAddress,
         ) = contractScripts.helperConfig.activeNetworkConfig();
 
         ecosystemEntities.vaultConfigurator = IVaultConfigurator(vaultConfiguratorAddress);
 
-        INetworkRegistry networkRegistry = INetworkRegistry(networkRegistryAddress);
-        IOperatorRegistry operatorRegistry = IOperatorRegistry(operatorRegistryAddress);
-        INetworkMiddlewareService networkMiddlewareService = INetworkMiddlewareService(networkMiddlewareServiceAddress);
-        IOptInService operatorNetworkOptInService = IOptInService(operatorNetworkOptInServiceAddress);
-        IOptInService operatorVaultOptInService = IOptInService(operatorVaultOptInServiceAddress);
-        MockV3Aggregator collateralOracle = new MockV3Aggregator(ORACLE_DECIMALS, ORACLE_CONVERSION_TOKEN);
+        networkRegistry = INetworkRegistry(networkRegistryAddress);
+        operatorRegistry = IOperatorRegistry(operatorRegistryAddress);
+        networkMiddlewareService = INetworkMiddlewareService(networkMiddlewareServiceAddress);
+        operatorNetworkOptInService = IOptInService(operatorNetworkOptInServiceAddress);
+        operatorVaultOptInService = IOptInService(operatorVaultOptInServiceAddress);
+        collateralOracle = new MockV3Aggregator(ORACLE_DECIMALS, ORACLE_CONVERSION_TOKEN);
+    }
 
-        if (block.chainid == 31_337) {
-            // Deploy simple ERC20 collateral tokens
-            deployTokens();
-        } else {
-            networkRegistry.registerNetwork();
-        }
-        deployVaults();
+    function _deploy() private {
+        (
+            INetworkRegistry networkRegistry,
+            IOperatorRegistry operatorRegistry,
+            INetworkMiddlewareService networkMiddlewareService,
+            IOptInService operatorNetworkOptInService,
+            IOptInService operatorVaultOptInService,
+            MockV3Aggregator collateralOracle,
+            address vaultRegistryAddress
+        ) = _getEntities();
+
+        _deployTokens();
+        _deployVaults();
 
         tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator, 1000 ether);
         tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator2, 1000 ether);
@@ -327,21 +333,21 @@ contract DeployTanssiEcosystem is Script {
         vm.stopBroadcast();
 
         address operatorRewardsAddress = contractScripts.deployRewards.deployOperatorRewardsContract(
-            tanssi, networkMiddlewareServiceAddress, 2000, tanssi
+            tanssi, address(networkMiddlewareService), 2000, tanssi
         );
         ODefaultOperatorRewards operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
         address stakerRewardsFactoryAddress = contractScripts.deployRewards.deployStakerRewardsFactoryContract(
-            vaultRegistryAddress, networkMiddlewareServiceAddress, operatorRewardsAddress, tanssi
+            vaultRegistryAddress, address(networkMiddlewareService), operatorRewardsAddress, tanssi
         );
 
         vm.startBroadcast(ownerPrivateKey);
 
         IMiddleware.InitParams memory params = IMiddleware.InitParams({
             network: tanssi,
-            operatorRegistry: operatorRegistryAddress,
+            operatorRegistry: address(operatorRegistry),
             vaultRegistry: vaultRegistryAddress,
-            operatorNetworkOptIn: operatorNetworkOptInServiceAddress,
+            operatorNetworkOptIn: address(operatorNetworkOptInService),
             owner: tanssi,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
@@ -414,34 +420,16 @@ contract DeployTanssiEcosystem is Script {
         _middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
         console2.log("Middleware Implementation: ", address(_middlewareImpl));
 
-        if (params.reader == address(0)) {
-            params.reader = address(new OBaseMiddlewareReader());
-        }
+        params.reader = address(new OBaseMiddlewareReader());
         _middleware.initialize(params);
     }
 
-    function deployTanssiEcosystem(
-        HelperConfig _helperConfig
-    ) external {
-        isTest = true;
-        contractScripts.helperConfig = _helperConfig;
-        contractScripts.deployVault = new DeployVault();
-        contractScripts.deployCollateral = new DeployCollateral();
-        contractScripts.deployRewards = new DeployRewards();
-        contractScripts.deployRewards.setIsTest(isTest);
-
-        vm.startPrank(tanssi);
-        _deploy();
-        vm.stopPrank();
-    }
-
     function run() external {
-        isTest = false;
         contractScripts.helperConfig = new HelperConfig();
         contractScripts.deployVault = new DeployVault();
         contractScripts.deployCollateral = new DeployCollateral();
         contractScripts.deployRewards = new DeployRewards();
-        contractScripts.deployRewards.setIsTest(isTest);
+        contractScripts.deployRewards.setIsTest(false);
         vm.startBroadcast(ownerPrivateKey);
         _deploy();
         vm.stopBroadcast();

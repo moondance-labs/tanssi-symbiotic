@@ -41,7 +41,7 @@ contract DeployProductionTest is Test {
             DeployProduction.Entities({admin: admin, tanssi: tanssi, gateway: gateway, forwarder: forwarder});
 
         uint256 adminPrivateKey =
-            vm.envOr("PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
+            vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
         address initialAdmin = vm.addr(adminPrivateKey);
 
         _checkAddressesAndRoles(
@@ -95,12 +95,12 @@ contract DeployProductionTest is Test {
         assertNotEq(networkConfig.operatorVaultOptInService, address(0));
         assertNotEq(networkConfig.networkMiddlewareService, address(0));
 
-        assertNotEq(tokensConfig.wstETH, address(0));
-        assertNotEq(tokensConfig.rETH, address(0));
-        assertNotEq(tokensConfig.swETH, address(0));
-        assertNotEq(tokensConfig.wBETH, address(0));
-        assertNotEq(tokensConfig.LsETH, address(0));
-        assertNotEq(tokensConfig.cbETH, address(0));
+        assertNotEq(tokensConfig.wstETH.collateral, address(0));
+        assertNotEq(tokensConfig.rETH.collateral, address(0));
+        assertNotEq(tokensConfig.swETH.collateral, address(0));
+        assertNotEq(tokensConfig.wBETH.collateral, address(0));
+        assertNotEq(tokensConfig.LsETH.collateral, address(0));
+        assertNotEq(tokensConfig.cbETH.collateral, address(0));
 
         assertNotEq(vaultsConfigA.opslayer.vault, address(0));
         assertNotEq(vaultsConfigA.opslayer.delegator, address(0));
