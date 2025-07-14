@@ -518,7 +518,7 @@ contract FullTest is Test {
             defaultAdminRoleHolder: admin,
             adminFeeClaimRoleHolder: admin,
             adminFeeSetRoleHolder: admin,
-            implementationStakerRewards: address(0)
+            implementation: address(0)
         });
 
         vm.startPrank(admin);

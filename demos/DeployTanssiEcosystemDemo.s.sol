@@ -231,7 +231,7 @@ contract DeployTanssiEcosystemDemo is Script {
             defaultAdminRoleHolder: tanssi,
             adminFeeClaimRoleHolder: tanssi,
             adminFeeSetRoleHolder: tanssi,
-            implementationStakerRewards: stakerRewardsImpl
+            implementation: stakerRewardsImpl
         });
         ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
         ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsParams);
@@ -364,7 +364,7 @@ contract DeployTanssiEcosystemDemo is Script {
         ecosystemEntities.middleware = _deployMiddlewareWithProxy(params);
 
         stakerRewardsImpl = address(new ODefaultStakerRewards(address(networkMiddlewareService), tanssi));
-        ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress).whitelist(stakerRewardsImpl);
+        ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress).setImplementation(stakerRewardsImpl);
 
         operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(ecosystemEntities.middleware));
         operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(ecosystemEntities.middleware));

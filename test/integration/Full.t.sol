@@ -297,7 +297,7 @@ contract FullTest is Test {
         vm.stopPrank();
 
         vm.prank(owner);
-        ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress).whitelist(stakerRewardsImpl);
+        ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress).setImplementation(stakerRewardsImpl);
 
         _registerOperatorAndOptIn(operator1, tanssi, address(vaultsData.v1.vault), false);
         _registerOperatorAndOptIn(operator1, tanssi, address(vaultsData.v2.vault), false);
@@ -492,7 +492,7 @@ contract FullTest is Test {
             defaultAdminRoleHolder: tanssi,
             adminFeeClaimRoleHolder: tanssi,
             adminFeeSetRoleHolder: tanssi,
-            implementationStakerRewards: stakerRewardsImpl
+            implementation: stakerRewardsImpl
         });
 
         // OPERATOR SPECIFIC VAULTS
@@ -778,7 +778,7 @@ contract FullTest is Test {
             defaultAdminRoleHolder: tanssi,
             adminFeeClaimRoleHolder: tanssi,
             adminFeeSetRoleHolder: tanssi,
-            implementationStakerRewards: stakerRewardsImpl
+            implementation: stakerRewardsImpl
         });
 
         for (uint256 i = 0; i < numberOfVaults; i++) {
@@ -962,7 +962,7 @@ contract FullTest is Test {
             defaultAdminRoleHolder: tanssi,
             adminFeeClaimRoleHolder: tanssi,
             adminFeeSetRoleHolder: tanssi,
-            implementationStakerRewards: stakerRewardsImpl
+            implementation: stakerRewardsImpl
         });
 
         vm.startPrank(tanssi);
@@ -2040,7 +2040,7 @@ contract FullTest is Test {
             defaultAdminRoleHolder: tanssi,
             adminFeeClaimRoleHolder: tanssi,
             adminFeeSetRoleHolder: tanssi,
-            implementationStakerRewards: stakerRewardsImpl
+            implementation: stakerRewardsImpl
         });
 
         vm.expectRevert(VaultManager.VaultEpochTooShort.selector);

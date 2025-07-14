@@ -310,7 +310,7 @@ contract RewardsTest is Test {
         vm.stopPrank();
 
         vm.prank(owner);
-        ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress).whitelist(stakerRewardsImpl);
+        ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress).setImplementation(stakerRewardsImpl);
 
         vault = Vault(vaultAddresses.vault);
         vaultSlashable = Vault(vaultAddresses.vaultSlashable);
@@ -423,7 +423,7 @@ contract RewardsTest is Test {
             defaultAdminRoleHolder: _owner,
             adminFeeClaimRoleHolder: _owner,
             adminFeeSetRoleHolder: _owner,
-            implementationStakerRewards: stakerRewardsImpl
+            implementation: stakerRewardsImpl
         });
         middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
         middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsParams);

@@ -108,7 +108,7 @@ contract ODefaultStakerRewards is
     }
 
     function initialize(address operatorRewards, address vault_, InitParams calldata params) external initializer {
-        if (operatorRewards == address(0)) {
+        if (operatorRewards == address(0) || vault_ == address(0)) {
             revert ODefaultStakerRewards__InvalidAddress();
         }
 
@@ -341,7 +341,7 @@ contract ODefaultStakerRewards is
     }
 
     /**
-     * @dev This function should be called only once and then should be upgraded to a new implementation without this function.
+     * @dev TODO: This function should be called only once and then should be upgraded to a new implementation without this function.
      */
     function setVault(
         address vault_

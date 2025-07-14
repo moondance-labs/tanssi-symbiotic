@@ -14,6 +14,7 @@
 
 pragma solidity 0.8.25;
 
+import {console2} from "forge-std/console2.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -27,7 +28,7 @@ import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultSt
 contract ODefaultStakerRewardsFactory is Ownable2Step, Registry, IODefaultStakerRewardsFactory {
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    EnumerableSet.AddressSet private _whitelistedImplementations;
+    address private _implementation;
 
     address private immutable i_vaultFactory;
     address private immutable i_networkMiddlewareService;
@@ -56,33 +57,26 @@ contract ODefaultStakerRewardsFactory is Ownable2Step, Registry, IODefaultStaker
     /**
      * @inheritdoc IODefaultStakerRewardsFactory
      */
-    function lastVersion() public view returns (uint64) {
-        return uint64(_whitelistedImplementations.length());
+    function getImplementation() external view returns (address) {
+        return _implementation;
     }
 
     /**
      * @inheritdoc IODefaultStakerRewardsFactory
      */
-    function implementation(
-        uint64 version
-    ) public view returns (address) {
-        if (version == 0 || version > lastVersion()) {
-            revert ODefaultStakerRewardsFactory__InvalidVersion();
-        }
-        return _whitelistedImplementations.at(version - 1);
-    }
-
-    /**
-     * @inheritdoc IODefaultStakerRewardsFactory
-     */
-    function whitelist(
-        address implementation_
+    function setImplementation(
+        address implementation
     ) external onlyOwner {
-        if (!_whitelistedImplementations.add(implementation_)) {
-            revert ODefaultStakerRewardsFactory__AlreadyWhitelisted();
+        if (implementation == address(0)) {
+            revert ODefaultStakerRewardsFactory__InvalidAddress();
         }
 
-        emit Whitelist(implementation_);
+        if (implementation == _implementation) {
+            revert ODefaultStakerRewardsFactory__AlreadySet();
+        }
+
+        _implementation = implementation;
+        emit SetImplementation(implementation);
     }
 
     /**
@@ -93,11 +87,11 @@ contract ODefaultStakerRewardsFactory is Ownable2Step, Registry, IODefaultStaker
             revert ODefaultStakerRewardsFactory__NotVault();
         }
 
-        if (implementation(uint64(_whitelistedImplementations.length())) != params.implementationStakerRewards) {
+        if (_implementation != params.implementation) {
             revert ODefaultStakerRewardsFactory__InvalidImplementation();
         }
 
-        address proxy = address(new ERC1967Proxy(params.implementationStakerRewards, ""));
+        address proxy = address(new ERC1967Proxy(_implementation, ""));
         ODefaultStakerRewards(proxy).initialize(i_operatorRewards, vault, params);
         _addEntity(proxy);
 

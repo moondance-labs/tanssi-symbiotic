@@ -144,7 +144,7 @@ contract MiddlewareTest is Test {
         defaultAdminRoleHolder: owner,
         adminFeeClaimRoleHolder: owner,
         adminFeeSetRoleHolder: owner,
-        implementationStakerRewards: address(0)
+        implementation: address(0)
     });
 
     function setUp() public {
@@ -218,12 +218,12 @@ contract MiddlewareTest is Test {
             stakerRewardsFactory: stakerRewardsFactoryAddress
         });
         middleware.initialize(params);
-        // This should be taken out later on
+        //TODO: This should be taken out later on
         middleware.initializeV2(operatorRewardsAddress, stakerRewardsFactoryAddress);
         middleware.setGateway(address(gateway));
         middleware.setCollateralToOracle(address(collateral), address(collateralOracle));
 
-        stakerRewardsParams.implementationStakerRewards =
+        stakerRewardsParams.implementation =
             address(new ODefaultStakerRewards(address(networkMiddlewareService), tanssi));
 
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
