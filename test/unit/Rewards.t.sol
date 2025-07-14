@@ -1625,7 +1625,7 @@ contract RewardsTest is Test {
         stakerRewardsFactory.setImplementation(address(0));
     }
 
-    function testSetImplementationAlreadyWhitelisted() public {
+    function testSetImplementationAlreadySet() public {
         vm.startPrank(owner);
         vm.expectRevert(IODefaultStakerRewardsFactory.ODefaultStakerRewardsFactory__AlreadySet.selector);
         stakerRewardsFactory.setImplementation(stakerRewardsImplementation);
