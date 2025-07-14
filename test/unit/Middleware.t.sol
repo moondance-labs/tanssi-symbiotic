@@ -213,9 +213,7 @@ contract MiddlewareTest is Test {
             owner: owner,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
-            reader: readHelper,
-            operatorRewards: operatorRewardsAddress,
-            stakerRewardsFactory: stakerRewardsFactoryAddress
+            reader: readHelper
         });
         middleware.initialize(params);
         //TODO: This should be taken out later on
@@ -268,9 +266,7 @@ contract MiddlewareTest is Test {
             owner: owner,
             epochDuration: EPOCH_DURATION_,
             slashingWindow: SHORT_SLASHING_WINDOW_,
-            reader: readHelper,
-            operatorRewards: address(operatorRewards),
-            stakerRewardsFactory: address(stakerRewardsFactory)
+            reader: readHelper
         });
         Middleware(address(middlewareProxy)).initialize(params);
 
@@ -2193,9 +2189,7 @@ contract MiddlewareTest is Test {
             owner: owner,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
-            reader: readHelper,
-            operatorRewards: address(operatorRewards),
-            stakerRewardsFactory: address(stakerRewardsFactory)
+            reader: readHelper
         });
     }
 

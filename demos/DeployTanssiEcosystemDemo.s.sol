@@ -356,12 +356,11 @@ contract DeployTanssiEcosystemDemo is Script {
             owner: tanssi,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
-            reader: address(0),
-            operatorRewards: operatorRewardsAddress,
-            stakerRewardsFactory: stakerRewardsFactoryAddress
+            reader: address(0)
         });
 
-        ecosystemEntities.middleware = _deployMiddlewareWithProxy(params);
+        ecosystemEntities.middleware =
+            _deployMiddlewareWithProxy(params, operatorRewardsAddress, stakerRewardsFactoryAddress);
 
         stakerRewardsImpl = address(new ODefaultStakerRewards(address(networkMiddlewareService), tanssi));
         ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress).setImplementation(stakerRewardsImpl);
@@ -421,7 +420,9 @@ contract DeployTanssiEcosystemDemo is Script {
     }
 
     function _deployMiddlewareWithProxy(
-        IMiddleware.InitParams memory params
+        IMiddleware.InitParams memory params,
+        address operatorRewardsAddress,
+        address stakerRewardsFactoryAddress
     ) private returns (Middleware _middleware) {
         Middleware _middlewareImpl = new Middleware();
         _middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
@@ -429,6 +430,7 @@ contract DeployTanssiEcosystemDemo is Script {
 
         params.reader = address(new OBaseMiddlewareReader());
         _middleware.initialize(params);
+        _middleware.reinitializeRewards(operatorRewardsAddress, stakerRewardsFactoryAddress);
     }
 
     function run() external {

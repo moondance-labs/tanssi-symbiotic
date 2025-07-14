@@ -371,11 +371,10 @@ contract RewardsTest is Test {
             owner: _owner,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
-            reader: address(new OBaseMiddlewareReader()),
-            operatorRewards: _operatorRewardsAddress,
-            stakerRewardsFactory: _stakerRewardsFactoryAddress
+            reader: address(new OBaseMiddlewareReader())
         });
         _middleware.initialize(params);
+        _middleware.reinitializeRewards(_operatorRewardsAddress, _stakerRewardsFactoryAddress);
 
         networkMiddlewareService.setMiddleware(address(_middleware));
     }

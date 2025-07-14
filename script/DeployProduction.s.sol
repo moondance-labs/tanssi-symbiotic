@@ -125,9 +125,7 @@ contract DeployProduction is Script {
             owner: initialAdmin,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
-            reader: reader,
-            operatorRewards: operatorRewardsAddress,
-            stakerRewardsFactory: stakerRewardsFactoryAddress
+            reader: reader
         });
 
         Middleware middlewareImpl = new Middleware();

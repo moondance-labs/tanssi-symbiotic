@@ -339,13 +339,11 @@ contract FullTest is Test {
             owner: owner,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
-            reader: address(0),
-            operatorRewards: operatorRewardsAddress,
-            stakerRewardsFactory: stakerRewardsFactoryAddress
+            reader: address(0)
         });
         DeployTanssiEcosystem deployTanssi = new DeployTanssiEcosystem();
         middleware = deployTanssi.deployMiddlewareWithProxy(params);
-
+        middleware.reinitializeRewards(operatorRewardsAddress, stakerRewardsFactoryAddress);
         networkMiddlewareService.setMiddleware(address(middleware));
     }
 

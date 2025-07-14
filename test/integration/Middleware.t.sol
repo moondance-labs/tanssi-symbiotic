@@ -359,12 +359,10 @@ contract MiddlewareTest is Test {
             owner: _owner,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
-            reader: readHelper,
-            operatorRewards: _operatorRewardsAddress,
-            stakerRewardsFactory: _stakerRewardsFactoryAddress
+            reader: readHelper
         });
         _middleware.initialize(params);
-
+        _middleware.reinitializeRewards(_operatorRewardsAddress, _stakerRewardsFactoryAddress);
         networkMiddlewareService.setMiddleware(address(_middleware));
     }
 

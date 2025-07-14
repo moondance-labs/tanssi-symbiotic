@@ -211,9 +211,7 @@ contract RewardsTest is Test {
             owner: tanssi,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: SLASHING_WINDOW,
-            reader: readHelper,
-            operatorRewards: address(operatorRewards),
-            stakerRewardsFactory: address(stakerRewardsFactory)
+            reader: readHelper
         });
         Middleware(address(middleware)).initialize(params);
 

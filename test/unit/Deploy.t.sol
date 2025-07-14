@@ -401,11 +401,10 @@ contract DeployTest is Test {
             owner: tanssi,
             epochDuration: NETWORK_EPOCH_DURATION,
             slashingWindow: 8 days,
-            reader: address(0),
-            operatorRewards: operatorRewardsAddress,
-            stakerRewardsFactory: stakerRewardsFactoryAddress
+            reader: address(0)
         });
         address middleware = deployTanssiEcosystem.deployMiddleware(params, networkMiddlewareService);
+        Middleware(middleware).reinitializeRewards(operatorRewardsAddress, stakerRewardsFactoryAddress);
         return middleware;
     }
 }
