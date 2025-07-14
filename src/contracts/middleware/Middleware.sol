@@ -139,7 +139,7 @@ contract Middleware is
      * @param operatorRewards The operator rewards address
      * @param stakerRewardsFactory The staker rewards factory address
      */
-    function initializeV2(
+    function reinitializeRewards(
         address operatorRewards,
         address stakerRewardsFactory
     ) external reinitializer(2) notZeroAddress(operatorRewards) notZeroAddress(stakerRewardsFactory) {

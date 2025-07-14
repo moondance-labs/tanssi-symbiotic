@@ -219,7 +219,7 @@ contract MiddlewareTest is Test {
         });
         middleware.initialize(params);
         //TODO: This should be taken out later on
-        middleware.initializeV2(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        middleware.reinitializeRewards(operatorRewardsAddress, stakerRewardsFactoryAddress);
         middleware.setGateway(address(gateway));
         middleware.setCollateralToOracle(address(collateral), address(collateralOracle));
 

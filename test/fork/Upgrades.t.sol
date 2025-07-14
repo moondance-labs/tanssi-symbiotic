@@ -78,7 +78,7 @@ contract UpgradesTest is Test {
         deployTanssiEcosystem.upgradeMiddlewareBroadcast(address(middleware), 1);
 
         // Need to reinitialize the operatorRewards and stakerRewardsFactory after the first upgrade
-        middleware.initializeV2(newOperatorRewardsAddress, newStakerRewardsFactoryAddress);
+        middleware.reinitializeRewards(newOperatorRewardsAddress, newStakerRewardsFactoryAddress);
         assertEq(middleware.i_operatorRewards(), newOperatorRewardsAddress);
         assertEq(middleware.i_stakerRewardsFactory(), newStakerRewardsFactoryAddress);
         assertEq(reader.getCurrentEpoch(), currentEpoch);
