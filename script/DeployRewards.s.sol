@@ -86,8 +86,9 @@ contract DeployRewards is Script {
         } else {
             vm.startPrank(owner_);
         }
-        stakerRewardsFactory =
-            new ODefaultStakerRewardsFactory(vaultFactory, networkMiddlewareService, operatorRewardsAddress, network);
+        stakerRewardsFactory = new ODefaultStakerRewardsFactory(
+            vaultFactory, networkMiddlewareService, operatorRewardsAddress, network, owner_
+        );
         console2.log("Staker rewards factory deployed at address: ", address(stakerRewardsFactory));
 
         if (!isTest) {

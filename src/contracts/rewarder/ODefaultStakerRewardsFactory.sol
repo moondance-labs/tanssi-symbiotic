@@ -39,8 +39,9 @@ contract ODefaultStakerRewardsFactory is Ownable2Step, Registry, IODefaultStaker
         address vaultFactory,
         address networkMiddlewareService,
         address operatorRewards,
-        address network
-    ) Ownable(msg.sender) {
+        address network,
+        address owner_
+    ) Ownable(owner_) {
         if (
             vaultFactory == address(0) || networkMiddlewareService == address(0) || operatorRewards == address(0)
                 || network == address(0)
