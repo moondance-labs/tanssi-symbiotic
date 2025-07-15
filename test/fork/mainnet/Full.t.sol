@@ -67,6 +67,7 @@ import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
+import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {MiddlewareV2} from "test/unit/utils/MiddlewareV2.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
@@ -1763,19 +1764,28 @@ contract FullTest is Test {
     }
 
     function _configureTanssiVault() private returns (HelperConfig.VaultData memory vaultData) {
-        (address vaultConfigurator,,,,,,,,) = helperConfig.activeNetworkConfig();
+        (address vaultConfigurator,,,,,, address networkMiddlewareService,,) = helperConfig.activeNetworkConfig();
+        console2.log("vaultConfigurator", vaultConfigurator);
+        console2.log("networkMiddlewareService", networkMiddlewareService);
+        stakerRewardsImpl = address(new ODefaultStakerRewards(networkMiddlewareService, tanssi));
 
         // TODO: Remove when factory is fixed, currently it points the wrong network and operator rewards
         {
-            (,,, address vaultRegistry,,, address networkMiddlewareService,,) = helperConfig.activeNetworkConfig();
+            (,,, address vaultRegistry,,,,,) = helperConfig.activeNetworkConfig();
             DeployRewards deployRewards = new DeployRewards();
             address stakerRewardsFactory = deployRewards.deployStakerRewardsFactoryContract(
-                vaultRegistry, networkMiddlewareService, address(operatorRewards), tanssi
+                vaultRegistry, networkMiddlewareService, address(operatorRewards), tanssi, admin
             );
+            vm.allowCheatcodes(0x9eb0Ff9A553416Ac9Ec87881aB2ecC4879AdbC21); // No freaking clue why this is needed
+
             DeployTanssiEcosystem deployTanssiEcosystem = new DeployTanssiEcosystem();
-            deployTanssiEcosystem.upgradeMiddleware(
-                address(middleware), 1, address(operatorRewards), stakerRewardsFactory, admin
-            );
+            deployTanssiEcosystem.upgradeMiddleware(address(middleware), 1, admin);
+            address newReader = address(new OBaseMiddlewareReader());
+            vm.startPrank(admin);
+            ODefaultStakerRewardsFactory(stakerRewardsFactory).setImplementation(stakerRewardsImpl);
+            middleware.setReader(newReader);
+            middleware.reinitializeRewards(address(operatorRewards), address(stakerRewardsFactory));
+            vm.stopPrank();
         }
         // Remove until here
 
@@ -1797,12 +1807,14 @@ contract FullTest is Test {
         );
 
         vm.startPrank(admin);
+
         middleware.setCollateralToOracle(address(rewardsToken), tanssiOracle);
         IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
             adminFee: 0,
             defaultAdminRoleHolder: admin,
             adminFeeClaimRoleHolder: admin,
-            adminFeeSetRoleHolder: admin
+            adminFeeSetRoleHolder: admin,
+            implementation: stakerRewardsImpl
         });
         middleware.registerSharedVault(tanssiVaultAddress, stakerRewardsParams);
         vaultToStakerRewards[tanssiVaultAddress] = operatorRewards.vaultToStakerRewardsContract(tanssiVaultAddress);
