@@ -21,15 +21,9 @@ import {AutomationCompatibleInterface} from "@chainlink/automation/interfaces/Au
 import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3Interface.sol";
 
 //**************************************************************************************************
-//                                      DIA
-//**************************************************************************************************
-import {PushOracleReceiver} from "@dia-data/PushOracleReceiver.sol";
-
-//**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -63,6 +57,7 @@ import {OSharedVaults} from "src/contracts/extensions/OSharedVaults.sol";
 import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
 
 import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
+import {IDIAOracleV2} from "src/interfaces/oracle/IDIAOracleV2.sol";
 
 contract Middleware is
     UUPSUpgradeable,
@@ -168,15 +163,19 @@ contract Middleware is
         address collateral = vaultToCollateral(vault);
         string memory pairSymbol = collateralToPairSymbol(collateral);
 
-        if (pairSymbol.length == 0) {
+        if (bytes(pairSymbol).length == 0) {
             revert Middleware__NotSupportedCollateral(collateral);
         }
 
         StorageMiddleware storage $ = _getMiddlewareStorage();
-        (, uint128 price) = PushOracleReceiver($.diaOracleAddress).updates(pairSymbol);
+        (uint128 latestPrice, uint128 timestampOfLatestPrice) = IDIAOracleV2($.diaOracleAddress).getValue(pairSymbol);
+
+        if (timestampOfLatestPrice == 0 || latestPrice == 0) {
+            revert Middleware__InvalidData();
+        }
 
         // Normalize power to 18 decimals, since the price is already on 8 decimals
-        power = stake.mulDiv(uint256(price), 10 ** 10);
+        power = stake.mulDiv(uint256(latestPrice), 10 ** 10);
     }
 
     /**
