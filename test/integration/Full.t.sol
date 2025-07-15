@@ -2174,7 +2174,7 @@ contract FullTest is Test {
         // Distribute rewards
         address operator8 = makeAddr("operator8");
         address operator9 = makeAddr("operator9");
-        uint256 numberOfVaults = 100;
+        uint256 numberOfVaults = middleware.MAX_ACTIVE_VAULTS() - 5; // The setup registers 3.
 
         _prepareOperatorsInMultipleVaults(operator8, operator9, numberOfVaults);
 
@@ -2189,7 +2189,7 @@ contract FullTest is Test {
         _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR8_KEY, operator8, 8, true);
         uint256 endGas = gasleft();
 
-        // 30M is the tx gas limit in most of the networks. Gas usage 2025-04-24: 22895689
+        // 30M is the tx gas limit in most of the networks. Gas usage 2025-07-15: 17121681
         assertLt(initGas - endGas, 30_000_000);
     }
 
@@ -2197,7 +2197,7 @@ contract FullTest is Test {
         // Distribute rewards
         address operator8 = makeAddr("operator8");
         address operator9 = makeAddr("operator9");
-        uint256 numberOfVaults = 100;
+        uint256 numberOfVaults = middleware.MAX_ACTIVE_VAULTS() - 5; // The setup registers 3.
 
         _prepareOperatorsInMultipleVaults(operator8, operator9, numberOfVaults);
 
@@ -2212,7 +2212,7 @@ contract FullTest is Test {
 
         uint256 endGas = gasleft();
 
-        // 30M is the tx gas limit in most of the networks. Gas usage 2025-04-24: 27896693
+        // 30M is the tx gas limit in most of the networks. Gas usage 2025-07-15: 20940116
         assertLt(initGas - endGas, 30_000_000);
     }
 }

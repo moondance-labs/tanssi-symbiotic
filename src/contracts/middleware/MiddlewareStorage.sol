@@ -50,7 +50,7 @@ abstract contract MiddlewareStorage {
     uint256 public constant MAX_OPERATORS_TO_PROCESS = 20;
     bytes32 internal constant GATEWAY_ROLE = keccak256("GATEWAY_ROLE");
     bytes32 internal constant FORWARDER_ROLE = keccak256("FORWARDER_ROLE");
-    uint256 public constant MAX_ACTIVE_VAULTS = 50;
+    uint256 public constant MAX_ACTIVE_VAULTS = 80;
 
     /**
      * @notice Get the operator rewards contract address
