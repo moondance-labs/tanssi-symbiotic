@@ -13,3 +13,10 @@ Steps to migrate:
 ...
 - <step n>
 ```
+
+## [TBD]
+
+## Steps to migrate:
+
+- Deploy new ODefaultOperatorRewards implementation
+- Upgrade to new ODefaultOperatorRewards implementation
