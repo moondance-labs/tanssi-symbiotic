@@ -2037,10 +2037,10 @@ contract FullTest is Test {
         vm.stopPrank();
     }
 
-    function testCannotRegisterSharedVaultsOverTheLimit() public {
+    function testCannotRegisterSharedNorOperatorVaultsOverTheLimit() public {
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
         uint256 maxVaults = middleware.MAX_ACTIVE_VAULTS();
-        uint256 activeVaults = middlewareReader.activeVaults().length - 2; // 2 Are operator specific
+        uint256 activeSharedVaults = middlewareReader.sharedVaultsLength();
 
         vm.startPrank(tanssi);
         DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
@@ -2064,26 +2064,104 @@ contract FullTest is Test {
             adminFeeSetRoleHolder: tanssi
         });
 
-        for (uint256 i; i < maxVaults - activeVaults; i++) {
+        for (uint256 i; i < maxVaults - activeSharedVaults - 1; i++) {
             (address vault,,) = deployVault.createBaseVault(params);
             middleware.registerSharedVault(address(vault), stakerRewardsParams);
         }
         vm.warp(block.timestamp + VAULT_EPOCH_DURATION + 1);
-        activeVaults = middlewareReader.activeVaults().length;
+        activeSharedVaults = middlewareReader.activeVaults().length;
 
         // Testing for shared vaults
-        console2.log("Shared vaults");
         (address vaultAfterLimit,,) = deployVault.createBaseVault(params);
         vm.expectRevert(OBaseMiddlewareReader.Middleware__TooManyActiveVaults.selector);
         middleware.registerSharedVault(address(vaultAfterLimit), stakerRewardsParams);
 
         // Testing for operator vaults
-        console2.log("Operator vaults");
         params.delegatorIndex = VaultManager.DelegatorType.OPERATOR_SPECIFIC;
         params.operator = operator1;
         (address operatorVaultAfterLimit,,) = deployVault.createBaseVault(params);
         vm.expectRevert(OBaseMiddlewareReader.Middleware__TooManyActiveVaults.selector);
         middleware.registerOperatorVault(operator1, address(operatorVaultAfterLimit));
+
+        vm.stopPrank();
+    }
+
+    function testWhenOperatorManagesToBeActiveInTooManyVaultsThenItIsIgnored() public {
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+
+        // Before everything happens, the operator 1 is already registered in a vault and has power. Once he is in too many vaults his power must become 0 even if no stake is removed.
+        (, bytes memory performData) = middleware.checkUpkeep(hex"");
+        (uint8 command, IMiddleware.ValidatorData[] memory validatorsData) =
+            abi.decode(performData, (uint8, IMiddleware.ValidatorData[]));
+        bool operator1Found = false;
+        for (uint256 i = 0; i < validatorsData.length; i++) {
+            if (validatorsData[i].key == OPERATOR1_KEY) {
+                operator1Found = true;
+                assertGt(validatorsData[i].power, 0);
+                break;
+            }
+        }
+        assertTrue(operator1Found);
+
+        uint256 maxVaults = middleware.MAX_ACTIVE_VAULTS();
+        uint256 activeSharedVaults = middlewareReader.sharedVaultsLength();
+        uint256 activeOperatorVaults = middlewareReader.operatorVaultsLength(operator1);
+        uint256 operatorSpecificVaultToCreate = 10 - activeOperatorVaults; // So in total this operator will have 10.
+        uint256 sharedVaultsToCreate = maxVaults - activeSharedVaults - 5; // We go to up limit-5
+        // Total vaults for the operator will be maxVaults + 5, but it is not detected on creation since operatorSpecific ones are created first.
+
+        vm.startPrank(tanssi);
+        DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
+            epochDuration: VAULT_EPOCH_DURATION,
+            depositWhitelist: false,
+            depositLimit: 0,
+            delegatorIndex: VaultManager.DelegatorType.OPERATOR_SPECIFIC,
+            shouldBroadcast: false,
+            vaultConfigurator: address(vaultConfigurator),
+            collateral: address(usdc),
+            owner: tanssi,
+            operator: operator1,
+            network: address(0),
+            burner: address(0xDead)
+        });
+
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            adminFee: ADMIN_FEE,
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: tanssi,
+            adminFeeSetRoleHolder: tanssi
+        });
+
+        for (uint256 i; i < operatorSpecificVaultToCreate; i++) {
+            (address vault,,) = deployVault.createBaseVault(params);
+            middleware.registerOperatorVault(operator1, address(vault));
+        }
+
+        params.delegatorIndex = VaultManager.DelegatorType.FULL_RESTAKE;
+        params.operator = address(0);
+        for (uint256 i; i < sharedVaultsToCreate; i++) {
+            (address vault,,) = deployVault.createBaseVault(params);
+            middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        }
+        vm.warp(block.timestamp + VAULT_EPOCH_DURATION + 1);
+        activeSharedVaults = middlewareReader.sharedVaultsLength();
+        activeOperatorVaults = middlewareReader.operatorVaultsLength(operator1);
+
+        assertEq(activeOperatorVaults, 10);
+        assertEq(activeSharedVaults + activeOperatorVaults, maxVaults + 5);
+
+        (, performData) = middleware.checkUpkeep(hex"");
+        (command, validatorsData) = abi.decode(performData, (uint8, IMiddleware.ValidatorData[]));
+
+        operator1Found = false;
+        for (uint256 i = 0; i < validatorsData.length; i++) {
+            if (validatorsData[i].key == OPERATOR1_KEY) {
+                operator1Found = true;
+                assertEq(validatorsData[i].power, 0);
+                break;
+            }
+        }
+        assertTrue(operator1Found);
 
         vm.stopPrank();
     }

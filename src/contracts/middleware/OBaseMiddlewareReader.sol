@@ -786,16 +786,11 @@ contract OBaseMiddlewareReader is
     function checkTotalActiveVaults(
         address operator
     ) public view {
-        VaultManagerStorage storage $ = _getVaultManagerStorage();
-        uint48 timestamp = Time.timestamp();
-        address[] memory sharedVaults = $._sharedVaults.getActive(timestamp);
-
-        uint256 totalSharedVaults = sharedVaults.length;
+        uint256 totalSharedVaults = _sharedVaultsLength();
         uint256 totalOperatorVaults;
 
         if (operator != address(0)) {
-            address[] memory operatorVaults = $._operatorVaults[operator].getActive(timestamp);
-            totalOperatorVaults = operatorVaults.length;
+            totalOperatorVaults = _operatorVaultsLength(operator);
         }
         // If there are too many vaults for this operator slashing and distributing rewards will revert due to max execution gas, so we revert to prevent registration
         if (totalSharedVaults + totalOperatorVaults >= MAX_ACTIVE_VAULTS) {
