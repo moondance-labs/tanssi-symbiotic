@@ -1773,6 +1773,9 @@ contract FullTest is Test {
             deployTanssiEcosystem.upgradeMiddleware(
                 address(middleware), 1, address(operatorRewards), stakerRewardsFactory, admin
             );
+            address newReader = address(new OBaseMiddlewareReader());
+            vm.prank(admin);
+            middleware.setReader(newReader);
         }
         // Remove until here
 
