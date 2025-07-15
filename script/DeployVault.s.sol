@@ -96,7 +96,11 @@ contract DeployVault is Script {
         });
     }
 
-    function createTanssiVault(address vaultConfigurator, address admin, address collateral) public {
+    function createTanssiVault(
+        address vaultConfigurator,
+        address admin,
+        address collateral
+    ) public returns (address vault, address delegator, address slasher) {
         CreateVaultBaseParams memory params = CreateVaultBaseParams({
             epochDuration: 7 days,
             depositWhitelist: false,
@@ -110,7 +114,7 @@ contract DeployVault is Script {
             network: address(0),
             burner: address(0xDead)
         });
-        _createVault(params, VaultManager.SlasherType.INSTANT, true, 0);
+        (vault, delegator, slasher) = _createVault(params, VaultManager.SlasherType.INSTANT, true, 0);
     }
 
     function _createVault(
