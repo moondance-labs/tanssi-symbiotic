@@ -24,6 +24,7 @@ interface IODefaultOperatorRewards {
     error ODefaultOperatorRewards__InvalidAddress();
     error ODefaultOperatorRewards__AlreadySet();
     error ODefaultOperatorRewards__NoVaults();
+    error ODefaultOperatorRewards__StakerRewardsNotSetForVault(address vault);
 
     /**
      * @notice Emitted when rewards are distributed by providing a Merkle root.
