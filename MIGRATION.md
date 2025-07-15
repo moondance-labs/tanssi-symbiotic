@@ -13,3 +13,12 @@ Steps to migrate:
 ...
 - <step n>
 ```
+
+## [TBD]
+
+## Steps to migrate:
+
+- Deploy new OBaseMiddlewareReader implementation
+- Deploy new Middleware implementation
+- Upgrade to new Middleware implementation
+- Call Middleware.setReader with the new reader address.
