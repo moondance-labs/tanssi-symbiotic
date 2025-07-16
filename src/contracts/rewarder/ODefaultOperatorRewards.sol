@@ -313,10 +313,9 @@ contract ODefaultOperatorRewards is
         for (uint256 i; i < totalVaults;) {
             uint256 amount = amountPerVault[i];
             if (amount != 0) {
-                address vault = operatorVaults[i];
-                address stakerRewardsForVault = $.vaultToStakerRewardsContract[vault];
+                address stakerRewardsForVault = $.vaultToStakerRewardsContract[operatorVaults[i]];
                 if (stakerRewardsForVault == address(0)) {
-                    revert ODefaultOperatorRewards__StakerRewardsNotSetForVault(vault);
+                    revert ODefaultOperatorRewards__StakerRewardsNotSetForVault(operatorVaults[i]);
                 }
                 IERC20(tokenAddress).approve(stakerRewardsForVault, amount);
                 IODefaultStakerRewards(stakerRewardsForVault).distributeRewards(
