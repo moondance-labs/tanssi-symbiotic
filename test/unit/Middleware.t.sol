@@ -402,6 +402,15 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
     }
 
+    function testRegisterOperatorWithKeyNot32BytesLong() public {
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+
+        vm.startPrank(owner);
+        vm.expectRevert(IMiddleware.Middleware__InvalidKey.selector);
+        middleware.registerOperator(operator, bytes("1234"), address(0));
+        vm.stopPrank();
+    }
+
     function testRegisterOperatorWithAddressZero() public {
         vm.startPrank(owner);
         vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
