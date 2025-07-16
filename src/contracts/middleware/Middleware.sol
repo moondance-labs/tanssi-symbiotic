@@ -528,7 +528,7 @@ contract Middleware is
         bytes memory key,
         address
     ) internal pure override notZeroAddress(operator) {
-        if (abi.decode(key, (bytes32)) == bytes32(0)) {
+        if (key.length != 32 || abi.decode(key, (bytes32)) == bytes32(0)) {
             revert Middleware__InvalidKey();
         }
     }
