@@ -314,11 +314,15 @@ contract ODefaultOperatorRewards is
         (uint256 maxAdminFee,,) = abi.decode(data, (uint256, bytes, bytes));
         bytes memory cleanData = abi.encode(maxAdminFee, new bytes(0), new bytes(0));
         for (uint256 i; i < totalVaults;) {
-            if (amountPerVault[i] != 0) {
+            uint256 amount = amountPerVault[i];
+            if (amount != 0) {
                 address stakerRewardsForVault = $.vaultToStakerRewardsContract[operatorVaults[i]];
-                IERC20(tokenAddress).approve(stakerRewardsForVault, amountPerVault[i]);
+                if (stakerRewardsForVault == address(0)) {
+                    revert ODefaultOperatorRewards__StakerRewardsNotSetForVault(operatorVaults[i]);
+                }
+                IERC20(tokenAddress).approve(stakerRewardsForVault, amount);
                 IODefaultStakerRewards(stakerRewardsForVault).distributeRewards(
-                    epoch, eraIndex, amountPerVault[i], tokenAddress, cleanData
+                    epoch, eraIndex, amount, tokenAddress, cleanData
                 );
             }
 
