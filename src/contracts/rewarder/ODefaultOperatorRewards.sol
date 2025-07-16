@@ -311,14 +311,16 @@ contract ODefaultOperatorRewards is
     ) private {
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         for (uint256 i; i < totalVaults;) {
-            if (amountPerVault[i] != 0) {
-                address stakerRewardsForVault = $.vaultToStakerRewardsContract[operatorVaults[i]];
+            uint256 amount = amountPerVault[i];
+            if (amount != 0) {
+                address vault = operatorVaults[i];
+                address stakerRewardsForVault = $.vaultToStakerRewardsContract[vault];
                 if (stakerRewardsForVault == address(0)) {
-                    revert ODefaultOperatorRewards__StakerRewardsNotSetForVault(operatorVaults[i]);
+                    revert ODefaultOperatorRewards__StakerRewardsNotSetForVault(vault);
                 }
-                IERC20(tokenAddress).approve(stakerRewardsForVault, amountPerVault[i]);
+                IERC20(tokenAddress).approve(stakerRewardsForVault, amount);
                 IODefaultStakerRewards(stakerRewardsForVault).distributeRewards(
-                    epoch, eraIndex, amountPerVault[i], tokenAddress, data
+                    epoch, eraIndex, amount, tokenAddress, data
                 );
             }
 
