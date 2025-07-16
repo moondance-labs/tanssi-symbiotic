@@ -160,6 +160,10 @@ contract Middleware is
     }
 
     function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
+        if (stake == 0) {
+            return 0;
+        }
+
         address collateral = vaultToCollateral(vault);
         address oracle = collateralToOracle(collateral);
 
