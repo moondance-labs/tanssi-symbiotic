@@ -38,11 +38,6 @@ import {PauseableEnumerableSet} from "@symbiotic-middleware/libraries/PauseableE
 import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
 
 //**************************************************************************************************
-//                                      CHAINLINK
-//**************************************************************************************************
-import {MockV3Aggregator} from "@chainlink/tests/MockV3Aggregator.sol";
-
-//**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -66,6 +61,7 @@ import {IGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfac
 import {Gateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Gateway.sol";
 
 import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
+import {DIAOracleMock} from "test/mocks/DIAOracleMock.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
@@ -108,10 +104,10 @@ contract RewardsTest is Test {
     uint256 public constant OPERATOR_STAKE_R_ETH = 90 ether;
     uint256 public constant OPERATOR_STAKE_BTC = 2 ether;
 
-    uint8 public constant ORACLE_DECIMALS = 16;
-    int256 public constant ORACLE_CONVERSION_ST_ETH = 3000 ether;
-    int256 public constant ORACLE_CONVERSION_R_ETH = 3000 ether;
-    int256 public constant ORACLE_CONVERSION_W_BTC = 90_000 ether;
+    uint8 public constant ORACLE_DECIMALS = 8;
+    uint256 public constant ORACLE_CONVERSION_ST_ETH = 3000 * 10 ** ORACLE_DECIMALS;
+    uint256 public constant ORACLE_CONVERSION_R_ETH = 3000 * 10 ** ORACLE_DECIMALS;
+    uint256 public constant ORACLE_CONVERSION_W_BTC = 90_000 * 10 ** ORACLE_DECIMALS;
 
     struct VaultAddresses {
         address vault;
@@ -244,9 +240,10 @@ contract RewardsTest is Test {
         wBTC.mint(owner, 1_000_000 ether);
         vm.stopPrank();
 
-        address stEthOracle = _deployOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_ST_ETH);
-        address rEthOracle = _deployOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_R_ETH);
-        address wBtcOracle = _deployOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_W_BTC);
+        DIAOracleMock oracle =
+            new DIAOracleMock("stETH/USD", uint128(ORACLE_CONVERSION_ST_ETH), uint128(block.timestamp));
+        oracle.setValue(uint128(ORACLE_CONVERSION_R_ETH), uint128(block.timestamp), "rETH/USD");
+        oracle.setValue(uint128(ORACLE_CONVERSION_W_BTC), uint128(block.timestamp), "wBTC/USD");
 
         deployVault = new DeployVault();
         DeploySymbiotic deploySymbiotic = new DeploySymbiotic();
@@ -293,9 +290,10 @@ contract RewardsTest is Test {
         operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
         operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware));
 
-        middleware.setCollateralToOracle(address(stETH), stEthOracle);
-        middleware.setCollateralToOracle(address(rETH), rEthOracle);
-        middleware.setCollateralToOracle(address(wBTC), wBtcOracle);
+        middleware.setCollateralToPairSymbol(address(stETH), "stETH/USD");
+        middleware.setCollateralToPairSymbol(address(rETH), "rETH/USD");
+        middleware.setCollateralToPairSymbol(address(wBTC), "wBTC/USD");
+        middleware.setDIAOracleAddress(address(oracle));
 
         vetoSlasher = VetoSlasher(vaultAddresses.slasherVetoed);
 
@@ -728,8 +726,9 @@ contract RewardsTest is Test {
         assertEq(stakerRewardsVault1Balance, expectedAmount);
     }
 
-    function _deployOracle(uint8 decimals, int256 answer) public returns (address) {
-        MockV3Aggregator oracle = new MockV3Aggregator(decimals, answer);
+    function _deployOracle(string memory pairSymbol, uint256 answer) private returns (address) {
+        DIAOracleMock oracle =
+            new DIAOracleMock(pairSymbol, uint128(answer * 10 ** ORACLE_DECIMALS), uint128(block.timestamp));
         return address(oracle);
     }
 }

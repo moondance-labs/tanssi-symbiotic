@@ -84,7 +84,7 @@ contract MiddlewareTest is Test {
         _loadBaseInfrastructure();
 
         vm.startPrank(admin);
-        middleware.setCollateralToOracle(address(stETH), oracle);
+        middleware.setCollateralToPairSymbol(address(stETH), "stETH/USD");
         vm.mockCall(
             oracle,
             abi.encodeWithSelector(AggregatorV3Interface.latestRoundData.selector),

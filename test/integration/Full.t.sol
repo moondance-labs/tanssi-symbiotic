@@ -38,11 +38,6 @@ import {VaultConfigurator} from "@symbiotic/contracts/VaultConfigurator.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 
 //**************************************************************************************************
-//                                      CHAINLINK
-//**************************************************************************************************
-import {MockV3Aggregator} from "@chainlink/tests/MockV3Aggregator.sol";
-
-//**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -66,6 +61,7 @@ import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareRea
 import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {Token} from "test/mocks/Token.sol";
+import {DIAOracleMock} from "test/mocks/DIAOracleMock.sol";
 import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
 import {DeployVault} from "script/DeployVault.s.sol";
@@ -90,13 +86,11 @@ contract FullTest is Test {
     uint8 public constant TOKEN_DECIMALS_ETH = 18;
     uint8 public constant TOKEN_DECIMALS_USDC = 6;
 
-    uint8 public constant ORACLE_DECIMALS_ETH = 2;
-    uint8 public constant ORACLE_DECIMALS_BTC = 2;
-    uint8 public constant ORACLE_DECIMALS_USDC = 8;
+    uint8 public constant ORACLE_DECIMALS = 8;
 
-    int256 public constant ORACLE_CONVERSION_ST_ETH = int256(3000 * 10 ** ORACLE_DECIMALS_ETH);
-    int256 public constant ORACLE_CONVERSION_W_BTC = int256(90_000 * 10 ** ORACLE_DECIMALS_BTC);
-    int256 public constant ORACLE_CONVERSION_USDC = int256(1 * 10 ** ORACLE_DECIMALS_USDC);
+    uint256 public constant ORACLE_CONVERSION_ST_ETH = uint256(3000 * 10 ** ORACLE_DECIMALS);
+    uint256 public constant ORACLE_CONVERSION_W_BTC = uint256(90_000 * 10 ** ORACLE_DECIMALS);
+    uint256 public constant ORACLE_CONVERSION_USDC = uint256(1 * 10 ** ORACLE_DECIMALS);
 
     uint48 public constant OPERATOR_SHARE = 1000; // 10%
     uint48 public constant MAX_PERCENTAGE = 10_000;
@@ -243,9 +237,9 @@ contract FullTest is Test {
     function setUp() public {
         _deployTokens();
 
-        address usdcOracle = _deployOracle(ORACLE_DECIMALS_USDC, ORACLE_CONVERSION_USDC);
-        address wBtcOracle = _deployOracle(ORACLE_DECIMALS_BTC, ORACLE_CONVERSION_W_BTC);
-        address stEthOracle = _deployOracle(ORACLE_DECIMALS_ETH, ORACLE_CONVERSION_ST_ETH);
+        DIAOracleMock oracle = new DIAOracleMock("USDC/USD", uint128(ORACLE_CONVERSION_USDC), uint128(block.timestamp));
+        oracle.setValue(uint128(ORACLE_CONVERSION_W_BTC), uint128(block.timestamp), "wBTC/USD");
+        oracle.setValue(uint128(ORACLE_CONVERSION_ST_ETH), uint128(block.timestamp), "stETH/USD");
 
         deployVault = new DeployVault();
         deployRewards = new DeployRewards();
@@ -288,9 +282,10 @@ contract FullTest is Test {
         _deployGateway();
 
         middleware.setGateway(address(gateway));
-        middleware.setCollateralToOracle(address(usdc), usdcOracle);
-        middleware.setCollateralToOracle(address(wBTC), wBtcOracle);
-        middleware.setCollateralToOracle(address(stETH), stEthOracle);
+        middleware.setDIAOracleAddress(address(oracle));
+        middleware.setCollateralToPairSymbol(address(usdc), "USDC/USD");
+        middleware.setCollateralToPairSymbol(address(wBTC), "wBTC/USD");
+        middleware.setCollateralToPairSymbol(address(stETH), "stETH/USD");
         vm.stopPrank();
 
         _registerOperatorAndOptIn(operator1, tanssi, address(vaultsData.v1.vault), false);
@@ -408,11 +403,6 @@ contract FullTest is Test {
         IVetoSlasher(vaultsData.v5.slasher).setResolver(0, resolver2, hex"");
 
         vm.stopPrank();
-    }
-
-    function _deployOracle(uint8 decimals, int256 answer) private returns (address) {
-        MockV3Aggregator oracle = new MockV3Aggregator(decimals, answer);
-        return address(oracle);
     }
 
     function _deployGateway() private returns (address) {
@@ -819,49 +809,49 @@ contract FullTest is Test {
         // On Vault 1: Operator 1 is the only staker.
         // On Vault 2: Operator 1 has 2 BTC Staked and it matches its limit.
         uint256 expectedOperatorPower1 = OPERATOR1_STAKE_V1_USDC.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC) // Normalized to 18 decimals
-            + OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+            + OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS);
         assertEq(validators[0].power, expectedOperatorPower1);
 
         // OOn Vault 2: Operator 2 has just 1 BTC staked, but delegator is full restake and their limit is 2 BTC. Since vault has more than the limit, the operator stake taken into account is their limit.
         uint256 expectedOperatorPower2 =
-            OPERATOR2_LIMIT_V2.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+            OPERATOR2_LIMIT_V2.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS);
         assertEq(validators[1].power, expectedOperatorPower2);
 
         // On Vault 2: Operator 3 has 3 BTC staked, but delegator is full restake and their limit is 2 BTC. So only 2 BTC are taken into account.
         // On Vault 3: delegator is network restake and OP3 is assigned 1/5 shares
         uint256 expectedOperatorPower3 = OPERATOR3_LIMIT_V2.mulDiv(
-            uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC
+            uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS
         )
-            + VAULT3_TOTAL_STAKE.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC).mulDiv(
+            + VAULT3_TOTAL_STAKE.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS).mulDiv(
                 OPERATOR3_SHARES_V3, VAULT3_TOTAL_SHARES
             );
         assertEq(validators[2].power, expectedOperatorPower3);
 
         // On Vault 3: delegator is network restake and OP4 is assigned 1/5 shares
         uint256 expectedOperatorPower4 = VAULT3_TOTAL_STAKE.mulDiv(
-            uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC
+            uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS
         ).mulDiv(OPERATOR4_SHARES_V3, VAULT3_TOTAL_SHARES);
         assertEq(validators[3].power, expectedOperatorPower4);
 
         // On Vault 3: delegator is network restake and OP5 is assigned 2/5 shares
         // On Vault 4: delegator is network restake and OP5 is assigned 2/3 shares
         uint256 expectedOperatorPower5 = VAULT3_TOTAL_STAKE.mulDiv(OPERATOR5_SHARES_V3, VAULT3_TOTAL_SHARES).mulDiv(
-            uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC
+            uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS
         )
             + VAULT4_TOTAL_STAKE.mulDiv(OPERATOR5_SHARES_V4, VAULT4_TOTAL_SHARES).mulDiv(
-                uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS_ETH
+                uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS
             );
         assertEq(validators[4].power, expectedOperatorPower5);
 
         // On Vault 4: delegator is network restake and OP6 is assigned 1/3 shares
         uint256 expectedOperatorPower6 = VAULT4_TOTAL_STAKE.mulDiv(OPERATOR6_SHARES_V4, VAULT4_TOTAL_SHARES).mulDiv(
-            uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS_ETH
+            uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS
         );
         assertEq(validators[5].power, expectedOperatorPower6);
 
         // On Vault 5: delegator is operator specific so all the stake is taken into account
         uint256 expectedOperatorPower7 =
-            OPERATOR7_STAKE_V5_STETH.mulDiv(uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS_ETH);
+            OPERATOR7_STAKE_V5_STETH.mulDiv(uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS);
         assertEq(validators[6].power, expectedOperatorPower7);
     }
 
@@ -883,7 +873,7 @@ contract FullTest is Test {
         uint256 expectedOperatorPower1 = (OPERATOR1_STAKE_V1_USDC + staker1Stake + staker2Stake).mulDiv(
             10 ** 18, 10 ** TOKEN_DECIMALS_USDC
         ) // Normalized to 18 decimals
-            + OPERATOR1_LIMIT_V2.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+            + OPERATOR1_LIMIT_V2.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS);
         assertEq(validators[0].power, expectedOperatorPower1);
     }
 
@@ -892,7 +882,7 @@ contract FullTest is Test {
         Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
 
         uint256 expectedOperatorPower1 = OPERATOR1_STAKE_V1_USDC.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC) // Normalized to 18 decimals
-            + OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+            + OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS);
         assertEq(validators[0].power, expectedOperatorPower1);
 
         uint256 operator1_additional_stake = 100_000 * 10 ** TOKEN_DECIMALS_USDC;
@@ -920,7 +910,7 @@ contract FullTest is Test {
         Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
 
         uint256 expectedOperatorPower1 = OPERATOR1_STAKE_V1_USDC.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC) // Normalized to 18 decimals
-            + OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+            + OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS);
         assertEq(validators[0].power, expectedOperatorPower1);
 
         uint256 operator1_withdraw_stake = 50_000 * 10 ** TOKEN_DECIMALS_USDC;
@@ -998,7 +988,7 @@ contract FullTest is Test {
         // Check it is active and has expected power coming only from stakers
         uint256 len = validators.length;
         assertEq(validators[len - 1].key, OPERATOR8_KEY);
-        uint256 expectedPower = uint256(100 ether).mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+        uint256 expectedPower = uint256(100 ether).mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS);
         assertEq(validators[len - 1].power, expectedPower);
 
         // Check it is the top one
@@ -1025,7 +1015,7 @@ contract FullTest is Test {
 
         uint256 operatorPowerVault1 = OPERATOR1_STAKE_V1_USDC.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC); // Normalized to 18 decimals
         uint256 operatorPowerVault2 =
-            OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+            OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS);
 
         uint256 expectedRewardsStakerVault1 =
             expectedRewardsForStakers.mulDiv(operatorPowerVault1, operatorPowerVault1 + operatorPowerVault2);
@@ -1084,11 +1074,9 @@ contract FullTest is Test {
 
         // On Vault 2: Operator 3 has 3 BTC staked, but delegator is full restake and their limit is 2 BTC. So only 2 BTC are taken into account.
         // On Vault 3: delegator is network restake and OP3 is assigned 1/5 shares
-        uint256 operatorPowerVault2 =
-            OPERATOR3_LIMIT_V2.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
-        uint256 operatorPowerVault3 = VAULT3_TOTAL_STAKE.mulDiv(
-            uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC
-        ).mulDiv(OPERATOR3_SHARES_V3, VAULT3_TOTAL_SHARES);
+        uint256 operatorPowerVault2 = OPERATOR3_LIMIT_V2.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS);
+        uint256 operatorPowerVault3 = VAULT3_TOTAL_STAKE.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS)
+            .mulDiv(OPERATOR3_SHARES_V3, VAULT3_TOTAL_SHARES);
 
         uint256 expectedRewardsStakerVault2 =
             expectedRewardsForStakers.mulDiv(operatorPowerVault2, operatorPowerVault2 + operatorPowerVault3);
@@ -1149,10 +1137,10 @@ contract FullTest is Test {
         // On Vault 3: delegator is network restake and OP5 is assigned 2/5 shares
         // On Vault 4: delegator is network restake and OP5 is assigned 2/3 shares
         uint256 operatorPowerVault3 = VAULT3_TOTAL_STAKE.mulDiv(OPERATOR5_SHARES_V3, VAULT3_TOTAL_SHARES).mulDiv(
-            uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC
+            uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS
         );
         uint256 operatorPowerVault4 = VAULT4_TOTAL_STAKE.mulDiv(OPERATOR5_SHARES_V4, VAULT4_TOTAL_SHARES).mulDiv(
-            uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS_ETH
+            uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS
         );
 
         uint256 expectedRewardsStakerVault3 =
@@ -1287,7 +1275,7 @@ contract FullTest is Test {
 
             uint256 operatorPowerVault1 = OPERATOR1_STAKE_V1_USDC.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC); // Normalized to 18 decimals
             uint256 operatorPowerVault2 =
-                OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+                OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS);
 
             uint256 expectedRewardsStakerVault1 =
                 expectedRewardsForStakers.mulDiv(operatorPowerVault1, operatorPowerVault1 + operatorPowerVault2);
@@ -1312,9 +1300,9 @@ contract FullTest is Test {
             // On Vault 2: Operator 3 has 3 BTC staked, but delegator is full restake and their limit is 2 BTC. So only 2 BTC are taken into account.
             // On Vault 3: delegator is network restake and OP3 is assigned 1/5 shares
             uint256 operatorPowerVault2 =
-                OPERATOR3_LIMIT_V2.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+                OPERATOR3_LIMIT_V2.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS);
             uint256 operatorPowerVault3 = VAULT3_TOTAL_STAKE.mulDiv(
-                uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC
+                uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS
             ).mulDiv(OPERATOR3_SHARES_V3, VAULT3_TOTAL_SHARES);
 
             expectedRewardsForStakersFromOperator3 =
@@ -1772,7 +1760,7 @@ contract FullTest is Test {
         // The other half is taken from active stake. In the end, the total slash was the fraction over the stake after withdrawl.
         uint256 operator7PowerVault5 = (
             OPERATOR7_STAKE_V5_STETH - operator7Vault5SlashedStake - expectedActualWithdrawAmount
-        ).mulDiv(uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS_ETH);
+        ).mulDiv(uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS);
 
         Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
 
@@ -1885,7 +1873,7 @@ contract FullTest is Test {
 
         uint256 operator7PowerVault5 = (
             OPERATOR7_STAKE_V5_STETH + additionalStake - operator7Vault5SlashedStake - expectedActualWithdrawAmount
-        ).mulDiv(uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS_ETH);
+        ).mulDiv(uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS);
 
         Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
 
@@ -1904,7 +1892,7 @@ contract FullTest is Test {
         {
             uint256 operator1PowerVault1 = OPERATOR1_STAKE_V1_USDC.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC); // Normalized to 18 decimals
             uint256 operator1PowerVault2 =
-                OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+                OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS);
 
             // Operator 1 is slashed on vault 2 only, but it is not slashable so power stays the same.
             assertEq(validators[0].power, operator1PowerVault1 + operator1PowerVault2);
@@ -1915,24 +1903,24 @@ contract FullTest is Test {
             // On Vault 2: Operator 2 has just 1 BTC staked, but delegator is full restake and their limit is 2 BTC. Since vault has more than the limit, the operator stake taken into account is their limit.
             // Operator 3 is slashed on vault 2, but it is not slashable so power stays the same.
             uint256 operator2PowerVault2 =
-                OPERATOR2_LIMIT_V2.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+                OPERATOR2_LIMIT_V2.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS);
 
             assertEq(validators[1].power, operator2PowerVault2);
         }
 
         uint256 operator3Vault3SlashedStake = OPERATOR3_STAKE_V3_WBTC.mulDiv(SLASHING_FRACTION, PARTS_PER_BILLION);
-        operator3Vault3SlashedStake.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+        operator3Vault3SlashedStake.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS);
 
         // Operator 3
         {
             // On Vault 2: Operator 3 has 3 BTC staked, but delegator is full restake and their limit is 2 BTC. So only 2 BTC are taken into account. Vault is not slashable so power stays the same.
 
             uint256 operator3PowerVault2 =
-                OPERATOR3_LIMIT_V2.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+                OPERATOR3_LIMIT_V2.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS);
 
             // On Vault 3: delegator is network restake and OP3 is assigned 1/5 shares. Vault is slashable so power stays are reduced.
             uint256 operator3PowerVault3 = (VAULT3_TOTAL_STAKE - operator3Vault3SlashedStake).mulDiv(
-                uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC
+                uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS
             ).mulDiv(OPERATOR3_SHARES_V3, VAULT3_TOTAL_SHARES);
 
             assertEq(validators[2].power, operator3PowerVault2 + operator3PowerVault3);
@@ -1943,7 +1931,7 @@ contract FullTest is Test {
             // On Vault 3: delegator is network restake and OP4 is assigned 1/5 shares
             // Operator 3 is slashed on vault 3, so total power for operator 4 is reduced on the vault
             uint256 operator4PowerVault3 = (VAULT3_TOTAL_STAKE - operator3Vault3SlashedStake).mulDiv(
-                uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC
+                uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS
             ).mulDiv(OPERATOR4_SHARES_V3, VAULT3_TOTAL_SHARES);
 
             assertEq(validators[3].power, operator4PowerVault3);
@@ -1955,11 +1943,11 @@ contract FullTest is Test {
             // Operator 3 is slashed on vault 3, so total power for operator 5 is reduced on the vault
             uint256 operator5PowerVault3 = (VAULT3_TOTAL_STAKE - operator3Vault3SlashedStake).mulDiv(
                 OPERATOR5_SHARES_V3, VAULT3_TOTAL_SHARES
-            ).mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+            ).mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS);
 
             // On Vault 4: delegator is network restake and OP5 is assigned 2/3 shares. Operator is not active on vault 4 so power stays the same.
             uint256 operator5PowerVault4 = VAULT4_TOTAL_STAKE.mulDiv(OPERATOR5_SHARES_V4, VAULT4_TOTAL_SHARES).mulDiv(
-                uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS_ETH
+                uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS
             );
 
             assertEq(validators[4].power, operator5PowerVault4 + operator5PowerVault3);

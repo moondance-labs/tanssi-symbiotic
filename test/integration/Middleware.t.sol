@@ -51,11 +51,6 @@ import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
 import {OperatorManager} from "@symbiotic-middleware/managers/OperatorManager.sol";
 
 //**************************************************************************************************
-//                                      CHAINLINK
-//**************************************************************************************************
-import {MockV3Aggregator} from "@chainlink/tests/MockV3Aggregator.sol";
-
-//**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -77,6 +72,7 @@ import {MockOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/test/moc
 
 import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
 
+import {DIAOracleMock} from "test/mocks/DIAOracleMock.sol";
 import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
@@ -118,15 +114,13 @@ contract MiddlewareTest is Test {
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
     uint256 public constant SLASHING_FRACTION = PARTS_PER_BILLION / 10; // 10%
 
-    uint8 public constant ORACLE_DECIMALS = 18;
-    int256 public constant ORACLE_CONVERSION_ST_ETH = 3000 ether;
-    int256 public constant ORACLE_CONVERSION_R_ETH = 3000 ether;
-    int256 public constant ORACLE_CONVERSION_W_BTC = 90_000 ether;
+    uint8 public constant ORACLE_DECIMALS = 8;
+    uint256 public constant ORACLE_CONVERSION_ST_ETH = 3000 * 10 ** ORACLE_DECIMALS;
+    uint256 public constant ORACLE_CONVERSION_R_ETH = 3000 * 10 ** ORACLE_DECIMALS;
+    uint256 public constant ORACLE_CONVERSION_W_BTC = 90_000 * 10 ** ORACLE_DECIMALS;
 
-    uint8 public constant USDC_ORACLE_DECIMALS = 8; // USDC_ORACLE_DECIMALS
     uint8 public constant USDC_TOKEN_DECIMALS = 6; // USDC_TOKEN_DECIMALS
-    uint8 public constant USDT_ORACLE_DECIMALS = 18; // USDT_ORACLE_DECIMALS
-    uint8 public constant USDT_TOKEN_DECIMALS = 18; // USDT_TOKEN_DECIMALS
+    uint8 public constant USDT_TOKEN_DECIMALS = 6; // USDT_TOKEN_DECIMALS
 
     // It's Both are staking 150 USD worth in total
     uint256 public constant OPERATOR_4_STAKE_USDC = 90 * 10 ** USDC_TOKEN_DECIMALS;
@@ -164,6 +158,7 @@ contract MiddlewareTest is Test {
         UD60x18 multiplier;
     }
 
+    DIAOracleMock oracle;
     Middleware public middleware;
     DelegatorFactory public delegatorFactory;
     SlasherFactory public slasherFactory;
@@ -229,9 +224,9 @@ contract MiddlewareTest is Test {
         wBTC.mint(owner, 1_000_000 ether);
         vm.stopPrank();
 
-        address stEthOracle = _deployOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_ST_ETH);
-        address rEthOracle = _deployOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_R_ETH);
-        address wBtcOracle = _deployOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_W_BTC);
+        oracle = new DIAOracleMock("stETH/USD", uint128(ORACLE_CONVERSION_ST_ETH), uint128(block.timestamp));
+        oracle.setValue(uint128(ORACLE_CONVERSION_R_ETH), uint128(block.timestamp), "rETH/USD");
+        oracle.setValue(uint128(ORACLE_CONVERSION_W_BTC), uint128(block.timestamp), "wBTC/USD");
 
         deployVault = new DeployVault();
         deployRewards = new DeployRewards();
@@ -282,9 +277,10 @@ contract MiddlewareTest is Test {
 
         _createGateway();
         middleware.setGateway(address(gateway));
-        middleware.setCollateralToOracle(address(stETH), stEthOracle);
-        middleware.setCollateralToOracle(address(rETH), rEthOracle);
-        middleware.setCollateralToOracle(address(wBTC), wBtcOracle);
+        middleware.setCollateralToPairSymbol(address(stETH), "stETH/USD");
+        middleware.setCollateralToPairSymbol(address(rETH), "rETH/USD");
+        middleware.setCollateralToPairSymbol(address(wBTC), "wBTC/USD");
+        middleware.setDIAOracleAddress(address(oracle));
 
         vetoSlasher = VetoSlasher(vaultAddresses.slasherVetoed);
 
@@ -897,8 +893,8 @@ contract MiddlewareTest is Test {
         usdt.mint(operator4, 1000 * 10 ** USDT_TOKEN_DECIMALS);
         usdt.mint(operator5, 1000 * 10 ** USDT_TOKEN_DECIMALS);
 
-        address usdcOracle = _deployOracle(USDC_ORACLE_DECIMALS, int256(1 * 10 ** USDC_ORACLE_DECIMALS));
-        address usdtOracle = _deployOracle(USDT_ORACLE_DECIMALS, int256(1 * 10 ** USDT_ORACLE_DECIMALS));
+        oracle.setValue(uint128(1 * 10 ** ORACLE_DECIMALS), uint128(block.timestamp), "USDC/USD");
+        oracle.setValue(uint128(1 * 10 ** ORACLE_DECIMALS), uint128(block.timestamp), "USDT/USD");
 
         DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
             epochDuration: VAULT_EPOCH_DURATION,
@@ -919,8 +915,8 @@ contract MiddlewareTest is Test {
         params.collateral = address(usdt);
         (address vaultUsdt, address vaultDelegatorUsdt,) = deployVault.createBaseVault(params);
 
-        middleware.setCollateralToOracle(address(usdc), usdcOracle);
-        middleware.setCollateralToOracle(address(usdt), usdtOracle);
+        middleware.setCollateralToPairSymbol(address(usdc), "USDC/USD");
+        middleware.setCollateralToPairSymbol(address(usdt), "USDT/USD");
 
         _registerOperatorAndOptIn(operator4, tanssi, address(vaultUsdc), true);
         _registerOperatorAndOptIn(operator4, tanssi, address(vaultUsdt), false);
@@ -950,15 +946,11 @@ contract MiddlewareTest is Test {
         INetworkRestakeDelegator(vaultDelegatorUsdt).setOperatorNetworkShares(tanssi.subnetwork(0), operator4, 1);
         INetworkRestakeDelegator(vaultDelegatorUsdt).setOperatorNetworkShares(tanssi.subnetwork(0), operator5, 1);
 
-        INetworkRestakeDelegator(vaultDelegatorUsdc).setMaxNetworkLimit(0, 1000 * 10 ** USDC_ORACLE_DECIMALS);
-        INetworkRestakeDelegator(vaultDelegatorUsdt).setMaxNetworkLimit(0, 1000 * 10 ** USDT_ORACLE_DECIMALS);
+        INetworkRestakeDelegator(vaultDelegatorUsdc).setMaxNetworkLimit(0, 1000 * 10 ** ORACLE_DECIMALS);
+        INetworkRestakeDelegator(vaultDelegatorUsdt).setMaxNetworkLimit(0, 1000 * 10 ** ORACLE_DECIMALS);
 
-        INetworkRestakeDelegator(vaultDelegatorUsdc).setNetworkLimit(
-            tanssi.subnetwork(0), 1000 * 10 ** USDC_ORACLE_DECIMALS
-        );
-        INetworkRestakeDelegator(vaultDelegatorUsdt).setNetworkLimit(
-            tanssi.subnetwork(0), 1000 * 10 ** USDT_ORACLE_DECIMALS
-        );
+        INetworkRestakeDelegator(vaultDelegatorUsdc).setNetworkLimit(tanssi.subnetwork(0), 1000 * 10 ** ORACLE_DECIMALS);
+        INetworkRestakeDelegator(vaultDelegatorUsdt).setNetworkLimit(tanssi.subnetwork(0), 1000 * 10 ** ORACLE_DECIMALS);
 
         vm.startPrank(operator4);
         _depositToVault(Vault(vaultUsdc), operator4, OPERATOR_4_STAKE_USDC, usdc);
@@ -1641,11 +1633,6 @@ contract MiddlewareTest is Test {
             _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, 0);
         (totalOperator3Power, powerFromSharesOperator3) =
             _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, totalFullRestakePower, 0);
-    }
-
-    function _deployOracle(uint8 decimals, int256 answer) public returns (address) {
-        MockV3Aggregator oracle = new MockV3Aggregator(decimals, answer);
-        return address(oracle);
     }
 
     // ************************************************************************************************

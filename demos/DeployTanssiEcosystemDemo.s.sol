@@ -31,11 +31,7 @@ import {INetworkRestakeDelegator} from "@symbiotic/interfaces/delegator/INetwork
 import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestakeDelegator.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 
-//**************************************************************************************************
-//                                      CHAINLINK
-//**************************************************************************************************
-import {MockV3Aggregator} from "@chainlink/tests/MockV3Aggregator.sol";
-
+import {DIAOracleMock} from "test/mocks/DIAOracleMock.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
@@ -58,8 +54,9 @@ contract DeployTanssiEcosystemDemo is Script {
     uint48 public constant OPERATOR_NETWORK_SHARES = 1;
     uint128 public constant MAX_NETWORK_LIMIT = 1000 ether;
     uint128 public constant OPERATOR_NETWORK_LIMIT = 300 ether;
-    uint8 public constant ORACLE_DECIMALS = 18;
-    int256 public constant ORACLE_CONVERSION_TOKEN = 3000;
+    uint8 public constant ORACLE_DECIMALS = 8;
+    uint256 public constant ORACLE_CONVERSION_TOKEN = 3000 * 10 ** ORACLE_DECIMALS;
+    string public constant ORACLE_ETH_PAIR_SYMBOL = "ETH/USD";
 
     uint256 ownerPrivateKey =
         vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
@@ -249,7 +246,7 @@ contract DeployTanssiEcosystemDemo is Script {
             INetworkMiddlewareService networkMiddlewareService,
             IOptInService operatorNetworkOptInService,
             IOptInService operatorVaultOptInService,
-            MockV3Aggregator collateralOracle,
+            DIAOracleMock collateralOracle,
             address vaultRegistryAddress
         )
     {
@@ -278,7 +275,8 @@ contract DeployTanssiEcosystemDemo is Script {
         networkMiddlewareService = INetworkMiddlewareService(networkMiddlewareServiceAddress);
         operatorNetworkOptInService = IOptInService(operatorNetworkOptInServiceAddress);
         operatorVaultOptInService = IOptInService(operatorVaultOptInServiceAddress);
-        collateralOracle = new MockV3Aggregator(ORACLE_DECIMALS, ORACLE_CONVERSION_TOKEN);
+        collateralOracle =
+            new DIAOracleMock(ORACLE_ETH_PAIR_SYMBOL, uint128(ORACLE_CONVERSION_TOKEN), uint128(block.timestamp));
     }
 
     function _deploy() private {
@@ -288,7 +286,7 @@ contract DeployTanssiEcosystemDemo is Script {
             INetworkMiddlewareService networkMiddlewareService,
             IOptInService operatorNetworkOptInService,
             IOptInService operatorVaultOptInService,
-            MockV3Aggregator collateralOracle,
+            DIAOracleMock collateralOracle,
             address vaultRegistryAddress
         ) = _getEntities();
 
@@ -356,6 +354,7 @@ contract DeployTanssiEcosystemDemo is Script {
 
         ecosystemEntities.middleware =
             _deployMiddlewareWithProxy(params, operatorRewardsAddress, stakerRewardsFactoryAddress);
+        ecosystemEntities.middleware.setDIAOracleAddress(address(collateralOracle));
 
         operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(ecosystemEntities.middleware));
         operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(ecosystemEntities.middleware));
@@ -382,15 +381,9 @@ contract DeployTanssiEcosystemDemo is Script {
         networkMiddlewareService.setMiddleware(address(ecosystemEntities.middleware));
         _registerEntitiesToMiddleware();
 
-        ecosystemEntities.middleware.setCollateralToOracle(
-            address(tokensAddresses.stETHToken), address(collateralOracle)
-        );
-        ecosystemEntities.middleware.setCollateralToOracle(
-            address(tokensAddresses.rETHToken), address(collateralOracle)
-        );
-        ecosystemEntities.middleware.setCollateralToOracle(
-            address(tokensAddresses.wBTCToken), address(collateralOracle)
-        );
+        ecosystemEntities.middleware.setCollateralToPairSymbol(address(tokensAddresses.stETHToken), "stETH/USD");
+        ecosystemEntities.middleware.setCollateralToPairSymbol(address(tokensAddresses.rETHToken), "rETH/USD");
+        ecosystemEntities.middleware.setCollateralToPairSymbol(address(tokensAddresses.wBTCToken), "wBTC/USD");
 
         console2.log("VaultConfigurator: ", address(ecosystemEntities.vaultConfigurator));
         console2.log("OperatorRegistry: ", address(operatorRegistry));

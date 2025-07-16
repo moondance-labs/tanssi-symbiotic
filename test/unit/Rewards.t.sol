@@ -29,11 +29,6 @@ import {IRegistry} from "@symbiotic/interfaces/common/IRegistry.sol";
 import {IVaultStorage} from "@symbiotic/interfaces/vault/IVaultStorage.sol";
 
 //**************************************************************************************************
-//                                      CHAINLINK
-//**************************************************************************************************
-import {MockV3Aggregator} from "@chainlink/tests/MockV3Aggregator.sol";
-
-//**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
@@ -49,7 +44,7 @@ import {ScaleCodec} from "@tanssi-bridge-relayer/snowbridge/contracts/src/utils/
 //**************************************************************************************************
 //                                      TANSSI
 //**************************************************************************************************
-
+import {DIAOracleMock} from "test/mocks/DIAOracleMock.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
@@ -85,8 +80,8 @@ contract RewardsTest is Test {
     uint256 public constant EXPECTED_CLAIMABLE = uint256(POINTS_TO_CLAIM) * TOKENS_PER_POINT;
     uint256 public constant ADMIN_FEE = 800; // 8%
     uint48 public constant OPERATOR_SHARE = 2000;
-    uint8 public constant ORACLE_DECIMALS = 18;
-    int256 public constant ORACLE_CONVERSION_TOKEN = 3000;
+    uint8 public constant ORACLE_DECIMALS = 8;
+    uint256 public constant ORACLE_CONVERSION_TOKEN = 3000 * 10 ** ORACLE_DECIMALS;
 
     // Root hash of the rewards merkle tree. It represents the rewards for the epoch 0 for alice and bob with 20 points each
     bytes32 public constant REWARDS_ROOT = 0x4b0ddd8b9b8ec6aec84bcd2003c973254c41d976f6f29a163054eec4e7947810;
@@ -169,7 +164,8 @@ contract RewardsTest is Test {
         );
 
         token = new Token("Token", 18);
-        MockV3Aggregator collateralOracle = new MockV3Aggregator(ORACLE_DECIMALS, ORACLE_CONVERSION_TOKEN);
+        DIAOracleMock collateralOracle =
+            new DIAOracleMock("ETH/USD", uint128(ORACLE_CONVERSION_TOKEN), uint128(block.timestamp));
 
         vault = new VaultMock(delegatorFactory, slasherFactory, address(vaultFactory), address(token));
         vault.setDelegator(address(delegator));
@@ -217,7 +213,9 @@ contract RewardsTest is Test {
         token.transfer(address(middleware), token.totalSupply());
 
         vm.startPrank(tanssi);
-        middleware.setCollateralToOracle(address(token), address(collateralOracle));
+        middleware.setCollateralToPairSymbol(address(token), "ETH/USD");
+        middleware.setDIAOracleAddress(address(collateralOracle));
+
         networkRegistry.registerNetwork();
         networkMiddlewareService.setMiddleware(address(middleware));
 
