@@ -310,9 +310,7 @@ contract ODefaultOperatorRewards is
         bytes calldata data
     ) private {
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
-        // Originaly the 2nd and 3rd param are hints to optimize caching on the staker rewards contract. However it would pretend to use the same hints on each staker rewards contract which may lead to out of bound errors on the subjacent Checkpoints data structure. So we clean the hints and re-encode them.
-        (uint256 maxAdminFee,,) = abi.decode(data, (uint256, bytes, bytes));
-        bytes memory cleanData = abi.encode(maxAdminFee, new bytes(0), new bytes(0));
+        bytes memory cleanHints = _cleanHints(data);
         for (uint256 i; i < totalVaults;) {
             uint256 amount = amountPerVault[i];
             if (amount != 0) {
@@ -322,7 +320,7 @@ contract ODefaultOperatorRewards is
                 }
                 IERC20(tokenAddress).approve(stakerRewardsForVault, amount);
                 IODefaultStakerRewards(stakerRewardsForVault).distributeRewards(
-                    epoch, eraIndex, amount, tokenAddress, cleanData
+                    epoch, eraIndex, amount, tokenAddress, cleanHints
                 );
             }
 
@@ -422,6 +420,14 @@ contract ODefaultOperatorRewards is
         assembly {
             $.slot := position
         }
+    }
+
+    function _cleanHints(
+        bytes calldata data
+    ) private pure returns (bytes memory cleanData) {
+        // Originaly the 2nd and 3rd param are hints to optimize caching on the staker rewards contract. However it would pretend to use the same hints on each staker rewards contract which may lead to out of bound errors on the subjacent Checkpoints data structure. So we clean the hints and re-encode them.
+        (uint256 maxAdminFee,,) = abi.decode(data, (uint256, bytes, bytes));
+        cleanData = abi.encode(maxAdminFee, new bytes(0), new bytes(0));
     }
 
     function _checkNotZeroAddress(
