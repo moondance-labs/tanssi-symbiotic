@@ -29,6 +29,7 @@ contract DeployRewards is Script {
 
     uint256 public ownerPrivateKey =
         vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
+    address owner = vm.addr(ownerPrivateKey);
 
     bool isTest = false;
 
@@ -77,28 +78,29 @@ contract DeployRewards is Script {
         address vaultFactory,
         address networkMiddlewareService,
         address operatorRewardsAddress,
-        address network
+        address network,
+        address owner_
     ) public returns (address) {
         if (!isTest) {
             vm.startBroadcast(broadcaster());
+        } else {
+            vm.startPrank(owner_);
         }
-        stakerRewardsFactory =
-            new ODefaultStakerRewardsFactory(vaultFactory, networkMiddlewareService, operatorRewardsAddress, network);
+        stakerRewardsFactory = new ODefaultStakerRewardsFactory(
+            vaultFactory, networkMiddlewareService, operatorRewardsAddress, network, owner_
+        );
         console2.log("Staker rewards factory deployed at address: ", address(stakerRewardsFactory));
 
         if (!isTest) {
             vm.stopBroadcast();
+        } else {
+            vm.stopPrank();
         }
 
         return address(stakerRewardsFactory);
     }
 
-    function upgradeStakerRewards(
-        address proxyAddress,
-        address networkMiddlewareService,
-        address vault,
-        address network
-    ) external {
+    function upgradeStakerRewards(address proxyAddress, address networkMiddlewareService, address network) external {
         if (!isTest) {
             vm.startBroadcast(broadcaster());
         } else {
@@ -106,7 +108,7 @@ contract DeployRewards is Script {
         }
         ODefaultStakerRewards proxy = ODefaultStakerRewards(proxyAddress);
 
-        ODefaultStakerRewards implementation = new ODefaultStakerRewards(networkMiddlewareService, vault, network);
+        ODefaultStakerRewards implementation = new ODefaultStakerRewards(networkMiddlewareService, network);
         console2.log("New Staker Rewards Implementation: ", address(implementation));
 
         proxy.upgradeToAndCall(address(implementation), hex"");

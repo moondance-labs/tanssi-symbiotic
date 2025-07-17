@@ -212,6 +212,7 @@ contract MiddlewareTest is Test {
     DeployRewards deployRewards;
     DeployCollateral deployCollateral;
     ODefaultOperatorRewards operatorRewards;
+    address stakerRewardsImpl;
     ODefaultStakerRewardsFactory stakerRewardsFactory;
 
     function setUp() public {
@@ -271,9 +272,11 @@ contract MiddlewareTest is Test {
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
         address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
-            address(vaultFactory), address(networkMiddlewareService), operatorRewardsAddress, tanssi
+            address(vaultFactory), address(networkMiddlewareService), operatorRewardsAddress, tanssi, owner
         );
         stakerRewardsFactory = ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress);
+
+        stakerRewardsImpl = address(new ODefaultStakerRewards(address(networkMiddlewareService), tanssi));
 
         middleware = _deployMiddlewareWithProxy(tanssi, owner, operatorRewardsAddress, stakerRewardsFactoryAddress);
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
@@ -291,6 +294,9 @@ contract MiddlewareTest is Test {
         vetoSlasher.setResolver(0, resolver1, hex"");
         vetoSlasher.setResolver(0, resolver2, hex"");
         vm.stopPrank();
+
+        vm.prank(owner);
+        ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress).setImplementation(stakerRewardsImpl);
 
         vault = Vault(vaultAddresses.vault);
         vaultSlashable = Vault(vaultAddresses.vaultSlashable);
@@ -343,7 +349,7 @@ contract MiddlewareTest is Test {
     ) public returns (Middleware _middleware) {
         address readHelper = address(new OBaseMiddlewareReader());
 
-        Middleware _middlewareImpl = new Middleware(_operatorRewardsAddress, _stakerRewardsFactoryAddress);
+        Middleware _middlewareImpl = new Middleware();
         _middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
         IMiddleware.InitParams memory params = IMiddleware.InitParams({
             network: _network,
@@ -356,7 +362,7 @@ contract MiddlewareTest is Test {
             reader: readHelper
         });
         _middleware.initialize(params);
-
+        _middleware.reinitializeRewards(_operatorRewardsAddress, _stakerRewardsFactoryAddress);
         networkMiddlewareService.setMiddleware(address(_middleware));
     }
 
@@ -403,7 +409,8 @@ contract MiddlewareTest is Test {
             adminFee: 0,
             defaultAdminRoleHolder: tanssi,
             adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi
+            adminFeeSetRoleHolder: tanssi,
+            implementation: stakerRewardsImpl
         });
         middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
         middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsParams);
@@ -858,7 +865,8 @@ contract MiddlewareTest is Test {
             adminFee: 0,
             defaultAdminRoleHolder: network2,
             adminFeeClaimRoleHolder: network2,
-            adminFeeSetRoleHolder: network2
+            adminFeeSetRoleHolder: network2,
+            implementation: stakerRewardsImpl
         });
         vm.startPrank(owner);
         ODefaultOperatorRewards operatorRewards2 = ODefaultOperatorRewards(operatorRewardsAddress2);
@@ -934,7 +942,8 @@ contract MiddlewareTest is Test {
             adminFee: 0,
             defaultAdminRoleHolder: tanssi,
             adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi
+            adminFeeSetRoleHolder: tanssi,
+            implementation: stakerRewardsImpl
         });
         middleware.registerSharedVault(vaultUsdc, stakerRewardsParams);
         middleware.registerSharedVault(vaultUsdt, stakerRewardsParams);
@@ -1575,7 +1584,8 @@ contract MiddlewareTest is Test {
             adminFee: 0,
             defaultAdminRoleHolder: tanssi,
             adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi
+            adminFeeSetRoleHolder: tanssi,
+            implementation: stakerRewardsImpl
         });
 
         middleware.registerSharedVault(testVaultAddresses.vault, stakerRewardsParams);

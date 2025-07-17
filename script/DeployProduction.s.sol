@@ -107,7 +107,7 @@ contract DeployProduction is Script {
             entities.tanssi, networkMiddlewareServiceAddress, OPERATOR_SHARE, initialAdmin
         );
         stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
-            vaultRegistryAddress, networkMiddlewareServiceAddress, operatorRewardsAddress, entities.tanssi
+            vaultRegistryAddress, networkMiddlewareServiceAddress, operatorRewardsAddress, entities.tanssi, initialAdmin
         );
 
         if (isTest) {
@@ -128,7 +128,7 @@ contract DeployProduction is Script {
             reader: reader
         });
 
-        Middleware middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        Middleware middlewareImpl = new Middleware();
         middlewareAddress = address(new MiddlewareProxy(address(middlewareImpl), ""));
         middleware = Middleware(middlewareAddress);
         middleware.initialize(params);
@@ -148,8 +148,6 @@ contract DeployProduction is Script {
         } else {
             vm.stopBroadcast();
         }
-
-        // TODO: Initial admin needs to renounce its admin role once real admin is tested
 
         // This needs to be called as the network, must be done from multisig:
         // if (!INetworkRegistry(networkRegistryAddress).isEntity(entities.tanssi)) {

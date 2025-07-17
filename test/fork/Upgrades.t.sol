@@ -75,10 +75,10 @@ contract UpgradesTest is Test {
         address network = reader.NETWORK();
         uint256 operatorsLength = reader.operatorsLength();
 
-        deployTanssiEcosystem.upgradeMiddlewareBroadcast(
-            address(middleware), 1, newOperatorRewardsAddress, newStakerRewardsFactoryAddress
-        );
+        deployTanssiEcosystem.upgradeMiddlewareBroadcast(address(middleware), 1);
 
+        // Need to reinitialize the operatorRewards and stakerRewardsFactory after the first upgrade
+        middleware.reinitializeRewards(newOperatorRewardsAddress, newStakerRewardsFactoryAddress);
         assertEq(middleware.i_operatorRewards(), newOperatorRewardsAddress);
         assertEq(middleware.i_stakerRewardsFactory(), newStakerRewardsFactoryAddress);
         assertEq(reader.getCurrentEpoch(), currentEpoch);
@@ -87,12 +87,8 @@ contract UpgradesTest is Test {
     }
 
     function testUpgradeMiddlewareFailsIfUnexpectedVersion() public {
-        address newOperatorRewardsAddress = makeAddr("newOperatorRewardsAddress");
-        address newStakerRewardsFactoryAddress = makeAddr("newStakerRewardsFactoryAddress");
         vm.expectRevert("Middleware version is not expected, cannot upgrade");
-        deployTanssiEcosystem.upgradeMiddleware(
-            address(middleware), 2, newOperatorRewardsAddress, newStakerRewardsFactoryAddress, address(0)
-        );
+        deployTanssiEcosystem.upgradeMiddleware(address(middleware), 2, address(0));
     }
 
     function testUpgradeRewardsOperatorWithBroadcast() public {
@@ -111,9 +107,8 @@ contract UpgradesTest is Test {
         address network = stakerRewards.i_network();
         address networkMiddlewareService = stakerRewards.i_networkMiddlewareService();
 
-        deployRewards.upgradeStakerRewards(address(stakerRewards), networkMiddlewareService, vault, network);
+        deployRewards.upgradeStakerRewards(address(stakerRewards), networkMiddlewareService, network);
 
-        assertEq(stakerRewards.i_vault(), vault);
         assertEq(stakerRewards.i_network(), network);
         assertEq(stakerRewards.i_networkMiddlewareService(), networkMiddlewareService);
     }

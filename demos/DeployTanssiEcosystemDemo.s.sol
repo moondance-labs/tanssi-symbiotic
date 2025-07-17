@@ -36,6 +36,8 @@ import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 //**************************************************************************************************
 import {MockV3Aggregator} from "@chainlink/tests/MockV3Aggregator.sol";
 
+import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
+import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
@@ -82,6 +84,8 @@ contract DeployTanssiEcosystemDemo is Script {
     bytes32 public operatorKey1 = vm.envOr("OPERATOR1_KEY", OPERATOR_KEY);
     bytes32 public operatorKey2 = vm.envOr("OPERATOR2_KEY", OPERATOR_KEY2);
     bytes32 public operatorKey3 = vm.envOr("OPERATOR3_KEY", OPERATOR_KEY3);
+
+    address public stakerRewardsImpl;
 
     VaultAddresses public vaultAddresses;
     TokensAddresses public tokensAddresses;
@@ -226,7 +230,8 @@ contract DeployTanssiEcosystemDemo is Script {
             adminFee: 0,
             defaultAdminRoleHolder: tanssi,
             adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi
+            adminFeeSetRoleHolder: tanssi,
+            implementation: stakerRewardsImpl
         });
         ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
         ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsParams);
@@ -338,7 +343,7 @@ contract DeployTanssiEcosystemDemo is Script {
         ODefaultOperatorRewards operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
         address stakerRewardsFactoryAddress = contractScripts.deployRewards.deployStakerRewardsFactoryContract(
-            vaultRegistryAddress, address(networkMiddlewareService), operatorRewardsAddress, tanssi
+            vaultRegistryAddress, address(networkMiddlewareService), operatorRewardsAddress, tanssi, tanssi
         );
 
         vm.startBroadcast(ownerPrivateKey);
@@ -356,6 +361,9 @@ contract DeployTanssiEcosystemDemo is Script {
 
         ecosystemEntities.middleware =
             _deployMiddlewareWithProxy(params, operatorRewardsAddress, stakerRewardsFactoryAddress);
+
+        stakerRewardsImpl = address(new ODefaultStakerRewards(address(networkMiddlewareService), tanssi));
+        ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress).setImplementation(stakerRewardsImpl);
 
         operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(ecosystemEntities.middleware));
         operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(ecosystemEntities.middleware));
@@ -416,12 +424,13 @@ contract DeployTanssiEcosystemDemo is Script {
         address operatorRewardsAddress,
         address stakerRewardsFactoryAddress
     ) private returns (Middleware _middleware) {
-        Middleware _middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        Middleware _middlewareImpl = new Middleware();
         _middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
         console2.log("Middleware Implementation: ", address(_middlewareImpl));
 
         params.reader = address(new OBaseMiddlewareReader());
         _middleware.initialize(params);
+        _middleware.reinitializeRewards(operatorRewardsAddress, stakerRewardsFactoryAddress);
     }
 
     function run() external {

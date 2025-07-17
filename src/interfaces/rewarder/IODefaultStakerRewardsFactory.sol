@@ -18,8 +18,31 @@ import {IODefaultStakerRewards} from "./IODefaultStakerRewards.sol";
 import {IRegistry} from "@symbioticfi/core/src/interfaces/common/IRegistry.sol";
 
 interface IODefaultStakerRewardsFactory is IRegistry {
+    error ODefaultStakerRewardsFactory__AlreadySet();
     error ODefaultStakerRewardsFactory__InvalidAddress();
+    error ODefaultStakerRewardsFactory__InvalidImplementation();
+    error ODefaultStakerRewardsFactory__InvalidVersion();
     error ODefaultStakerRewardsFactory__NotVault();
+
+    /**
+     * @notice Emitted when a new implementation is set.
+     * @param implementation address of the new implementation
+     */
+    event SetImplementation(address indexed implementation);
+
+    /**
+     * @notice Get the current implementation of the staker rewards contract.
+     * @return address of the implementation
+     */
+    function getImplementation() external view returns (address);
+
+    /**
+     * @notice Set a new implementation for staker rewards contract.
+     * @param implementation address of the new implementation
+     */
+    function setImplementation(
+        address implementation
+    ) external;
 
     /**
      * @notice Create a default staker rewards contract for a given vault.
