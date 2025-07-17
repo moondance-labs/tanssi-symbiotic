@@ -217,7 +217,7 @@ contract MiddlewareTest is Test {
         });
         middleware.initialize(params);
         middleware.reinitializeRewards(operatorRewardsAddress, stakerRewardsFactoryAddress);
-        
+
         middleware.setGateway(address(gateway));
         middleware.setCollateralToOracle(address(collateral), address(collateralOracle));
 
