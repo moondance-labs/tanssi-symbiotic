@@ -32,11 +32,9 @@ contract DeployTanssiEcosystem is Script {
     bool public isTest = true;
 
     function deployMiddlewareWithProxy(
-        IMiddleware.InitParams memory params,
-        address operatorRewards,
-        address stakerRewardsFactory
+        IMiddleware.InitParams memory params
     ) public returns (Middleware _middleware) {
-        Middleware _middlewareImpl = new Middleware(operatorRewards, stakerRewardsFactory);
+        Middleware _middlewareImpl = new Middleware();
         _middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
 
         if (params.reader == address(0)) {
@@ -47,13 +45,11 @@ contract DeployTanssiEcosystem is Script {
 
     function deployMiddleware(
         IMiddleware.InitParams memory params,
-        address operatorRewardsAddress,
-        address stakerRewardsFactoryAddress,
         address networkMiddlewareServiceAddress
     ) external returns (address middleware) {
         vm.startBroadcast(broadcaster());
 
-        middleware = address(deployMiddlewareWithProxy(params, operatorRewardsAddress, stakerRewardsFactoryAddress));
+        middleware = address(deployMiddlewareWithProxy(params));
 
         if (networkMiddlewareServiceAddress != address(0)) {
             INetworkMiddlewareService(networkMiddlewareServiceAddress).setMiddleware(address(middleware));
@@ -62,31 +58,18 @@ contract DeployTanssiEcosystem is Script {
         vm.stopBroadcast();
     }
 
-    function upgradeMiddlewareBroadcast(
-        address proxyAddress,
-        uint256 expectedCurrentVersion,
-        address operatorRewardsAddress,
-        address stakerRewardsFactoryAddress
-    ) external {
+    function upgradeMiddlewareBroadcast(address proxyAddress, uint256 expectedCurrentVersion) external {
         isTest = false;
-        upgradeMiddleware(
-            proxyAddress, expectedCurrentVersion, operatorRewardsAddress, stakerRewardsFactoryAddress, address(0)
-        );
+        upgradeMiddleware(proxyAddress, expectedCurrentVersion, address(0));
     }
 
-    function upgradeMiddleware(
-        address proxyAddress,
-        uint256 expectedCurrentVersion,
-        address operatorRewardsAddress,
-        address stakerRewardsFactoryAddress,
-        address contractOwner
-    ) public {
+    function upgradeMiddleware(address proxyAddress, uint256 expectedCurrentVersion, address contractOwner) public {
         if (!isTest) {
             vm.startBroadcast(broadcaster());
         } else {
             vm.startPrank(contractOwner);
         }
-        Middleware newImplementation = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        Middleware newImplementation = new Middleware();
         Middleware proxy = Middleware(proxyAddress);
         uint256 currentVersion = proxy.VERSION();
         if (currentVersion != expectedCurrentVersion) {
@@ -102,14 +85,10 @@ contract DeployTanssiEcosystem is Script {
     }
 
     function deployOnlyMiddleware(
-        address operatorRewardsAddress,
-        address stakerRewardsFactoryAddress,
         bool deployReader
     ) public returns (Middleware newImplementation, OBaseMiddlewareReader reader) {
         vm.startBroadcast(broadcaster());
-        console2.log("Operator rewards address: ", operatorRewardsAddress);
-        console2.log("Staker rewards factory address: ", stakerRewardsFactoryAddress);
-        newImplementation = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        newImplementation = new Middleware();
         if (deployReader) {
             reader = new OBaseMiddlewareReader();
             console2.log("Reader: ", address(reader));

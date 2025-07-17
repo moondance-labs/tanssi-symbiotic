@@ -71,6 +71,7 @@ import {DeployCollateral} from "script/DeployCollateral.s.sol";
 import {DeployVault} from "script/DeployVault.s.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
 import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
+import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
@@ -78,6 +79,7 @@ import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRew
 
 contract FullTest is Test {
     using Subnetwork for address;
+    using Subnetwork for bytes32;
     using Math for uint256;
 
     uint48 public constant VAULT_EPOCH_DURATION = 7 days;
@@ -234,6 +236,7 @@ contract FullTest is Test {
     DeployVault deployVault;
     DeployRewards deployRewards;
     ODefaultOperatorRewards operatorRewards;
+    address stakerRewardsImpl;
     ODefaultStakerRewardsFactory stakerRewardsFactory;
 
     // ************************************************************************************************
@@ -275,9 +278,10 @@ contract FullTest is Test {
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
         address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
-            address(vaultFactory), address(networkMiddlewareService), operatorRewardsAddress, tanssi
+            address(vaultFactory), address(networkMiddlewareService), operatorRewardsAddress, tanssi, owner
         );
         stakerRewardsFactory = ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress);
+        stakerRewardsImpl = address(new ODefaultStakerRewards(address(networkMiddlewareService), tanssi));
 
         _deployMiddlewareWithProxy(operatorRewardsAddress, stakerRewardsFactoryAddress);
         middlewareReader = OBaseMiddlewareReader(address(middleware));
@@ -292,6 +296,9 @@ contract FullTest is Test {
         middleware.setCollateralToOracle(address(wBTC), wBtcOracle);
         middleware.setCollateralToOracle(address(stETH), stEthOracle);
         vm.stopPrank();
+
+        vm.prank(owner);
+        ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress).setImplementation(stakerRewardsImpl);
 
         _registerOperatorAndOptIn(operator1, tanssi, address(vaultsData.v1.vault), false);
         _registerOperatorAndOptIn(operator1, tanssi, address(vaultsData.v2.vault), false);
@@ -336,8 +343,8 @@ contract FullTest is Test {
             reader: address(0)
         });
         DeployTanssiEcosystem deployTanssi = new DeployTanssiEcosystem();
-        middleware = deployTanssi.deployMiddlewareWithProxy(params, operatorRewardsAddress, stakerRewardsFactoryAddress);
-
+        middleware = deployTanssi.deployMiddlewareWithProxy(params);
+        middleware.reinitializeRewards(operatorRewardsAddress, stakerRewardsFactoryAddress);
         networkMiddlewareService.setMiddleware(address(middleware));
     }
 
@@ -483,7 +490,8 @@ contract FullTest is Test {
             adminFee: ADMIN_FEE,
             defaultAdminRoleHolder: tanssi,
             adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi
+            adminFeeSetRoleHolder: tanssi,
+            implementation: stakerRewardsImpl
         });
 
         // OPERATOR SPECIFIC VAULTS
@@ -645,9 +653,8 @@ contract FullTest is Test {
 
         STAR.mint(address(middleware), amountToDistribute);
 
-        vm.startPrank(address(gateway));
+        vm.prank(address(gateway));
         middleware.distributeRewards(epoch, eraIndex, totalPoints, amountToDistribute, rewardsRoot, address(STAR));
-        vm.stopPrank();
 
         return epoch;
     }
@@ -768,7 +775,8 @@ contract FullTest is Test {
             adminFee: ADMIN_FEE,
             defaultAdminRoleHolder: tanssi,
             adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi
+            adminFeeSetRoleHolder: tanssi,
+            implementation: stakerRewardsImpl
         });
 
         for (uint256 i = 0; i < numberOfVaults; i++) {
@@ -951,7 +959,8 @@ contract FullTest is Test {
             adminFee: ADMIN_FEE,
             defaultAdminRoleHolder: tanssi,
             adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi
+            adminFeeSetRoleHolder: tanssi,
+            implementation: stakerRewardsImpl
         });
 
         vm.startPrank(tanssi);
@@ -1631,6 +1640,61 @@ contract FullTest is Test {
         operatorRewards.claimRewards(claimRewardsData);
     }
 
+    function testIfAnOperatorVaultIsRegisteredWithNoStakerRewardsThenItRevertsWithCustomError() public {
+        DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
+            epochDuration: VAULT_EPOCH_DURATION,
+            depositWhitelist: false,
+            depositLimit: 0,
+            delegatorIndex: VaultManager.DelegatorType.OPERATOR_SPECIFIC,
+            shouldBroadcast: false,
+            vaultConfigurator: address(vaultConfigurator),
+            collateral: address(usdc),
+            owner: owner,
+            operator: operator1,
+            network: address(0),
+            burner: address(0xDead)
+        });
+        (address vault, address delegator,) = deployVault.createBaseVault(params);
+
+        vm.startPrank(owner);
+        middleware.registerOperatorVault(operator1, vault);
+        IOperatorSpecificDelegator(delegator).setMaxNetworkLimit(0, VAULT1_NETWORK_LIMIT);
+        IOperatorSpecificDelegator(delegator).setNetworkLimit(tanssi.subnetwork(0), VAULT1_NETWORK_LIMIT);
+        vm.stopPrank();
+
+        vm.prank(operator1);
+        operatorVaultOptInService.optIn(vault);
+        // NOTICE: For operator vaults we should manually deploy a staker rewards contract and call setStakerRewardContract, but we are testing the case where we forget to do it
+
+        _depositToVault(IVault(vault), operator1, OPERATOR1_STAKE_V1_USDC, usdc, true);
+
+        uint48 eraIndex = 4;
+        uint256 amountToDistribute = 100 ether;
+        _prepareRewardsDistribution(eraIndex, amountToDistribute);
+
+        (,, bytes32[] memory proof, uint32 points,) = _loadRewardsRootAndProof(eraIndex, 1);
+
+        {
+            bytes memory additionalData = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
+
+            IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards
+                .ClaimRewardsInput({
+                operatorKey: OPERATOR1_KEY,
+                eraIndex: eraIndex,
+                totalPointsClaimable: points,
+                proof: proof,
+                data: additionalData
+            });
+
+            vm.expectRevert(
+                abi.encodeWithSelector(
+                    IODefaultOperatorRewards.ODefaultOperatorRewards__StakerRewardsNotSetForVault.selector, vault
+                )
+            );
+            operatorRewards.claimRewards(claimRewardsData);
+        }
+    }
+
     // ************************************************************************************************
     // *                                       Slashing
     // ************************************************************************************************
@@ -2028,7 +2092,8 @@ contract FullTest is Test {
             adminFee: ADMIN_FEE,
             defaultAdminRoleHolder: tanssi,
             adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi
+            adminFeeSetRoleHolder: tanssi,
+            implementation: stakerRewardsImpl
         });
 
         vm.expectRevert(VaultManager.VaultEpochTooShort.selector);

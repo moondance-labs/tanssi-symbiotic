@@ -56,13 +56,13 @@ abstract contract MiddlewareStorage {
      * @notice Get the operator rewards contract address
      * @return operator rewards contract address
      */
-    address public immutable i_operatorRewards;
+    address public i_operatorRewards;
 
     /**
      * @notice Get the staker rewards factory contract address
      * @return staker rewards factory contract address
      */
-    address public immutable i_stakerRewardsFactory;
+    address public i_stakerRewardsFactory;
 
     function _getMiddlewareStorage() internal pure returns (StorageMiddleware storage $v1) {
         assembly {

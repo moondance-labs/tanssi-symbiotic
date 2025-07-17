@@ -85,17 +85,9 @@ contract Middleware is
 
     /*
      * @notice Constructor for the middleware
-     * @param operatorRewards The operator rewards address
-     * @param stakerRewardsFactory The staker rewards factory address
      */
-    constructor(
-        address operatorRewards,
-        address stakerRewardsFactory
-    ) notZeroAddress(operatorRewards) notZeroAddress(stakerRewardsFactory) {
+    constructor() {
         _disableInitializers();
-
-        i_operatorRewards = operatorRewards;
-        i_stakerRewardsFactory = stakerRewardsFactory;
     }
 
     /*
@@ -138,6 +130,19 @@ contract Middleware is
         _setSelectorRole(this.performUpkeep.selector, FORWARDER_ROLE);
     }
 
+    /*
+     * @notice Reinitialize the middleware with only operator rewards and staker rewards factory addresses
+     * @param operatorRewards The operator rewards address
+     * @param stakerRewardsFactory The staker rewards factory address
+     */
+    function reinitializeRewards(
+        address operatorRewards,
+        address stakerRewardsFactory
+    ) external reinitializer(2) notZeroAddress(operatorRewards) notZeroAddress(stakerRewardsFactory) {
+        i_operatorRewards = operatorRewards;
+        i_stakerRewardsFactory = stakerRewardsFactory;
+    }
+
     function _validateInitParams(
         InitParams memory params
     )
@@ -160,6 +165,10 @@ contract Middleware is
     }
 
     function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
+        if (stake == 0) {
+            return 0;
+        }
+
         address collateral = vaultToCollateral(vault);
         address oracle = collateralToOracle(collateral);
 
@@ -531,7 +540,7 @@ contract Middleware is
         bytes memory key,
         address
     ) internal pure override notZeroAddress(operator) {
-        if (abi.decode(key, (bytes32)) == bytes32(0)) {
+        if (key.length != 32 || abi.decode(key, (bytes32)) == bytes32(0)) {
             revert Middleware__InvalidKey();
         }
     }
