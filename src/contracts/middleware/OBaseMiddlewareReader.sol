@@ -765,21 +765,10 @@ contract OBaseMiddlewareReader is
         VaultManagerStorage storage $ = _getVaultManagerStorage();
         address[] memory operatorVaults = $._operatorVaults[operator].getActive(timestamp);
 
-        uint256 totalSharedVaults = sharedVaults.length;
-        uint256 totalOperatorVaults = operatorVaults.length;
-
         // This check might seem innecesary since we check on vault registration, however if we register first operator vaults and then shared ones, the limit might be reached for an operator without triggering the revert on registration.
-        if (totalSharedVaults + totalOperatorVaults <= MAX_ACTIVE_VAULTS) {
-            address[] memory vaults = new address[](totalSharedVaults + totalOperatorVaults);
-
-            for (uint256 i; i < totalSharedVaults; ++i) {
-                vaults[i] = sharedVaults[i];
-            }
-            for (uint256 i; i < totalOperatorVaults; ++i) {
-                vaults[totalSharedVaults + i] = operatorVaults[i];
-            }
-
-            power = _getOperatorPowerAt(timestamp, operator, vaults, subnetworks);
+        if (sharedVaults.length + operatorVaults.length <= MAX_ACTIVE_VAULTS) {
+            power = _getOperatorPowerAt(timestamp, operator, sharedVaults, subnetworks)
+                + _getOperatorPowerAt(timestamp, operator, operatorVaults, subnetworks);
         }
     }
 
