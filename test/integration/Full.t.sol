@@ -2126,7 +2126,8 @@ contract FullTest is Test {
             adminFee: ADMIN_FEE,
             defaultAdminRoleHolder: tanssi,
             adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi
+            adminFeeSetRoleHolder: tanssi,
+            implementation: stakerRewardsImpl
         });
 
         for (uint256 i; i < maxVaults - activeSharedVaults - 1; i++) {
@@ -2194,7 +2195,8 @@ contract FullTest is Test {
             adminFee: ADMIN_FEE,
             defaultAdminRoleHolder: tanssi,
             adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi
+            adminFeeSetRoleHolder: tanssi,
+            implementation: stakerRewardsImpl
         });
 
         for (uint256 i; i < operatorSpecificVaultToCreate; i++) {
