@@ -216,8 +216,8 @@ contract MiddlewareTest is Test {
             reader: readHelper
         });
         middleware.initialize(params);
-        //TODO: This should be taken out later on
         middleware.reinitializeRewards(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        
         middleware.setGateway(address(gateway));
         middleware.setCollateralToOracle(address(collateral), address(collateralOracle));
 

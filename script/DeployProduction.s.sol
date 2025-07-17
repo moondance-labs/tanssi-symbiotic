@@ -149,8 +149,6 @@ contract DeployProduction is Script {
             vm.stopBroadcast();
         }
 
-        // TODO: Initial admin needs to renounce its admin role once real admin is tested
-
         // This needs to be called as the network, must be done from multisig:
         // if (!INetworkRegistry(networkRegistryAddress).isEntity(entities.tanssi)) {
         //     INetworkRegistry(networkRegistryAddress).registerNetwork();
