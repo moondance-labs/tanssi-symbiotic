@@ -38,9 +38,14 @@ contract AggregatorV3Proxy is AggregatorV3Interface {
         returns (uint80 roundId, int256 ans, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)
     {
         (uint128 latestPrice, uint128 timestampOfLatestPrice) = aggregator.getValue(pairSymbol);
-        int256 answer = int256(uint256(latestPrice));
 
-        return (uint80(1), answer, uint256(timestampOfLatestPrice), uint256(timestampOfLatestPrice), uint80(1));
+        return (
+            uint80(1),
+            int256(uint256(latestPrice)),
+            uint256(timestampOfLatestPrice),
+            uint256(timestampOfLatestPrice),
+            uint80(1)
+        );
     }
 
     function latestRoundData()
@@ -51,8 +56,12 @@ contract AggregatorV3Proxy is AggregatorV3Interface {
     {
         (uint128 latestPrice, uint128 timestampOfLatestPrice) = aggregator.getValue(pairSymbol);
 
-        int256 answer = int256(uint256(latestPrice));
-
-        return (uint80(1), answer, uint256(timestampOfLatestPrice), uint256(timestampOfLatestPrice), uint80(1));
+        return (
+            uint80(1),
+            ansint256(uint256(latestPrice)) wer,
+            uint256(timestampOfLatestPrice),
+            uint256(timestampOfLatestPrice),
+            uint80(1)
+        );
     }
 }
