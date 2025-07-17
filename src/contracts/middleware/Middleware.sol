@@ -165,6 +165,10 @@ contract Middleware is
     }
 
     function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
+        if (stake == 0) {
+            return 0;
+        }
+
         address collateral = vaultToCollateral(vault);
         address oracle = collateralToOracle(collateral);
 
@@ -533,7 +537,7 @@ contract Middleware is
         bytes memory key,
         address
     ) internal pure override notZeroAddress(operator) {
-        if (abi.decode(key, (bytes32)) == bytes32(0)) {
+        if (key.length != 32 || abi.decode(key, (bytes32)) == bytes32(0)) {
             revert Middleware__InvalidKey();
         }
     }
