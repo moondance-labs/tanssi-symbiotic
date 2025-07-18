@@ -68,6 +68,7 @@ import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStake
 import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
+import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
 import {MiddlewareV2} from "./utils/MiddlewareV2.sol";
 import {MiddlewareV3} from "./utils/MiddlewareV3.sol";
@@ -2182,7 +2183,7 @@ contract MiddlewareTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                OBaseMiddlewareReader.OBaseMiddlewareReader__NotSupportedCollateral.selector, _collateral
+                IOBaseMiddlewareReader.OBaseMiddlewareReader__NotSupportedCollateral.selector, _collateral
             )
         );
         middleware.stakeToPower(_vault, stake);

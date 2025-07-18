@@ -39,6 +39,7 @@ import {KeyManager256} from "@symbiotic-middleware/extensions/managers/keys/KeyM
 import {BaseMiddleware} from "@symbiotic-middleware/middleware/BaseMiddleware.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 
+import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {QuickSort} from "src/contracts/libraries/QuickSort.sol";
 import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
@@ -64,7 +65,7 @@ contract OBaseMiddlewareReader is
     using Subnetwork for bytes32;
     using Math for uint256;
 
-    error OBaseMiddlewareReader__NotSupportedCollateral(address collateral);
+    // ** OLD BASE MIDDLEWARE READER LOGIC **
 
     function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
         return BaseMiddleware(_getMiddleware()).stakeToPower(vault, stake);
@@ -85,7 +86,7 @@ contract OBaseMiddlewareReader is
         address oracle = collateralToOracle(collateral);
 
         if (oracle == address(0)) {
-            revert OBaseMiddlewareReader__NotSupportedCollateral(collateral);
+            revert IOBaseMiddlewareReader.OBaseMiddlewareReader__NotSupportedCollateral(collateral);
         }
         (, int256 price,,,) = AggregatorV3Interface(oracle).latestRoundData();
         uint8 priceDecimals = AggregatorV3Interface(oracle).decimals();
