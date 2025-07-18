@@ -77,6 +77,8 @@ import {MockOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/test/moc
 
 import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
 
+import {DIAOracleMock} from "test/mocks/DIAOracleMock.sol";
+import {AggregatorV3Proxy} from "src/contracts/oracle-proxy/AggregatorV3Proxy.sol";
 import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
@@ -122,17 +124,24 @@ contract MiddlewareTest is Test {
     int256 public constant ORACLE_CONVERSION_ST_ETH = 3000 ether;
     int256 public constant ORACLE_CONVERSION_R_ETH = 3000 ether;
     int256 public constant ORACLE_CONVERSION_W_BTC = 90_000 ether;
+    int256 public constant ORACLE_CONVERSION_TANSSI = 1 * 10 ** 8;
+    string public constant TANSSI_PAIR_SYMBOL = "TANSSI/USD";
 
     uint8 public constant USDC_ORACLE_DECIMALS = 8; // USDC_ORACLE_DECIMALS
     uint8 public constant USDC_TOKEN_DECIMALS = 6; // USDC_TOKEN_DECIMALS
     uint8 public constant USDT_ORACLE_DECIMALS = 18; // USDT_ORACLE_DECIMALS
     uint8 public constant USDT_TOKEN_DECIMALS = 18; // USDT_TOKEN_DECIMALS
+    uint8 public constant TANSSI_ORACLE_DECIMALS = 8; // TANSSI_ORACLE_DECIMALS
+    uint8 public constant TANSSI_TOKEN_DECIMALS = 12; // TANSSI_TOKEN_DECIMALS
 
     // It's Both are staking 150 USD worth in total
     uint256 public constant OPERATOR_4_STAKE_USDC = 90 * 10 ** USDC_TOKEN_DECIMALS;
     uint256 public constant OPERATOR_4_STAKE_USDT = 60 * 10 ** USDT_TOKEN_DECIMALS;
     uint256 public constant OPERATOR_5_STAKE_USDC = 60 * 10 ** USDC_TOKEN_DECIMALS;
     uint256 public constant OPERATOR_5_STAKE_USDT = 90 * 10 ** USDT_TOKEN_DECIMALS;
+
+    uint256 public constant OPERATOR_4_STAKE_TANSSI = 60 * 10 ** TANSSI_TOKEN_DECIMALS;
+    uint256 public constant OPERATOR_5_STAKE_TANSSI = 90 * 10 ** TANSSI_TOKEN_DECIMALS;
 
     uint256 public totalFullRestakePower; // Each operator participates with 100% of all operators stake
     uint256 public totalPowerVault; // By shares. Each operator participates gets 1/3 of the total power
@@ -983,6 +992,74 @@ contract MiddlewareTest is Test {
 
         // Total deposit is 300 USD, it should be normalized to 18 decimals
         uint256 totalPowerByShares = 300 ether;
+        // Only 2 operators participate in the USD vaults, so each has half of the power.
+        uint256 totalPowerOperator = totalPowerByShares / 2;
+
+        assertEq(validators[3].power, totalPowerOperator);
+        assertEq(validators[4].power, totalPowerOperator);
+    }
+
+    function testTanssiCollateral() public {
+        vm.startPrank(owner);
+
+        Token tanssiCollateral = Token(deployCollateral.deployCollateral("TANSSI", 12));
+
+        tanssiCollateral.mint(operator4, 1000 * 10 ** TANSSI_TOKEN_DECIMALS);
+        tanssiCollateral.mint(operator5, 1000 * 10 ** TANSSI_TOKEN_DECIMALS);
+
+        DIAOracleMock diaOracle =
+            new DIAOracleMock(TANSSI_PAIR_SYMBOL, uint128(uint256(ORACLE_CONVERSION_TANSSI)), uint128(block.timestamp));
+
+        AggregatorV3Proxy tanssiCollateralOracle = new AggregatorV3Proxy(address(diaOracle), TANSSI_PAIR_SYMBOL);
+        vm.stopPrank();
+
+        (address tanssiVaultAddress, address tanssiDelegatorAddress, address tanssiSlasherAddress) =
+            deployVault.createTanssiVault(address(vaultConfigurator), tanssi, address(tanssiCollateral));
+
+        vm.startPrank(owner);
+        middleware.setCollateralToOracle(address(tanssiCollateral), address(tanssiCollateralOracle));
+
+        _registerOperatorAndOptIn(operator4, tanssi, address(tanssiVaultAddress), true);
+
+        _registerOperatorAndOptIn(operator5, tanssi, address(tanssiVaultAddress), true);
+
+        vm.startPrank(owner);
+
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            adminFee: 0,
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: tanssi,
+            adminFeeSetRoleHolder: tanssi,
+            implementation: stakerRewardsImpl
+        });
+        middleware.registerSharedVault(tanssiVaultAddress, stakerRewardsParams);
+
+        middleware.registerOperator(operator4, abi.encode(OPERATOR4_KEY), address(0));
+        middleware.registerOperator(operator5, abi.encode(OPERATOR5_KEY), address(0));
+
+        vm.startPrank(tanssi);
+
+        INetworkRestakeDelegator(tanssiDelegatorAddress).setOperatorNetworkShares(tanssi.subnetwork(0), operator4, 1);
+        INetworkRestakeDelegator(tanssiDelegatorAddress).setOperatorNetworkShares(tanssi.subnetwork(0), operator5, 1);
+
+        INetworkRestakeDelegator(tanssiDelegatorAddress).setMaxNetworkLimit(0, 1000 * 10 ** TANSSI_TOKEN_DECIMALS);
+
+        INetworkRestakeDelegator(tanssiDelegatorAddress).setNetworkLimit(
+            tanssi.subnetwork(0), 1000 * 10 ** TANSSI_TOKEN_DECIMALS
+        );
+
+        vm.startPrank(operator4);
+        _depositToVault(Vault(tanssiVaultAddress), operator4, OPERATOR_4_STAKE_TANSSI, tanssiCollateral);
+
+        vm.startPrank(operator5);
+        _depositToVault(Vault(tanssiVaultAddress), operator5, OPERATOR_5_STAKE_TANSSI, tanssiCollateral);
+
+        vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW - 1);
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        Middleware.ValidatorData[] memory validators = _validatorSet(currentEpoch);
+
+        // Total deposit is 300 USD, it should be normalized to 18 decimals
+        uint256 totalPowerByShares = 150 ether;
         // Only 2 operators participate in the USD vaults, so each has half of the power.
         uint256 totalPowerOperator = totalPowerByShares / 2;
 
