@@ -510,7 +510,7 @@ contract Middleware is
     /**
      * @inheritdoc BaseOperators
      */
-    function _beforeRegisterOperatorVault(address operator, address vault) internal override {
+    function _beforeRegisterOperatorVault(address, /* operator */ address vault) internal override {
         _setVaultToCollateral(vault);
     }
 
