@@ -60,6 +60,8 @@ import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol"
 //                                      TANSSI
 //**************************************************************************************************
 
+import {DIAOracleMock} from "test/mocks/DIAOracleMock.sol";
+import {AggregatorV3DIAProxy} from "src/contracts/oracle-proxy/AggregatorV3DIAProxy.sol";
 import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
@@ -117,8 +119,8 @@ contract FullTest is Test {
     int256 public constant ORACLE_CONVERSION_TOKEN = 2000;
 
     uint256 TANSSI_VAULT_DEPOSIT_AMOUNT = 500_000 * 10 ** 12; // 500k TANSSI
-    uint8 public constant TANSSI_ORACLE_DECIMALS = 3;
-    int256 public constant TANSSI_ORACLE_CONVERSION_TOKEN = 80; // 0.08 USD
+    uint8 public constant TANSSI_ORACLE_DECIMALS = 8;
+    int256 public constant TANSSI_ORACLE_CONVERSION_TOKEN = int256(1 * 10 ** TANSSI_ORACLE_DECIMALS); // 1 USD
 
     uint256 public constant MAX_CHAINLINK_PROCESSABLE_BYTES = 2000;
     uint256 public constant MAX_CHAINLINK_CHECKUPKEEP_GAS = 10 ** 7; // 10M gas
@@ -1794,21 +1796,14 @@ contract FullTest is Test {
             deployVault.createTanssiVault(vaultConfigurator, address(admin), address(rewardsToken));
         IVault tanssiVault = IVault(tanssiVaultAddress);
 
-        address tanssiOracle = makeAddr("tanssiOracle");
-        vm.mockCall(
-            tanssiOracle,
-            abi.encodeWithSelector(AggregatorV3Interface.latestRoundData.selector),
-            abi.encode(uint80(0), TANSSI_ORACLE_CONVERSION_TOKEN, uint256(0), uint256(0), uint80(0))
-        );
-        vm.mockCall(
-            tanssiOracle,
-            abi.encodeWithSelector(AggregatorV3Interface.decimals.selector),
-            abi.encode(uint8(TANSSI_ORACLE_DECIMALS))
-        );
+        DIAOracleMock tanssiOracle =
+            new DIAOracleMock("TANSSI/USD", uint128(uint256(TANSSI_ORACLE_CONVERSION_TOKEN)), uint128(block.timestamp));
+
+        AggregatorV3DIAProxy aggregatorTanssi = new AggregatorV3DIAProxy(address(tanssiOracle), "TANSSI/USD");
 
         vm.startPrank(admin);
 
-        middleware.setCollateralToOracle(address(rewardsToken), tanssiOracle);
+        middleware.setCollateralToOracle(address(rewardsToken), address(aggregatorTanssi));
         IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
             adminFee: 0,
             defaultAdminRoleHolder: admin,
