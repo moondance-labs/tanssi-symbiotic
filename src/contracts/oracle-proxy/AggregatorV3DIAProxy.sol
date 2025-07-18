@@ -7,15 +7,15 @@ pragma solidity 0.8.25;
 import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3Interface.sol";
 import {IDIAOracleV2} from "src/interfaces/oracles/IDIAOracleV2.sol";
 
-contract AggregatorV3Proxy is AggregatorV3Interface {
+contract AggregatorV3DIAProxy is AggregatorV3Interface {
     string public pairSymbol;
     IDIAOracleV2 public aggregator;
 
-    error AggregatorV3Proxy__InvalidData();
+    error AggregatorV3DIAProxy__InvalidData();
 
     constructor(address _aggregator, string memory _pairSymbol) {
         if (_aggregator == address(0) || bytes(_pairSymbol).length == 0) {
-            revert AggregatorV3Proxy__InvalidData();
+            revert AggregatorV3DIAProxy__InvalidData();
         }
         aggregator = IDIAOracleV2(_aggregator);
         pairSymbol = _pairSymbol;

@@ -78,7 +78,7 @@ import {MockOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/test/moc
 import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
 
 import {DIAOracleMock} from "test/mocks/DIAOracleMock.sol";
-import {AggregatorV3Proxy} from "src/contracts/oracle-proxy/AggregatorV3Proxy.sol";
+import {AggregatorV3DIAProxy} from "src/contracts/oracle-proxy/AggregatorV3DIAProxy.sol";
 import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
@@ -120,11 +120,13 @@ contract MiddlewareTest is Test {
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
     uint256 public constant SLASHING_FRACTION = PARTS_PER_BILLION / 10; // 10%
 
+    uint8 public constant DEFAULT_DECIMALS = 18;
     uint8 public constant ORACLE_DECIMALS = 18;
     int256 public constant ORACLE_CONVERSION_ST_ETH = 3000 ether;
     int256 public constant ORACLE_CONVERSION_R_ETH = 3000 ether;
     int256 public constant ORACLE_CONVERSION_W_BTC = 90_000 ether;
-    int256 public constant ORACLE_CONVERSION_TANSSI = 1 * 10 ** 8;
+
+    int256 public constant ORACLE_CONVERSION_TANSSI = 6 * 10 ** 7; // 0.6 USD
     string public constant TANSSI_PAIR_SYMBOL = "TANSSI/USD";
 
     uint8 public constant USDC_ORACLE_DECIMALS = 8; // USDC_ORACLE_DECIMALS
@@ -1010,7 +1012,7 @@ contract MiddlewareTest is Test {
         DIAOracleMock diaOracle =
             new DIAOracleMock(TANSSI_PAIR_SYMBOL, uint128(uint256(ORACLE_CONVERSION_TANSSI)), uint128(block.timestamp));
 
-        AggregatorV3Proxy tanssiCollateralOracle = new AggregatorV3Proxy(address(diaOracle), TANSSI_PAIR_SYMBOL);
+        AggregatorV3DIAProxy tanssiCollateralOracle = new AggregatorV3DIAProxy(address(diaOracle), TANSSI_PAIR_SYMBOL);
         vm.stopPrank();
 
         (address tanssiVaultAddress, address tanssiDelegatorAddress, address tanssiSlasherAddress) =
@@ -1058,8 +1060,11 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validators = _validatorSet(currentEpoch);
 
+        // stake.mulDiv(uint256(price), 10 ** priceDecimals);
         // Total deposit is 300 USD, it should be normalized to 18 decimals
-        uint256 totalPowerByShares = 150 ether;
+        uint256 totalPowerByShares = (OPERATOR_4_STAKE_TANSSI + OPERATOR_5_STAKE_TANSSI).mulDiv(
+            uint256(ORACLE_CONVERSION_TANSSI), 10 ** (TANSSI_ORACLE_DECIMALS + TANSSI_TOKEN_DECIMALS - DEFAULT_DECIMALS)
+        );
         // Only 2 operators participate in the USD vaults, so each has half of the power.
         uint256 totalPowerOperator = totalPowerByShares / 2;
 

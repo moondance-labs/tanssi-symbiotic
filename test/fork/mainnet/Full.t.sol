@@ -61,7 +61,7 @@ import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol"
 //**************************************************************************************************
 
 import {DIAOracleMock} from "test/mocks/DIAOracleMock.sol";
-import {AggregatorV3Proxy} from "src/contracts/oracle-proxy/AggregatorV3Proxy.sol";
+import {AggregatorV3DIAProxy} from "src/contracts/oracle-proxy/AggregatorV3DIAProxy.sol";
 import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
@@ -1799,7 +1799,7 @@ contract FullTest is Test {
         DIAOracleMock tanssiOracle =
             new DIAOracleMock("TANSSI/USD", uint128(uint256(TANSSI_ORACLE_CONVERSION_TOKEN)), uint128(block.timestamp));
 
-        AggregatorV3Proxy aggregatorTanssi = new AggregatorV3Proxy(address(tanssiOracle), "TANSSI/USD");
+        AggregatorV3DIAProxy aggregatorTanssi = new AggregatorV3DIAProxy(address(tanssiOracle), "TANSSI/USD");
 
         vm.startPrank(admin);
 
