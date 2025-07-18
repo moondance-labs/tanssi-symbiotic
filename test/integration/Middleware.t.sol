@@ -1060,8 +1060,7 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validators = _validatorSet(currentEpoch);
 
-        // stake.mulDiv(uint256(price), 10 ** priceDecimals);
-        // Total deposit is 300 USD, it should be normalized to 18 decimals
+        // Total deposit is 90 USD, it should be normalized to 18 decimals
         uint256 totalPowerByShares = (OPERATOR_4_STAKE_TANSSI + OPERATOR_5_STAKE_TANSSI).mulDiv(
             uint256(ORACLE_CONVERSION_TANSSI), 10 ** (TANSSI_ORACLE_DECIMALS + TANSSI_TOKEN_DECIMALS - DEFAULT_DECIMALS)
         );
