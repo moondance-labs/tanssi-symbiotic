@@ -1280,10 +1280,12 @@ contract FullTest is Test {
             vm.prank(owner);
             middleware.setForwarder(forwarder);
 
+            uint256 gasBefore = gasleft();
             (, bytes memory performData) = middleware.checkUpkeep(hex"");
+            console2.log("Gas used to checkUpkeep:", gasBefore - gasleft());
 
             vm.startPrank(forwarder);
-            uint256 gasBefore = gasleft();
+            gasBefore = gasleft();
             middleware.performUpkeep(performData);
             console2.log("Gas used to performUpkeep:", gasBefore - gasleft());
         }

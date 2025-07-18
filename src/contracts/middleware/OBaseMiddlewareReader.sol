@@ -668,6 +668,9 @@ contract OBaseMiddlewareReader is
         validatorSet = new IMiddleware.ValidatorData[](operators.length);
 
         uint256 len = 0;
+        VaultManagerStorage storage $ = _getVaultManagerStorage();
+        address[] memory sharedVaults = $._sharedVaults.getActive(epochStartTs);
+        uint96 subnetwork = _NETWORK().subnetwork(0).identifier();
         uint256 operatorsLength_ = operators.length;
         for (uint256 i; i < operatorsLength_;) {
             address operator = operators[i];
@@ -680,7 +683,7 @@ contract OBaseMiddlewareReader is
                 if (operatorPowerCached != 0) {
                     validatorSet[len++] = IMiddleware.ValidatorData(operatorPowerCached, key);
                 } else {
-                    uint256 power = _getOperatorPowerAt(epochStartTs, operator);
+                    uint256 power = _optmizedGetOperatorPowerAt(epochStartTs, sharedVaults, subnetwork, operator);
                     if (key != bytes32(0) && power != 0) {
                         validatorSet[len++] = IMiddleware.ValidatorData(power, key);
                     }
@@ -763,13 +766,13 @@ contract OBaseMiddlewareReader is
 
         VaultManagerStorage storage $ = _getVaultManagerStorage();
         address[] memory sharedVaults = $._sharedVaults.getActive(timestamp);
-        uint160[] memory subnetworks = _activeSubnetworksAt(timestamp);
+        uint96 subnetwork = _NETWORK().subnetwork(0).identifier();
         uint256 activeOperatorsLength = activeOperators_.length;
 
         for (uint256 i = cacheIndex; i < cacheIndex + maxNumOperatorsToCheck && i < activeOperatorsLength;) {
             address operator = activeOperators_[i];
             bytes32 operatorKey = abi.decode(operatorKey(operator), (bytes32));
-            uint256 operatorPower = _optmizedGetOperatorPowerAt(timestamp, sharedVaults, subnetworks, operator);
+            uint256 operatorPower = _optmizedGetOperatorPowerAt(timestamp, sharedVaults, subnetwork, operator);
             validatorsData[i - cacheIndex] = IMiddleware.ValidatorData({key: operatorKey, power: operatorPower});
 
             unchecked {
@@ -785,7 +788,7 @@ contract OBaseMiddlewareReader is
     function _optmizedGetOperatorPowerAt(
         uint48 timestamp,
         address[] memory sharedVaults,
-        uint160[] memory subnetworks,
+        uint96 subnetwork,
         address operator
     ) private view returns (uint256 power) {
         VaultManagerStorage storage $ = _getVaultManagerStorage();
@@ -793,8 +796,30 @@ contract OBaseMiddlewareReader is
 
         // This check might seem innecesary since we check on vault registration, however if we register first operator vaults and then shared ones, the limit might be reached for an operator without triggering the revert on registration.
         if (sharedVaults.length + operatorVaults.length <= MAX_ACTIVE_VAULTS) {
-            power = _getOperatorPowerAt(timestamp, operator, sharedVaults, subnetworks)
-                + _getOperatorPowerAt(timestamp, operator, operatorVaults, subnetworks);
+            power = _getOperatorPowerAt(timestamp, operator, sharedVaults, subnetwork)
+                + _getOperatorPowerAt(timestamp, operator, operatorVaults, subnetwork);
         }
+    }
+
+    /**
+     * @notice Optimized version of _getOperatorPowerAt that only gets the power for a single subnetwork
+     * @param timestamp The timestamp to check
+     * @param operator The operator address
+     * @param vaults The list of vault addresses
+     * @param subnetwork The subnetwork identifier
+     * @return power The total power amount at the timestamp
+     */
+    function _getOperatorPowerAt(
+        uint48 timestamp,
+        address operator,
+        address[] memory vaults,
+        uint96 subnetwork
+    ) internal view returns (uint256 power) {
+        uint256 vaultsLength = vaults.length;
+        for (uint256 i; i < vaultsLength; ++i) {
+            power += _getOperatorPowerAt(timestamp, operator, vaults[i], subnetwork);
+        }
+
+        return power;
     }
 }
