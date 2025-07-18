@@ -21,6 +21,8 @@ interface IOBaseMiddlewareReader {
 
     function stakeToPower(address vault, uint256 stake) external view returns (uint256 power);
 
+    function getPowerInUSD(address vault, uint256 stake) external view returns (uint256 power);
+
     function keyWasActiveAt(uint48 timestamp, bytes memory key) external view returns (bool);
 
     function operatorKey(
@@ -195,8 +197,4 @@ interface IOBaseMiddlewareReader {
     ) external view returns (uint48 epoch);
 
     function auxiliaryCheckUpkeep() external view returns (bool upkeepNeeded, bytes memory performData);
-
-    function checkTotalActiveVaults(
-        address operator
-    ) external view;
 }

@@ -18,13 +18,11 @@ pragma solidity 0.8.25;
 //                                      CHAINLINK
 //**************************************************************************************************
 import {AutomationCompatibleInterface} from "@chainlink/automation/interfaces/AutomationCompatibleInterface.sol";
-import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3Interface.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -165,24 +163,7 @@ contract Middleware is
     }
 
     function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
-        if (stake == 0) {
-            return 0;
-        }
-
-        address collateral = vaultToCollateral(vault);
-        address oracle = collateralToOracle(collateral);
-
-        if (oracle == address(0)) {
-            revert Middleware__NotSupportedCollateral(collateral);
-        }
-        (, int256 price,,,) = AggregatorV3Interface(oracle).latestRoundData();
-        uint8 priceDecimals = AggregatorV3Interface(oracle).decimals();
-        power = stake.mulDiv(uint256(price), 10 ** priceDecimals);
-        // Normalize power to 18 decimals
-        uint8 collateralDecimals = IERC20Metadata(collateral).decimals();
-        if (collateralDecimals != DEFAULT_DECIMALS) {
-            power = power.mulDiv(10 ** DEFAULT_DECIMALS, 10 ** collateralDecimals);
-        }
+        return IOBaseMiddlewareReader(address(this)).getPowerInUSD(vault, stake);
     }
 
     /**
@@ -514,7 +495,9 @@ contract Middleware is
         address sharedVault,
         IODefaultStakerRewards.InitParams memory stakerRewardsParams
     ) internal override {
-        IOBaseMiddlewareReader(address(this)).checkTotalActiveVaults(address(0));
+        if (_sharedVaultsLength() >= MAX_ACTIVE_VAULTS) {
+            revert Middleware__TooManyActiveVaults();
+        }
 
         address stakerRewards =
             IODefaultStakerRewardsFactory(i_stakerRewardsFactory).create(sharedVault, stakerRewardsParams);
@@ -528,7 +511,6 @@ contract Middleware is
      * @inheritdoc BaseOperators
      */
     function _beforeRegisterOperatorVault(address operator, address vault) internal override {
-        IOBaseMiddlewareReader(address(this)).checkTotalActiveVaults(operator);
         _setVaultToCollateral(vault);
     }
 

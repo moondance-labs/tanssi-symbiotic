@@ -2149,7 +2149,8 @@ contract MiddlewareTest is Test {
         (,, int256 multiplier, uint8 oracleDecimals,) = _setVaultCollateral(_vault);
 
         // Need to do this otherwise it calls directly middleware stakeToPower and can't reach OBaseMiddlewareReader
-        bytes memory baseCallData = abi.encodeWithSelector(OBaseMiddlewareReader.stakeToPower.selector, _vault, stake);
+        bytes memory baseCallData =
+            abi.encodeWithSelector(bytes4(keccak256("stakeToPower(address,uint256)")), _vault, stake);
 
         bytes memory augmentedCallData = abi.encodePacked(baseCallData, address(middleware));
 
@@ -2179,7 +2180,11 @@ contract MiddlewareTest is Test {
         _setVaultToCollateral(_vault, _collateral);
         // Collateral is not set to an oracle
 
-        vm.expectRevert(abi.encodeWithSelector(IMiddleware.Middleware__NotSupportedCollateral.selector, _collateral));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                OBaseMiddlewareReader.OBaseMiddlewareReader__NotSupportedCollateral.selector, _collateral
+            )
+        );
         middleware.stakeToPower(_vault, stake);
     }
 

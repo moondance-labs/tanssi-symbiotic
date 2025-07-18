@@ -2102,7 +2102,7 @@ contract FullTest is Test {
         vm.stopPrank();
     }
 
-    function testCannotRegisterSharedNorOperatorVaultsOverTheLimit() public {
+    function testCannotRegisterSharedOverTheLimit() public {
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
         uint256 maxVaults = middleware.MAX_ACTIVE_VAULTS();
         uint256 activeSharedVaults = middlewareReader.sharedVaultsLength();
@@ -2137,17 +2137,9 @@ contract FullTest is Test {
         vm.warp(block.timestamp + VAULT_EPOCH_DURATION + 1);
         activeSharedVaults = middlewareReader.activeVaults().length;
 
-        // Testing for shared vaults
         (address vaultAfterLimit,,) = deployVault.createBaseVault(params);
-        vm.expectRevert(OBaseMiddlewareReader.Middleware__TooManyActiveVaults.selector);
+        vm.expectRevert(IMiddleware.Middleware__TooManyActiveVaults.selector);
         middleware.registerSharedVault(address(vaultAfterLimit), stakerRewardsParams);
-
-        // Testing for operator vaults
-        params.delegatorIndex = VaultManager.DelegatorType.OPERATOR_SPECIFIC;
-        params.operator = operator1;
-        (address operatorVaultAfterLimit,,) = deployVault.createBaseVault(params);
-        vm.expectRevert(OBaseMiddlewareReader.Middleware__TooManyActiveVaults.selector);
-        middleware.registerOperatorVault(operator1, address(operatorVaultAfterLimit));
 
         vm.stopPrank();
     }

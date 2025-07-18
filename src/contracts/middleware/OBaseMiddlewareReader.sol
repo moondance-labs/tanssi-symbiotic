@@ -15,10 +15,16 @@
 pragma solidity 0.8.25;
 
 //**************************************************************************************************
+//                                      CHAINLINK
+//**************************************************************************************************
+import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3Interface.sol";
+
+//**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 //**************************************************************************************************
 //                                      SYMBIOTIC
@@ -58,18 +64,37 @@ contract OBaseMiddlewareReader is
     using Subnetwork for bytes32;
     using Math for uint256;
 
-    error Middleware__TooManyActiveVaults();
+    error OBaseMiddlewareReader__NotSupportedCollateral(address collateral);
 
-    // ** OLD BASE MIDDLEWARE READER LOGIC **
+    function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
+        return BaseMiddleware(_getMiddleware()).stakeToPower(vault, stake);
+    }
 
     /**
-     * @notice Converts stake amount to voting power using a 1:1 ratio
-     * @param vault The vault address (unused in this implementation)
+     * @notice Converts stake amount to voting power in USD
+     * @param vault The vault address
      * @param stake The stake amount
      * @return power The calculated voting power (equal to stake)
      */
-    function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
-        return BaseMiddleware(_getMiddleware()).stakeToPower(vault, stake);
+    function getPowerInUSD(address vault, uint256 stake) public view returns (uint256 power) {
+        if (stake == 0) {
+            return 0;
+        }
+
+        address collateral = vaultToCollateral(vault);
+        address oracle = collateralToOracle(collateral);
+
+        if (oracle == address(0)) {
+            revert OBaseMiddlewareReader__NotSupportedCollateral(collateral);
+        }
+        (, int256 price,,,) = AggregatorV3Interface(oracle).latestRoundData();
+        uint8 priceDecimals = AggregatorV3Interface(oracle).decimals();
+        power = stake.mulDiv(uint256(price), 10 ** priceDecimals);
+        // Normalize power to 18 decimals
+        uint8 collateralDecimals = IERC20Metadata(collateral).decimals();
+        if (collateralDecimals != DEFAULT_DECIMALS) {
+            power = power.mulDiv(10 ** DEFAULT_DECIMALS, 10 ** collateralDecimals);
+        }
     }
 
     /**
@@ -769,21 +794,6 @@ contract OBaseMiddlewareReader is
         if (sharedVaults.length + operatorVaults.length <= MAX_ACTIVE_VAULTS) {
             power = _getOperatorPowerAt(timestamp, operator, sharedVaults, subnetworks)
                 + _getOperatorPowerAt(timestamp, operator, operatorVaults, subnetworks);
-        }
-    }
-
-    function checkTotalActiveVaults(
-        address operator
-    ) public view {
-        uint256 totalSharedVaults = _sharedVaultsLength();
-        uint256 totalOperatorVaults;
-
-        if (operator != address(0)) {
-            totalOperatorVaults = _operatorVaultsLength(operator);
-        }
-        // If there are too many vaults for this operator slashing and distributing rewards will revert due to max execution gas, so we revert to prevent registration
-        if (totalSharedVaults + totalOperatorVaults >= MAX_ACTIVE_VAULTS) {
-            revert Middleware__TooManyActiveVaults();
         }
     }
 }
