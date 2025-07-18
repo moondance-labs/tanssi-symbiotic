@@ -83,8 +83,6 @@ contract DeployRewards is Script {
     ) public returns (address) {
         if (!isTest) {
             vm.startBroadcast(broadcaster());
-        } else {
-            vm.startPrank(owner_);
         }
         stakerRewardsFactory = new ODefaultStakerRewardsFactory(
             vaultFactory, networkMiddlewareService, operatorRewardsAddress, network, owner_
@@ -93,8 +91,6 @@ contract DeployRewards is Script {
 
         if (!isTest) {
             vm.stopBroadcast();
-        } else {
-            vm.stopPrank();
         }
 
         return address(stakerRewardsFactory);
