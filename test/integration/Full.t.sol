@@ -2137,7 +2137,8 @@ contract FullTest is Test {
             middleware.registerSharedVault(address(vault), stakerRewardsParams);
         }
         vm.warp(block.timestamp + VAULT_EPOCH_DURATION + 1);
-        activeSharedVaults = middlewareReader.activeVaults().length;
+        activeSharedVaults = middlewareReader.sharedVaultsLength();
+        assertLe(activeSharedVaults, maxVaults);
 
         (address vaultAfterLimit,,) = deployVault.createBaseVault(params);
         vm.expectRevert(IMiddleware.Middleware__TooManyActiveVaults.selector);
