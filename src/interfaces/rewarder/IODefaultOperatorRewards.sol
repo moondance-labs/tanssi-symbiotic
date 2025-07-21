@@ -25,6 +25,7 @@ interface IODefaultOperatorRewards {
     error ODefaultOperatorRewards__AlreadySet();
     error ODefaultOperatorRewards__NoVaults();
     error ODefaultOperatorRewards__StakerRewardsNotSetForVault(address vault);
+    error ODefaultOperatorRewards__InvalidOrderForHintsPerVault();
 
     /**
      * @notice Emitted when rewards are distributed by providing a Merkle root.
@@ -77,22 +78,6 @@ interface IODefaultOperatorRewards {
      * @notice Struct to store the data related to rewards distribution per Starlight's era.
      * @param epoch network epoch of the middleware
      * @param amount amount of tokens received per eraIndex
-     * @param tokensPerPoint amount of tokens per point
-     * @param root Merkle root of the rewards distribution
-     * @param tokenAddress address of the reward token
-     */
-    struct OldEraRoot {
-        uint48 epoch;
-        uint256 amount;
-        uint256 tokensPerPoint;
-        bytes32 root;
-        address tokenAddress;
-    }
-
-    /**
-     * @notice Struct to store the data related to rewards distribution per Starlight's era.
-     * @param epoch network epoch of the middleware
-     * @param amount amount of tokens received per eraIndex
      * @param totalPoints total amount of points for the reward distribution
      * @param totalAmount total amount of tokens for the reward distribution
      * @param root Merkle root of the rewards distribution
@@ -107,18 +92,30 @@ interface IODefaultOperatorRewards {
     }
 
     /**
+     * @notice Struct to store the data related to hints for the active shares of a particular vault.
+     * @param vault address of the vault
+     * @param activeSharesHint hint for the active shares of the vault at the epoch. abi.encode(uint32 activeSharesHint)
+     * @param activeStakeHint hint for the active stake of the vault at the epoch. abi.encode(uint32 activeStakeHint)
+     */
+    struct VaultHints {
+        address vault;
+        bytes activeSharesHint;
+        bytes activeStakeHint;
+    }
+
+    /**
      * @notice Struct to store the data related to claim the rewards distribution per Starlight's era.
      * @param operatorKey operator key of the rewards' recipient
      * @param epoch network epoch of the middleware
      * @param eraIndex era index of Starlight's rewards distribution
      * @param totalPointsClaimable total amount of points that can be claimed
      * @param proof Merkle proof of the rewards distribution
-     * @param data additional data to use to distribute rewards to stakers
+     * @param data additional data to use to distribute rewards to stakers. abi.encode(uint256 maxAdminFee, VaultHints[] memory hints)
      */
     struct ClaimRewardsInput {
         bytes32 operatorKey;
         uint48 eraIndex;
-        uint32 totalPointsClaimable; //! Are we sure this won't be bigger than a uint32?
+        uint32 totalPointsClaimable; // On substrate side it's also u32
         bytes32[] proof;
         bytes data;
     }
