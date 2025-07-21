@@ -200,6 +200,98 @@ contract ODefaultOperatorRewards is
         emit ClaimRewards(recipient, tokenAddress, input.eraIndex, eraRoot_.epoch, msg.sender, amount);
     }
 
+    /**
+     * @inheritdoc IODefaultOperatorRewards
+     */
+    function setStakerRewardContract(
+        address stakerRewards,
+        address vault
+    ) external checkAccess notZeroAddress(stakerRewards) notZeroAddress(vault) {
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+
+        if ($.vaultToStakerRewardsContract[vault] == stakerRewards) {
+            revert ODefaultOperatorRewards__AlreadySet();
+        }
+
+        $.vaultToStakerRewardsContract[vault] = stakerRewards;
+
+        emit SetStakerRewardContract(stakerRewards, vault);
+    }
+
+    /**
+     * @inheritdoc IODefaultOperatorRewards
+     */
+    function setOperatorShare(
+        uint48 operatorShare_
+    ) external checkAccess {
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        if (operatorShare_ >= MAX_PERCENTAGE) {
+            revert ODefaultOperatorRewards__InvalidOperatorShare();
+        }
+        if (operatorShare_ == $.operatorShare) {
+            revert ODefaultOperatorRewards__AlreadySet();
+        }
+
+        $.operatorShare = operatorShare_;
+
+        emit SetOperatorShare(operatorShare_);
+    }
+
+    /**
+     * @inheritdoc IODefaultOperatorRewards
+     */
+    function operatorShare() external view returns (uint48 operatorShare_) {
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        operatorShare_ = $.operatorShare;
+    }
+
+    /**
+     * @inheritdoc IODefaultOperatorRewards
+     */
+    function eraRoot(
+        uint48 eraIndex
+    ) external view returns (EraRoot memory eraRoot_) {
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        eraRoot_ = $.eraRoot[eraIndex];
+    }
+
+    /**
+     * @inheritdoc IODefaultOperatorRewards
+     */
+    function eraIndexesPerEpoch(uint48 epoch, uint256 index) external view returns (uint48 eraIndex) {
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        eraIndex = $.eraIndexesPerEpoch[epoch][index];
+    }
+
+    /**
+     * @inheritdoc IODefaultOperatorRewards
+     */
+    function claimed(uint48 eraIndex, bytes32 account) external view returns (uint256 amount) {
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        amount = $.claimed[eraIndex][account];
+    }
+
+    /**
+     * @inheritdoc IODefaultOperatorRewards
+     */
+    function vaultToStakerRewardsContract(
+        address vault
+    ) external view returns (address stakerRewards) {
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        stakerRewards = $.vaultToStakerRewardsContract[vault];
+    }
+
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override checkAccess {}
+
+    function _getOperatorRewardsStorage() private pure returns (OperatorRewardsStorage storage $) {
+        bytes32 position = OPERATOR_REWARDS_STORAGE_LOCATION;
+        assembly {
+            $.slot := position
+        }
+    }
+
     function _distributeRewardsToStakers(
         uint48 epoch,
         uint48 eraIndex,
@@ -310,6 +402,7 @@ contract ODefaultOperatorRewards is
         bytes calldata data
     ) private {
         (uint256 maxAdminFee, VaultHints[] memory hints) = abi.decode(data, (uint256, VaultHints[]));
+
         for (uint256 i; i < totalVaults;) {
             VaultHints memory vaultHints;
             // For backward compatibility, we allow empty hints array to mean no hints for any vault
@@ -347,98 +440,6 @@ contract ODefaultOperatorRewards is
                     epoch, eraIndex, amount, tokenAddress, stakerRewardsHints
                 );
             }
-        }
-    }
-
-    /**
-     * @inheritdoc IODefaultOperatorRewards
-     */
-    function setStakerRewardContract(
-        address stakerRewards,
-        address vault
-    ) external checkAccess notZeroAddress(stakerRewards) notZeroAddress(vault) {
-        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
-
-        if ($.vaultToStakerRewardsContract[vault] == stakerRewards) {
-            revert ODefaultOperatorRewards__AlreadySet();
-        }
-
-        $.vaultToStakerRewardsContract[vault] = stakerRewards;
-
-        emit SetStakerRewardContract(stakerRewards, vault);
-    }
-
-    /**
-     * @inheritdoc IODefaultOperatorRewards
-     */
-    function setOperatorShare(
-        uint48 operatorShare_
-    ) external checkAccess {
-        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
-        if (operatorShare_ >= MAX_PERCENTAGE) {
-            revert ODefaultOperatorRewards__InvalidOperatorShare();
-        }
-        if (operatorShare_ == $.operatorShare) {
-            revert ODefaultOperatorRewards__AlreadySet();
-        }
-
-        $.operatorShare = operatorShare_;
-
-        emit SetOperatorShare(operatorShare_);
-    }
-
-    /**
-     * @inheritdoc IODefaultOperatorRewards
-     */
-    function operatorShare() external view returns (uint48 operatorShare_) {
-        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
-        operatorShare_ = $.operatorShare;
-    }
-
-    /**
-     * @inheritdoc IODefaultOperatorRewards
-     */
-    function eraRoot(
-        uint48 eraIndex
-    ) external view returns (EraRoot memory eraRoot_) {
-        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
-        eraRoot_ = $.eraRoot[eraIndex];
-    }
-
-    /**
-     * @inheritdoc IODefaultOperatorRewards
-     */
-    function eraIndexesPerEpoch(uint48 epoch, uint256 index) external view returns (uint48 eraIndex) {
-        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
-        eraIndex = $.eraIndexesPerEpoch[epoch][index];
-    }
-
-    /**
-     * @inheritdoc IODefaultOperatorRewards
-     */
-    function claimed(uint48 eraIndex, bytes32 account) external view returns (uint256 amount) {
-        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
-        amount = $.claimed[eraIndex][account];
-    }
-
-    /**
-     * @inheritdoc IODefaultOperatorRewards
-     */
-    function vaultToStakerRewardsContract(
-        address vault
-    ) external view returns (address stakerRewards) {
-        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
-        stakerRewards = $.vaultToStakerRewardsContract[vault];
-    }
-
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override checkAccess {}
-
-    function _getOperatorRewardsStorage() private pure returns (OperatorRewardsStorage storage $) {
-        bytes32 position = OPERATOR_REWARDS_STORAGE_LOCATION;
-        assembly {
-            $.slot := position
         }
     }
 
