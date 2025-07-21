@@ -143,7 +143,8 @@ contract MiddlewareTest is Test {
         adminFee: 0,
         defaultAdminRoleHolder: owner,
         adminFeeClaimRoleHolder: owner,
-        adminFeeSetRoleHolder: owner
+        adminFeeSetRoleHolder: owner,
+        implementation: address(0)
     });
 
     function setUp() public {
@@ -193,7 +194,7 @@ contract MiddlewareTest is Test {
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
         address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
-            vaultFactory, address(networkMiddlewareService), operatorRewardsAddress, tanssi
+            vaultFactory, address(networkMiddlewareService), operatorRewardsAddress, tanssi, owner
         );
         stakerRewardsFactory = ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress);
         vm.mockCall(
@@ -202,7 +203,7 @@ contract MiddlewareTest is Test {
             abi.encode(makeAddr("stakerRewards"))
         );
 
-        middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        middlewareImpl = new Middleware();
         middleware = Middleware(address(new MiddlewareProxy(address(middlewareImpl), "")));
         IMiddleware.InitParams memory params = IMiddleware.InitParams({
             network: tanssi,
@@ -215,8 +216,13 @@ contract MiddlewareTest is Test {
             reader: readHelper
         });
         middleware.initialize(params);
+        middleware.reinitializeRewards(operatorRewardsAddress, stakerRewardsFactoryAddress);
+
         middleware.setGateway(address(gateway));
         middleware.setCollateralToOracle(address(collateral), address(collateralOracle));
+
+        stakerRewardsParams.implementation =
+            address(new ODefaultStakerRewards(address(networkMiddlewareService), tanssi));
 
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
         operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
@@ -249,7 +255,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
 
         readHelper = address(new OBaseMiddlewareReader());
-        Middleware _middleware = new Middleware(address(operatorRewards), address(stakerRewardsFactory));
+        Middleware _middleware = new Middleware();
         Middleware middlewareProxy = Middleware(address(new MiddlewareProxy(address(_middleware), "")));
         vm.expectRevert(IMiddleware.Middleware__SlashingWindowTooShort.selector);
         IMiddleware.InitParams memory params = IMiddleware.InitParams({
@@ -265,16 +271,6 @@ contract MiddlewareTest is Test {
         Middleware(address(middlewareProxy)).initialize(params);
 
         vm.stopPrank();
-    }
-
-    function testDeployWithNoOperatorRewards() public {
-        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
-        new Middleware(address(0), address(stakerRewardsFactory));
-    }
-
-    function testDeployWithNoStakerRewardsFactory() public {
-        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
-        new Middleware(address(operatorRewards), address(0));
     }
 
     function testGetEpochStartTs() public view {

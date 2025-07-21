@@ -65,7 +65,9 @@ import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
+import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
+import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {MiddlewareV2} from "test/unit/utils/MiddlewareV2.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
@@ -160,6 +162,30 @@ contract FullTest is Test {
     HelperConfig helperConfig;
     string public json;
 
+    address public admin;
+    address public tanssi;
+    address stakerRewardsImpl;
+
+    GatewayProxy gateway;
+    Middleware middleware;
+    OBaseMiddlewareReader reader;
+    ODefaultOperatorRewards operatorRewards;
+    Token rewardsToken;
+    HelperConfig.TokensConfig public tokensConfig;
+    HelperConfig.OperatorConfig public operators;
+    ProofAndPointsByOperator public proofAndPointsByOperator;
+
+    HelperConfig.VaultsConfigA public vaultsAddressesDeployedA;
+    HelperConfig.VaultsConfigB public vaultsAddressesDeployedB;
+
+    TotalSharesA public totalSharesA;
+    TotalSharesB public totalSharesB;
+
+    NetworkLimitsA public networkLimitsA;
+    NetworkLimitsB public networkLimitsB;
+
+    mapping(address vault => address stakerRewards) vaultToStakerRewards;
+
     struct TotalSharesA {
         uint256 mevRestakedETH;
         uint256 mevCapitalETH;
@@ -221,29 +247,6 @@ contract FullTest is Test {
         ProofAndPoints operator11Opslayer;
     }
 
-    address public admin;
-    address public tanssi;
-
-    GatewayProxy gateway;
-    Middleware middleware;
-    OBaseMiddlewareReader reader;
-    ODefaultOperatorRewards operatorRewards;
-    Token rewardsToken;
-    HelperConfig.TokensConfig public tokensConfig;
-    HelperConfig.OperatorConfig public operators;
-    ProofAndPointsByOperator public proofAndPointsByOperator;
-
-    HelperConfig.VaultsConfigA public vaultsAddressesDeployedA;
-    HelperConfig.VaultsConfigB public vaultsAddressesDeployedB;
-
-    mapping(address vault => address stakerRewards) vaultToStakerRewards;
-
-    TotalSharesA public totalSharesA;
-    TotalSharesB public totalSharesB;
-
-    NetworkLimitsA public networkLimitsA;
-    NetworkLimitsB public networkLimitsB;
-
     function setUp() public {
         string memory project_root = vm.projectRoot();
         string memory path = string.concat(project_root, "/test/fork/mainnet/rewards_data.json");
@@ -257,7 +260,7 @@ contract FullTest is Test {
 
         _saveTotalShares();
 
-        /// middleware.setCollateralToOracle(xxx, oracle); Already alled for each collateral: wstETH, rETH, swETH, wBETH, LsETH, cbETH
+        /// middleware.setCollateralToOracle(xxx, oracle); Already added for each collateral: wstETH, rETH, swETH, wBETH, LsETH, cbETH
         vm.stopPrank();
 
         vm.warp(block.timestamp + 14 days + 1); // In 14 days there should be a new vault epoch in all vaults
@@ -269,7 +272,8 @@ contract FullTest is Test {
         // Check if it's good for mainnet
         helperConfig = new HelperConfig();
         HelperConfig.Entities memory entities;
-        (entities,, tokensConfig, vaultsAddressesDeployedA, vaultsAddressesDeployedB, operators) =
+        HelperConfig.NetworkConfig memory networkConfig;
+        (entities, networkConfig, tokensConfig, vaultsAddressesDeployedA, vaultsAddressesDeployedB, operators) =
             helperConfig.getChainConfig();
 
         admin = entities.admin;
@@ -279,6 +283,9 @@ contract FullTest is Test {
         reader = OBaseMiddlewareReader(address(middleware));
         operatorRewards = ODefaultOperatorRewards(entities.operatorRewards);
         rewardsToken = Token(entities.rewardsToken);
+
+        // For now we need this as we can't use the one already deployed
+        stakerRewardsImpl = address(new ODefaultStakerRewards(networkConfig.networkMiddlewareService, entities.tanssi));
     }
 
     function _cacheAllVaultToStakerRewards() private {
@@ -521,7 +528,8 @@ contract FullTest is Test {
             adminFee: 0,
             defaultAdminRoleHolder: admin,
             adminFeeClaimRoleHolder: admin,
-            adminFeeSetRoleHolder: admin
+            adminFeeSetRoleHolder: admin,
+            implementation: stakerRewardsImpl
         });
 
         vm.startPrank(admin);
@@ -1313,9 +1321,7 @@ contract FullTest is Test {
         // TODO: The upgrade is needed only because it didn't happen on mainnet yet
         DeployTanssiEcosystem deployTanssiEcosystem = new DeployTanssiEcosystem();
         address stakerRewardsFactory = middleware.i_stakerRewardsFactory();
-        deployTanssiEcosystem.upgradeMiddleware(
-            address(middleware), 1, address(operatorRewards), stakerRewardsFactory, admin
-        );
+        deployTanssiEcosystem.upgradeMiddleware(address(middleware), 1, admin);
 
         OBaseMiddlewareReader newReader = new OBaseMiddlewareReader();
         vm.prank(admin);
@@ -1368,9 +1374,7 @@ contract FullTest is Test {
     }
 
     function testMiddlewareIsUpgradeable() public {
-        address operatorRewardsAddress = makeAddr("operatorRewards");
-        address stakerRewardsFactoryAddress = makeAddr("stakerRewardsFactory");
-        Middleware middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        Middleware middlewareImpl = new Middleware();
 
         vm.startPrank(admin);
         assertEq(middleware.VERSION(), 1);
@@ -1760,19 +1764,28 @@ contract FullTest is Test {
     }
 
     function _configureTanssiVault() private returns (HelperConfig.VaultData memory vaultData) {
-        (address vaultConfigurator,,,,,,,,) = helperConfig.activeNetworkConfig();
+        (address vaultConfigurator,,,,,, address networkMiddlewareService,,) = helperConfig.activeNetworkConfig();
+        console2.log("vaultConfigurator", vaultConfigurator);
+        console2.log("networkMiddlewareService", networkMiddlewareService);
+        stakerRewardsImpl = address(new ODefaultStakerRewards(networkMiddlewareService, tanssi));
 
         // TODO: Remove when factory is fixed, currently it points the wrong network and operator rewards
         {
-            (,,, address vaultRegistry,,, address networkMiddlewareService,,) = helperConfig.activeNetworkConfig();
+            (,,, address vaultRegistry,,,,,) = helperConfig.activeNetworkConfig();
             DeployRewards deployRewards = new DeployRewards();
             address stakerRewardsFactory = deployRewards.deployStakerRewardsFactoryContract(
-                vaultRegistry, networkMiddlewareService, address(operatorRewards), tanssi
+                vaultRegistry, networkMiddlewareService, address(operatorRewards), tanssi, admin
             );
+            vm.allowCheatcodes(0x9eb0Ff9A553416Ac9Ec87881aB2ecC4879AdbC21); // No freaking clue why this is needed
+
             DeployTanssiEcosystem deployTanssiEcosystem = new DeployTanssiEcosystem();
-            deployTanssiEcosystem.upgradeMiddleware(
-                address(middleware), 1, address(operatorRewards), stakerRewardsFactory, admin
-            );
+            deployTanssiEcosystem.upgradeMiddleware(address(middleware), 1, admin);
+            address newReader = address(new OBaseMiddlewareReader());
+            vm.startPrank(admin);
+            ODefaultStakerRewardsFactory(stakerRewardsFactory).setImplementation(stakerRewardsImpl);
+            middleware.setReader(newReader);
+            middleware.reinitializeRewards(address(operatorRewards), address(stakerRewardsFactory));
+            vm.stopPrank();
         }
         // Remove until here
 
@@ -1794,12 +1807,14 @@ contract FullTest is Test {
         );
 
         vm.startPrank(admin);
+
         middleware.setCollateralToOracle(address(rewardsToken), tanssiOracle);
         IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
             adminFee: 0,
             defaultAdminRoleHolder: admin,
             adminFeeClaimRoleHolder: admin,
-            adminFeeSetRoleHolder: admin
+            adminFeeSetRoleHolder: admin,
+            implementation: stakerRewardsImpl
         });
         middleware.registerSharedVault(tanssiVaultAddress, stakerRewardsParams);
         vaultToStakerRewards[tanssiVaultAddress] = operatorRewards.vaultToStakerRewardsContract(tanssiVaultAddress);
