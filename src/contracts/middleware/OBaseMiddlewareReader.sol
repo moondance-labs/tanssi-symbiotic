@@ -15,10 +15,16 @@
 pragma solidity 0.8.25;
 
 //**************************************************************************************************
+//                                      CHAINLINK
+//**************************************************************************************************
+import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3Interface.sol";
+
+//**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 //**************************************************************************************************
 //                                      SYMBIOTIC
@@ -33,6 +39,7 @@ import {KeyManager256} from "@symbiotic-middleware/extensions/managers/keys/KeyM
 import {BaseMiddleware} from "@symbiotic-middleware/middleware/BaseMiddleware.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 
+import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {QuickSort} from "src/contracts/libraries/QuickSort.sol";
 import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
@@ -60,14 +67,35 @@ contract OBaseMiddlewareReader is
 
     // ** OLD BASE MIDDLEWARE READER LOGIC **
 
+    function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
+        return BaseMiddleware(_getMiddleware()).stakeToPower(vault, stake);
+    }
+
     /**
-     * @notice Converts stake amount to voting power using a 1:1 ratio
-     * @param vault The vault address (unused in this implementation)
+     * @notice Converts stake amount to voting power in USD
+     * @param vault The vault address
      * @param stake The stake amount
      * @return power The calculated voting power (equal to stake)
      */
-    function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
-        return BaseMiddleware(_getMiddleware()).stakeToPower(vault, stake);
+    function getPowerInUSD(address vault, uint256 stake) public view returns (uint256 power) {
+        if (stake == 0) {
+            return 0;
+        }
+
+        address collateral = vaultToCollateral(vault);
+        address oracle = collateralToOracle(collateral);
+
+        if (oracle == address(0)) {
+            revert IOBaseMiddlewareReader.OBaseMiddlewareReader__NotSupportedCollateral(collateral);
+        }
+        (, int256 price,,,) = AggregatorV3Interface(oracle).latestRoundData();
+        uint8 priceDecimals = AggregatorV3Interface(oracle).decimals();
+        power = stake.mulDiv(uint256(price), 10 ** priceDecimals);
+        // Normalize power to 18 decimals
+        uint8 collateralDecimals = IERC20Metadata(collateral).decimals();
+        if (collateralDecimals != DEFAULT_DECIMALS) {
+            power = power.mulDiv(10 ** DEFAULT_DECIMALS, 10 ** collateralDecimals);
+        }
     }
 
     /**
@@ -640,6 +668,9 @@ contract OBaseMiddlewareReader is
         validatorSet = new IMiddleware.ValidatorData[](operators.length);
 
         uint256 len = 0;
+        VaultManagerStorage storage $ = _getVaultManagerStorage();
+        address[] memory sharedVaults = $._sharedVaults.getActive(epochStartTs);
+        uint96 subnetwork = _NETWORK().subnetwork(0).identifier();
         uint256 operatorsLength_ = operators.length;
         for (uint256 i; i < operatorsLength_;) {
             address operator = operators[i];
@@ -652,7 +683,7 @@ contract OBaseMiddlewareReader is
                 if (operatorPowerCached != 0) {
                     validatorSet[len++] = IMiddleware.ValidatorData(operatorPowerCached, key);
                 } else {
-                    uint256 power = _getOperatorPowerAt(epochStartTs, operator);
+                    uint256 power = _optmizedGetOperatorPowerAt(epochStartTs, sharedVaults, subnetwork, operator);
                     if (key != bytes32(0) && power != 0) {
                         validatorSet[len++] = IMiddleware.ValidatorData(power, key);
                     }
@@ -704,21 +735,8 @@ contract OBaseMiddlewareReader is
         // Check if cache is still not filled with the current epoch validators
         if (pendingOperatorsToCache > 0) {
             uint256 maxNumOperatorsToCheck = Math.min(pendingOperatorsToCache, MAX_OPERATORS_TO_PROCESS);
-            IMiddleware.ValidatorData[] memory validatorsData = new IMiddleware.ValidatorData[](maxNumOperatorsToCheck);
-
-            // Populate validatorsData with the new operators' keys and their powers
-            // It gets encoded to be used in performUpkeep
-
-            for (uint256 i = cacheIndex; i < cacheIndex + maxNumOperatorsToCheck && i < activeOperatorsLength;) {
-                address operator = activeOperators_[i];
-                bytes32 operatorKey = abi.decode(operatorKey(operator), (bytes32));
-                uint256 operatorPower = _getOperatorPowerAt(currentEpochStartTs, operator);
-                validatorsData[i - cacheIndex] = IMiddleware.ValidatorData({key: operatorKey, power: operatorPower});
-
-                unchecked {
-                    ++i;
-                }
-            }
+            IMiddleware.ValidatorData[] memory validatorsData =
+                _getValidatorDataForOperators(maxNumOperatorsToCheck, cacheIndex, currentEpochStartTs, activeOperators_);
 
             // encode values to be used in performUpkeep
             return (true, abi.encode(CACHE_DATA_COMMAND, validatorsData));
@@ -734,5 +752,74 @@ contract OBaseMiddlewareReader is
         }
 
         return (upkeepNeeded, hex"");
+    }
+
+    function _getValidatorDataForOperators(
+        uint256 maxNumOperatorsToCheck,
+        uint256 cacheIndex,
+        uint48 timestamp,
+        address[] memory activeOperators_
+    ) private view returns (IMiddleware.ValidatorData[] memory validatorsData) {
+        // Populate validatorsData with the new operators' keys and their powers
+        // It gets encoded to be used in performUpkeep
+        validatorsData = new IMiddleware.ValidatorData[](maxNumOperatorsToCheck);
+
+        VaultManagerStorage storage $ = _getVaultManagerStorage();
+        address[] memory sharedVaults = $._sharedVaults.getActive(timestamp);
+        uint96 subnetwork = _NETWORK().subnetwork(0).identifier();
+        uint256 activeOperatorsLength = activeOperators_.length;
+
+        for (uint256 i = cacheIndex; i < cacheIndex + maxNumOperatorsToCheck && i < activeOperatorsLength;) {
+            address operator = activeOperators_[i];
+            bytes32 operatorKey = abi.decode(operatorKey(operator), (bytes32));
+            uint256 operatorPower = _optmizedGetOperatorPowerAt(timestamp, sharedVaults, subnetwork, operator);
+            validatorsData[i - cacheIndex] = IMiddleware.ValidatorData({key: operatorKey, power: operatorPower});
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /**
+     * @dev If an operator can be active more than MAX_ACTIVE_VAULTS, we ignore it by letting power be 0. This is necessary because after the threshold, slashing and distributing rewards will revert due to max execution gas.
+     * @dev This version is mostly redundant with vault manager code, but it is optimized because it only gets shared vaults and subnetworks once. The original version does it for each operator.
+     */
+    function _optmizedGetOperatorPowerAt(
+        uint48 timestamp,
+        address[] memory sharedVaults,
+        uint96 subnetwork,
+        address operator
+    ) private view returns (uint256 power) {
+        VaultManagerStorage storage $ = _getVaultManagerStorage();
+        address[] memory operatorVaults = $._operatorVaults[operator].getActive(timestamp);
+
+        // This check might seem innecesary since we check on vault registration, however if we register first operator vaults and then shared ones, the limit might be reached for an operator without triggering the revert on registration.
+        if (sharedVaults.length + operatorVaults.length <= MAX_ACTIVE_VAULTS) {
+            power = _getOperatorPowerAt(timestamp, operator, sharedVaults, subnetwork)
+                + _getOperatorPowerAt(timestamp, operator, operatorVaults, subnetwork);
+        }
+    }
+
+    /**
+     * @notice Optimized version of _getOperatorPowerAt that only gets the power for a single subnetwork
+     * @param timestamp The timestamp to check
+     * @param operator The operator address
+     * @param vaults The list of vault addresses
+     * @param subnetwork The subnetwork identifier
+     * @return power The total power amount at the timestamp
+     */
+    function _getOperatorPowerAt(
+        uint48 timestamp,
+        address operator,
+        address[] memory vaults,
+        uint96 subnetwork
+    ) internal view returns (uint256 power) {
+        uint256 vaultsLength = vaults.length;
+        for (uint256 i; i < vaultsLength; ++i) {
+            power += _getOperatorPowerAt(timestamp, operator, vaults[i], subnetwork);
+        }
+
+        return power;
     }
 }
