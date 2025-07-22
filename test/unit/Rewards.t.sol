@@ -1269,6 +1269,52 @@ contract RewardsTest is Test {
         stakerRewards.claimRewards(alice, epoch, address(token), CLAIM_REWARDS_ADDITIONAL_DATA);
     }
 
+    function testClaimStakerRewardsWithCustomMethodAndZeroHints() public {
+        uint48 epoch = 0;
+        uint48 epochTs = middleware.getEpochStart(epoch);
+
+        _setRewardsMapping(epoch, 0, address(0), STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT);
+        vm.prank(address(middleware));
+        token.transfer(address(stakerRewards), AMOUNT_TO_DISTRIBUTE / 10);
+
+        _setActiveSharesCache(epoch, address(stakerRewards), STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT);
+
+        vm.mockCall(
+            address(vault),
+            abi.encodeWithSelector(IVaultStorage.activeSharesOfAt.selector, alice, epochTs, hex""),
+            abi.encode(AMOUNT_TO_DISTRIBUTE / 10)
+        );
+
+        vm.prank(alice);
+        vm.expectEmit(true, true, true, true);
+        emit IODefaultStakerRewards.ClaimRewards(tanssi, address(token), alice, epoch, alice, AMOUNT_TO_DISTRIBUTE / 10);
+        bytes memory customData = abi.encode(epoch);
+        stakerRewards.claimRewards(alice, address(token), customData);
+    }
+
+    function testClaimStakerRewardsWithCustomMethodAndHints() public {
+        uint48 epoch = 0;
+        uint48 epochTs = middleware.getEpochStart(epoch);
+
+        _setRewardsMapping(epoch, 0, address(0), STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT);
+        vm.prank(address(middleware));
+        token.transfer(address(stakerRewards), AMOUNT_TO_DISTRIBUTE / 10);
+
+        _setActiveSharesCache(epoch, address(stakerRewards), STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT);
+
+        vm.mockCall(
+            address(vault),
+            abi.encodeWithSelector(IVaultStorage.activeSharesOfAt.selector, alice, epochTs, abi.encode(2)),
+            abi.encode(AMOUNT_TO_DISTRIBUTE / 10)
+        );
+
+        vm.prank(alice);
+        vm.expectEmit(true, true, true, true);
+        emit IODefaultStakerRewards.ClaimRewards(tanssi, address(token), alice, epoch, alice, AMOUNT_TO_DISTRIBUTE / 10);
+        bytes memory customData = abi.encode(epoch, 2);
+        stakerRewards.claimRewards(alice, address(token), customData);
+    }
+
     function testClaimStakerRewardsWithZeroAmount() public {
         uint48 epoch = 0;
 
