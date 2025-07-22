@@ -102,11 +102,6 @@ deploy-middleware:
 	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem $(NETWORK_ARGS) --sig "deployOnlyMiddleware(address,address,bool)" $(OPERATOR_REWARDS_PROXY_ADDRESS) $(STAKE_REWARDS_FACTORY_ADDRESS) $(SHOULD_DEPLOY_READER) -vv
 	@echo "✅ Middleware Implementation deployment completed"
 
-deploy-operator-rewards:
-	@echo "📡 Deploying Operator Rewards Implementation..."
-	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "deployOperatorRewards(address,address)" $(NETWORK) $(NETWORK_MIDDLEWARE_SERVICE) -vv
-	@echo "✅ Operator Rewards Implementation deployment completed"
-
 deploy-staker-rewards:
 	@echo "📡 Deploying Staker Rewards Implementation..."
 	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "deployStakerRewards(address,address[],address)" $(NETWORK_MIDDLEWARE_SERVICE) $(VAULTS) $(NETWORK) -vv
