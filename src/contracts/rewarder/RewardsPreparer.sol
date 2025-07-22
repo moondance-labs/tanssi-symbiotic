@@ -40,8 +40,7 @@ contract RewardsPreparer {
         address operator = IOBaseMiddlewareReader(i_middlewareReader).operatorByKey(abi.encode(operatorKey));
 
         IODefaultOperatorRewards.EraRoot memory eraRoot = i_operatorRewards.eraRoot(eraIndex);
-        uint48 epoch = eraRoot.epoch;
-        uint48 epochStartTs = i_middlewareReader.getEpochStart(epoch);
+        uint48 epochStartTs = i_middlewareReader.getEpochStart(eraRoot.epoch);
 
         (, address[] memory operatorVaults) =
             IOBaseMiddlewareReader(i_middlewareReader).getOperatorVaults(operator, epochStartTs);
