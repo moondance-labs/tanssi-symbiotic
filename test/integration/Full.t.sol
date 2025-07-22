@@ -77,7 +77,7 @@ import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRe
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
-import {RewardsPreparer} from "src/contracts/rewarder/RewardsPreparer.sol";
+import {RewardsHintsBuilder} from "src/contracts/rewarder/RewardsHintsBuilder.sol";
 
 contract FullTest is Test {
     using Subnetwork for address;
@@ -203,7 +203,7 @@ contract FullTest is Test {
     NetworkRegistry public networkRegistry;
     OptInService public operatorVaultOptInService;
     OptInService public operatorNetworkOptInService;
-    RewardsPreparer public rewardsPreparer;
+    RewardsHintsBuilder public rewardsHintsBuilder;
 
     MetadataService public operatorMetadataService;
     MetadataService public networkMetadataService;
@@ -304,7 +304,8 @@ contract FullTest is Test {
         ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress).setImplementation(stakerRewardsImpl);
 
         VaultHints vaultHints = new VaultHints();
-        rewardsPreparer = new RewardsPreparer(address(middleware), address(operatorRewards), address(vaultHints));
+        rewardsHintsBuilder =
+            new RewardsHintsBuilder(address(middleware), address(operatorRewards), address(vaultHints));
 
         _registerOperatorAndOptIn(operator1, tanssi, address(vaultsData.v1.vault), false);
         _registerOperatorAndOptIn(operator1, tanssi, address(vaultsData.v2.vault), false);
@@ -680,7 +681,7 @@ contract FullTest is Test {
         {
             bytes memory hintsData;
             if (calculateHints) {
-                hintsData = rewardsPreparer.getDataForOperatorClaimRewards(operatorKey, eraIndex, ADMIN_FEE);
+                hintsData = rewardsHintsBuilder.getDataForOperatorClaimRewards(operatorKey, eraIndex, ADMIN_FEE);
             } else {
                 hintsData = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
             }
@@ -1122,7 +1123,8 @@ contract FullTest is Test {
             _loadRewardsRootAndProof(eraIndex, operatorNumber);
 
         {
-            bytes memory hintsData = rewardsPreparer.getDataForOperatorClaimRewards(OPERATOR1_KEY, eraIndex, ADMIN_FEE);
+            bytes memory hintsData =
+                rewardsHintsBuilder.getDataForOperatorClaimRewards(OPERATOR1_KEY, eraIndex, ADMIN_FEE);
             (, IODefaultOperatorRewards.VaultHints[] memory vaultHints) =
                 abi.decode(hintsData, (uint256, IODefaultOperatorRewards.VaultHints[]));
 

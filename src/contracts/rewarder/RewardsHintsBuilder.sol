@@ -21,7 +21,7 @@ import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperato
 import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 import {IVaultHints} from "src/interfaces/hints/IVaultHints.sol";
 
-contract RewardsPreparer {
+contract RewardsHintsBuilder {
     IOBaseMiddlewareReader public immutable i_middlewareReader;
     IODefaultOperatorRewards public immutable i_operatorRewards;
     IVaultHints public immutable i_vaultHints;
