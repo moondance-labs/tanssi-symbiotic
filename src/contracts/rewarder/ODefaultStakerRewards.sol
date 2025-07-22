@@ -14,6 +14,8 @@
 
 pragma solidity 0.8.25;
 
+import {console2} from "forge-std/console2.sol";
+
 // *********************************************************************************************************************
 //                                                  SYMBIOTIC
 // *********************************************************************************************************************
@@ -263,7 +265,7 @@ contract ODefaultStakerRewards is
         uint48 epoch,
         address tokenAddress,
         bytes calldata activeSharesOfHints
-    ) external override nonReentrant {
+    ) public override nonReentrant {
         if (recipient == address(0)) {
             revert ODefaultStakerRewards__InvalidRecipient();
         }
@@ -281,7 +283,8 @@ contract ODefaultStakerRewards is
         if (rewardsPerEpoch == 0 || activeSharesCache_ == 0) {
             revert ODefaultStakerRewards__NoRewardsToClaim();
         }
-
+        console2.log("activeSharesOfHints.length", activeSharesOfHints.length);
+        console2.logBytes(activeSharesOfHints);
         uint256 amount = IVault(i_vault).activeSharesOfAt(recipient, epochTs, activeSharesOfHints).mulDiv(
             rewardsPerEpoch, activeSharesCache_
         );
@@ -300,6 +303,18 @@ contract ODefaultStakerRewards is
         IERC20(tokenAddress).safeTransfer(recipient, amount);
 
         emit ClaimRewards(i_network, tokenAddress, msg.sender, epoch, recipient, amount);
+    }
+
+    /**
+     * @dev This is a custom method requested by Mellow
+     * @dev data = abi.encode(epoch, activeSharesOfHints)
+     */
+    function claimRewards(address recipient, address tokenAddress, bytes calldata data) external {
+        uint48 epoch;
+        assembly {
+            epoch := calldataload(data.offset)
+        }
+        claimRewards(recipient, epoch, tokenAddress, data[0x20:]);
     }
 
     /**
