@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [1.2.0] - 2025-07-22
+
+This release includes several breaking changes.
+
+### Added
+
+- On StakerRewards. Added method to `claimRewards` with custom data. Breaking change.
+- AggregatorV3DIAProxy was added to be able to use DIA as a price feed without changing the middleware, by implementing the Chainlink's AggregatorV3 interface.
+- Contract addresses and deployment logs for each environment: stagelight, dancelight, moonlight and tanssi.
+- Adds RewardsHintsBuilder. This is a helper contract to easily build hints data for the `OperatorRewards.claimRewards` method.
+- Prepares script and tests deploying a Tanssi vault.
+ 
+
+### Changed
+
+- On StakerRewardsFactory. It now uses a single implementation for all staker rewards contracts, setting addresses for operator rewards and vault on initialization. Breaking change.
+- On StakerRewardsFactory. It now implements Ownable2Step. The ownership is used to set the implementation.
+- On Middleware. Constructor no longer includes operator rewards and staker rewards factory addresses. Breaking change.
+- On Middleware. `checkUpkeep` and `performUpkeep` were refactored to not go over the Chainlink's max gas limit nor max perform data size. Multiple calls might be needed to complete the upkeep depending on the number of operators.
+- On Middleware. `checkUpkeep` and `sortOperatorsByPower` were optimized to consume less gas.
+- On Middleware. Part of the `checkUpkeep` and the `stakeToPower` methods were delegated to the `MiddlewareReader` contract to reduce contract size.
+- On Middleware. Stake to power immediately returns 0 if the stake is 0, this saves gas on most operator-vault pairs which don't have any stake.
+- On Middleware. Operator keys are now checked to have 32 bytes length.
+- On Middleware. When registering a shared vault, it now reverts if there are already 80 shared vaults. This is to prevent over gas limit errors later on rewards distribution and slashing.
+- On Middleware. When getting the sorted keys, we check for each operator if its operator specific vaults plus the shared vaults are over the 80 limit. If that's the case, we set their power to 0 to prevent the same error above.
+- On OperatorRewards. Reverts with custom error when no staker rewards contract is set for a vault. Previously it would revert with a panic error making debugging harder.
+- On OperatorRewards. `claimRewards` can now receive hints for each of the vaults, this produces gas savings from up to 25% in the call. This also fixes the bug of using the same hint for all vaults. Breaking change.
+
+
+
 ## [1.1.1] - 2025-07-02
 
 Commit: [9c3b9c6ebc0905d930845bf1d5e11640b073b4dc](https://github.com/moondance-labs/tanssi-symbiotic/commit/9c3b9c6ebc0905d930845bf1d5e11640b073b4dc)

@@ -19,9 +19,15 @@ Steps to migrate:
 
 - Deploy new `ODefaultStakerRewardsFactory` contract.
 - Deploy new `Middleware` contract.
+- Deploy new `MiddlewareReader` contract.
 - Upgrade the `Middleware` contract to the new version `upgradeToAndCall`.
 - Once deployed the new `Middleware` call `reinitializeRewards` to set the new `operatorRewards` and `stakerRewardsFactory` addresses.
-- Deploy new `ODefaultStakerRewards` contracts implementation.
+- Set the new `MiddlewareReader` address in the `Middleware` contract via `setReader`.
+- Deploy new `ODefaultOperatorRewards` contract implementation.
+- Upgrade the `ODefaultOperatorRewards` contract to the new version `upgradeToAndCall`.
+- Deploy new `ODefaultStakerRewards` contract implementation.
 - Set the new implementation in the `ODefaultStakerRewardsFactory` contract.
+- Upgrade each `ODefaultStakerRewards` to this new implementation via `upgradeToAndCall`
 - Call for each `ODefaultStakerRewards` contract deployed the new `setVault` function to set the new vault address, since that is taken out of the constructor.
 - In v1.2.1, deployed instantly after, upgrade the implementation of the `ODefaultStakerRewards` contracts to a version without `setVault`.
+- In v1.2.1, upgrades in mainnet fork tests should be removed since they are no longer needed. They are marked with TODO.
