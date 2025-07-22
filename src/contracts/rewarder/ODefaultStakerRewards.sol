@@ -306,7 +306,7 @@ contract ODefaultStakerRewards is
     }
 
     /**
-     * @dev This is a custom method requested by Mellow
+     * @dev Alternative method to claim rewards with custom data
      * @dev data = abi.encode(epoch, activeSharesOfHints)
      */
     function claimRewards(address recipient, address tokenAddress, bytes calldata data) external {
