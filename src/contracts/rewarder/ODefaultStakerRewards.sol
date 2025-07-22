@@ -14,8 +14,6 @@
 
 pragma solidity 0.8.25;
 
-import {console2} from "forge-std/console2.sol";
-
 // *********************************************************************************************************************
 //                                                  SYMBIOTIC
 // *********************************************************************************************************************
@@ -283,8 +281,6 @@ contract ODefaultStakerRewards is
         if (rewardsPerEpoch == 0 || activeSharesCache_ == 0) {
             revert ODefaultStakerRewards__NoRewardsToClaim();
         }
-        console2.log("activeSharesOfHints.length", activeSharesOfHints.length);
-        console2.logBytes(activeSharesOfHints);
         uint256 amount = IVault(i_vault).activeSharesOfAt(recipient, epochTs, activeSharesOfHints).mulDiv(
             rewardsPerEpoch, activeSharesCache_
         );
