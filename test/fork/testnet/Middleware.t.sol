@@ -24,7 +24,6 @@ import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {IOperatorRegistry} from "@symbiotic/interfaces/IOperatorRegistry.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
-import {IDefaultCollateral} from "@symbiotic-collateral/interfaces/defaultCollateral/IDefaultCollateral.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 
 //**************************************************************************************************
@@ -78,7 +77,7 @@ contract MiddlewareTest is Test {
     IVault vault;
     Middleware middleware;
     ODefaultOperatorRewards operatorRewards;
-    IDefaultCollateral stETH;
+    IERC20 stETH;
 
     function setUp() public {
         _loadBaseInfrastructure();
@@ -112,7 +111,7 @@ contract MiddlewareTest is Test {
 
         middleware = Middleware(middlewareAddress);
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
-        stETH = IDefaultCollateral(stEth);
+        stETH = IERC20(stEth);
         vault = IVault(vaultData.vault);
 
         operatorStake = vault.activeBalanceOf(operator);
