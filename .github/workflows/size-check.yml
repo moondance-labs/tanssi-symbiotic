@@ -54,7 +54,7 @@ jobs:
     strategy:
       fail-fast: true
 
-    name: Foundry project
+    name: Run checks
     runs-on: ubuntu-latest
     env:
       # Safe to put here since they are default anvil private keys
