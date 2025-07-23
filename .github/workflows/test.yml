@@ -94,7 +94,7 @@ jobs:
 
       - name: Run Forge tests
         run: |
-          forge test --nmp "test/fork/*" -vvv
+          forge coverage  --nmp "test/fork/*"
         id: test
 
       - name: Run Forge fork testnet tests
