@@ -42,19 +42,21 @@ import {KeyManager256} from "@symbiotic-middleware/extensions/managers/keys/KeyM
 import {OzAccessControl} from "@symbiotic-middleware/extensions/managers/access/OzAccessControl.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
-import {PauseableEnumerableSet} from "@symbiotic-middleware/libraries/PauseableEnumerableSet.sol";
 
 //**************************************************************************************************
 //                                      SNOWBRIDGE
 //**************************************************************************************************
 import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfaces/IOGateway.sol";
+
+//**************************************************************************************************
+//                                      TANSSI
+//**************************************************************************************************
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {OSharedVaults} from "src/contracts/extensions/OSharedVaults.sol";
 import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
-
 import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 
 contract Middleware is
@@ -68,10 +70,7 @@ contract Middleware is
     MiddlewareStorage,
     IMiddleware
 {
-    using PauseableEnumerableSet for PauseableEnumerableSet.AddressSet;
-    using PauseableEnumerableSet for PauseableEnumerableSet.Status;
     using Subnetwork for address;
-    using Subnetwork for bytes32;
     using Math for uint256;
 
     modifier notZeroAddress(
