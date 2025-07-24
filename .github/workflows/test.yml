@@ -61,7 +61,7 @@ jobs:
     strategy:
       fail-fast: true
 
-    name: Run tests
+    name: Foundry project
     runs-on: ubuntu-latest
     env:
       # Safe to put here since they are default anvil private keys
@@ -92,6 +92,21 @@ jobs:
       - name: Install dependencies
         run: |
           make install-tanssi-relayer
+
+      - name: Run Forge fmt
+        run: |
+          forge fmt --check
+        id: fmt
+
+      - name: Run Forge build
+        run: |
+          forge build --sizes
+        id: build
+
+      - name: Run Forge tests
+        run: |
+          forge test --nmp "test/fork/*" -vvv
+        id: test
 
       - name: Run Forge fork testnet tests
         run: |
