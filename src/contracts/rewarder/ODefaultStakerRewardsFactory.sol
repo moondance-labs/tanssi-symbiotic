@@ -14,19 +14,25 @@
 
 pragma solidity 0.8.25;
 
+//**************************************************************************************************
+//                                      OPENZEPPELIN
+//**************************************************************************************************
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
+//**************************************************************************************************
+//                                      SYMBIOTIC
+//**************************************************************************************************
 import {Registry} from "@symbioticfi/core/src/contracts/common/Registry.sol";
 
+//**************************************************************************************************
+//                                      TANSSI
+//**************************************************************************************************
 import {ODefaultStakerRewards} from "./ODefaultStakerRewards.sol";
 import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
 
 contract ODefaultStakerRewardsFactory is Ownable2Step, Registry, IODefaultStakerRewardsFactory {
-    using EnumerableSet for EnumerableSet.AddressSet;
-
     address private _implementation;
 
     address private immutable i_vaultFactory;
