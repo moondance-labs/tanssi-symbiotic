@@ -10,10 +10,6 @@ optimizer = true
 optimizer_runs = 800
 cache_path = "forge-cache"
 
-[profile.ci]
-optimizer_runs = 200
-via_ir = false
-
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
 
 remappings = [
@@ -27,8 +23,13 @@ remappings = [
     'openzeppelin-contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/',
     'openzeppelin/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/',
     'prb/math/=lib/tanssi-bridge-relayer/snowbridge/contracts/lib/prb-math/',
-    "@chainlink/=lib/chainlink-brownie-contracts/contracts/src/v0.8/",
 ]
+
+
+[profile.ci]
+optimizer_runs = 200
+via_ir = false
+
 
 [rpc_endpoints]
 mainnet = "${ETH_RPC_URL}"
