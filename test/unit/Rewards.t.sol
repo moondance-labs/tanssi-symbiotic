@@ -19,9 +19,9 @@ import {Test, console2} from "forge-std/Test.sol";
 //**************************************************************************************************
 //                                      SYMBIOTIC
 //**************************************************************************************************
-import {NetworkMiddlewareService} from "@symbioticfi/core/src/contracts/service/NetworkMiddlewareService.sol";
-import {NetworkRegistry} from "@symbioticfi/core/src/contracts/NetworkRegistry.sol";
-import {OperatorRegistry} from "@symbioticfi/core/src/contracts/OperatorRegistry.sol";
+import {NetworkMiddlewareService} from "@symbiotic/contracts/service/NetworkMiddlewareService.sol";
+import {NetworkRegistry} from "@symbiotic/contracts/NetworkRegistry.sol";
+import {OperatorRegistry} from "@symbiotic/contracts/OperatorRegistry.sol";
 import {OptInService} from "@symbiotic/contracts/service/OptInService.sol";
 import {Slasher} from "@symbiotic/contracts/slasher/Slasher.sol";
 
@@ -1652,7 +1652,7 @@ contract RewardsTest is Test {
         assertEq(newStakerRewards.adminFee(), ADMIN_FEE);
     }
 
-    function testImplementation() public {
+    function testImplementation() public view {
         assertEq(stakerRewardsFactory.getImplementation(), stakerRewardsImplementation);
     }
 

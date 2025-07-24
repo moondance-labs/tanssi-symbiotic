@@ -48,6 +48,7 @@ import {DeployVault} from "script/DeployVault.s.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
 import {DeployTanssiEcosystemDemo} from "demos/DeployTanssiEcosystemDemo.s.sol";
+import {AggregatorV3DIAProxy} from "src/contracts/oracle-proxy/AggregatorV3DIAProxy.sol";
 
 contract DeployTest is Test {
     using Subnetwork for address;
@@ -380,6 +381,35 @@ contract DeployTest is Test {
         (address vaultConfiguratorAddress,,,,,,,,) = helperConfig.activeNetworkConfig();
         address tanssiToken = deployCollateral.deployCollateral("TANSSI");
         deployVault.createTanssiVault(vaultConfiguratorAddress, tanssi, tanssiToken);
+    }
+
+    //**************************************************************************************************
+    //                                      DEPLOY AGGREGATORV3DIAPROXY
+    //**************************************************************************************************
+
+    function testDeployDIAAggregatorOracleProxy() public {
+        address diaOracleAddress = makeAddr("DIAOracle");
+        string memory pairSymbol = "ETH/USD";
+        AggregatorV3DIAProxy aggregatorV3Proxy =
+            deployTanssiEcosystem.deployDIAAggregatorOracleProxy(diaOracleAddress, pairSymbol);
+        assertNotEq(address(aggregatorV3Proxy), ZERO_ADDRESS);
+        assertEq(aggregatorV3Proxy.pairSymbol(), pairSymbol);
+    }
+
+    function testDeployDIAAggregatorOracleProxyWithInvalidData() public {
+        address diaOracleAddress = ZERO_ADDRESS;
+        string memory pairSymbol = "ETH/USD";
+
+        vm.expectRevert("Invalid DIA Oracle address or pair symbol");
+        deployTanssiEcosystem.deployDIAAggregatorOracleProxy(diaOracleAddress, pairSymbol);
+    }
+
+    function testDeployDIAAggregatorOracleProxyWithEmptyPairSymbol() public {
+        address diaOracleAddress = makeAddr("DIAOracle");
+        string memory pairSymbol = "";
+
+        vm.expectRevert("Invalid DIA Oracle address or pair symbol");
+        deployTanssiEcosystem.deployDIAAggregatorOracleProxy(diaOracleAddress, pairSymbol);
     }
 
     //**************************************************************************************************

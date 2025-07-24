@@ -39,6 +39,9 @@ import {KeyManager256} from "@symbiotic-middleware/extensions/managers/keys/KeyM
 import {BaseMiddleware} from "@symbiotic-middleware/middleware/BaseMiddleware.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 
+//**************************************************************************************************
+//                                      TANSSI
+//**************************************************************************************************
 import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {QuickSort} from "src/contracts/libraries/QuickSort.sol";

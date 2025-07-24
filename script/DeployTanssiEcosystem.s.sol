@@ -24,6 +24,7 @@ import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
+import {AggregatorV3DIAProxy} from "src/contracts/oracle-proxy/AggregatorV3DIAProxy.sol";
 
 contract DeployTanssiEcosystem is Script {
     uint256 ownerPrivateKey =
@@ -95,6 +96,19 @@ contract DeployTanssiEcosystem is Script {
         }
         console2.log("New implementation: ", address(newImplementation));
 
+        vm.stopBroadcast();
+    }
+
+    function deployDIAAggregatorOracleProxy(
+        address diaOracleAddress,
+        string calldata pairSymbol
+    ) external returns (AggregatorV3DIAProxy aggregatorProxy) {
+        vm.startBroadcast(broadcaster());
+        if (diaOracleAddress == address(0) || bytes(pairSymbol).length == 0) {
+            revert("Invalid DIA Oracle address or pair symbol");
+        }
+        aggregatorProxy = new AggregatorV3DIAProxy(diaOracleAddress, pairSymbol);
+        console2.log("DIA Aggregator Proxy deployed at: ", address(aggregatorProxy));
         vm.stopBroadcast();
     }
 
