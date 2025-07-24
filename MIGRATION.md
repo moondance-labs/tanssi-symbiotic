@@ -29,5 +29,7 @@ Steps to migrate:
 - Set the new implementation in the `ODefaultStakerRewardsFactory` contract.
 - Upgrade each `ODefaultStakerRewards` to this new implementation via `upgradeToAndCall`
 - Call for each `ODefaultStakerRewards` contract deployed the new `setVault` function to set the new vault address, since that is taken out of the constructor.
+- Deploy `AggregatorV3DIAProxy` with TANSSI/USD pair symbol to support the new vault.
+- Deploy `RewardsHintsBuilder` to be able to get the hints to call `claimRewards` on `ODefaultOperatorRewards` contract.
 - In v1.2.1, deployed instantly after, upgrade the implementation of the `ODefaultStakerRewards` contracts to a version without `setVault`.
 - In v1.2.1, upgrades in mainnet fork tests should be removed since they are no longer needed. They are marked with TODO.
