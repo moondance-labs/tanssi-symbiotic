@@ -230,8 +230,7 @@ contract MiddlewareTest is Test {
     }
 
     function testOperatorPower() public {
-        (uint48 currentEpoch, Middleware.ValidatorData[] memory validators, uint256 totalOperatorPower) =
-            _prepareSlashingTest();
+        (, Middleware.ValidatorData[] memory validators, uint256 totalOperatorPower) = _prepareSlashingTest();
 
         assertApproxEqAbs(validators[0].power, totalOperatorPower, 1);
     }

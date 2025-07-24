@@ -1321,7 +1321,6 @@ contract FullTest is Test {
 
         // TODO: The upgrade is needed only because it didn't happen on mainnet yet
         DeployTanssiEcosystem deployTanssiEcosystem = new DeployTanssiEcosystem();
-        address stakerRewardsFactory = middleware.i_stakerRewardsFactory();
         deployTanssiEcosystem.upgradeMiddleware(address(middleware), 1, admin);
 
         OBaseMiddlewareReader newReader = new OBaseMiddlewareReader();

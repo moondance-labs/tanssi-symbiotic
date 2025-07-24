@@ -1652,7 +1652,7 @@ contract RewardsTest is Test {
         assertEq(newStakerRewards.adminFee(), ADMIN_FEE);
     }
 
-    function testImplementation() public {
+    function testImplementation() public view {
         assertEq(stakerRewardsFactory.getImplementation(), stakerRewardsImplementation);
     }
 

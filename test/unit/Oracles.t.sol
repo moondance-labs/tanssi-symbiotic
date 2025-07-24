@@ -36,7 +36,7 @@ contract MiddlewareTest is Test {
         tanssiCollateralOracle = new AggregatorV3DIAProxy(address(diaOracle), TANSSI_PAIR_SYMBOL);
     }
 
-    function testDIAGetValueTanssiPrice() public {
+    function testDIAGetValueTanssiPrice() public view {
         (uint128 latestPrice, uint128 latestTimestamp) = diaOracle.getValue(TANSSI_PAIR_SYMBOL);
         assertEq(latestPrice, uint128(uint256(ORACLE_CONVERSION_TANSSI)));
         assertEq(latestTimestamp, uint128(block.timestamp));
@@ -52,22 +52,22 @@ contract MiddlewareTest is Test {
         assertEq(latestTimestamp, newTimestamp);
     }
 
-    function testAggregatorV3DIAProxyDecimals() public {
+    function testAggregatorV3DIAProxyDecimals() public view {
         uint8 decimals = tanssiCollateralOracle.decimals();
         assertEq(decimals, 8);
     }
 
-    function testAggregatorV3DIAProxyDescription() public {
+    function testAggregatorV3DIAProxyDescription() public view {
         string memory description = tanssiCollateralOracle.description();
         assertEq(description, TANSSI_PAIR_SYMBOL);
     }
 
-    function testAggregatorV3DIAProxyVersion() public {
+    function testAggregatorV3DIAProxyVersion() public view {
         uint256 version = tanssiCollateralOracle.version();
         assertEq(version, 1);
     }
 
-    function testAggregatorV3DIAProxyGetRoundData() public {
+    function testAggregatorV3DIAProxyGetRoundData() public view {
         (uint80 roundId, int256 price, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound) =
             tanssiCollateralOracle.getRoundData(1);
 
@@ -78,7 +78,7 @@ contract MiddlewareTest is Test {
         assertEq(answeredInRound, 1);
     }
 
-    function testAggregatorV3DIAProxyLatestRoundData() public {
+    function testAggregatorV3DIAProxyLatestRoundData() public view {
         (uint80 roundId, int256 price, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound) =
             tanssiCollateralOracle.latestRoundData();
 
