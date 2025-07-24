@@ -1,7 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.25;
 
+//**************************************************************************************************
+//                                      SYMBIOTIC
+//**************************************************************************************************
 import {BaseMiddleware} from "@symbiotic-middleware/middleware/BaseMiddleware.sol";
+
+//**************************************************************************************************
+//                                      TANSSI
+//**************************************************************************************************
 import {IOSharedVaults} from "src/interfaces/extensions/IOSharedVaults.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 
