@@ -7,6 +7,8 @@ on:
       - main
   pull_request:
   workflow_dispatch:
+env:
+  FOUNDRY_PROFILE: ci
 
 jobs:
   detect-changes:
