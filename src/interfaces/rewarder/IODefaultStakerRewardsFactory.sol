@@ -15,7 +15,7 @@
 pragma solidity ^0.8.0;
 
 import {IODefaultStakerRewards} from "./IODefaultStakerRewards.sol";
-import {IRegistry} from "@symbioticfi/core/src/interfaces/common/IRegistry.sol";
+import {IRegistry} from "@symbiotic/interfaces/common/IRegistry.sol";
 
 interface IODefaultStakerRewardsFactory is IRegistry {
     error ODefaultStakerRewardsFactory__AlreadySet();

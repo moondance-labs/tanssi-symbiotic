@@ -9,7 +9,7 @@ import {IDIAOracleV2} from "src/interfaces/oracles/IDIAOracleV2.sol";
 
 contract AggregatorV3DIAProxy is AggregatorV3Interface {
     string public pairSymbol;
-    IDIAOracleV2 public aggregator;
+    IDIAOracleV2 public immutable i_aggregator;
 
     error AggregatorV3DIAProxy__InvalidData();
 
@@ -17,7 +17,7 @@ contract AggregatorV3DIAProxy is AggregatorV3Interface {
         if (_aggregator == address(0) || bytes(_pairSymbol).length == 0) {
             revert AggregatorV3DIAProxy__InvalidData();
         }
-        aggregator = IDIAOracleV2(_aggregator);
+        i_aggregator = IDIAOracleV2(_aggregator);
         pairSymbol = _pairSymbol;
     }
 
@@ -36,7 +36,7 @@ contract AggregatorV3DIAProxy is AggregatorV3Interface {
     function getRoundData(
         uint80 /*_roundId*/
     ) external view override returns (uint80, int256, uint256, uint256, uint80) {
-        (uint128 latestPrice, uint128 timestampOfLatestPrice) = aggregator.getValue(pairSymbol);
+        (uint128 latestPrice, uint128 timestampOfLatestPrice) = i_aggregator.getValue(pairSymbol);
 
         return (
             uint80(1),
@@ -48,7 +48,7 @@ contract AggregatorV3DIAProxy is AggregatorV3Interface {
     }
 
     function latestRoundData() external view override returns (uint80, int256, uint256, uint256, uint80) {
-        (uint128 latestPrice, uint128 timestampOfLatestPrice) = aggregator.getValue(pairSymbol);
+        (uint128 latestPrice, uint128 timestampOfLatestPrice) = i_aggregator.getValue(pairSymbol);
 
         return (
             uint80(1),

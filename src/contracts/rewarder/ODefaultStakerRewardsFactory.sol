@@ -24,7 +24,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 //**************************************************************************************************
 //                                      SYMBIOTIC
 //**************************************************************************************************
-import {Registry} from "@symbioticfi/core/src/contracts/common/Registry.sol";
+import {Registry} from "@symbiotic/contracts/common/Registry.sol";
 
 //**************************************************************************************************
 //                                      TANSSI

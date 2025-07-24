@@ -103,7 +103,6 @@ contract UpgradesTest is Test {
     }
 
     function testUpgradeStakerRewardsWithBroadcast() public {
-        address vault = stakerRewards.i_vault();
         address network = stakerRewards.i_network();
         address networkMiddlewareService = stakerRewards.i_networkMiddlewareService();
 

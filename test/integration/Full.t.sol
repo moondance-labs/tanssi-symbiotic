@@ -1117,10 +1117,9 @@ contract FullTest is Test {
         uint48 eraIndex = 1;
         uint48 operatorNumber = 1;
         uint256 amountToDistribute = 100 ether;
-        uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
+        _prepareRewardsDistribution(eraIndex, amountToDistribute);
 
-        (,, bytes32[] memory proof, uint32 points, uint32 totalPoints) =
-            _loadRewardsRootAndProof(eraIndex, operatorNumber);
+        (,, bytes32[] memory proof, uint32 points,) = _loadRewardsRootAndProof(eraIndex, operatorNumber);
 
         {
             bytes memory hintsData =
