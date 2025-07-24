@@ -20,7 +20,7 @@ import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
-import {Registry} from "@symbioticfi/core/src/contracts/common/Registry.sol";
+import {Registry} from "@symbiotic/contracts/common/Registry.sol";
 
 import {ODefaultStakerRewards} from "./ODefaultStakerRewards.sol";
 import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";

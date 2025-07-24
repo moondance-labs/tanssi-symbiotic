@@ -1015,7 +1015,7 @@ contract MiddlewareTest is Test {
         AggregatorV3DIAProxy tanssiCollateralOracle = new AggregatorV3DIAProxy(address(diaOracle), TANSSI_PAIR_SYMBOL);
         vm.stopPrank();
 
-        (address tanssiVaultAddress, address tanssiDelegatorAddress, address tanssiSlasherAddress) =
+        (address tanssiVaultAddress, address tanssiDelegatorAddress,) =
             deployVault.createTanssiVault(address(vaultConfigurator), tanssi, address(tanssiCollateral));
 
         vm.startPrank(owner);
@@ -1487,7 +1487,7 @@ contract MiddlewareTest is Test {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         vm.roll(50);
         uint256 gasBefore = gasleft();
-        bytes32[] memory sortedValidators = middleware.sendCurrentOperatorsKeys();
+        middleware.sendCurrentOperatorsKeys();
         uint256 gasAfter = gasleft();
         uint256 gasSorted = gasBefore - gasAfter;
         console2.log("Total gas used for sorting manually: ", gasSorted);

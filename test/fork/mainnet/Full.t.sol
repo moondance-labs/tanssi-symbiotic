@@ -29,7 +29,6 @@ import {INetworkRegistry} from "@symbiotic/interfaces/INetworkRegistry.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
-import {IDefaultStakerRewards} from "@symbiotic-rewards/interfaces/defaultStakerRewards/IDefaultStakerRewards.sol";
 
 //**************************************************************************************************
 //                                      CHAINLINK
@@ -1322,7 +1321,6 @@ contract FullTest is Test {
 
         // TODO: The upgrade is needed only because it didn't happen on mainnet yet
         DeployTanssiEcosystem deployTanssiEcosystem = new DeployTanssiEcosystem();
-        address stakerRewardsFactory = middleware.i_stakerRewardsFactory();
         deployTanssiEcosystem.upgradeMiddleware(address(middleware), 1, admin);
 
         OBaseMiddlewareReader newReader = new OBaseMiddlewareReader();
