@@ -99,6 +99,14 @@ contract DeployTanssiEcosystem is Script {
         vm.stopBroadcast();
     }
 
+    function deployMiddlewareReader() public returns (OBaseMiddlewareReader reader) {
+        vm.startBroadcast(broadcaster());
+        reader = new OBaseMiddlewareReader();
+        console2.log("New reader: ", address(reader));
+
+        vm.stopBroadcast();
+    }
+
     function deployDIAAggregatorOracleProxy(
         address diaOracleAddress,
         string calldata pairSymbol

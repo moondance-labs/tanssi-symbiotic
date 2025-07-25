@@ -21,6 +21,7 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
+import {RewardsHintsBuilder} from "src/contracts/rewarder/RewardsHintsBuilder.sol";
 
 contract DeployRewards is Script {
     ODefaultStakerRewardsFactory public stakerRewardsFactory;
@@ -96,6 +97,18 @@ contract DeployRewards is Script {
         return address(stakerRewardsFactory);
     }
 
+    function deployStakerRewards(
+        address networkMiddlewareService,
+        address network
+    ) external returns (ODefaultStakerRewards stakerRewards) {
+        vm.startBroadcast(broadcaster());
+
+        stakerRewards = new ODefaultStakerRewards(networkMiddlewareService, network);
+        console2.log("New Staker Rewards Implementation: ", address(stakerRewards));
+
+        vm.stopBroadcast();
+    }
+
     function upgradeStakerRewards(address proxyAddress, address networkMiddlewareService, address network) external {
         if (!isTest) {
             vm.startBroadcast(broadcaster());
@@ -133,6 +146,19 @@ contract DeployRewards is Script {
         } else {
             vm.stopPrank();
         }
+    }
+
+    function deployRewardsHintsBuilder(
+        address middleware,
+        address operatorRewards_,
+        address vaultHints
+    ) external returns (RewardsHintsBuilder rewardsHintsBuilder) {
+        vm.startBroadcast(broadcaster());
+
+        rewardsHintsBuilder = new RewardsHintsBuilder(middleware, operatorRewards_, vaultHints);
+        console2.log("New Rewards Hints Builder: ", address(rewardsHintsBuilder));
+
+        vm.stopBroadcast();
     }
 
     function broadcaster() private view returns (address) {

@@ -7,11 +7,11 @@
   "gateway": "0x0e3dbc66840a36527d21560538907503f672677e",
   "gatewayImplementation": "0x5a7e4193ba91eb7538ff7e1e34e5df4d7ffd9144",
   "middleware": "0xdbc3804a9d3164a438ec222a222e8d8b2dffa0de",
-  "middlewareImplementation": "0x24b7decb46b530f614d404db752c8ad658416925",
-  "middlewareReader": "0xe63cd9d581bfc3483e4699febd725f861e529b21",
+  "middlewareImplementation": "0x9c77f71365F67130c244f777c78f9a7eA70AF73b",
+  "middlewareReader": "0x088F17C8AB52044Ea932A04C9ACdeb12bbBCf55a",
   "operatorRewards": "0x5a1a8ce9f4d294aa1835252b5fe397d607d615c8",
-  "operatorRewardsImplementation": "0x507e002b327f36de69a7a31d6fcebf46525fb784",
-  "stakerRewardsFactory": "0x3dd616a9ab18a7f63348ab0d6af4f7981faf79ab",
+  "operatorRewardsImplementation": "0x1405660dF1956Ec5289B057715Aa959d9923Cb1E",
+  "stakerRewardsFactory": "0xfe5221bb6ff8df14bc0b69b9e976e0b2bd3cf156",
   "delegatorFactory": "0x890ca3f95e0f40a79885b7400926544b2214b03f",
   "slasherFactory": "0xbf34bf75bb779c383267736c53a4ae86ac7bb299",
   "vaultFactory": "0x407a039d94948484d356efb765b3c74382a050b4",
@@ -27,6 +27,12 @@
       "symbol": "stETH",
       "address": "0x3e3fe7dbc6b4c189e7128855dd526361c49b40af",
       "oracle": "0x694aa1769357215de4fac081bf1f309adc325306"
+    },
+    {
+      "name": "STAR",
+      "symbol": "STAR",
+      "address": "0x5F47029799132400a475149AC4faEA7c10B86cc9",
+      "oracle": "0x21e29159610d0fc39676c5ccade632d2cafb991f"
     }
   ],
   "vaults": [
@@ -37,7 +43,7 @@
       "slasher": "0xa2f02442fe12b42929ce9563a289a923f0631a9c",
       "collateral": "0x3e3fe7dbc6b4c189e7128855dd526361c49b40af",
       "stakerRewards": "0x14453f57a92881ba788d0caf29ad6cce1f9028f1",
-      "stakerRewardsImplementation": "0x9ad391e9ea067a43077b090b3027b21623cd62d5"
+      "stakerRewardsImplementation": "0x4dc7A8Db09296ab3b37058cb6DA47cD9e3266a7e"
     }
   ],
   "totalOperators": 1,

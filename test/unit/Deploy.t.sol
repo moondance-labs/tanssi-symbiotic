@@ -263,6 +263,11 @@ contract DeployTest is Test {
         deployTanssiEcosystem.upgradeMiddleware(middleware, 2, tanssi);
     }
 
+    function testDeployMiddlewareReader() public {
+        address reader = address(deployTanssiEcosystem.deployMiddlewareReader());
+        assertNotEq(reader, ZERO_ADDRESS);
+    }
+
     //**************************************************************************************************
     //                                      DEPLOY VAULT
     //**************************************************************************************************
@@ -366,6 +371,25 @@ contract DeployTest is Test {
         deployRewards.upgradeOperatorRewards(operatorRewards, tanssi, addresses.networkMiddlewareService);
     }
 
+    function testDeployRewardsStaker() public {
+        DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
+
+        address stakerRewards = address(deployRewards.deployStakerRewards(addresses.networkMiddlewareService, tanssi));
+
+        assertNotEq(stakerRewards, ZERO_ADDRESS);
+    }
+
+    function testDeployRewardsHintsBuilder() public {
+        address middleware = makeAddr("middleware");
+        address operatorRewards = makeAddr("operatorRewards");
+        address vaultHints = makeAddr("vaultHints");
+
+        address rewardsHintsBuilder =
+            address(deployRewards.deployRewardsHintsBuilder(middleware, operatorRewards, vaultHints));
+
+        assertNotEq(rewardsHintsBuilder, ZERO_ADDRESS);
+    }
+
     function testDeployRewardsStakerFactory() public {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
         address operatorRewards =
@@ -389,7 +413,7 @@ contract DeployTest is Test {
 
     function testDeployDIAAggregatorOracleProxy() public {
         address diaOracleAddress = makeAddr("DIAOracle");
-        string memory pairSymbol = "ETH/USD";
+        string memory pairSymbol = "TANSSI/USD";
         AggregatorV3DIAProxy aggregatorV3Proxy =
             deployTanssiEcosystem.deployDIAAggregatorOracleProxy(diaOracleAddress, pairSymbol);
         assertNotEq(address(aggregatorV3Proxy), ZERO_ADDRESS);
@@ -398,7 +422,7 @@ contract DeployTest is Test {
 
     function testDeployDIAAggregatorOracleProxyWithInvalidData() public {
         address diaOracleAddress = ZERO_ADDRESS;
-        string memory pairSymbol = "ETH/USD";
+        string memory pairSymbol = "TANSSI/USD";
 
         vm.expectRevert("Invalid DIA Oracle address or pair symbol");
         deployTanssiEcosystem.deployDIAAggregatorOracleProxy(diaOracleAddress, pairSymbol);
