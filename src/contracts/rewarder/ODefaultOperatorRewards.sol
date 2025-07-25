@@ -217,11 +217,12 @@ contract ODefaultOperatorRewards is
         if (totalVaults == 0) {
             revert ODefaultOperatorRewards__NoVaults();
         }
+
         uint256[] memory amountPerVault = _getRewardsAmountPerVault(
             operatorVaults, totalVaults, epochStartTs, operator, middlewareAddress, stakerAmount
         );
 
-        _distributeRewardsPerVault(epoch, eraIndex, tokenAddress, totalVaults, operatorVaults, amountPerVault, data);
+        _distributeRewardsForEachVault(epoch, eraIndex, tokenAddress, totalVaults, operatorVaults, amountPerVault, data);
     }
 
     function _distributeRewardsToOperator(
@@ -274,12 +275,11 @@ contract ODefaultOperatorRewards is
         uint256 totalPower;
         for (uint256 i; i < totalVaults;) {
             vaultPowers[i] = reader.getOperatorPowerAt(epochStartTs, operator, operatorVaults[i], subnetwork);
-            totalPower += vaultPowers[i];
             unchecked {
+                totalPower += vaultPowers[i];
                 ++i;
             }
         }
-
         // Then we calculate the rewards according to the operator power on each vault
         uint256 distributedAmount;
         amountPerVault = new uint256[](totalVaults);
@@ -299,7 +299,7 @@ contract ODefaultOperatorRewards is
         }
     }
 
-    function _distributeRewardsPerVault(
+    function _distributeRewardsForEachVault(
         uint48 epoch,
         uint48 eraIndex,
         address tokenAddress,
@@ -308,16 +308,17 @@ contract ODefaultOperatorRewards is
         uint256[] memory amountPerVault,
         bytes calldata data
     ) private {
-        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
-        for (uint256 i; i < totalVaults;) {
-            if (amountPerVault[i] != 0) {
-                address stakerRewardsForVault = $.vaultToStakerRewardsContract[operatorVaults[i]];
-                IERC20(tokenAddress).approve(stakerRewardsForVault, amountPerVault[i]);
-                IODefaultStakerRewards(stakerRewardsForVault).distributeRewards(
-                    epoch, eraIndex, amountPerVault[i], tokenAddress, data
-                );
-            }
+        (uint256 maxAdminFee, VaultHints[] memory hints) = abi.decode(data, (uint256, VaultHints[]));
 
+        for (uint256 i; i < totalVaults;) {
+            VaultHints memory vaultHints;
+            // For backward compatibility, we allow empty hints array to mean no hints for any vault
+            if (hints.length != 0) {
+                vaultHints = hints[i];
+            }
+            _distributeRewardsForVault(
+                operatorVaults[i], amountPerVault[i], vaultHints, epoch, eraIndex, tokenAddress, maxAdminFee
+            );
             unchecked {
                 ++i;
             }
@@ -414,6 +415,47 @@ contract ODefaultOperatorRewards is
         assembly {
             $.slot := position
         }
+    }
+
+    function _distributeRewardsForVault(
+        address vault,
+        uint256 amount,
+        VaultHints memory vaultHint,
+        uint48 epoch,
+        uint48 eraIndex,
+        address tokenAddress,
+        uint256 maxAdminFee
+    ) private {
+        if (amount != 0) {
+            {
+                OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+                address stakerRewardsForVault = $.vaultToStakerRewardsContract[vault];
+                if (stakerRewardsForVault == address(0)) {
+                    revert ODefaultOperatorRewards__StakerRewardsNotSetForVault(vault);
+                }
+                bytes memory stakerRewardsHints = _getStakerRewardsHints(vault, vaultHint, maxAdminFee);
+                IERC20(tokenAddress).approve(stakerRewardsForVault, amount);
+                IODefaultStakerRewards(stakerRewardsForVault).distributeRewards(
+                    epoch, eraIndex, amount, tokenAddress, stakerRewardsHints
+                );
+            }
+        }
+    }
+
+    function _getStakerRewardsHints(
+        address vault,
+        VaultHints memory vaultHint,
+        uint256 maxAdminFee
+    ) private pure returns (bytes memory) {
+        if (vaultHint.vault == address(0)) {
+            return abi.encode(maxAdminFee, new bytes(0), new bytes(0));
+        }
+
+        if (vaultHint.vault != vault) {
+            revert ODefaultOperatorRewards__InvalidOrderForHintsPerVault();
+        }
+
+        return abi.encode(maxAdminFee, vaultHint.activeSharesHint, vaultHint.activeStakeHint);
     }
 
     function _checkNotZeroAddress(

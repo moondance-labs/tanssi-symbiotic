@@ -1,0 +1,51 @@
+{
+  "admin": "0x8f7b28c2a36e805f4024c1ae1e96a4b75e50a512",
+  "tanssi": "0x8f7b28c2a36e805f4024c1ae1e96a4b75e50a512",
+  "rewardsToken": "0x5f47029799132400a475149ac4faea7c10b86cc9",
+  "beefy": "0xd4c3b70ac1547d66bc89f8607c58dd544412e8b7",
+  "forwarder": "0x0000000000000000000000000000000000000000",
+  "gateway": "0x0e3dbc66840a36527d21560538907503f672677e",
+  "gatewayImplementation": "0x5a7e4193ba91eb7538ff7e1e34e5df4d7ffd9144",
+  "middleware": "0xdbc3804a9d3164a438ec222a222e8d8b2dffa0de",
+  "middlewareImplementation": "0x24b7decb46b530f614d404db752c8ad658416925",
+  "middlewareReader": "0xe63cd9d581bfc3483e4699febd725f861e529b21",
+  "operatorRewards": "0x5a1a8ce9f4d294aa1835252b5fe397d607d615c8",
+  "operatorRewardsImplementation": "0x507e002b327f36de69a7a31d6fcebf46525fb784",
+  "stakerRewardsFactory": "0x3dd616a9ab18a7f63348ab0d6af4f7981faf79ab",
+  "delegatorFactory": "0x890ca3f95e0f40a79885b7400926544b2214b03f",
+  "slasherFactory": "0xbf34bf75bb779c383267736c53a4ae86ac7bb299",
+  "vaultFactory": "0x407a039d94948484d356efb765b3c74382a050b4",
+  "vaultConfigurator": "0xd2191fe92987171691d552c219b8caef186eb9ca",
+  "networkRegistry": "0x7d03b7343bf8d5cec7c0c27ece084a20113d15c9",
+  "operatorRegistry": "0x6f75a4fff97326a00e52662d82ea4fde86a2c548",
+  "operatorNetworkOptInService": "0x58973d16ffa900d11fc22e5e2b6840d9f7e13401",
+  "operatorVaultOptInService": "0x95cc0a052ae33941877c9619835a233d21d57351",
+  "networkMiddlewareService": "0x62a1ddfd86b4c1636759d9286d3a0ec722d086e3",
+  "collaterals": [
+    {
+      "name": "Liquid staked Ether 2.0",
+      "symbol": "stETH",
+      "address": "0x3e3fe7dbc6b4c189e7128855dd526361c49b40af",
+      "oracle": "0x694aa1769357215de4fac081bf1f309adc325306"
+    }
+  ],
+  "vaults": [
+    {
+      "name": "Opslayer Vault",
+      "vault": "0x94ba7bb350d8d15720c70ba9216985aa3165b67e",
+      "delegator": "0xbeb9c27535159824c4313c19c12c7649fb5ce532",
+      "slasher": "0xa2f02442fe12b42929ce9563a289a923f0631a9c",
+      "collateral": "0x3e3fe7dbc6b4c189e7128855dd526361c49b40af",
+      "stakerRewards": "0x14453f57a92881ba788d0caf29ad6cce1f9028f1",
+      "stakerRewardsImplementation": "0x9ad391e9ea067a43077b090b3027b21623cd62d5"
+    }
+  ],
+  "totalOperators": 1,
+  "operators": [
+    {
+      "name": "Opslayer",
+      "evmAddress": "0x72158193a23E35817e86076246c4A3d68f8F4749",
+      "operatorKey": "0xe86f7e1076c1cbcf4fbbb79d9aeafaa3b8450ab3a12bfa4b1ae52841ab396c10"
+    }
+  ]
+}

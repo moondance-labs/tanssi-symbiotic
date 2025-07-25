@@ -18,13 +18,11 @@ pragma solidity 0.8.25;
 //                                      CHAINLINK
 //**************************************************************************************************
 import {AutomationCompatibleInterface} from "@chainlink/automation/interfaces/AutomationCompatibleInterface.sol";
-import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3Interface.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -44,19 +42,21 @@ import {KeyManager256} from "@symbiotic-middleware/extensions/managers/keys/KeyM
 import {OzAccessControl} from "@symbiotic-middleware/extensions/managers/access/OzAccessControl.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
-import {PauseableEnumerableSet} from "@symbiotic-middleware/libraries/PauseableEnumerableSet.sol";
 
 //**************************************************************************************************
 //                                      SNOWBRIDGE
 //**************************************************************************************************
 import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfaces/IOGateway.sol";
+
+//**************************************************************************************************
+//                                      TANSSI
+//**************************************************************************************************
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {OSharedVaults} from "src/contracts/extensions/OSharedVaults.sol";
 import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
-
 import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 
 contract Middleware is
@@ -70,8 +70,6 @@ contract Middleware is
     MiddlewareStorage,
     IMiddleware
 {
-    using PauseableEnumerableSet for PauseableEnumerableSet.AddressSet;
-    using PauseableEnumerableSet for PauseableEnumerableSet.Status;
     using Subnetwork for address;
     using Math for uint256;
 
@@ -84,17 +82,9 @@ contract Middleware is
 
     /*
      * @notice Constructor for the middleware
-     * @param operatorRewards The operator rewards address
-     * @param stakerRewardsFactory The staker rewards factory address
      */
-    constructor(
-        address operatorRewards,
-        address stakerRewardsFactory
-    ) notZeroAddress(operatorRewards) notZeroAddress(stakerRewardsFactory) {
+    constructor() {
         _disableInitializers();
-
-        i_operatorRewards = operatorRewards;
-        i_stakerRewardsFactory = stakerRewardsFactory;
     }
 
     /*
@@ -137,6 +127,19 @@ contract Middleware is
         _setSelectorRole(this.performUpkeep.selector, FORWARDER_ROLE);
     }
 
+    /*
+     * @notice Reinitialize the middleware with only operator rewards and staker rewards factory addresses
+     * @param operatorRewards The operator rewards address
+     * @param stakerRewardsFactory The staker rewards factory address
+     */
+    function reinitializeRewards(
+        address operatorRewards,
+        address stakerRewardsFactory
+    ) external reinitializer(2) notZeroAddress(operatorRewards) notZeroAddress(stakerRewardsFactory) {
+        i_operatorRewards = operatorRewards;
+        i_stakerRewardsFactory = stakerRewardsFactory;
+    }
+
     function _validateInitParams(
         InitParams memory params
     )
@@ -159,20 +162,7 @@ contract Middleware is
     }
 
     function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
-        address collateral = vaultToCollateral(vault);
-        address oracle = collateralToOracle(collateral);
-
-        if (oracle == address(0)) {
-            revert Middleware__NotSupportedCollateral(collateral);
-        }
-        (, int256 price,,,) = AggregatorV3Interface(oracle).latestRoundData();
-        uint8 priceDecimals = AggregatorV3Interface(oracle).decimals();
-        power = stake.mulDiv(uint256(price), 10 ** priceDecimals);
-        // Normalize power to 18 decimals
-        uint8 collateralDecimals = IERC20Metadata(collateral).decimals();
-        if (collateralDecimals != DEFAULT_DECIMALS) {
-            power = power.mulDiv(10 ** DEFAULT_DECIMALS, 10 ** collateralDecimals);
-        }
+        return IOBaseMiddlewareReader(address(this)).getPowerInUSD(vault, stake);
     }
 
     /**
@@ -305,14 +295,7 @@ contract Middleware is
     function checkUpkeep(
         bytes calldata /* checkData */
     ) external view override returns (bool upkeepNeeded, bytes memory performData) {
-        uint48 epoch = getCurrentEpoch();
-        bytes32[] memory sortedKeys = IOBaseMiddlewareReader(address(this)).sortOperatorsByPower(epoch);
-        StorageMiddleware storage $ = _getMiddlewareStorage();
-
-        //Should be at least once per epoch
-        upkeepNeeded = (Time.timestamp() - $.lastTimestamp) > $.interval;
-
-        performData = abi.encode(sortedKeys, epoch);
+        (upkeepNeeded, performData) = IOBaseMiddlewareReader(address(this)).auxiliaryCheckUpkeep();
     }
 
     /**
@@ -322,20 +305,63 @@ contract Middleware is
     function performUpkeep(
         bytes calldata performData
     ) external override checkAccess {
+        if (performData.length == 0) {
+            revert Middleware__NoPerformData();
+        }
+
         StorageMiddleware storage $ = _getMiddlewareStorage();
         address gateway = $.gateway;
         if (gateway == address(0)) {
             revert Middleware__GatewayNotSet();
         }
 
-        uint48 currentTimestamp = Time.timestamp();
-        if ((currentTimestamp - $.lastTimestamp) > $.interval) {
-            $.lastTimestamp = currentTimestamp;
+        uint48 epoch = getCurrentEpoch();
+        StorageMiddlewareCache storage cache = _getMiddlewareStorageCache();
 
-            // Decode the sorted keys and the epoch from performData
-            (bytes32[] memory sortedKeys, uint48 epoch) = abi.decode(performData, (bytes32[], uint48));
+        address[] memory activeOperators = _activeOperators();
+        uint256 activeOperatorsLength = activeOperators.length;
+        uint256 cacheIndex = cache.epochToCacheIndex[epoch];
+        uint256 pendingOperatorsToCache = activeOperatorsLength - cacheIndex;
 
-            IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);
+        if (pendingOperatorsToCache > 0) {
+            (uint8 command, ValidatorData[] memory validatorsData) = abi.decode(performData, (uint8, ValidatorData[]));
+
+            if (command != CACHE_DATA_COMMAND) {
+                revert Middleware__InvalidCommand(command);
+            }
+
+            uint256 validatorsDataLength = validatorsData.length;
+            for (uint256 i = 0; i < validatorsDataLength;) {
+                ValidatorData memory validatorData = validatorsData[i];
+                bytes32 validatorKey = validatorData.key;
+                // Update the cache with the operator power and the operator
+                if (cache.operatorKeyToPower[epoch][validatorKey] != 0) {
+                    revert Middleware__AlreadyCached();
+                }
+
+                cache.operatorKeyToPower[epoch][validatorKey] = validatorData.power;
+                unchecked {
+                    ++i;
+                }
+            }
+
+            unchecked {
+                cache.epochToCacheIndex[epoch] += validatorsDataLength;
+            }
+        } else {
+            uint48 currentTimestamp = Time.timestamp();
+            if ((currentTimestamp - $.lastTimestamp) > $.interval) {
+                $.lastTimestamp = currentTimestamp;
+
+                // Decode the sorted keys and the epoch from performData
+                (uint8 command, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
+
+                if (command != SEND_DATA_COMMAND) {
+                    revert Middleware__InvalidCommand(command);
+                }
+
+                IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);
+            }
         }
     }
 
@@ -468,21 +494,23 @@ contract Middleware is
         address sharedVault,
         IODefaultStakerRewards.InitParams memory stakerRewardsParams
     ) internal override {
+        if (_sharedVaultsLength() >= MAX_ACTIVE_VAULTS) {
+            revert Middleware__TooManyActiveVaults();
+        }
+
         address stakerRewards =
             IODefaultStakerRewardsFactory(i_stakerRewardsFactory).create(sharedVault, stakerRewardsParams);
 
         IODefaultOperatorRewards(i_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
 
-        address collateral = IVault(sharedVault).collateral();
-        _setVaultToCollateral(sharedVault, collateral);
+        _setVaultToCollateral(sharedVault);
     }
 
     /**
      * @inheritdoc BaseOperators
      */
     function _beforeRegisterOperatorVault(address, /* operator */ address vault) internal override {
-        address collateral = IVault(vault).collateral();
-        _setVaultToCollateral(vault, collateral);
+        _setVaultToCollateral(vault);
     }
 
     /**
@@ -493,7 +521,7 @@ contract Middleware is
         bytes memory key,
         address
     ) internal pure override notZeroAddress(operator) {
-        if (abi.decode(key, (bytes32)) == bytes32(0)) {
+        if (key.length != 32 || abi.decode(key, (bytes32)) == bytes32(0)) {
             revert Middleware__InvalidKey();
         }
     }
@@ -507,8 +535,12 @@ contract Middleware is
         _updateKey(operator, abi.encode(bytes32(0)));
     }
 
-    function _setVaultToCollateral(address vault, address collateral) private notZeroAddress(collateral) {
+    function _setVaultToCollateral(
+        address vault
+    ) private {
         StorageMiddleware storage $ = _getMiddlewareStorage();
+        address collateral = IVault(vault).collateral();
+        _checkNotZeroAddress(collateral);
         $.vaultToCollateral[vault] = collateral;
     }
 

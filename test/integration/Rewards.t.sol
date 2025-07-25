@@ -34,10 +34,8 @@ import {Vault} from "@symbiotic/contracts/vault/Vault.sol";
 import {VetoSlasher} from "@symbiotic/contracts/slasher/VetoSlasher.sol";
 import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
-import {IOzAccessControl} from "@symbiotic-middleware/interfaces/extensions/managers/access/IOzAccessControl.sol";
 import {PauseableEnumerableSet} from "@symbiotic-middleware/libraries/PauseableEnumerableSet.sol";
 import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
-import {OperatorManager} from "@symbiotic-middleware/managers/OperatorManager.sol";
 
 //**************************************************************************************************
 //                                      CHAINLINK
@@ -77,14 +75,14 @@ import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
 import {DeployVault} from "script/DeployVault.s.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
+import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
-import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
+import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
 import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 
 contract RewardsTest is Test {
     using Subnetwork for address;
-    using Subnetwork for bytes32;
     using Math for uint256;
 
     uint48 public constant VAULT_EPOCH_DURATION = 8 days;
@@ -152,6 +150,7 @@ contract RewardsTest is Test {
     OptInService public operatorVaultOptInService;
     OptInService public operatorNetworkOptInService;
     ODefaultOperatorRewards public operatorRewards;
+    address public stakerRewardsImpl;
 
     MetadataService public operatorMetadataService;
     MetadataService public networkMetadataService;
@@ -290,8 +289,11 @@ contract RewardsTest is Test {
         );
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
         address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
-            address(vaultFactory), address(networkMiddlewareService), operatorRewardsAddress, tanssi
+            address(vaultFactory), address(networkMiddlewareService), operatorRewardsAddress, tanssi, owner
         );
+
+        stakerRewardsImpl = address(new ODefaultStakerRewards(address(networkMiddlewareService), tanssi));
+
         middleware = _deployMiddlewareWithProxy(tanssi, owner, address(operatorRewards), stakerRewardsFactoryAddress);
 
         operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
@@ -306,6 +308,9 @@ contract RewardsTest is Test {
         vetoSlasher.setResolver(0, resolver1, hex"");
         vetoSlasher.setResolver(0, resolver2, hex"");
         vm.stopPrank();
+
+        vm.prank(owner);
+        ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress).setImplementation(stakerRewardsImpl);
 
         vault = Vault(vaultAddresses.vault);
         vaultSlashable = Vault(vaultAddresses.vaultSlashable);
@@ -356,7 +361,7 @@ contract RewardsTest is Test {
         address _operatorRewardsAddress,
         address _stakerRewardsFactoryAddress
     ) public returns (Middleware _middleware) {
-        Middleware _middlewareImpl = new Middleware(_operatorRewardsAddress, _stakerRewardsFactoryAddress);
+        Middleware _middlewareImpl = new Middleware();
         _middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
         IMiddleware.InitParams memory params = IMiddleware.InitParams({
             network: _network,
@@ -369,6 +374,7 @@ contract RewardsTest is Test {
             reader: address(new OBaseMiddlewareReader())
         });
         _middleware.initialize(params);
+        _middleware.reinitializeRewards(_operatorRewardsAddress, _stakerRewardsFactoryAddress);
 
         networkMiddlewareService.setMiddleware(address(_middleware));
     }
@@ -386,7 +392,8 @@ contract RewardsTest is Test {
             collateral: address(stETH),
             owner: _owner,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
 
         (vaultAddresses.vault, vaultAddresses.delegator, vaultAddresses.slasher) = deployVault.createBaseVault(params);
@@ -414,7 +421,8 @@ contract RewardsTest is Test {
             adminFee: 0,
             defaultAdminRoleHolder: _owner,
             adminFeeClaimRoleHolder: _owner,
-            adminFeeSetRoleHolder: _owner
+            adminFeeSetRoleHolder: _owner,
+            implementation: stakerRewardsImpl
         });
         middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
         middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsParams);

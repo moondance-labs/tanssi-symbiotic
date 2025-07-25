@@ -77,6 +77,8 @@ import {MockOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/test/moc
 
 import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
 
+import {DIAOracleMock} from "test/mocks/DIAOracleMock.sol";
+import {AggregatorV3DIAProxy} from "src/contracts/oracle-proxy/AggregatorV3DIAProxy.sol";
 import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
@@ -94,7 +96,6 @@ import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerReward
 
 contract MiddlewareTest is Test {
     using Subnetwork for address;
-    using Subnetwork for bytes32;
     using Math for uint256;
 
     uint48 public constant VAULT_EPOCH_DURATION = 8 days;
@@ -119,21 +120,30 @@ contract MiddlewareTest is Test {
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
     uint256 public constant SLASHING_FRACTION = PARTS_PER_BILLION / 10; // 10%
 
+    uint8 public constant DEFAULT_DECIMALS = 18;
     uint8 public constant ORACLE_DECIMALS = 18;
     int256 public constant ORACLE_CONVERSION_ST_ETH = 3000 ether;
     int256 public constant ORACLE_CONVERSION_R_ETH = 3000 ether;
     int256 public constant ORACLE_CONVERSION_W_BTC = 90_000 ether;
 
+    int256 public constant ORACLE_CONVERSION_TANSSI = 6 * 10 ** 7; // 0.6 USD
+    string public constant TANSSI_PAIR_SYMBOL = "TANSSI/USD";
+
     uint8 public constant USDC_ORACLE_DECIMALS = 8; // USDC_ORACLE_DECIMALS
     uint8 public constant USDC_TOKEN_DECIMALS = 6; // USDC_TOKEN_DECIMALS
     uint8 public constant USDT_ORACLE_DECIMALS = 18; // USDT_ORACLE_DECIMALS
     uint8 public constant USDT_TOKEN_DECIMALS = 18; // USDT_TOKEN_DECIMALS
+    uint8 public constant TANSSI_ORACLE_DECIMALS = 8; // TANSSI_ORACLE_DECIMALS
+    uint8 public constant TANSSI_TOKEN_DECIMALS = 12; // TANSSI_TOKEN_DECIMALS
 
     // It's Both are staking 150 USD worth in total
     uint256 public constant OPERATOR_4_STAKE_USDC = 90 * 10 ** USDC_TOKEN_DECIMALS;
     uint256 public constant OPERATOR_4_STAKE_USDT = 60 * 10 ** USDT_TOKEN_DECIMALS;
     uint256 public constant OPERATOR_5_STAKE_USDC = 60 * 10 ** USDC_TOKEN_DECIMALS;
     uint256 public constant OPERATOR_5_STAKE_USDT = 90 * 10 ** USDT_TOKEN_DECIMALS;
+
+    uint256 public constant OPERATOR_4_STAKE_TANSSI = 60 * 10 ** TANSSI_TOKEN_DECIMALS;
+    uint256 public constant OPERATOR_5_STAKE_TANSSI = 90 * 10 ** TANSSI_TOKEN_DECIMALS;
 
     uint256 public totalFullRestakePower; // Each operator participates with 100% of all operators stake
     uint256 public totalPowerVault; // By shares. Each operator participates gets 1/3 of the total power
@@ -213,6 +223,7 @@ contract MiddlewareTest is Test {
     DeployRewards deployRewards;
     DeployCollateral deployCollateral;
     ODefaultOperatorRewards operatorRewards;
+    address stakerRewardsImpl;
     ODefaultStakerRewardsFactory stakerRewardsFactory;
 
     function setUp() public {
@@ -272,9 +283,11 @@ contract MiddlewareTest is Test {
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
         address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
-            address(vaultFactory), address(networkMiddlewareService), operatorRewardsAddress, tanssi
+            address(vaultFactory), address(networkMiddlewareService), operatorRewardsAddress, tanssi, owner
         );
         stakerRewardsFactory = ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress);
+
+        stakerRewardsImpl = address(new ODefaultStakerRewards(address(networkMiddlewareService), tanssi));
 
         middleware = _deployMiddlewareWithProxy(tanssi, owner, operatorRewardsAddress, stakerRewardsFactoryAddress);
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
@@ -292,6 +305,9 @@ contract MiddlewareTest is Test {
         vetoSlasher.setResolver(0, resolver1, hex"");
         vetoSlasher.setResolver(0, resolver2, hex"");
         vm.stopPrank();
+
+        vm.prank(owner);
+        ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress).setImplementation(stakerRewardsImpl);
 
         vault = Vault(vaultAddresses.vault);
         vaultSlashable = Vault(vaultAddresses.vaultSlashable);
@@ -344,7 +360,7 @@ contract MiddlewareTest is Test {
     ) public returns (Middleware _middleware) {
         address readHelper = address(new OBaseMiddlewareReader());
 
-        Middleware _middlewareImpl = new Middleware(_operatorRewardsAddress, _stakerRewardsFactoryAddress);
+        Middleware _middlewareImpl = new Middleware();
         _middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
         IMiddleware.InitParams memory params = IMiddleware.InitParams({
             network: _network,
@@ -357,7 +373,7 @@ contract MiddlewareTest is Test {
             reader: readHelper
         });
         _middleware.initialize(params);
-
+        _middleware.reinitializeRewards(_operatorRewardsAddress, _stakerRewardsFactoryAddress);
         networkMiddlewareService.setMiddleware(address(_middleware));
     }
 
@@ -374,7 +390,8 @@ contract MiddlewareTest is Test {
             collateral: address(stETH),
             owner: _owner,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
 
         (vaultAddresses.vault, vaultAddresses.delegator, vaultAddresses.slasher) = deployVault.createBaseVault(params);
@@ -403,7 +420,8 @@ contract MiddlewareTest is Test {
             adminFee: 0,
             defaultAdminRoleHolder: tanssi,
             adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi
+            adminFeeSetRoleHolder: tanssi,
+            implementation: stakerRewardsImpl
         });
         middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
         middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsParams);
@@ -552,6 +570,41 @@ contract MiddlewareTest is Test {
         assertEq(validators[0].key, validatorsPreviousEpoch[0].key);
         assertEq(validators[1].key, validatorsPreviousEpoch[1].key);
         assertEq(validators[2].key, validatorsPreviousEpoch[2].key);
+    }
+
+    function testUnregisterOperatorButPastVaultsAreNotShown() public {
+        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        uint48 previousEpoch = middleware.getCurrentEpoch();
+        uint48 previousEpochStartTs = middleware.getEpochStart(previousEpoch);
+
+        vm.startPrank(owner);
+        address[] memory operatorVaults = OBaseMiddlewareReader(address(middleware)).activeVaults(operator2);
+        assertEq(operatorVaults.length, 3);
+
+        middleware.pauseOperator(operator2);
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
+        middleware.unregisterOperator(operator2);
+
+        // Get validator set for current epoch
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        Middleware.ValidatorData[] memory validators =
+            OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
+
+        operatorVaults = OBaseMiddlewareReader(address(middleware)).activeVaults(operator2);
+
+        uint256 operatorPower =
+            OBaseMiddlewareReader(address(middleware)).getOperatorPowerAt(previousEpochStartTs, operator2);
+        address[] memory previousActiveOperators =
+            OBaseMiddlewareReader(address(middleware)).activeOperatorsAt(previousEpochStartTs);
+        assertGt(operatorPower, 0);
+
+        // Vaults history for the operators is kept intact
+        assertEq(operatorVaults.length, 3);
+        // Operators history is completely erased
+        assertEq(previousActiveOperators.length, 2);
+
+        assertEq(validators.length, 2);
+        vm.stopPrank();
     }
 
     function testWithdraw() public {
@@ -823,7 +876,8 @@ contract MiddlewareTest is Test {
             adminFee: 0,
             defaultAdminRoleHolder: network2,
             adminFeeClaimRoleHolder: network2,
-            adminFeeSetRoleHolder: network2
+            adminFeeSetRoleHolder: network2,
+            implementation: stakerRewardsImpl
         });
         vm.startPrank(owner);
         ODefaultOperatorRewards operatorRewards2 = ODefaultOperatorRewards(operatorRewardsAddress2);
@@ -875,7 +929,8 @@ contract MiddlewareTest is Test {
             collateral: address(usdc),
             owner: tanssi,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
 
         (address vaultUsdc, address vaultDelegatorUsdc,) = deployVault.createBaseVault(params);
@@ -898,7 +953,8 @@ contract MiddlewareTest is Test {
             adminFee: 0,
             defaultAdminRoleHolder: tanssi,
             adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi
+            adminFeeSetRoleHolder: tanssi,
+            implementation: stakerRewardsImpl
         });
         middleware.registerSharedVault(vaultUsdc, stakerRewardsParams);
         middleware.registerSharedVault(vaultUsdt, stakerRewardsParams);
@@ -938,6 +994,76 @@ contract MiddlewareTest is Test {
 
         // Total deposit is 300 USD, it should be normalized to 18 decimals
         uint256 totalPowerByShares = 300 ether;
+        // Only 2 operators participate in the USD vaults, so each has half of the power.
+        uint256 totalPowerOperator = totalPowerByShares / 2;
+
+        assertEq(validators[3].power, totalPowerOperator);
+        assertEq(validators[4].power, totalPowerOperator);
+    }
+
+    function testTanssiCollateral() public {
+        vm.startPrank(owner);
+
+        Token tanssiCollateral = Token(deployCollateral.deployCollateral("TANSSI", 12));
+
+        tanssiCollateral.mint(operator4, 1000 * 10 ** TANSSI_TOKEN_DECIMALS);
+        tanssiCollateral.mint(operator5, 1000 * 10 ** TANSSI_TOKEN_DECIMALS);
+
+        DIAOracleMock diaOracle =
+            new DIAOracleMock(TANSSI_PAIR_SYMBOL, uint128(uint256(ORACLE_CONVERSION_TANSSI)), uint128(block.timestamp));
+
+        AggregatorV3DIAProxy tanssiCollateralOracle = new AggregatorV3DIAProxy(address(diaOracle), TANSSI_PAIR_SYMBOL);
+        vm.stopPrank();
+
+        (address tanssiVaultAddress, address tanssiDelegatorAddress,) =
+            deployVault.createTanssiVault(address(vaultConfigurator), tanssi, address(tanssiCollateral));
+
+        vm.startPrank(owner);
+        middleware.setCollateralToOracle(address(tanssiCollateral), address(tanssiCollateralOracle));
+
+        _registerOperatorAndOptIn(operator4, tanssi, address(tanssiVaultAddress), true);
+
+        _registerOperatorAndOptIn(operator5, tanssi, address(tanssiVaultAddress), true);
+
+        vm.startPrank(owner);
+
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            adminFee: 0,
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: tanssi,
+            adminFeeSetRoleHolder: tanssi,
+            implementation: stakerRewardsImpl
+        });
+        middleware.registerSharedVault(tanssiVaultAddress, stakerRewardsParams);
+
+        middleware.registerOperator(operator4, abi.encode(OPERATOR4_KEY), address(0));
+        middleware.registerOperator(operator5, abi.encode(OPERATOR5_KEY), address(0));
+
+        vm.startPrank(tanssi);
+
+        INetworkRestakeDelegator(tanssiDelegatorAddress).setOperatorNetworkShares(tanssi.subnetwork(0), operator4, 1);
+        INetworkRestakeDelegator(tanssiDelegatorAddress).setOperatorNetworkShares(tanssi.subnetwork(0), operator5, 1);
+
+        INetworkRestakeDelegator(tanssiDelegatorAddress).setMaxNetworkLimit(0, 1000 * 10 ** TANSSI_TOKEN_DECIMALS);
+
+        INetworkRestakeDelegator(tanssiDelegatorAddress).setNetworkLimit(
+            tanssi.subnetwork(0), 1000 * 10 ** TANSSI_TOKEN_DECIMALS
+        );
+
+        vm.startPrank(operator4);
+        _depositToVault(Vault(tanssiVaultAddress), operator4, OPERATOR_4_STAKE_TANSSI, tanssiCollateral);
+
+        vm.startPrank(operator5);
+        _depositToVault(Vault(tanssiVaultAddress), operator5, OPERATOR_5_STAKE_TANSSI, tanssiCollateral);
+
+        vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW - 1);
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        Middleware.ValidatorData[] memory validators = _validatorSet(currentEpoch);
+
+        // Total deposit is 90 USD, it should be normalized to 18 decimals
+        uint256 totalPowerByShares = (OPERATOR_4_STAKE_TANSSI + OPERATOR_5_STAKE_TANSSI).mulDiv(
+            uint256(ORACLE_CONVERSION_TANSSI), 10 ** (TANSSI_ORACLE_DECIMALS + TANSSI_TOKEN_DECIMALS - DEFAULT_DECIMALS)
+        );
         // Only 2 operators participate in the USD vaults, so each has half of the power.
         uint256 totalPowerOperator = totalPowerByShares / 2;
 
@@ -1052,6 +1178,7 @@ contract MiddlewareTest is Test {
             }
             bytes32 operatorKey = bytes32(uint256(i + 4));
             middleware.registerOperator(_operator, abi.encode(operatorKey), address(0));
+            vm.stopPrank();
         }
     }
 
@@ -1243,7 +1370,7 @@ contract MiddlewareTest is Test {
         middleware.setForwarder(forwarder);
         // It's not needed, it's just for explaining and showing the flow
         address offlineKeepers = makeAddr("offlineKeepers");
-        vm.prank(offlineKeepers);
+        vm.startPrank(offlineKeepers);
         (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, false);
 
@@ -1251,13 +1378,282 @@ contract MiddlewareTest is Test {
         (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
 
-        bytes32[] memory sortedKeys = abi.decode(performData, (bytes32[]));
-        assertEq(sortedKeys.length, 3);
+        vm.startPrank(forwarder);
+        middleware.performUpkeep(performData);
+        uint48 epoch = middleware.getCurrentEpoch();
 
-        vm.prank(forwarder);
+        uint256 operator1Power = middleware.getOperatorToPower(epoch, OPERATOR_KEY);
+        uint256 operator2Power = middleware.getOperatorToPower(epoch, OPERATOR2_KEY);
+        uint256 operator3Power = middleware.getOperatorToPower(epoch, OPERATOR3_KEY);
+
+        (uint256 totalOperatorPowerAfter,) = _calculateOperatorPower(totalPowerVault, 0, 0);
+        (uint256 totalOperator2PowerAfter,) =
+            _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, 0);
+        (uint256 totalOperator3PowerAfter,) =
+            _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, totalFullRestakePower, 0);
+
+        assertEq(operator1Power, totalOperatorPowerAfter);
+        assertEq(operator2Power, totalOperator2PowerAfter);
+        assertEq(operator3Power, totalOperator3PowerAfter);
+
+        vm.startPrank(offlineKeepers);
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+
+        (uint8 command, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
+        assertEq(command, middleware.SEND_DATA_COMMAND());
+
+        vm.startPrank(forwarder);
         vm.expectEmit(true, false, false, false);
         emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
         middleware.performUpkeep(performData);
+
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+        assertEq(performData.length, 0);
+    }
+
+    function testUpkeepFor100OperatorsIn3VaultsSorted() public {
+        uint16 count = 100;
+        _addOperatorsToNetwork(count);
+        count += 3; // 3 operators are already registered
+        vm.prank(owner);
+        middleware.setForwarder(forwarder);
+
+        address offlineKeepers = makeAddr("offlineKeepers");
+
+        vm.startPrank(offlineKeepers);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+        // This will exhaust and fill the cache in n (count/max_operators_to_process) times
+        uint256 totalGasUsedForCheck = 0;
+        uint256 totalGasUsedForPerform = 0;
+        {
+            uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
+            for (uint256 i = 0; i < (count + max - 1) / max; i++) {
+                uint256 gasBeforeCheck = gasleft();
+                (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+                uint256 gasAfterCheck = gasleft();
+                uint256 gasUsedCheck = gasBeforeCheck - gasAfterCheck;
+                totalGasUsedForCheck += gasUsedCheck;
+
+                console2.log("Gas used for check: ", gasUsedCheck);
+                assertEq(upkeepNeeded, true);
+
+                vm.startPrank(forwarder);
+                uint256 gasBeforePerform = gasleft();
+                middleware.performUpkeep(performData);
+                uint256 gasAfterPerform = gasleft();
+                uint256 gasUsedPerform = gasBeforePerform - gasAfterPerform;
+                totalGasUsedForPerform += gasUsedPerform;
+                console2.log("Gas used for perform: ", gasUsedPerform);
+            }
+        }
+
+        // After the loop, we should have all operators processed and cache filled
+        // Now the keepers will call performUpkeep with the cache and sending the operators keys to the gateway
+        uint256 gasBeforeFinalCheck = gasleft();
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        uint256 gasAfterFinalCheck = gasleft();
+        uint256 gasUsedFinalCheck = gasBeforeFinalCheck - gasAfterFinalCheck;
+        totalGasUsedForCheck += gasUsedFinalCheck;
+        console2.log("Gas used for final check: ", gasUsedFinalCheck);
+        assertEq(upkeepNeeded, true);
+
+        (uint8 command, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
+        assertEq(command, middleware.SEND_DATA_COMMAND());
+        assertEq(sortedKeys.length, count);
+
+        {
+            vm.startPrank(forwarder);
+            vm.expectEmit(true, false, false, false);
+            emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
+            uint256 gasBeforeFinalPerform = gasleft();
+            middleware.performUpkeep(performData);
+            uint256 gasAfterFinalPerform = gasleft();
+            uint256 gasUsedFinalPerform = gasBeforeFinalPerform - gasAfterFinalPerform;
+            totalGasUsedForPerform += gasUsedFinalPerform;
+            console2.log("Gas used for final perform: ", gasUsedFinalPerform);
+        }
+
+        console2.log("Total gas used for check: ", totalGasUsedForCheck);
+        console2.log("Total gas used for perform: ", totalGasUsedForPerform);
+        console2.log("Total gas used for upkeep: ", totalGasUsedForCheck + totalGasUsedForPerform);
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+        vm.roll(50);
+        uint256 gasBefore = gasleft();
+        middleware.sendCurrentOperatorsKeys();
+        uint256 gasAfter = gasleft();
+        uint256 gasSorted = gasBefore - gasAfter;
+        console2.log("Total gas used for sorting manually: ", gasSorted);
+    }
+
+    function testUpkeepPerformDataShouldBeBelow2000Bytes() public {
+        uint16 count = 37;
+        _addOperatorsToNetwork(count);
+        count += 3; // 3 operators are already registered
+        vm.prank(owner);
+        middleware.setForwarder(forwarder);
+
+        address offlineKeepers = makeAddr("offlineKeepers");
+
+        vm.startPrank(offlineKeepers);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+
+        uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
+        for (uint256 i = 0; i < (count + max - 1) / max; i++) {
+            (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+            assertEq(upkeepNeeded, true);
+            console2.log("Perform Data length while caching: ", performData.length);
+            assertLe(performData.length, 2000);
+
+            vm.startPrank(forwarder);
+            middleware.performUpkeep(performData);
+        }
+
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+        console2.log("Perform Data length while sending: ", performData.length);
+        assertLe(performData.length, 2000);
+
+        (uint8 command, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
+        assertEq(command, middleware.SEND_DATA_COMMAND());
+        assertEq(sortedKeys.length, count);
+        assertLe(performData.length, 2000);
+
+        vm.startPrank(forwarder);
+        middleware.performUpkeep(performData);
+    }
+
+    function testUpkeepShouldFailDueToWrongCacheCommand() public {
+        uint16 count = 37;
+        _addOperatorsToNetwork(count);
+        count += 3; // 3 operators are already registered
+        vm.prank(owner);
+        middleware.setForwarder(forwarder);
+
+        address offlineKeepers = makeAddr("offlineKeepers");
+
+        vm.startPrank(offlineKeepers);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+
+        uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
+        for (uint256 i = 0; i < (count + max - 1) / max; i++) {
+            (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+            assertEq(upkeepNeeded, true);
+
+            vm.startPrank(forwarder);
+            middleware.performUpkeep(performData);
+        }
+
+        vm.expectRevert(
+            abi.encodeWithSelector(IMiddleware.Middleware__InvalidCommand.selector, middleware.CACHE_DATA_COMMAND())
+        );
+        middleware.performUpkeep(performData);
+    }
+
+    function testUpkeepShouldFailDueToWrongSendCommand() public {
+        uint16 count = 37;
+        _addOperatorsToNetwork(count);
+        count += 3; // 3 operators are already registered
+        vm.prank(owner);
+        middleware.setForwarder(forwarder);
+
+        address offlineKeepers = makeAddr("offlineKeepers");
+
+        vm.startPrank(offlineKeepers);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+
+        (uint8 command, IMiddleware.ValidatorData[] memory data) =
+            abi.decode(performData, (uint8, IMiddleware.ValidatorData[]));
+        assertEq(command, middleware.CACHE_DATA_COMMAND());
+
+        performData = abi.encode(middleware.SEND_DATA_COMMAND(), data);
+
+        vm.startPrank(forwarder);
+        vm.expectRevert(
+            abi.encodeWithSelector(IMiddleware.Middleware__InvalidCommand.selector, middleware.SEND_DATA_COMMAND())
+        );
+        middleware.performUpkeep(performData);
+    }
+
+    function testUpkeepShouldFailToDecodeIfUsingValidatorsKeysInsteadOfValidatorsData() public {
+        uint16 count = 37;
+        _addOperatorsToNetwork(count);
+        count += 3; // 3 operators are already registered
+        vm.prank(owner);
+        middleware.setForwarder(forwarder);
+
+        address offlineKeepers = makeAddr("offlineKeepers");
+
+        vm.startPrank(offlineKeepers);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+
+        uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
+        for (uint256 i = 0; i < (count + max - 1) / max; i++) {
+            (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+            assertEq(upkeepNeeded, true);
+
+            vm.startPrank(forwarder);
+            middleware.performUpkeep(performData);
+        }
+
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+
+        vm.expectRevert();
+        middleware.performUpkeep(performData);
+    }
+
+    function testUpkeepCacheIsAlwaysLessOrEqualThanActiveOperators() public {
+        uint16 count = 100;
+        _addOperatorsToNetwork(count);
+        count += 3; // 3 operators are already registered
+        vm.prank(owner);
+        middleware.setForwarder(forwarder);
+
+        address offlineKeepers = makeAddr("offlineKeepers");
+
+        vm.startPrank(offlineKeepers);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+        uint48 epoch = middleware.getCurrentEpoch();
+        uint256 activeOperatorsLength = (OBaseMiddlewareReader(address(middleware)).activeOperators()).length;
+        {
+            uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
+            for (uint256 i = 0; i < (count + max - 1) / max; i++) {
+                (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+
+                uint256 cacheIndex = middleware.getEpochCacheIndex(epoch);
+                assertGe(activeOperatorsLength, cacheIndex);
+                assertEq(upkeepNeeded, true);
+
+                vm.startPrank(forwarder);
+                middleware.performUpkeep(performData);
+            }
+        }
     }
 
     function testWhenRegisteringVaultThenStakerRewardsAreDeployed() public {
@@ -1269,7 +1665,8 @@ contract MiddlewareTest is Test {
             adminFee: 0,
             defaultAdminRoleHolder: tanssi,
             adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi
+            adminFeeSetRoleHolder: tanssi,
+            implementation: stakerRewardsImpl
         });
 
         middleware.registerSharedVault(testVaultAddresses.vault, stakerRewardsParams);
@@ -1305,7 +1702,8 @@ contract MiddlewareTest is Test {
             collateral: address(stETH),
             owner: _owner,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
 
         (testVaultAddresses.vault, testVaultAddresses.delegator, testVaultAddresses.slasher) =

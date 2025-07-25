@@ -78,17 +78,25 @@ interface IODefaultStakerRewards {
     event SetAdminFee(uint256 adminFee);
 
     /**
+     * @notice Emitted when the vault is set.
+     * @param vault address of the vault
+     */
+    event SetVault(address indexed vault);
+
+    /**
      * @notice Initial parameters needed for a staker rewards contract deployment.
      * @param adminFee admin fee (up to ADMIN_FEE_BASE inclusively)
      * @param defaultAdminRoleHolder address of the initial DEFAULT_ADMIN_ROLE holder
      * @param adminFeeClaimRoleHolder address of the initial ADMIN_FEE_CLAIM_ROLE holder
      * @param adminFeeSetRoleHolder address of the initial ADMIN_FEE_SET_ROLE holder
+     * @param implementation implementation's address of the staker rewards contract
      */
     struct InitParams {
         uint256 adminFee;
         address defaultAdminRoleHolder;
         address adminFeeClaimRoleHolder;
         address adminFeeSetRoleHolder;
+        address implementation;
     }
 
     /**

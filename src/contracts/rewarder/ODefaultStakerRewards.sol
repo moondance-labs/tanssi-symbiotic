@@ -32,6 +32,9 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 
+//**************************************************************************************************
+//                                      TANSSI
+//**************************************************************************************************
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 
 contract ODefaultStakerRewards is
@@ -90,26 +93,25 @@ contract ODefaultStakerRewards is
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    address public immutable i_vault;
+    address public immutable i_network;
 
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    address public immutable i_network;
+    address public i_vault;
 
-    constructor(address networkMiddlewareService, address vault, address network) {
+    constructor(address networkMiddlewareService, address network) {
         _disableInitializers();
 
-        if (network == address(0) || networkMiddlewareService == address(0) || vault == address(0)) {
+        if (network == address(0) || networkMiddlewareService == address(0)) {
             revert ODefaultStakerRewards__InvalidAddress();
         }
         i_networkMiddlewareService = networkMiddlewareService;
-        i_vault = vault;
         i_network = network;
     }
 
-    function initialize(address operatorRewards, InitParams calldata params) external initializer {
-        if (operatorRewards == address(0)) {
+    function initialize(address operatorRewards, address vault_, InitParams calldata params) external initializer {
+        if (operatorRewards == address(0) || vault_ == address(0)) {
             revert ODefaultStakerRewards__InvalidAddress();
         }
 
@@ -132,6 +134,8 @@ contract ODefaultStakerRewards is
         __ReentrancyGuard_init();
 
         _setAdminFee(params.adminFee);
+
+        i_vault = vault_;
 
         if (params.defaultAdminRoleHolder != address(0)) {
             _grantRole(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
@@ -262,7 +266,7 @@ contract ODefaultStakerRewards is
         uint48 epoch,
         address tokenAddress,
         bytes calldata activeSharesOfHints
-    ) external override nonReentrant {
+    ) public override nonReentrant {
         if (recipient == address(0)) {
             revert ODefaultStakerRewards__InvalidRecipient();
         }
@@ -280,7 +284,6 @@ contract ODefaultStakerRewards is
         if (rewardsPerEpoch == 0 || activeSharesCache_ == 0) {
             revert ODefaultStakerRewards__NoRewardsToClaim();
         }
-
         uint256 amount = IVault(i_vault).activeSharesOfAt(recipient, epochTs, activeSharesOfHints).mulDiv(
             rewardsPerEpoch, activeSharesCache_
         );
@@ -299,6 +302,18 @@ contract ODefaultStakerRewards is
         IERC20(tokenAddress).safeTransfer(recipient, amount);
 
         emit ClaimRewards(i_network, tokenAddress, msg.sender, epoch, recipient, amount);
+    }
+
+    /**
+     * @dev Alternative method to claim rewards with custom data
+     * @dev data = abi.encode(epoch, activeSharesOfHints)
+     */
+    function claimRewards(address recipient, address tokenAddress, bytes calldata data) external {
+        uint48 epoch;
+        assembly {
+            epoch := calldataload(data.offset)
+        }
+        claimRewards(recipient, epoch, tokenAddress, data[0x20:]);
     }
 
     /**
@@ -337,6 +352,21 @@ contract ODefaultStakerRewards is
         _setAdminFee(adminFee_);
 
         emit SetAdminFee(adminFee_);
+    }
+
+    /**
+     * @dev TODO: This function should be called only once and then should be upgraded to a new implementation without this function.
+     */
+    function setVault(
+        address vault_
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (vault_ == address(0)) {
+            revert ODefaultStakerRewards__InvalidAddress();
+        }
+
+        i_vault = vault_;
+
+        emit SetVault(vault_);
     }
 
     /**
