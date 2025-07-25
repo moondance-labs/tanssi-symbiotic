@@ -137,10 +137,14 @@ contract DeployTanssiEcosystemDemo is Script {
         tokensAddresses.rETHToken = Token(rETH);
         tokensAddresses.wBTCToken = Token(wBTC);
 
+        vm.deal(tanssi, 100_000 ether);
         vm.startBroadcast(ownerPrivateKey);
-        payable(operator).call{value: 100 ether}("");
-        payable(operator2).call{value: 100 ether}("");
-        payable(operator3).call{value: 100 ether}("");
+        (bool success1,) = payable(operator).call{value: 100 ether}("");
+        (bool success2,) = payable(operator2).call{value: 100 ether}("");
+        (bool success3,) = payable(operator3).call{value: 100 ether}("");
+        assert(success1 == true);
+        assert(success2 == true);
+        assert(success3 == true);
         tokensAddresses.stETHToken.mint(tanssi, 10_000 ether);
         tokensAddresses.rETHToken.mint(tanssi, 10_000 ether);
         tokensAddresses.wBTCToken.mint(tanssi, 10_000 ether);

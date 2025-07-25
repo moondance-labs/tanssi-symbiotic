@@ -97,21 +97,16 @@ contract DeployRewards is Script {
         return address(stakerRewardsFactory);
     }
 
-    function deployStakerRewards(address networkMiddlewareService, address network) external {
-        if (!isTest) {
-            vm.startBroadcast(broadcaster());
-        } else {
-            vm.startPrank(network);
-        }
+    function deployStakerRewards(
+        address networkMiddlewareService,
+        address network
+    ) external returns (ODefaultStakerRewards stakerRewards) {
+        vm.startBroadcast(broadcaster());
 
-        ODefaultStakerRewards implementation = new ODefaultStakerRewards(networkMiddlewareService, network);
-        console2.log("New Staker Rewards Implementation: ", address(implementation));
+        stakerRewards = new ODefaultStakerRewards(networkMiddlewareService, network);
+        console2.log("New Staker Rewards Implementation: ", address(stakerRewards));
 
-        if (!isTest) {
-            vm.stopBroadcast();
-        } else {
-            vm.stopPrank();
-        }
+        vm.stopBroadcast();
     }
 
     function upgradeStakerRewards(address proxyAddress, address networkMiddlewareService, address network) external {
@@ -153,10 +148,14 @@ contract DeployRewards is Script {
         }
     }
 
-    function deployRewardsHintsBuilder(address middleware, address operatorRewards_, address vaultHints) external {
+    function deployRewardsHintsBuilder(
+        address middleware,
+        address operatorRewards_,
+        address vaultHints
+    ) external returns (RewardsHintsBuilder rewardsHintsBuilder) {
         vm.startBroadcast(broadcaster());
 
-        RewardsHintsBuilder rewardsHintsBuilder = new RewardsHintsBuilder(middleware, operatorRewards_, vaultHints);
+        rewardsHintsBuilder = new RewardsHintsBuilder(middleware, operatorRewards_, vaultHints);
         console2.log("New Rewards Hints Builder: ", address(rewardsHintsBuilder));
 
         vm.stopBroadcast();
