@@ -124,7 +124,7 @@ upgrade-staker-rewards:
 
 deploy-dia-aggregator-oracle-proxy:
 	@echo "📡 Deploying DIA Aggregator Oracle Proxy..."
-	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem $(NETWORK_ARGS) --sig "deployDIAAggregatorOracleProxy(address,string)" $(DIA_ORACLE_ADDRESS) $(PAIR_SYMBOL) -vv --resume
+	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem $(NETWORK_ARGS) --sig "deployDIAAggregatorOracleProxy(address,string)" $(DIA_ORACLE_ADDRESS) $(PAIR_SYMBOL) -vv
 	@echo "✅ DIA Aggregator Oracle Proxy deployment completed"
 
 deploy-reader:
