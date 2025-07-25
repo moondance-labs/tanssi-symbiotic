@@ -66,9 +66,7 @@ contract UpgradesTest is Test {
     }
 
     function testUpgradeMiddleware() public {
-        address newOperatorRewardsAddress = makeAddr("newOperatorRewardsAddress");
-        address newStakerRewardsFactoryAddress = makeAddr("newStakerRewardsFactoryAddress");
-
+        address stakerRewardsFactory = middleware.i_stakerRewardsFactory();
         IOBaseMiddlewareReader reader = IOBaseMiddlewareReader(address(middleware));
 
         uint48 currentEpoch = reader.getCurrentEpoch();
@@ -77,10 +75,8 @@ contract UpgradesTest is Test {
 
         deployTanssiEcosystem.upgradeMiddlewareBroadcast(address(middleware), 1);
 
-        // Need to reinitialize the operatorRewards and stakerRewardsFactory after the first upgrade
-        middleware.reinitializeRewards(newOperatorRewardsAddress, newStakerRewardsFactoryAddress);
-        assertEq(middleware.i_operatorRewards(), newOperatorRewardsAddress);
-        assertEq(middleware.i_stakerRewardsFactory(), newStakerRewardsFactoryAddress);
+        assertEq(middleware.i_operatorRewards(), address(operatorRewards));
+        assertEq(middleware.i_stakerRewardsFactory(), stakerRewardsFactory);
         assertEq(reader.getCurrentEpoch(), currentEpoch);
         assertEq(reader.NETWORK(), network);
         assertEq(reader.operatorsLength(), operatorsLength);
