@@ -14,11 +14,19 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
-import {console2, Script} from "forge-std/Script.sol";
+import {Script} from "forge-std/Script.sol";
 import {DeploySymbiotic} from "./DeploySymbiotic.s.sol";
 
 contract HelperConfig is Script {
-    NetworkConfig public activeNetworkConfig;
+    struct Entities {
+        address admin;
+        address tanssi;
+        address gateway;
+        address forwarder;
+        address middleware;
+        address operatorRewards;
+        address rewardsToken;
+    }
 
     struct NetworkConfig {
         address vaultConfigurator;
@@ -29,61 +37,309 @@ contract HelperConfig is Script {
         address operatorVaultOptInService;
         address networkMiddlewareService;
         address collateral;
-        address stETH;
         address readHelper;
     }
 
-    uint256 public DEFAULT_ANVIL_PRIVATE_KEY = 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6;
+    struct TokensConfig {
+        CollateralData wstETH;
+        CollateralData rETH;
+        CollateralData swETH;
+        CollateralData wBETH;
+        CollateralData LsETH;
+        CollateralData cbETH;
+    }
+
+    struct VaultTrifecta {
+        address vault;
+        address delegator;
+        address slasher;
+    }
+
+    struct VaultsConfigA {
+        VaultData mevRestakedETH; // MEV Capital restaked ETH
+        VaultData mevCapitalETH; // MEV Capital wstETH Vault
+        VaultData hashKeyCloudETH; // HashKey Cloud Restaked ETH
+        VaultData renzoRestakedETH; // Renzo Restaked LST
+        VaultData re7LabsETH; // Re7 Labs LRT Vault
+        VaultData re7LabsRestakingETH; // Restaking Vault ETH [all Networks]
+        VaultData cp0xLrtETH; // cp0x LRT Conservative Vault
+        VaultData etherfiwstETH; // Ether.fi - wstETH
+        VaultData restakedLsETHVault; // Restaked LsETH Vault
+        VaultData opslayer; // Opslayer Vault
+    }
+
+    struct VaultsConfigB {
+        VaultData gauntletRestakedWstETH; // Gauntlet Restaked wstETH
+        VaultData gauntletRestakedSwETH; // Gauntlet Restaked swETH
+        VaultData gauntletRestakedRETH; // Gauntlet Restaked rETH
+        VaultData gauntletRestakedWBETH; // Gauntlet Restaked wBETH
+        VaultData gauntletRestakedcBETH; // Gauntlet Restaked cbETH
+    }
+
+    struct CollateralData {
+        address collateral;
+        address oracle;
+        string name;
+        string symbol;
+    }
+
+    struct VaultData {
+        string name;
+        address vault;
+        address delegator;
+        address slasher;
+        address collateral;
+        address stakerRewards;
+    }
+
+    struct OperatorData {
+        string name;
+        address evmAddress;
+        bytes32 operatorKey;
+        address[] vaults;
+        uint256[] powers; // Indexes match vaults array
+    }
+
+    struct OperatorConfig {
+        OperatorData operator1PierTwo;
+        OperatorData operator2P2P;
+        OperatorData operator3Nodeinfra;
+        OperatorData operator4Blockscape;
+        OperatorData operator5QuantNode;
+        OperatorData operator6NodeMonster;
+        OperatorData operator7BlockBones;
+        OperatorData operator8CP0XStakrspace;
+        OperatorData operator9HashkeyCloud;
+        OperatorData operator10Alchemy;
+        OperatorData operator11Opslayer;
+    }
+
+    Entities public activeEntities;
+    NetworkConfig public activeNetworkConfig;
+    TokensConfig public activeTokensConfig;
+    VaultsConfigA public activeVaultsConfigA;
+    VaultsConfigB public activeVaultsConfigB;
+    OperatorConfig public activeOperatorConfig;
+
+    uint256 public PRIVATE_KEY =
+        vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
 
     constructor() {
-        if (block.chainid == 31_337) {
-            activeNetworkConfig = getAnvilEthConfig();
+        if (block.chainid == 1 || block.chainid == 11_155_111) {
+            (
+                activeEntities,
+                activeNetworkConfig,
+                activeTokensConfig,
+                activeVaultsConfigA,
+                activeVaultsConfigB,
+                activeOperatorConfig
+            ) = getChainConfig();
         } else {
-            activeNetworkConfig = getChainConfig();
+            // Other configurations can remain empty
+            activeNetworkConfig = getAnvilEthConfig();
+            activeEntities.tanssi = vm.addr(PRIVATE_KEY);
+            activeEntities.admin = activeEntities.tanssi;
         }
     }
 
-    function getChainConfig() public view returns (NetworkConfig memory networkConfig) {
-        string memory root = vm.projectRoot();
-        string memory path = string.concat(root, "/script/chain_data.json");
-        string memory json = vm.readFile(path);
+    function getChainConfig()
+        public
+        view
+        returns (
+            Entities memory entities,
+            NetworkConfig memory networkConfig,
+            TokensConfig memory tokenConfig,
+            VaultsConfigA memory vaultsConfigA,
+            VaultsConfigB memory vaultsConfigB,
+            OperatorConfig memory operatorConfig
+        )
+    {
+        (string memory json, string memory jsonPath) = getJsonAndPathForChain();
 
-        //! Make sure chainid is present in the json or this will just revert without giving any information
-        uint256 chainId = block.chainid;
-        string memory jsonPath = string.concat("$.", vm.toString(chainId));
+        entities.admin = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".admin")), (address));
+        entities.tanssi = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".tanssi")), (address));
+        entities.gateway = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".gateway")), (address));
+        entities.forwarder = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".forwarder")), (address));
+        entities.middleware = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".middleware")), (address));
+        entities.operatorRewards =
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".operatorRewards")), (address));
+        entities.rewardsToken = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".rewardsToken")), (address));
 
-        // Parse based on chainId
-        address vaultConfiguratorAddress =
+        networkConfig.vaultConfigurator =
             abi.decode(vm.parseJson(json, string.concat(jsonPath, ".vaultConfigurator")), (address));
-        address operatorRegistryAddress =
+        networkConfig.operatorRegistry =
             abi.decode(vm.parseJson(json, string.concat(jsonPath, ".operatorRegistry")), (address));
-        address networkRegistryAddress =
+        networkConfig.networkRegistry =
             abi.decode(vm.parseJson(json, string.concat(jsonPath, ".networkRegistry")), (address));
-        address vaultRegistryAddress =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".vaultFactory")), (address));
-        address operatorNetworkOptInAddress =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".operatorNetworkOptInService")), (address));
-        address operatorVaultOptInAddress =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".operatorVaultOptInService")), (address));
-        address networkMiddlewareAddress =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".networkMiddlewareService")), (address));
-        address defaultCollateralFactoryAddress =
-            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".defaultCollateralFactory")), (address));
-        address readHelperAddress = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".readHelper")), (address));
-        address stETHAddress = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".stETH")), (address));
 
-        networkConfig = NetworkConfig({
-            vaultConfigurator: vaultConfiguratorAddress,
-            operatorRegistry: operatorRegistryAddress,
-            networkRegistry: networkRegistryAddress,
-            vaultRegistry: vaultRegistryAddress,
-            operatorNetworkOptIn: operatorNetworkOptInAddress,
-            operatorVaultOptInService: operatorVaultOptInAddress,
-            networkMiddlewareService: networkMiddlewareAddress,
-            collateral: defaultCollateralFactoryAddress,
-            stETH: stETHAddress,
-            readHelper: readHelperAddress
+        networkConfig.vaultRegistry =
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".vaultFactory")), (address));
+
+        networkConfig.operatorNetworkOptIn =
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".operatorNetworkOptInService")), (address));
+        networkConfig.operatorVaultOptInService =
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".operatorVaultOptInService")), (address));
+        networkConfig.networkMiddlewareService =
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".networkMiddlewareService")), (address));
+        networkConfig.readHelper =
+            abi.decode(vm.parseJson(json, string.concat(jsonPath, ".middlewareReader")), (address));
+
+        if (block.chainid == 1) {
+            uint256 totalCollaterals =
+                abi.decode(vm.parseJson(json, string.concat(jsonPath, ".totalCollaterals")), (uint256));
+            for (uint256 i = 0; i < totalCollaterals; i++) {
+                CollateralData memory collateral =
+                    _loadCollateral(json, string.concat(jsonPath, ".collaterals[", vm.toString(i), "]"));
+                _assignCollateral(collateral, tokenConfig);
+            }
+
+            uint256 totalVaults = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".totalVaults")), (uint256));
+            for (uint256 i = 0; i < totalVaults; i++) {
+                VaultData memory vault = _loadVault(json, string.concat(jsonPath, ".vaults[", vm.toString(i), "]"));
+                _assignVault(vault, vaultsConfigA, vaultsConfigB);
+            }
+
+            uint256 totalOperators =
+                abi.decode(vm.parseJson(json, string.concat(jsonPath, ".totalOperators")), (uint256));
+            for (uint256 i = 0; i < totalOperators; i++) {
+                OperatorData memory operator =
+                    _loadOperator(json, string.concat(jsonPath, ".operators[", vm.toString(i), "]"));
+                _assignOperator(operator, operatorConfig);
+            }
+        } else {
+            tokenConfig.wstETH = _loadCollateral(json, string.concat(jsonPath, ".collaterals[0]"));
+            networkConfig.collateral = tokenConfig.wstETH.collateral;
+
+            if (block.chainid == 11_155_111) {
+                VaultData memory vault = _loadVault(json, string.concat(jsonPath, ".vaults[0]"));
+                _assignVault(vault, vaultsConfigA, vaultsConfigB);
+                OperatorData memory operator = _loadOperator(json, string.concat(jsonPath, ".operators[0]"));
+                _assignOperator(operator, operatorConfig);
+            }
+        }
+    }
+
+    function _loadCollateral(string memory json, string memory path) private pure returns (CollateralData memory) {
+        // Trying to decode the full dictionary as a struct won't work, even if docs suggest it. I suspect it's due to dictionary keys not guaranteed to be in order.
+        string memory name = abi.decode(vm.parseJson(json, string.concat(path, ".name")), (string));
+        string memory symbol = abi.decode(vm.parseJson(json, string.concat(path, ".symbol")), (string));
+        address collateral = abi.decode(vm.parseJson(json, string.concat(path, ".address")), (address));
+        address oracle = abi.decode(vm.parseJson(json, string.concat(path, ".oracle")), (address));
+        return CollateralData({name: name, symbol: symbol, collateral: collateral, oracle: oracle});
+    }
+
+    function _loadVault(string memory json, string memory path) private pure returns (VaultData memory) {
+        string memory name = abi.decode(vm.parseJson(json, string.concat(path, ".name")), (string));
+        address vault = abi.decode(vm.parseJson(json, string.concat(path, ".vault")), (address));
+        address delegator = abi.decode(vm.parseJson(json, string.concat(path, ".delegator")), (address));
+        address slasher = abi.decode(vm.parseJson(json, string.concat(path, ".slasher")), (address));
+        address collateral = abi.decode(vm.parseJson(json, string.concat(path, ".collateral")), (address));
+        address stakerRewards = abi.decode(vm.parseJson(json, string.concat(path, ".stakerRewards")), (address));
+        return VaultData({
+            name: name,
+            vault: vault,
+            delegator: delegator,
+            slasher: slasher,
+            collateral: collateral,
+            stakerRewards: stakerRewards
         });
+    }
+
+    function _loadOperator(
+        string memory json,
+        string memory path
+    ) private pure returns (OperatorData memory operator) {
+        string memory name = abi.decode(vm.parseJson(json, string.concat(path, ".name")), (string));
+        address evmAddress = abi.decode(vm.parseJson(json, string.concat(path, ".evmAddress")), (address));
+        bytes32 operatorKey = abi.decode(vm.parseJson(json, string.concat(path, ".operatorKey")), (bytes32));
+
+        operator.name = name;
+        operator.evmAddress = evmAddress;
+        operator.operatorKey = operatorKey;
+    }
+
+    function _assignCollateral(CollateralData memory collateral, TokensConfig memory tokenConfig) private pure {
+        if (_sameString(collateral.symbol, "rETH")) {
+            tokenConfig.rETH = collateral;
+        } else if (_sameString(collateral.symbol, "swETH")) {
+            tokenConfig.swETH = collateral;
+        } else if (_sameString(collateral.symbol, "wBETH")) {
+            tokenConfig.wBETH = collateral;
+        } else if (_sameString(collateral.symbol, "LsETH")) {
+            tokenConfig.LsETH = collateral;
+        } else if (_sameString(collateral.symbol, "cbETH")) {
+            tokenConfig.cbETH = collateral;
+        } else if (_sameString(collateral.symbol, "wstETH")) {
+            tokenConfig.wstETH = collateral;
+        }
+    }
+
+    function _assignVault(
+        VaultData memory vault,
+        VaultsConfigA memory vaultsConfigA,
+        VaultsConfigB memory vaultsConfigB
+    ) private pure {
+        if (_sameString(vault.name, "MEV Capital restaked ETH")) {
+            vaultsConfigA.mevRestakedETH = vault;
+        } else if (_sameString(vault.name, "MEV Capital wstETH Vault")) {
+            vaultsConfigA.mevCapitalETH = vault;
+        } else if (_sameString(vault.name, "Hashkey Cloud")) {
+            vaultsConfigA.hashKeyCloudETH = vault;
+        } else if (_sameString(vault.name, "Renzo restaked LST")) {
+            vaultsConfigA.renzoRestakedETH = vault;
+        } else if (_sameString(vault.name, "Re7 Labs LRT Vault")) {
+            vaultsConfigA.re7LabsETH = vault;
+        } else if (_sameString(vault.name, "Re7 Restaking Vault ETH [All Networks]")) {
+            vaultsConfigA.re7LabsRestakingETH = vault;
+        } else if (_sameString(vault.name, "cp0x LRT conservative vault")) {
+            vaultsConfigA.cp0xLrtETH = vault;
+        } else if (_sameString(vault.name, "Ether fi wstETH")) {
+            vaultsConfigA.etherfiwstETH = vault;
+        } else if (_sameString(vault.name, "Restaked LsETH Vault (Liquid Collective)")) {
+            vaultsConfigA.restakedLsETHVault = vault;
+        } else if (_sameString(vault.name, "Opslayer Vault")) {
+            vaultsConfigA.opslayer = vault;
+        } else if (_sameString(vault.name, "Gauntlet restaked wstETH")) {
+            vaultsConfigB.gauntletRestakedWstETH = vault;
+        } else if (_sameString(vault.name, "Gauntlet restaked swETH")) {
+            vaultsConfigB.gauntletRestakedSwETH = vault;
+        } else if (_sameString(vault.name, "Gauntlet restaked rETH")) {
+            vaultsConfigB.gauntletRestakedRETH = vault;
+        } else if (_sameString(vault.name, "Gauntlet restaked wBETH")) {
+            vaultsConfigB.gauntletRestakedWBETH = vault;
+        } else if (_sameString(vault.name, "Gauntlet restaked cbETH")) {
+            vaultsConfigB.gauntletRestakedcBETH = vault;
+        }
+    }
+
+    function _assignOperator(OperatorData memory operator, OperatorConfig memory operatorConfig) private pure {
+        if (_sameString(operator.name, "Pier Two")) {
+            operatorConfig.operator1PierTwo = operator;
+        } else if (_sameString(operator.name, "P2P")) {
+            operatorConfig.operator2P2P = operator;
+        } else if (_sameString(operator.name, "Nodeinfra")) {
+            operatorConfig.operator3Nodeinfra = operator;
+        } else if (_sameString(operator.name, "Blockscape")) {
+            operatorConfig.operator4Blockscape = operator;
+        } else if (_sameString(operator.name, "Quant Node")) {
+            operatorConfig.operator5QuantNode = operator;
+        } else if (_sameString(operator.name, "Node Monster")) {
+            operatorConfig.operator6NodeMonster = operator;
+        } else if (_sameString(operator.name, "Block n Bones")) {
+            operatorConfig.operator7BlockBones = operator;
+        } else if (_sameString(operator.name, "CP0X by Stakr.space")) {
+            operatorConfig.operator8CP0XStakrspace = operator;
+        } else if (_sameString(operator.name, "Hashkey Cloud")) {
+            operatorConfig.operator9HashkeyCloud = operator;
+        } else if (_sameString(operator.name, "Alchemy")) {
+            operatorConfig.operator10Alchemy = operator;
+        } else if (_sameString(operator.name, "Opslayer")) {
+            operatorConfig.operator11Opslayer = operator;
+        }
+    }
+
+    function _sameString(string memory a, string memory b) private pure returns (bool) {
+        return keccak256(bytes(a)) == keccak256(bytes(b));
     }
 
     function getAnvilEthConfig() public returns (NetworkConfig memory networkConfig) {
@@ -100,8 +356,20 @@ contract HelperConfig is Script {
             operatorVaultOptInService: symbioticAddresses.operatorVaultOptInService,
             networkMiddlewareService: symbioticAddresses.networkMiddlewareService,
             collateral: address(deploySymbiotic.collateral()),
-            stETH: address(0),
             readHelper: address(0)
         });
+    }
+
+    function getJsonAndPathForChain() public view returns (string memory json, string memory jsonPath) {
+        string memory root = vm.projectRoot();
+        uint256 chainId = block.chainid;
+
+        if (chainId == 1) {
+            json = vm.readFile(string.concat(root, "/contract-addresses/tanssi.json"));
+            jsonPath = "$";
+        } else if (chainId == 11_155_111) {
+            json = vm.readFile(string.concat(root, "/contract-addresses/stagelight.json"));
+            jsonPath = "$";
+        }
     }
 }

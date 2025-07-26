@@ -7,6 +7,8 @@ on:
       - main
   pull_request:
   workflow_dispatch:
+env:
+  FOUNDRY_PROFILE: ci
 
 jobs:
   detect-changes:
@@ -52,7 +54,7 @@ jobs:
 
       - name: Deploy Tanssi Ecosystem Demo
         run: |
-          forge script demos/DeployTanssiEcosystemDemo.s.sol:DeployTanssiEcosystem \
+          forge script demos/DeployTanssiEcosystemDemo.s.sol:DeployTanssiEcosystemDemo \
             --rpc-url http://localhost:8545 \
             --broadcast \
             -vvv \

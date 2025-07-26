@@ -30,24 +30,10 @@ To spin up locally the blockchain network run:
 $ make anvil
 ```
 
-#### Deploy symbiotic contracts:
-
-```shell
-$ make deploy
-```
-
 #### Deploy Tanssi Ecosystem:
 
 ```shell
 $ make deploy-tanssi-eco RPC_URL=${RPC_URL} PRIVATE_KEY=${PRIVATE_KEY}  ETHERSCAN_API_KEY=${ETHERSCAN_API_KEY}
-```
-
-#### Deploy Tanssi Rewards Contracts:
-
-Check `Makefile` for the variable to pass to the deploy command.
-
-```shell
-$ make deploy-rewards ...
 ```
 
 ### Demo

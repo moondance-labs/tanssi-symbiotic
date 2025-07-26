@@ -17,9 +17,13 @@ pragma solidity ^0.8.0;
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 
 interface IOBaseMiddlewareReader {
+    error OBaseMiddlewareReader__NotSupportedCollateral(address collateral);
+
     function getCaptureTimestamp() external view returns (uint48 timestamp);
 
     function stakeToPower(address vault, uint256 stake) external view returns (uint256 power);
+
+    function getPowerInUSD(address vault, uint256 stake) external view returns (uint256 power);
 
     function keyWasActiveAt(uint48 timestamp, bytes memory key) external view returns (bool);
 
@@ -171,6 +175,10 @@ interface IOBaseMiddlewareReader {
         uint48 epoch
     ) external view returns (bytes32[] memory sortedKeys);
 
+    function sortOperatorsByPower(
+        IMiddleware.ValidatorData[] memory validatorSet
+    ) external view returns (bytes32[] memory sortedKeys);
+
     function getOperatorVaults(
         address operator,
         uint48 epochStartTs
@@ -189,4 +197,6 @@ interface IOBaseMiddlewareReader {
     function getEpochAtTs(
         uint48 timestamp
     ) external view returns (uint48 epoch);
+
+    function auxiliaryCheckUpkeep() external view returns (bool upkeepNeeded, bytes memory performData);
 }

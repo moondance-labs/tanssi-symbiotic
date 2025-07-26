@@ -17,7 +17,6 @@ pragma solidity 0.8.25;
 import {Script, console2} from "forge-std/Script.sol";
 
 import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
-import {IMigratablesFactory} from "@symbiotic/interfaces/common/IMigratablesFactory.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {IVaultConfigurator} from "@symbiotic/interfaces/IVaultConfigurator.sol";
 import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
@@ -28,8 +27,7 @@ import {IOperatorNetworkSpecificDelegator} from "@symbiotic/interfaces/delegator
 import {IBaseSlasher} from "@symbiotic/interfaces/slasher/IBaseSlasher.sol";
 import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
-
-import {DeploySymbiotic} from "./DeploySymbiotic.s.sol";
+import {HelperConfig} from "script/HelperConfig.s.sol";
 
 contract DeployVault is Script {
     error DeployVault__VaultConfiguratorOrCollateralNotDeployed();
@@ -41,12 +39,13 @@ contract DeployVault is Script {
         uint48 epochDuration;
         bool depositWhitelist;
         uint256 depositLimit;
-        uint64 delegatorIndex;
+        VaultManager.DelegatorType delegatorIndex;
         bool withSlasher;
-        uint64 slasherIndex;
+        VaultManager.SlasherType slasherIndex;
         uint48 vetoDuration;
         address operator;
         address network;
+        address burner;
     }
 
     struct CreateVaultBaseParams {
@@ -60,12 +59,18 @@ contract DeployVault is Script {
         address owner;
         address operator;
         address network;
+        address burner;
     }
 
     function createBaseVault(
         CreateVaultBaseParams memory params
     ) public returns (address, address, address) {
-        return _createVault({params: params, withSlasher: false, slasherIndex: 0, vetoDuration: 0});
+        return _createVault({
+            params: params,
+            withSlasher: false,
+            slasherIndex: VaultManager.SlasherType.INSTANT,
+            vetoDuration: 0
+        });
     }
 
     function createSlashableVault(
@@ -74,7 +79,7 @@ contract DeployVault is Script {
         return _createVault({
             params: params,
             withSlasher: true,
-            slasherIndex: uint8(DeploySymbiotic.VaultSlashType.SLASH),
+            slasherIndex: VaultManager.SlasherType.INSTANT,
             vetoDuration: 0
         });
     }
@@ -86,14 +91,35 @@ contract DeployVault is Script {
         return _createVault({
             params: params,
             withSlasher: true,
-            slasherIndex: uint8(DeploySymbiotic.VaultSlashType.VETO),
+            slasherIndex: VaultManager.SlasherType.VETO,
             vetoDuration: vetoDuration
         });
     }
 
+    function createTanssiVault(
+        address vaultConfigurator,
+        address admin,
+        address collateral
+    ) public returns (address vault, address delegator, address slasher) {
+        CreateVaultBaseParams memory params = CreateVaultBaseParams({
+            epochDuration: 7 days,
+            depositWhitelist: false,
+            depositLimit: 0,
+            delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
+            shouldBroadcast: true,
+            vaultConfigurator: vaultConfigurator,
+            collateral: collateral,
+            owner: admin,
+            operator: address(0),
+            network: address(0),
+            burner: address(0xDead)
+        });
+        (vault, delegator, slasher) = _createVault(params, VaultManager.SlasherType.INSTANT, true, 0);
+    }
+
     function _createVault(
         CreateVaultBaseParams memory params,
-        uint64 slasherIndex,
+        VaultManager.SlasherType slasherIndex,
         bool withSlasher,
         uint48 vetoDuration
     ) private returns (address vault_, address delegator_, address slasher_) {
@@ -110,12 +136,13 @@ contract DeployVault is Script {
             epochDuration: params.epochDuration,
             depositWhitelist: params.depositWhitelist,
             depositLimit: params.depositLimit,
-            delegatorIndex: uint64(params.delegatorIndex),
+            delegatorIndex: params.delegatorIndex,
             withSlasher: withSlasher,
             slasherIndex: slasherIndex,
             vetoDuration: vetoDuration,
             operator: params.operator,
-            network: params.network
+            network: params.network,
+            burner: params.burner
         });
 
         if (params.shouldBroadcast) {
@@ -133,7 +160,7 @@ contract DeployVault is Script {
         bytes memory vaultParams = abi.encode(
             IVault.InitParams({
                 collateral: params.collateral,
-                burner: address(0xdEaD),
+                burner: params.burner,
                 epochDuration: params.epochDuration,
                 depositWhitelist: params.depositWhitelist,
                 isDepositLimit: params.depositLimit != 0,
@@ -155,7 +182,7 @@ contract DeployVault is Script {
         operatorNetworkSharesSetRoleHolders[0] = params.owner;
 
         bytes memory delegatorParams;
-        if (params.delegatorIndex == 0) {
+        if (params.delegatorIndex == VaultManager.DelegatorType.NETWORK_RESTAKE) {
             delegatorParams = abi.encode(
                 INetworkRestakeDelegator.InitParams({
                     baseParams: IBaseDelegator.BaseParams({
@@ -167,7 +194,7 @@ contract DeployVault is Script {
                     operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
                 })
             );
-        } else if (params.delegatorIndex == 1) {
+        } else if (params.delegatorIndex == VaultManager.DelegatorType.FULL_RESTAKE) {
             delegatorParams = abi.encode(
                 IFullRestakeDelegator.InitParams({
                     baseParams: IBaseDelegator.BaseParams({
@@ -179,7 +206,7 @@ contract DeployVault is Script {
                     operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
                 })
             );
-        } else if (params.delegatorIndex == 2) {
+        } else if (params.delegatorIndex == VaultManager.DelegatorType.OPERATOR_SPECIFIC) {
             delegatorParams = abi.encode(
                 IOperatorSpecificDelegator.InitParams({
                     baseParams: IBaseDelegator.BaseParams({
@@ -191,7 +218,7 @@ contract DeployVault is Script {
                     operator: params.operator
                 })
             );
-        } else if (params.delegatorIndex == 3) {
+        } else if (params.delegatorIndex == VaultManager.DelegatorType.OPERATOR_NETWORK_SPECIFIC) {
             delegatorParams = abi.encode(
                 IOperatorNetworkSpecificDelegator.InitParams({
                     baseParams: IBaseDelegator.BaseParams({
@@ -206,10 +233,10 @@ contract DeployVault is Script {
         }
 
         bytes memory slasherParams;
-        if (params.slasherIndex == 0) {
+        if (params.slasherIndex == VaultManager.SlasherType.INSTANT) {
             slasherParams =
                 abi.encode(ISlasher.InitParams({baseParams: IBaseSlasher.BaseParams({isBurnerHook: false})}));
-        } else if (params.slasherIndex == 1) {
+        } else if (params.slasherIndex == VaultManager.SlasherType.VETO) {
             slasherParams = abi.encode(
                 IVetoSlasher.InitParams({
                     baseParams: IBaseSlasher.BaseParams({isBurnerHook: false}),
@@ -224,21 +251,29 @@ contract DeployVault is Script {
                 version: 1,
                 owner: params.owner,
                 vaultParams: vaultParams,
-                delegatorIndex: params.delegatorIndex,
+                delegatorIndex: uint64(params.delegatorIndex),
                 delegatorParams: delegatorParams,
                 withSlasher: params.withSlasher,
-                slasherIndex: params.slasherIndex,
+                slasherIndex: uint64(params.slasherIndex),
                 slasherParams: slasherParams
             })
         );
     }
 
-    function deployAllVaults(
+    function deployTestVaults(
         address vaultConfigurator,
         address collateral,
         address owner,
-        uint48 vaultEpochDuration
-    ) public {
+        uint48 vaultEpochDuration,
+        uint48 vetoDuration
+    )
+        public
+        returns (
+            HelperConfig.VaultTrifecta memory vault,
+            HelperConfig.VaultTrifecta memory vaultSlashable,
+            HelperConfig.VaultTrifecta memory vaultVetoed
+        )
+    {
         CreateVaultBaseParams memory params = CreateVaultBaseParams({
             epochDuration: vaultEpochDuration,
             depositWhitelist: false,
@@ -249,62 +284,29 @@ contract DeployVault is Script {
             collateral: collateral,
             owner: owner,
             operator: address(0),
-            network: address(0)
+            network: address(0),
+            burner: address(0xDead)
         });
 
-        (address vault, address delegator, address slasher) = createBaseVault(params);
+        (address vault_, address delegator, address slasher) = createBaseVault(params);
+        vault = HelperConfig.VaultTrifecta({vault: vault_, delegator: delegator, slasher: slasher});
 
-        console2.log("Vault: ", vault);
+        console2.log("Vault: ", vault_);
         console2.log("Delegator: ", delegator);
         console2.log("Slasher: ", slasher);
 
-        (address vaultSlashable, address delegatorSlashable, address slasherSlashable) = createSlashableVault(params);
-        console2.log("VaultSlashable: ", vaultSlashable);
-        console2.log("DelegatorSlashable: ", delegatorSlashable);
-        console2.log("SlasherSlashable: ", slasherSlashable);
+        (vault_, delegator, slasher) = createSlashableVault(params);
+        vaultSlashable = HelperConfig.VaultTrifecta({vault: vault_, delegator: delegator, slasher: slasher});
+        console2.log("VaultSlashable: ", vault_);
+        console2.log("DelegatorSlashable: ", delegator);
+        console2.log("SlasherSlashable: ", slasher);
 
         params.delegatorIndex = VaultManager.DelegatorType.FULL_RESTAKE;
 
-        (address vaultVetoed, address delegatorVetoed, address slasherVetoed) = createVaultVetoed(params, 1 days);
-        console2.log("VaultVetoed: ", vaultVetoed);
-        console2.log("DelegatorVetoed: ", delegatorVetoed);
-        console2.log("SlasherVetoed: ", slasherVetoed);
-    }
-
-    function run(
-        address vaultConfigurator,
-        address _owner,
-        address collateral,
-        uint48 epochDuration,
-        bool depositWhitelist,
-        uint256 depositLimit,
-        uint64 delegatorIndex,
-        bool withSlasher,
-        uint64 slasherIndex,
-        uint48 vetoDuration
-    ) public {
-        vm.startBroadcast();
-
-        VaultDeployParams memory params = VaultDeployParams({
-            vaultConfigurator: vaultConfigurator,
-            owner: _owner,
-            collateral: collateral,
-            epochDuration: epochDuration,
-            depositWhitelist: depositWhitelist,
-            depositLimit: depositLimit,
-            delegatorIndex: delegatorIndex,
-            withSlasher: withSlasher,
-            slasherIndex: slasherIndex,
-            vetoDuration: vetoDuration,
-            operator: address(0),
-            network: address(0)
-        });
-        (address vault_, address delegator_, address slasher_) = deployVault(params);
-
-        console2.log("Vault: ", vault_);
-        console2.log("Delegator: ", delegator_);
-        console2.log("Slasher: ", slasher_);
-
-        vm.stopBroadcast();
+        (vault_, delegator, slasher) = createVaultVetoed(params, vetoDuration);
+        vaultVetoed = HelperConfig.VaultTrifecta({vault: vault_, delegator: delegator, slasher: slasher});
+        console2.log("VaultVetoed: ", vault_);
+        console2.log("DelegatorVetoed: ", delegator);
+        console2.log("SlasherVetoed: ", slasher);
     }
 }

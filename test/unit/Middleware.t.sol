@@ -67,6 +67,8 @@ import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRe
 import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
 import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
+import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
+import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
 import {MiddlewareV2} from "./utils/MiddlewareV2.sol";
 import {MiddlewareV3} from "./utils/MiddlewareV3.sol";
@@ -97,6 +99,8 @@ contract MiddlewareTest is Test {
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
     bytes32 public constant MIDDLEWARE_STORAGE_LOCATION =
         0xca64b196a0d05040904d062f739ed1d1e1d3cc5de78f7001fb9039595fce9100;
+    bytes32 public constant MIDDLEWARE_STORAGE_CACHE_LOCATION =
+        0x93540b1a1dc30969947272428a8d0331ac0b23f753e3edd38c70f80cf0835100;
 
     uint8 public constant ORACLE_DECIMALS = 18;
     int256 public constant ORACLE_CONVERSION_TOKEN = 3000 ether;
@@ -140,7 +144,8 @@ contract MiddlewareTest is Test {
         adminFee: 0,
         defaultAdminRoleHolder: owner,
         adminFeeClaimRoleHolder: owner,
-        adminFeeSetRoleHolder: owner
+        adminFeeSetRoleHolder: owner,
+        implementation: address(0)
     });
 
     function setUp() public {
@@ -190,7 +195,7 @@ contract MiddlewareTest is Test {
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
         address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
-            vaultFactory, address(networkMiddlewareService), operatorRewardsAddress, tanssi
+            vaultFactory, address(networkMiddlewareService), operatorRewardsAddress, tanssi, owner
         );
         stakerRewardsFactory = ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress);
         vm.mockCall(
@@ -199,7 +204,7 @@ contract MiddlewareTest is Test {
             abi.encode(makeAddr("stakerRewards"))
         );
 
-        middlewareImpl = new Middleware(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        middlewareImpl = new Middleware();
         middleware = Middleware(address(new MiddlewareProxy(address(middlewareImpl), "")));
         IMiddleware.InitParams memory params = IMiddleware.InitParams({
             network: tanssi,
@@ -212,8 +217,13 @@ contract MiddlewareTest is Test {
             reader: readHelper
         });
         middleware.initialize(params);
+        middleware.reinitializeRewards(operatorRewardsAddress, stakerRewardsFactoryAddress);
+
         middleware.setGateway(address(gateway));
         middleware.setCollateralToOracle(address(collateral), address(collateralOracle));
+
+        stakerRewardsParams.implementation =
+            address(new ODefaultStakerRewards(address(networkMiddlewareService), tanssi));
 
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
         operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
@@ -246,7 +256,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
 
         readHelper = address(new OBaseMiddlewareReader());
-        Middleware _middleware = new Middleware(address(operatorRewards), address(stakerRewardsFactory));
+        Middleware _middleware = new Middleware();
         Middleware middlewareProxy = Middleware(address(new MiddlewareProxy(address(_middleware), "")));
         vm.expectRevert(IMiddleware.Middleware__SlashingWindowTooShort.selector);
         IMiddleware.InitParams memory params = IMiddleware.InitParams({
@@ -262,16 +272,6 @@ contract MiddlewareTest is Test {
         Middleware(address(middlewareProxy)).initialize(params);
 
         vm.stopPrank();
-    }
-
-    function testDeployWithNoOperatorRewards() public {
-        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
-        new Middleware(address(0), address(stakerRewardsFactory));
-    }
-
-    function testDeployWithNoStakerRewardsFactory() public {
-        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
-        new Middleware(address(operatorRewards), address(0));
     }
 
     function testGetEpochStartTs() public view {
@@ -396,6 +396,15 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         vm.expectRevert(IMiddleware.Middleware__InvalidKey.selector);
         middleware.registerOperator(operator, abi.encode(bytes32(0)), address(0));
+        vm.stopPrank();
+    }
+
+    function testRegisterOperatorWithKeyNot32BytesLong() public {
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+
+        vm.startPrank(owner);
+        vm.expectRevert(IMiddleware.Middleware__InvalidKey.selector);
+        middleware.registerOperator(operator, bytes("1234"), address(0));
         vm.stopPrank();
     }
 
@@ -2171,7 +2180,11 @@ contract MiddlewareTest is Test {
         _setVaultToCollateral(_vault, _collateral);
         // Collateral is not set to an oracle
 
-        vm.expectRevert(abi.encodeWithSelector(IMiddleware.Middleware__NotSupportedCollateral.selector, _collateral));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOBaseMiddlewareReader.OBaseMiddlewareReader__NotSupportedCollateral.selector, _collateral
+            )
+        );
         middleware.stakeToPower(_vault, stake);
     }
 
@@ -2506,14 +2519,10 @@ contract MiddlewareTest is Test {
         (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, false);
 
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
-        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
-        assertEq(upkeepNeeded, true);
-
-        bytes32[] memory sortedKeys = abi.decode(performData, (bytes32[]));
-        assertEq(sortedKeys.length, 0);
+        assertEq(performData.length, 0);
 
         vm.prank(forwarder2);
+        vm.expectRevert(IMiddleware.Middleware__NoPerformData.selector);
         middleware.performUpkeep(performData);
     }
 
@@ -2542,8 +2551,10 @@ contract MiddlewareTest is Test {
         (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
 
-        bytes32[] memory sortedKeys = abi.decode(performData, (bytes32[]));
-        assertEq(sortedKeys.length, 2);
+        (uint8 command, IMiddleware.ValidatorData[] memory validatorsData) =
+            abi.decode(performData, (uint8, IMiddleware.ValidatorData[]));
+        assertEq(command, middleware.CACHE_DATA_COMMAND());
+        assertEq(validatorsData.length, 2);
         vm.startPrank(forwarder);
         middleware.performUpkeep(performData);
         vm.stopPrank();
@@ -2587,6 +2598,29 @@ contract MiddlewareTest is Test {
 
         vm.prank(forwarder);
         vm.expectRevert(IMiddleware.Middleware__GatewayNotSet.selector);
+        middleware.performUpkeep(performData);
+    }
+
+    function testUpkeepShouldRevertIfAlreadyCached() public {
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+
+        bytes32 slot = bytes32(uint256(MIDDLEWARE_STORAGE_CACHE_LOCATION) + uint256(1));
+        bytes32 operatorKeyToPowerEpochSlot = keccak256(abi.encode(1, slot));
+        bytes32 structSlot = keccak256(abi.encode(OPERATOR_KEY, operatorKeyToPowerEpochSlot));
+
+        vm.store(address(middleware), structSlot, bytes32(uint256(150 ether)));
+
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+
+        vm.prank(forwarder);
+        vm.expectRevert(IMiddleware.Middleware__AlreadyCached.selector);
         middleware.performUpkeep(performData);
     }
 
