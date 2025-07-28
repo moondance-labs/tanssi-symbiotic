@@ -117,11 +117,6 @@ upgrade-operator-rewards:
 	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "upgradeOperatorRewards(address,address,address)" $(OPERATOR_REWARDS_PROXY_ADDRESS) $(NETWORK) $(NETWORK_MIDDLEWARE_SERVICE) -vv
 	@echo "✅ Operator Rewards upgrade completed"
 	
-upgrade-staker-rewards:
-	@echo "📡 Upgrading Staker Rewards..."
-	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "upgradeStakerRewards(address,address,address,address)" $(STAKER_REWARDS_PROXY_ADDRESS) $(NETWORK_MIDDLEWARE_SERVICE) $(VAULT_ADDRESS) $(NETWORK) -vv
-	@echo "✅ Staker Rewards upgrade completed"
-
 deploy-dia-aggregator-oracle-proxy:
 	@echo "📡 Deploying DIA Aggregator Oracle Proxy..."
 	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem $(NETWORK_ARGS) --sig "deployDIAAggregatorOracleProxy(address,string)" $(DIA_ORACLE_ADDRESS) $(PAIR_SYMBOL) -vv
