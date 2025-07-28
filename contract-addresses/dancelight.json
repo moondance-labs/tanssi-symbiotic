@@ -7,11 +7,11 @@
   "gateway": "0x503b4d684074888eb7fe82d4c5ab25e57de0e85c",
   "gatewayImplementation": "0xb05b936fcbd7e2176e935cd93ea4fcc690e66ebd",
   "middleware": "0xdf94aaf9684b676db9664a4e9790cfbbbe64ef85",
-  "middlewareImplementation": "0x114342f62b32c0df8a8027344ed5dfd6d2c489c6",
-  "middlewareReader": "0x6d885a3bb6ea5499db36f19a5c794af1da93052b",
+  "middlewareImplementation": "0xB54fC96D82863A6Bb3d54971bc27B8e1d35d3991",
+  "middlewareReader": "0x9f11962b01a25e6861728f0168c752175d1b19f9",
   "operatorRewards": "0x462af341b95212f7f5c4b51bb7941838961ab2b4",
-  "operatorRewardsImplementation": "0x9f3eab1edd0c6f3929225d17854dd311ec1a4bcd",
-  "stakerRewardsFactory": "0xf0965a585ffb0f365ade251faf153c6929920ab8",
+  "operatorRewardsImplementation": "0x89f20f63ee4fb615873d461922726a930902b1a5",
+  "stakerRewardsFactory": "0x9f11962b01a25e6861728f0168c752175d1b19f9",
   "delegatorFactory": "0x890ca3f95e0f40a79885b7400926544b2214b03f",
   "slasherFactory": "0xbf34bf75bb779c383267736c53a4ae86ac7bb299",
   "vaultFactory": "0x407a039d94948484d356efb765b3c74382a050b4",
@@ -32,7 +32,7 @@
       "name": "DANCE",
       "symbol": "DANCE",
       "address": "0x43609791BC5F1B42DF1747cddabab77af65a5fE3",
-      "oracle": "0xB0C712f98daE15264c8E26132BCC91C40aD4d5F9"
+      "oracle": "0x21e29159610d0fc39676c5ccade632d2cafb991f"
     }
   ],
   "totalVaults": 2,
@@ -44,7 +44,7 @@
       "slasher": "0x583f9a77af8f4d7aee735a2f7645bbd7a012af1b",
       "collateral": "0x3e3fe7dbc6b4c189e7128855dd526361c49b40af",
       "stakerRewards": "0x54c3fddfafa33e7a0ece37c61e0057bff3a9ef96",
-      "stakerRewardsImplementation": "0x34e4d6acc204595b7e35ad2b9dee4ab85a6a2216"
+      "stakerRewardsImplementation": "0x8478898bd62c8dcB562AD1E4B362d5Db7a99FAD4"
     },
     {
       "name": "Tanssi",
@@ -53,7 +53,7 @@
       "slasher": "0xbeA63923197a6c79691F9a65Ca7E79C2a854CF5B",
       "collateral": "0x43609791BC5F1B42DF1747cddabab77af65a5fE3",
       "stakerRewards": "0x000c527D9263345B91F946e2579e76d4Ded0AbDC",
-      "stakerRewardsImplementation": "0x34aD604B12bDd22f073630c708f978d5fbE68453"
+      "stakerRewardsImplementation": "0x8478898bd62c8dcB562AD1E4B362d5Db7a99FAD4"
     }
   ]
 }
