@@ -32,13 +32,37 @@ contract RewardsHintsBuilder {
         i_vaultHints = IVaultHints(vaultHints);
     }
 
+    function batchGetDataForOperatorClaimRewards(
+        bytes32 operatorKey,
+        uint48[] calldata eraIndexes,
+        uint256 maxAdminFee
+    ) external view returns (bytes[] memory dataPerEra) {
+        uint256 totalEras = eraIndexes.length;
+        dataPerEra = new bytes[](totalEras);
+
+        address operator = IOBaseMiddlewareReader(i_middlewareReader).operatorByKey(abi.encode(operatorKey));
+        for (uint256 i; i < totalEras;) {
+            dataPerEra[i] = _getDataForOperatorClaimRewards(operator, eraIndexes[i], maxAdminFee);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
     function getDataForOperatorClaimRewards(
         bytes32 operatorKey,
         uint48 eraIndex,
         uint256 maxAdminFee
-    ) external view returns (bytes memory) {
+    ) public view returns (bytes memory data) {
         address operator = IOBaseMiddlewareReader(i_middlewareReader).operatorByKey(abi.encode(operatorKey));
+        data = _getDataForOperatorClaimRewards(operator, eraIndex, maxAdminFee);
+    }
 
+    function _getDataForOperatorClaimRewards(
+        address operator,
+        uint48 eraIndex,
+        uint256 maxAdminFee
+    ) private view returns (bytes memory data) {
         IODefaultOperatorRewards.EraRoot memory eraRoot = i_operatorRewards.eraRoot(eraIndex);
         uint48 epochStartTs = i_middlewareReader.getEpochStart(eraRoot.epoch);
 
@@ -63,6 +87,6 @@ contract RewardsHintsBuilder {
             }
         }
 
-        return abi.encode(maxAdminFee, hints);
+        data = abi.encode(maxAdminFee, hints);
     }
 }
