@@ -1394,7 +1394,7 @@ contract RewardsTest is Test {
         stakerRewards.claimRewards(alice, epoch, address(1), CLAIM_REWARDS_ADDITIONAL_DATA);
     }
 
-    function testClaimStakerRewardsButMultipleRewards() public {
+    function testClaimStakerRewardsWithMultipleRewards() public {
         uint48 epoch = 0;
         uint48 epochTs = middleware.getEpochStart(epoch);
         Token newToken = new Token("NewToken", 18);
@@ -1421,7 +1421,7 @@ contract RewardsTest is Test {
         stakerRewards.claimRewards(alice, epoch, address(newToken), CLAIM_REWARDS_ADDITIONAL_DATA);
     }
 
-    function testClaimStakerRewardsButMultipleRewardsTwoTimes() public {
+    function testClaimStakerRewardsWithTwoEpochRewards() public {
         uint48 currentEpoch = 0;
         uint48 epochTs = middleware.getEpochStart(currentEpoch);
         uint48 nextEpochTs = middleware.getEpochStart(currentEpoch + 1);
@@ -1475,7 +1475,7 @@ contract RewardsTest is Test {
         console2.log("Total gas used for two claims: ", totalGasUsed);
     }
 
-    function testMulticallClaimStakerRewardsButMultipleRewards() public {
+    function testMulticallClaimStakerRewardsWithMultipleRewards() public {
         uint48 currentEpoch = 0;
         uint48 epochTs = middleware.getEpochStart(currentEpoch);
         uint48 nextEpochTs = middleware.getEpochStart(currentEpoch + 1);
