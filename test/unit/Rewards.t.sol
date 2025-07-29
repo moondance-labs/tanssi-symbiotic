@@ -1421,6 +1421,120 @@ contract RewardsTest is Test {
         stakerRewards.claimRewards(alice, epoch, address(newToken), CLAIM_REWARDS_ADDITIONAL_DATA);
     }
 
+    function testClaimStakerRewardsButMultipleRewardsTwoTimes() public {
+        uint48 currentEpoch = 0;
+        uint48 epochTs = middleware.getEpochStart(currentEpoch);
+        uint48 nextEpochTs = middleware.getEpochStart(currentEpoch + 1);
+        Token newToken = new Token("NewToken", 18);
+        newToken.transfer(address(middleware), AMOUNT_TO_DISTRIBUTE);
+        uint256 newTokenAmountRewards = 20 ether;
+
+        _setRewardsMapping(
+            currentEpoch, newTokenAmountRewards, address(newToken), STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT
+        );
+
+        _setRewardsMapping(
+            currentEpoch + 1, newTokenAmountRewards, address(newToken), STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT
+        );
+
+        vm.prank(address(middleware));
+        newToken.transfer(address(stakerRewards), newTokenAmountRewards * 2);
+
+        _setActiveSharesCache(currentEpoch, address(stakerRewards), STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT);
+        _setActiveSharesCache(currentEpoch + 1, address(stakerRewards), STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT);
+
+        vm.mockCall(
+            address(vault),
+            abi.encodeWithSelector(IVaultStorage.activeSharesOfAt.selector, alice, epochTs, hex""),
+            abi.encode(AMOUNT_TO_DISTRIBUTE / 10)
+        );
+
+        vm.mockCall(
+            address(vault),
+            abi.encodeWithSelector(IVaultStorage.activeSharesOfAt.selector, alice, nextEpochTs, hex""),
+            abi.encode(AMOUNT_TO_DISTRIBUTE / 10)
+        );
+
+        uint256 totalGasUsed = 0;
+        vm.startPrank(alice);
+        vm.expectEmit(true, true, true, true);
+        emit IODefaultStakerRewards.ClaimRewards(
+            tanssi, address(newToken), alice, currentEpoch, alice, newTokenAmountRewards
+        );
+        uint256 gasBefore = gasleft();
+        stakerRewards.claimRewards(alice, currentEpoch, address(newToken), CLAIM_REWARDS_ADDITIONAL_DATA);
+        uint256 gasAfter = gasleft();
+        totalGasUsed += gasBefore - gasAfter;
+        vm.expectEmit(true, true, true, true);
+        emit IODefaultStakerRewards.ClaimRewards(
+            tanssi, address(newToken), alice, currentEpoch + 1, alice, newTokenAmountRewards
+        );
+        gasBefore = gasleft();
+        stakerRewards.claimRewards(alice, currentEpoch + 1, address(newToken), CLAIM_REWARDS_ADDITIONAL_DATA);
+        totalGasUsed += gasBefore - gasleft();
+        console2.log("Total gas used for two claims: ", totalGasUsed);
+    }
+
+    function testMulticallClaimStakerRewardsButMultipleRewards() public {
+        uint48 currentEpoch = 0;
+        uint48 epochTs = middleware.getEpochStart(currentEpoch);
+        uint48 nextEpochTs = middleware.getEpochStart(currentEpoch + 1);
+        Token newToken = new Token("NewToken", 18);
+        newToken.transfer(address(middleware), AMOUNT_TO_DISTRIBUTE);
+        uint256 newTokenAmountRewards = 20 ether;
+
+        _setRewardsMapping(
+            currentEpoch, newTokenAmountRewards, address(newToken), STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT
+        );
+
+        _setRewardsMapping(
+            currentEpoch + 1, newTokenAmountRewards, address(newToken), STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT
+        );
+
+        vm.prank(address(middleware));
+        newToken.transfer(address(stakerRewards), newTokenAmountRewards * 2);
+
+        _setActiveSharesCache(currentEpoch, address(stakerRewards), STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT);
+        _setActiveSharesCache(currentEpoch + 1, address(stakerRewards), STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT);
+
+        vm.mockCall(
+            address(vault),
+            abi.encodeWithSelector(IVaultStorage.activeSharesOfAt.selector, alice, epochTs, hex""),
+            abi.encode(AMOUNT_TO_DISTRIBUTE / 10)
+        );
+
+        vm.mockCall(
+            address(vault),
+            abi.encodeWithSelector(IVaultStorage.activeSharesOfAt.selector, alice, nextEpochTs, hex""),
+            abi.encode(AMOUNT_TO_DISTRIBUTE / 10)
+        );
+
+        bytes[] memory calls = new bytes[](2);
+
+        for (uint256 epoch = 0; epoch < 2; epoch++) {
+            calls[epoch] = abi.encodeWithSelector(
+                IODefaultStakerRewards.claimRewards.selector,
+                alice,
+                epoch,
+                address(newToken),
+                CLAIM_REWARDS_ADDITIONAL_DATA
+            );
+        }
+
+        vm.prank(alice);
+        vm.expectEmit(true, true, true, true);
+        emit IODefaultStakerRewards.ClaimRewards(
+            tanssi, address(newToken), alice, currentEpoch, alice, newTokenAmountRewards
+        );
+        vm.expectEmit(true, true, true, true);
+        emit IODefaultStakerRewards.ClaimRewards(
+            tanssi, address(newToken), alice, currentEpoch + 1, alice, newTokenAmountRewards
+        );
+        uint256 gasBefore = gasleft();
+        stakerRewards.multicall(calls);
+        console2.log("Gas used for multicall: ", gasBefore - gasleft());
+    }
+
     //**************************************************************************************************
     //                                      setAdminFee
     //**************************************************************************************************
