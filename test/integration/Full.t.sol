@@ -711,11 +711,11 @@ contract FullTest is Test {
         uint32 points,
         uint32 totalPoints
     ) private view returns (uint256 expectedRewardsForStakers) {
-        if (checkBalance) {
-            uint256 expectedRewardsForOperator =
-                amountToDistribute.mulDiv(points, totalPoints).mulDiv(OPERATOR_SHARE, MAX_PERCENTAGE);
-            expectedRewardsForStakers = amountToDistribute.mulDiv(points, totalPoints) - expectedRewardsForOperator;
+        uint256 expectedRewardsForOperator =
+            amountToDistribute.mulDiv(points, totalPoints).mulDiv(OPERATOR_SHARE, MAX_PERCENTAGE);
+        expectedRewardsForStakers = amountToDistribute.mulDiv(points, totalPoints) - expectedRewardsForOperator;
 
+        if (checkBalance) {
             assertEq(STAR.balanceOf(operator), expectedRewardsForOperator);
         }
     }
@@ -1033,53 +1033,23 @@ contract FullTest is Test {
     // ************************************************************************************************
 
     // We test each operator independently since rewards are accumulated in the stakers rewards contracts
-    function testRewardsAreDistributedCorrectlyForOperator1() public {
-        uint48 eraIndex = 1;
-        uint256 amountToDistribute = 100 ether;
-        uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
-
-        uint256 expectedRewardsForStakers = _claimAndCheckOperatorRewardsForOperator(
-            amountToDistribute, eraIndex, OPERATOR1_KEY, operator1, 1, true, false
-        );
-
-        // Operator 1 is active in vaults 1 and 2
-        address stakerRewardsContractVault1 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v1.vault));
-        address stakerRewardsContractVault2 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v2.vault));
-
-        uint256 operatorPowerVault1 = OPERATOR1_STAKE_V1_USDC.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC); // Normalized to 18 decimals
-        uint256 operatorPowerVault2 =
-            OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
-
-        uint256 expectedRewardsStakerVault1 =
-            expectedRewardsForStakers.mulDiv(operatorPowerVault1, operatorPowerVault1 + operatorPowerVault2);
-        uint256 expectedRewardsStakerVault2 = expectedRewardsForStakers - expectedRewardsStakerVault1;
-
-        assertApproxEqAbs(STAR.balanceOf(stakerRewardsContractVault1), expectedRewardsStakerVault1, 1);
-        assertApproxEqAbs(STAR.balanceOf(stakerRewardsContractVault2), expectedRewardsStakerVault2, 1);
-
-        // Vault 1
-        {
-            // Operator 1 is the only staker on the vault, so they get all the rewards minus the admin fee
-            uint256 expectedRewardsStakerOperator1Vault1 =
-                expectedRewardsStakerVault1.mulDiv(MAX_PERCENTAGE - ADMIN_FEE, MAX_PERCENTAGE);
-            uint256 stakerRewardsOperator1Vault1 =
-                IODefaultStakerRewards(stakerRewardsContractVault1).claimable(epoch, operator1, address(STAR));
-            assertApproxEqAbs(expectedRewardsStakerOperator1Vault1, stakerRewardsOperator1Vault1, 2);
-        }
-
-        // Vault 2
-        uint256 adminFeeStakerRewardsVault2 = expectedRewardsStakerVault2.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
-        expectedRewardsStakerVault2 -= adminFeeStakerRewardsVault2;
-        _checkClaimableRewardsVault2(expectedRewardsStakerVault2, epoch);
+    function testRewardsAreDistributedCorrectlyForOperator1WithNoHints() public {
+        _testRewardsAreDistributedCorrectlyForOperator1(false);
     }
 
     function testRewardsAreDistributedCorrectlyForOperator1WithHints() public {
+        _testRewardsAreDistributedCorrectlyForOperator1(true);
+    }
+
+    function _testRewardsAreDistributedCorrectlyForOperator1(
+        bool withHints
+    ) public {
         uint48 eraIndex = 1;
         uint256 amountToDistribute = 100 ether;
         uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
 
         uint256 expectedRewardsForStakers = _claimAndCheckOperatorRewardsForOperator(
-            amountToDistribute, eraIndex, OPERATOR1_KEY, operator1, 1, true, true
+            amountToDistribute, eraIndex, OPERATOR1_KEY, operator1, 1, true, withHints
         );
 
         // Operator 1 is active in vaults 1 and 2
@@ -1153,34 +1123,23 @@ contract FullTest is Test {
         }
     }
 
-    function testRewardsAreDistributedCorrectlyForOperator2() public {
-        uint48 eraIndex = 1;
-        uint256 amountToDistribute = 100 ether;
-        uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
-
-        uint256 expectedRewardsForStakers = _claimAndCheckOperatorRewardsForOperator(
-            amountToDistribute, eraIndex, OPERATOR2_KEY, operator2, 2, true, false
-        );
-
-        // Operator 2 is only active on vault 2, so all the stakers rewards go to this vault
-        address stakerRewardsContractVault2 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v2.vault));
-        uint256 expectedRewardsStakerVault2 = expectedRewardsForStakers;
-
-        assertEq(STAR.balanceOf(stakerRewardsContractVault2), expectedRewardsStakerVault2);
-
-        // Vault 2
-        uint256 adminFeeStakerRewardsVault2 = expectedRewardsStakerVault2.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
-        expectedRewardsStakerVault2 -= adminFeeStakerRewardsVault2;
-        _checkClaimableRewardsVault2(expectedRewardsStakerVault2, epoch);
+    function testRewardsAreDistributedCorrectlyForOperator2WithNoHints() public {
+        _testRewardsAreDistributedCorrectlyForOperator2(false);
     }
 
     function testRewardsAreDistributedCorrectlyForOperator2WithHints() public {
+        _testRewardsAreDistributedCorrectlyForOperator2(true);
+    }
+
+    function _testRewardsAreDistributedCorrectlyForOperator2(
+        bool withHints
+    ) public {
         uint48 eraIndex = 1;
         uint256 amountToDistribute = 100 ether;
         uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
 
         uint256 expectedRewardsForStakers = _claimAndCheckOperatorRewardsForOperator(
-            amountToDistribute, eraIndex, OPERATOR2_KEY, operator2, 2, true, true
+            amountToDistribute, eraIndex, OPERATOR2_KEY, operator2, 2, true, withHints
         );
 
         // Operator 2 is only active on vault 2, so all the stakers rewards go to this vault
@@ -1929,6 +1888,102 @@ contract FullTest is Test {
             );
             operatorRewards.claimRewards(claimRewardsData);
         }
+    }
+
+    function testRewardsAreDistributedCorrectlyWhenBatchClaimedWithNoHints() public {
+        _testRewardsAreDistributedCorrectlyWhenBatchClaimed(false);
+    }
+
+    function testRewardsAreDistributedCorrectlyWhenBatchClaimedWithHints() public {
+        _testRewardsAreDistributedCorrectlyWhenBatchClaimed(true);
+    }
+
+    function _testRewardsAreDistributedCorrectlyWhenBatchClaimed(
+        bool withHints
+    ) public {
+        // uint48 operatorNumber = 1; // Commented to prevent stack to deep;
+        uint48[] memory eraIndexes = new uint48[](2);
+        eraIndexes[0] = 1;
+        eraIndexes[1] = 2;
+        uint256 amountToDistribute = 100 ether;
+        uint48 epochA = _prepareRewardsDistribution(eraIndexes[0], amountToDistribute);
+        uint48 epochB = _prepareRewardsDistribution(eraIndexes[1], amountToDistribute);
+        assertEq(epochA, epochB); // Not a requirement for the process, but it makes it easier to check the results on staker rewards
+
+        uint256 expectedRewardsForStakers = _prepareAndClaimBatchForOperator1(eraIndexes, amountToDistribute, withHints);
+
+        // Operator 1 is active in vaults 1 and 2
+        address stakerRewardsContractVault1 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v1.vault));
+        address stakerRewardsContractVault2 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v2.vault));
+
+        uint256 operatorPowerVault1 = OPERATOR1_STAKE_V1_USDC.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC); // Normalized to 18 decimals
+        uint256 operatorPowerVault2 =
+            OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+
+        uint256 expectedRewardsStakerVault1 =
+            expectedRewardsForStakers.mulDiv(operatorPowerVault1, operatorPowerVault1 + operatorPowerVault2);
+        uint256 expectedRewardsStakerVault2 = expectedRewardsForStakers - expectedRewardsStakerVault1;
+
+        assertApproxEqAbs(STAR.balanceOf(stakerRewardsContractVault1), expectedRewardsStakerVault1, 1);
+        assertApproxEqAbs(STAR.balanceOf(stakerRewardsContractVault2), expectedRewardsStakerVault2, 1);
+
+        // Vault 1
+        {
+            // Operator 1 is the only staker on the vault, so they get all the rewards minus the admin fee
+            uint256 expectedRewardsStakerOperator1Vault1 =
+                expectedRewardsStakerVault1.mulDiv(MAX_PERCENTAGE - ADMIN_FEE, MAX_PERCENTAGE);
+            uint256 stakerRewardsOperator1Vault1 =
+                IODefaultStakerRewards(stakerRewardsContractVault1).claimable(epochA, operator1, address(STAR));
+            assertApproxEqAbs(expectedRewardsStakerOperator1Vault1, stakerRewardsOperator1Vault1, 3);
+        }
+
+        // Vault 2
+        uint256 adminFeeStakerRewardsVault2 = expectedRewardsStakerVault2.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
+        expectedRewardsStakerVault2 -= adminFeeStakerRewardsVault2;
+        _checkClaimableRewardsVault2(expectedRewardsStakerVault2, epochA);
+    }
+
+    function _prepareAndClaimBatchForOperator1(
+        uint48[] memory eraIndexes,
+        uint256 amountToDistribute,
+        bool withHints
+    ) private returns (uint256 expectedRewardsForStakers) {
+        (,, bytes32[] memory proofA, uint32 pointsA, uint32 totalPointsA) = _loadRewardsRootAndProof(eraIndexes[0], 1); // operatorNumber = 1
+        (,, bytes32[] memory proofB, uint32 pointsB, uint32 totalPointsB) = _loadRewardsRootAndProof(eraIndexes[1], 1); // operatorNumber = 1
+
+        bytes[] memory hintsData;
+        if (withHints) {
+            hintsData = rewardsHintsBuilder.batchGetDataForOperatorClaimRewards(OPERATOR1_KEY, eraIndexes, ADMIN_FEE);
+        } else {
+            hintsData = new bytes[](2);
+            hintsData[0] = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
+            hintsData[1] = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
+        }
+
+        IODefaultOperatorRewards.ClaimRewardsInput[] memory claimRewardsData =
+            new IODefaultOperatorRewards.ClaimRewardsInput[](2);
+        claimRewardsData[0] = IODefaultOperatorRewards.ClaimRewardsInput({
+            operatorKey: OPERATOR1_KEY,
+            eraIndex: eraIndexes[0],
+            totalPointsClaimable: pointsA,
+            proof: proofA,
+            data: hintsData[0]
+        });
+        claimRewardsData[1] = IODefaultOperatorRewards.ClaimRewardsInput({
+            operatorKey: OPERATOR1_KEY,
+            eraIndex: eraIndexes[1],
+            totalPointsClaimable: pointsB,
+            proof: proofB,
+            data: hintsData[1]
+        });
+
+        uint256 gasBefore = gasleft();
+        operatorRewards.batchClaimRewards(claimRewardsData);
+        console2.log("claimRewards gas:", gasBefore - gasleft());
+
+        expectedRewardsForStakers = _calculateAndCheckBalance(
+            false, operator1, amountToDistribute, pointsA, totalPointsA
+        ) + _calculateAndCheckBalance(false, operator1, amountToDistribute, pointsB, totalPointsB);
     }
 
     // ************************************************************************************************
