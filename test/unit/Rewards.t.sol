@@ -1456,22 +1456,27 @@ contract RewardsTest is Test {
         );
 
         uint256 totalGasUsed = 0;
+
         vm.startPrank(alice);
         vm.expectEmit(true, true, true, true);
         emit IODefaultStakerRewards.ClaimRewards(
             tanssi, address(newToken), alice, currentEpoch, alice, newTokenAmountRewards
         );
+
         uint256 gasBefore = gasleft();
         stakerRewards.claimRewards(alice, currentEpoch, address(newToken), CLAIM_REWARDS_ADDITIONAL_DATA);
         uint256 gasAfter = gasleft();
         totalGasUsed += gasBefore - gasAfter;
+
         vm.expectEmit(true, true, true, true);
         emit IODefaultStakerRewards.ClaimRewards(
             tanssi, address(newToken), alice, currentEpoch + 1, alice, newTokenAmountRewards
         );
+
         gasBefore = gasleft();
         stakerRewards.claimRewards(alice, currentEpoch + 1, address(newToken), CLAIM_REWARDS_ADDITIONAL_DATA);
         totalGasUsed += gasBefore - gasleft();
+
         console2.log("Total gas used for two claims: ", totalGasUsed);
     }
 
@@ -1526,12 +1531,15 @@ contract RewardsTest is Test {
         emit IODefaultStakerRewards.ClaimRewards(
             tanssi, address(newToken), alice, currentEpoch, alice, newTokenAmountRewards
         );
+
         vm.expectEmit(true, true, true, true);
         emit IODefaultStakerRewards.ClaimRewards(
             tanssi, address(newToken), alice, currentEpoch + 1, alice, newTokenAmountRewards
         );
+
         uint256 gasBefore = gasleft();
         stakerRewards.multicall(calls);
+
         console2.log("Gas used for multicall: ", gasBefore - gasleft());
     }
 
