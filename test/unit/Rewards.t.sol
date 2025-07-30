@@ -1513,7 +1513,7 @@ contract RewardsTest is Test {
 
         for (uint256 epoch = 0; epoch < 2; epoch++) {
             calls[epoch] = abi.encodeWithSignature(
-                "claimRewards(address,uint48,address,bytes)", //TODO this needs to be updated to the correct selector if gets changed
+                "claimRewards(address,uint48,address,bytes)",
                 alice,
                 epoch,
                 address(newToken),
