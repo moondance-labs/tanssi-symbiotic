@@ -742,19 +742,24 @@ contract OBaseMiddlewareReader is
                 _getValidatorDataForOperators(maxNumOperatorsToCheck, cacheIndex, currentEpochStartTs, activeOperators_);
 
             // encode values to be used in performUpkeep
-            return (true, abi.encode(CACHE_DATA_COMMAND, validatorsData));
+            performData = abi.encode(CACHE_DATA_COMMAND, validatorsData);
+            return (true, performData);
         }
 
-        //Should be at least once per epoch
-        upkeepNeeded = (Time.timestamp() - $.lastTimestamp) > $.interval;
-        if (upkeepNeeded) {
+        //Should be at least once per epoch, but not more than once per interval
+        if ((Time.timestamp() - $.lastTimestamp) > $.interval) {
             // This will use the cached values, resulting in just a simple sorting operation. We can know a priori how much it cost since it's just an address with a uint256 power. Worst case we can split this too.
             bytes32[] memory sortedKeys = sortOperatorsByPower(epoch);
+            if (sortedKeys.length > MAX_OPERATORS_TO_SEND) {
+                assembly ("memory-safe") {
+                    mstore(sortedKeys, MAX_OPERATORS_TO_SEND)
+                }
+            }
             performData = abi.encode(SEND_DATA_COMMAND, sortedKeys);
             return (true, performData);
         }
 
-        return (upkeepNeeded, hex"");
+        return (false, hex"");
     }
 
     function _getValidatorDataForOperators(

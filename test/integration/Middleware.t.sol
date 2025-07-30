@@ -1161,7 +1161,7 @@ contract MiddlewareTest is Test {
             }
             _registerOperatorAndOptIn(_operator, tanssi, address(_vault), true);
             vm.startPrank(_operator);
-            uint256 depositAmount = 0.001 ether * (i + 1);
+            uint256 depositAmount = 0.000001 ether * (i + 1);
             _depositToVault(Vault(_vault), _operator, depositAmount, token);
 
             vm.startPrank(owner);
@@ -1464,7 +1464,7 @@ contract MiddlewareTest is Test {
 
         (uint8 command, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
         assertEq(command, middleware.SEND_DATA_COMMAND());
-        assertEq(sortedKeys.length, count);
+        assertEq(sortedKeys.length, Math.min(count, middleware.MAX_OPERATORS_TO_SEND()));
 
         {
             vm.startPrank(forwarder);
