@@ -74,7 +74,8 @@ contract RewardsHintsBuilder {
         uint256 totalEpochs = epochs.length;
         data = new bytes[](totalEpochs);
         for (uint256 i; i < totalEpochs;) {
-            data[i] = _getHintsForStakerClaimRewards(vault, staker, epochs[i]);
+            uint48 epochStartTs = i_middlewareReader.getEpochStart(epochs[i]);
+            data[i] = _getHintsForStakerClaimRewards(vault, staker, epochStartTs);
             unchecked {
                 ++i;
             }
@@ -95,7 +96,6 @@ contract RewardsHintsBuilder {
         address staker,
         uint48 epochStartTs
     ) private view returns (bytes memory data) {
-        bytes memory activeSharesHint = i_vaultHints.activeSharesOfHint(vault, staker, epochStartTs);
-        data = abi.encode(activeSharesHint);
+        data = i_vaultHints.activeSharesOfHint(vault, staker, epochStartTs);
     }
 }
