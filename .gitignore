@@ -13,6 +13,7 @@ docs/
 .env
 
 .history/
+.DS_Store
 
 .DS_Store
 
