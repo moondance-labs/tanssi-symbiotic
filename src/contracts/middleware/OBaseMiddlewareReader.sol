@@ -725,21 +725,28 @@ contract OBaseMiddlewareReader is
         StorageMiddleware storage $ = _getMiddlewareStorage();
         StorageMiddlewareCache storage cache = _getMiddlewareStorageCache();
 
-        address[] memory activeOperators_ = _activeOperators();
-        uint256 activeOperatorsLength = activeOperators_.length;
-        if (activeOperatorsLength == 0) {
+        OperatorManagerStorage storage $o = _getOperatorManagerStorage();
+        PauseableEnumerableSet.AddressSet storage operators = $o._operators;
+
+        uint256 operatorsLength_ = operators.length();
+        if (operatorsLength_ == 0) {
             // No active operators, no upkeep needed
             return (false, hex"");
         }
 
         uint256 cacheIndex = cache.epochToCacheIndex[epoch];
-        uint256 pendingOperatorsToCache = activeOperatorsLength - cacheIndex;
+        uint256 pendingOperatorsToCache = operatorsLength_ - cacheIndex;
 
         // Check if cache is still not filled with the current epoch validators
         if (pendingOperatorsToCache > 0) {
             uint256 maxNumOperatorsToCheck = Math.min(pendingOperatorsToCache, MAX_OPERATORS_TO_PROCESS);
-            IMiddleware.ValidatorData[] memory validatorsData =
-                _getValidatorDataForOperators(maxNumOperatorsToCheck, cacheIndex, currentEpochStartTs, activeOperators_);
+            (IMiddleware.ValidatorData[] memory validatorsData, bool atLeastOneActive) =
+                _getValidatorDataForOperators(maxNumOperatorsToCheck, cacheIndex, currentEpochStartTs, operators);
+
+            // This is the case were 100% of the operators are inactive, so we don't need to send anything
+            if (operatorsLength_ <= MAX_OPERATORS_TO_SEND && !atLeastOneActive) {
+                return (false, hex"");
+            }
 
             // encode values to be used in performUpkeep
             performData = abi.encode(CACHE_DATA_COMMAND, validatorsData);
@@ -766,8 +773,8 @@ contract OBaseMiddlewareReader is
         uint256 maxNumOperatorsToCheck,
         uint256 cacheIndex,
         uint48 timestamp,
-        address[] memory activeOperators_
-    ) private view returns (IMiddleware.ValidatorData[] memory validatorsData) {
+        PauseableEnumerableSet.AddressSet storage operators
+    ) private view returns (IMiddleware.ValidatorData[] memory validatorsData, bool atLeastOneActive) {
         // Populate validatorsData with the new operators' keys and their powers
         // It gets encoded to be used in performUpkeep
         validatorsData = new IMiddleware.ValidatorData[](maxNumOperatorsToCheck);
@@ -775,13 +782,18 @@ contract OBaseMiddlewareReader is
         VaultManagerStorage storage $ = _getVaultManagerStorage();
         address[] memory sharedVaults = $._sharedVaults.getActive(timestamp);
         uint96 subnetwork = _NETWORK().subnetwork(0).identifier();
-        uint256 activeOperatorsLength = activeOperators_.length;
+        uint256 operatorsLength_ = operators.length();
 
-        for (uint256 i = cacheIndex; i < cacheIndex + maxNumOperatorsToCheck && i < activeOperatorsLength;) {
-            address operator = activeOperators_[i];
+        for (uint256 i = cacheIndex; i < cacheIndex + maxNumOperatorsToCheck && i < operatorsLength_;) {
+            (address operator,,) = operators.at(i);
             bytes32 operatorKey = abi.decode(operatorKey(operator), (bytes32));
-            uint256 operatorPower = _optmizedGetOperatorPowerAt(timestamp, sharedVaults, subnetwork, operator);
-            validatorsData[i - cacheIndex] = IMiddleware.ValidatorData({key: operatorKey, power: operatorPower});
+            if (operators.wasActiveAt(timestamp, operator)) {
+                atLeastOneActive = true;
+                uint256 operatorPower = _optmizedGetOperatorPowerAt(timestamp, sharedVaults, subnetwork, operator);
+                validatorsData[i - cacheIndex] = IMiddleware.ValidatorData({key: operatorKey, power: operatorPower});
+            } else {
+                validatorsData[i - cacheIndex] = IMiddleware.ValidatorData({key: operatorKey, power: 0});
+            }
 
             unchecked {
                 ++i;

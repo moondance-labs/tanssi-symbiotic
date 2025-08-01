@@ -1361,6 +1361,68 @@ contract MiddlewareTest is Test {
         _assertDataIsValidAndSorted(validators, sortedValidators, count);
     }
 
+    function testGasFor1000peratorsIn3VaultsSortedAfterUpkeep() public {
+        uint16 count = 1000;
+        _addOperatorsToNetwork(count);
+
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+
+        vm.prank(owner);
+        middleware.setForwarder(forwarder);
+
+        vm.startPrank(forwarder);
+        uint256 totalUpkeepCalls;
+        uint256 totalGasUsedForCheck = 0;
+        uint256 totalGasUsedForPerform = 0;
+        uint256 lastGasUsedForCheck = 0;
+        uint256 lastGasUsedForPerform = 0;
+        while (true) {
+            uint256 gasBefore = gasleft();
+            (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+            if (!upkeepNeeded) {
+                break;
+            }
+            uint256 gasUsedForCheck = gasBefore - gasleft();
+            // Assert gas usage is below 10M check gas limit by chainlink
+            assertLt(gasUsedForCheck, 10_000_000);
+            totalGasUsedForCheck += gasUsedForCheck;
+            lastGasUsedForCheck = gasUsedForCheck;
+            gasBefore = gasleft();
+            middleware.performUpkeep(performData);
+            uint256 gasUsedForPerform = gasBefore - gasleft();
+            // Assert gas usage is below 5M perform gas limit by chainlink
+            assertLt(gasUsedForPerform, 5_000_000);
+            totalGasUsedForPerform += gasUsedForPerform;
+            lastGasUsedForPerform = gasUsedForPerform;
+            totalUpkeepCalls++;
+        }
+        console2.log("-------------------------------------");
+        console2.log("Operators: ", count);
+        console2.log("Total upkeep calls: ", totalUpkeepCalls);
+        console2.log(
+            "Average gas used for check (cache): ", (totalGasUsedForCheck - lastGasUsedForCheck) / totalUpkeepCalls
+        );
+        console2.log(
+            "Average gas used for perform (cache): ",
+            (totalGasUsedForPerform - lastGasUsedForPerform) / totalUpkeepCalls
+        );
+        console2.log("Total gas used for check (sort): ", lastGasUsedForCheck);
+        console2.log("Total gas used for perform (send): ", lastGasUsedForPerform);
+
+        uint256 gasBefore = gasleft();
+        bytes32[] memory sortedValidators =
+            OBaseMiddlewareReader(address(middleware)).sortOperatorsByPower(currentEpoch);
+        uint256 gasAfter = gasleft();
+        console2.log("Total gas use sorting cached: ", gasBefore - gasAfter);
+
+        // Assert gas usage is below 30M ETH limit
+        assertLt(gasBefore - gasAfter, 30_000_000);
+
+        Middleware.ValidatorData[] memory validators = _validatorSet(currentEpoch);
+        _assertDataIsValidAndSorted(validators, sortedValidators, count);
+    }
+
     // ************************************************************************************************
     // *                                        UPKEEP
     // ************************************************************************************************
@@ -1423,8 +1485,8 @@ contract MiddlewareTest is Test {
         address offlineKeepers = makeAddr("offlineKeepers");
 
         vm.startPrank(offlineKeepers);
-        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
-        assertEq(upkeepNeeded, false);
+        bool upkeepNeeded;
+        bytes memory performData;
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         // This will exhaust and fill the cache in n (count/max_operators_to_process) times
@@ -1635,8 +1697,6 @@ contract MiddlewareTest is Test {
         address offlineKeepers = makeAddr("offlineKeepers");
 
         vm.startPrank(offlineKeepers);
-        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
-        assertEq(upkeepNeeded, false);
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         uint48 epoch = middleware.getCurrentEpoch();
@@ -1644,7 +1704,7 @@ contract MiddlewareTest is Test {
         {
             uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
             for (uint256 i = 0; i < (count + max - 1) / max; i++) {
-                (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+                (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
 
                 uint256 cacheIndex = middleware.getEpochCacheIndex(epoch);
                 assertGe(activeOperatorsLength, cacheIndex);
