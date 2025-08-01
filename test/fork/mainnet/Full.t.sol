@@ -1378,7 +1378,7 @@ contract FullTest is Test {
         beforeGas = gasleft();
         middleware.performUpkeep(performData);
         afterGas = gasleft();
-        assertLt(beforeGas - afterGas, MAX_CHAINLINK_CHECKUPKEEP_GAS); // Check that gas is lower than 10M limit
+        assertLt(beforeGas - afterGas, MAX_CHAINLINK_PERFORMUPKEEP_GAS); // Check that gas is lower than 5M limit
 
         beforeGas = gasleft();
         (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
