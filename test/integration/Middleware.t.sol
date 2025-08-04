@@ -1691,7 +1691,8 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(owner);
         middleware.pauseOperator(operator);
-        console2.log("Operator paused at time: ", vm.getBlockTimestamp());
+        vm.expectRevert(PauseableEnumerableSet.ImmutablePeriodNotPassed.selector);
+        middleware.unregisterOperator(operator);
 
         vm.warp(vm.getBlockTimestamp() + 50);
         vm.startPrank(offlineKeepers);
