@@ -1358,9 +1358,9 @@ contract FullTest is Test {
         vm.prank(admin);
         middleware.setReader(address(newReader));
         // Remove the code on top once mainnet is upgraded
-        uint48 currentEpoch = middleware.getCurrentEpoch();
 
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        uint48 currentEpoch = middleware.getCurrentEpoch();
 
         vm.prank(offlineKeepers);
         uint256 beforeGas = gasleft();

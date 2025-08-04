@@ -14,7 +14,6 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
-import {console2} from "forge-std/console2.sol";
 //**************************************************************************************************
 //                                      CHAINLINK
 //**************************************************************************************************
@@ -322,9 +321,8 @@ contract Middleware is
             let epochData := calldataload(add(performData.offset, 32))
             encodedEpoch := epochData
         }
-        console2.log("Encoded epoch: %s", encodedEpoch);
+
         uint48 epoch = getCurrentEpoch();
-        console2.log("Current epoch: %s", epoch);
         if (encodedEpoch != epoch) {
             revert Middleware__InvalidEpoch();
         }
