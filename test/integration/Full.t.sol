@@ -925,12 +925,12 @@ contract FullTest is Test {
         assertEq(validators[0].power, expectedOperatorPower1);
 
         // Power should not change until the network epoch ends
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION / 2);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION / 2);
         validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
         assertEq(validators[0].power, expectedOperatorPower1);
 
         // Power changes even before the vault epoch ends, only network epoch needs to
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION);
         expectedOperatorPower1 += operator1_additional_stake.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC); // Normalized to 18 decimals
         validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
         assertEq(validators[0].power, expectedOperatorPower1);
@@ -953,12 +953,12 @@ contract FullTest is Test {
         assertEq(validators[0].power, expectedOperatorPower1);
 
         // Power should not change until the network epoch ends
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION / 2);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION / 2);
         validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
         assertEq(validators[0].power, expectedOperatorPower1);
 
         // Power changes even before the vault epoch ends, only network epoch needs to
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION);
         expectedOperatorPower1 -= operator1_withdraw_stake.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC); // Normalized to 18 decimals
         validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
         assertEq(validators[0].power, expectedOperatorPower1);
@@ -1013,7 +1013,7 @@ contract FullTest is Test {
         middleware.registerOperator(operator8, abi.encode(OPERATOR8_KEY), address(0));
         vm.stopPrank();
 
-        vm.warp(block.timestamp + VAULT_EPOCH_DURATION);
+        vm.warp(vm.getBlockTimestamp() + VAULT_EPOCH_DURATION);
 
         Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
 
@@ -1299,7 +1299,7 @@ contract FullTest is Test {
         // Pause and unregister
         vm.startPrank(owner);
         middleware.pauseOperator(operator7);
-        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         middleware.unregisterOperator(operator7);
 
         // Try to claim afterwards
@@ -2008,9 +2008,9 @@ contract FullTest is Test {
 
         // Then we try unregistering and registering again
         middleware.pauseOperator(operator2);
-        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         middleware.unregisterOperator(operator2);
-        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
 
         vm.startPrank(operator2);
         // operatorRegistry.unregisterOperator(); // No such a thing. Only registering is possible.
@@ -2024,7 +2024,7 @@ contract FullTest is Test {
         operatorVaultOptInService.optIn(address(vaultsData.v2.vault));
         vm.stopPrank();
 
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(owner);
         vm.expectRevert(KeyManagerAddress.DuplicateKey.selector);
@@ -2071,18 +2071,18 @@ contract FullTest is Test {
 
         // UPDATE OPERATOR #2 KEY AND THEN DEREGISTER
         middleware.pauseOperator(operator2);
-        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         middleware.updateOperatorKey(operator2, abi.encode(NEW_OPERATOR2_KEY));
-        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         middleware.unregisterOperator(operator2);
-        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
 
         vm.startPrank(operator2);
         operatorNetworkOptInService.optOut(tanssi);
         operatorVaultOptInService.optOut(address(vaultsData.v2.vault));
         vm.stopPrank();
 
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(owner);
         // ASSIGN OPERATOR #2 KEY TO OPERATOR #1
@@ -2122,9 +2122,9 @@ contract FullTest is Test {
         // Owner pauses and unregisters operator
         vm.startPrank(owner);
         middleware.pauseOperator(operator2);
-        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         middleware.unregisterOperator(operator2);
-        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
 
         // Operator opts out
         vm.startPrank(operator2);
@@ -2307,13 +2307,13 @@ contract FullTest is Test {
         // Operator 3 has stake in vault2 (no slasher) and vault3 (instant slasher)
         vm.warp(VAULT_EPOCH_DURATION + 2);
         uint48 slashingEpoch = middleware.getCurrentEpoch();
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
         middleware.slash(slashingEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
         vm.stopPrank();
 
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         _checkStakesAfterIntantSlashing();
     }
 
@@ -2321,7 +2321,7 @@ contract FullTest is Test {
         // Operator 3 has stake in vault2 (no slasher) and vault3 (instant slasher)
         vm.warp(VAULT_EPOCH_DURATION + 2);
         uint48 slashingEpoch = middleware.getCurrentEpoch();
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
         middleware.slash(slashingEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
@@ -2330,7 +2330,7 @@ contract FullTest is Test {
         // Start withdrawing BTC as soon as he finds out about the slash. It should not affect the resulting slash
         _withdrawFromVault(vaultsData.v2.vault, operator2, OPERATOR2_STAKE_V2_WBTC / 2);
 
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         _checkStakesAfterIntantSlashing();
     }
 
@@ -2342,13 +2342,13 @@ contract FullTest is Test {
         // Start withdrawing BTC before knowing about the slash. This value is still slashable so the resulting slash should not change
         _withdrawFromVault(vaultsData.v2.vault, operator2, OPERATOR2_STAKE_V2_WBTC / 2);
 
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
         middleware.slash(slashingEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
         vm.stopPrank();
 
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         _checkStakesAfterIntantSlashing();
     }
 
@@ -2356,16 +2356,16 @@ contract FullTest is Test {
         // Operator 7 has stake in vault5 (veto slasher) only
         vm.warp(VAULT_EPOCH_DURATION + 2);
         uint48 slashingEpoch = middleware.getCurrentEpoch();
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
         middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
         vm.stopPrank();
 
-        vm.warp(block.timestamp + VETO_DURATION);
+        vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
         middleware.executeSlash(address(vaultsData.v5.vault), 0, hex"");
 
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         _checkStakesAfterVetoSlashing(0, 0);
     }
@@ -2374,7 +2374,7 @@ contract FullTest is Test {
         // Operator 7 has stake in vault5 (veto slasher) only
         vm.warp(VAULT_EPOCH_DURATION + 2);
         uint48 slashingEpoch = middleware.getCurrentEpoch();
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
         middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
@@ -2384,10 +2384,10 @@ contract FullTest is Test {
         uint256 withdrawAmount = OPERATOR7_STAKE_V5_STETH / 2;
         _withdrawFromVault(vaultsData.v5.vault, operator7, withdrawAmount);
 
-        vm.warp(block.timestamp + VETO_DURATION);
+        vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
         middleware.executeSlash(address(vaultsData.v5.vault), 0, hex"");
 
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         _checkStakesAfterVetoSlashing(withdrawAmount, 0);
     }
 
@@ -2405,10 +2405,10 @@ contract FullTest is Test {
         middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
         vm.stopPrank();
 
-        vm.warp(block.timestamp + VETO_DURATION);
+        vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
         middleware.executeSlash(address(vaultsData.v5.vault), 0, hex"");
 
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         _checkStakesAfterVetoSlashing(withdrawAmount, 0);
     }
 
@@ -2420,17 +2420,17 @@ contract FullTest is Test {
         uint256 withdrawAmount = OPERATOR7_STAKE_V5_STETH / 2;
         _withdrawFromVault(vaultsData.v5.vault, operator7, withdrawAmount);
 
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         uint48 slashingEpoch = middleware.getCurrentEpoch();
 
         vm.startPrank(gateway);
         middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
         vm.stopPrank();
 
-        vm.warp(block.timestamp + VETO_DURATION);
+        vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
         middleware.executeSlash(address(vaultsData.v5.vault), 0, hex"");
 
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         // The withdraw is in a past epoch, so the slash is not applied to it
         uint256 operator7Vault5SlashedStake =
@@ -2460,16 +2460,16 @@ contract FullTest is Test {
         _withdrawFromVault(vaultsData.v5.vault, operator7, withdrawAmount);
 
         uint48 slashingEpoch = middleware.getCurrentEpoch();
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
         middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
         vm.stopPrank();
 
-        vm.warp(block.timestamp + VETO_DURATION);
+        vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
         middleware.executeSlash(address(vaultsData.v5.vault), 0, hex"");
 
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         _checkStakesAfterVetoSlashing(withdrawAmount, 0);
     }
 
@@ -2481,16 +2481,16 @@ contract FullTest is Test {
         // Operator 7 has stake in vault5 (veto slasher) only
         vm.warp(VAULT_EPOCH_DURATION + 2);
         uint48 slashingEpoch = middleware.getCurrentEpoch();
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
         middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
         vm.stopPrank();
 
-        vm.warp(block.timestamp + VETO_DURATION);
+        vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
         middleware.executeSlash(address(vaultsData.v5.vault), 0, hex"");
 
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         _checkStakesAfterVetoSlashing(0, staker1Stake);
     }
@@ -2503,7 +2503,7 @@ contract FullTest is Test {
         // Operator 7 has stake in vault5 (veto slasher) only
         vm.warp(VAULT_EPOCH_DURATION + 2);
         uint48 slashingEpoch = middleware.getCurrentEpoch();
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
         middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
@@ -2513,10 +2513,10 @@ contract FullTest is Test {
         uint256 withdrawAmount = OPERATOR7_STAKE_V5_STETH / 2;
         _withdrawFromVault(vaultsData.v5.vault, operator7, withdrawAmount);
 
-        vm.warp(block.timestamp + VETO_DURATION);
+        vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
         middleware.executeSlash(address(vaultsData.v5.vault), 0, hex"");
 
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         _checkStakesAfterVetoSlashing(withdrawAmount, staker1Stake);
     }
 
@@ -2532,16 +2532,16 @@ contract FullTest is Test {
         _withdrawFromVault(vaultsData.v5.vault, operator7, withdrawAmount);
 
         uint48 slashingEpoch = middleware.getCurrentEpoch();
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
         middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
         vm.stopPrank();
 
-        vm.warp(block.timestamp + VETO_DURATION);
+        vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
         middleware.executeSlash(address(vaultsData.v5.vault), 0, hex"");
 
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         _checkStakesAfterVetoSlashing(withdrawAmount, staker1Stake);
     }
 
@@ -2707,7 +2707,7 @@ contract FullTest is Test {
     }
 
     function testCannotRegisterSharedOverTheLimit() public {
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         uint256 maxVaults = middleware.MAX_ACTIVE_VAULTS();
         uint256 activeSharedVaults = middlewareReader.sharedVaultsLength();
 
@@ -2738,7 +2738,7 @@ contract FullTest is Test {
             (address vault,,) = deployVault.createBaseVault(params);
             middleware.registerSharedVault(address(vault), stakerRewardsParams);
         }
-        vm.warp(block.timestamp + VAULT_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + VAULT_EPOCH_DURATION + 1);
         activeSharedVaults = middlewareReader.sharedVaultsLength();
         assertLe(activeSharedVaults, maxVaults);
 
@@ -2750,7 +2750,7 @@ contract FullTest is Test {
     }
 
     function testWhenOperatorManagesToBeActiveInTooManyVaultsThenItIsIgnored() public {
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         // Before everything happens, the operator 1 is already registered in a vault and has power. Once he is in too many vaults his power must become 0 even if no stake is removed.
         (, bytes memory performData) = middleware.checkUpkeep(hex"");
@@ -2807,7 +2807,7 @@ contract FullTest is Test {
             (address vault,,) = deployVault.createBaseVault(params);
             middleware.registerSharedVault(address(vault), stakerRewardsParams);
         }
-        vm.warp(block.timestamp + VAULT_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + VAULT_EPOCH_DURATION + 1);
         activeSharedVaults = middlewareReader.sharedVaultsLength();
         activeOperatorVaults = middlewareReader.operatorVaultsLength(operator1);
 
@@ -2845,7 +2845,7 @@ contract FullTest is Test {
         // Distribute rewards
         uint48 eraIndex = 5;
         uint256 amountToDistribute = 100 ether;
-        vm.warp(block.timestamp + 5 * NETWORK_EPOCH_DURATION);
+        vm.warp(vm.getBlockTimestamp() + 5 * NETWORK_EPOCH_DURATION);
 
         _prepareRewardsDistribution(eraIndex, amountToDistribute);
 

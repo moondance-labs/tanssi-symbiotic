@@ -177,7 +177,7 @@ contract MiddlewareTest is Test {
     }
 
     function testIfOperatorsAreRegisteredInVaults() public {
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.OperatorVaultPair[] memory operatorVaultPairs =
             OBaseMiddlewareReader(address(middleware)).getOperatorVaultPairs(currentEpoch);
@@ -188,7 +188,7 @@ contract MiddlewareTest is Test {
     }
 
     function testOperatorsAreRegisteredAfterOneEpoch() public {
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         Middleware.OperatorVaultPair[] memory operatorVaultPairs =
@@ -200,12 +200,12 @@ contract MiddlewareTest is Test {
     }
 
     function testOperatorsStakeIsTheSamePerEpoch() public {
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         uint48 previousEpoch = middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validatorsPreviousEpoch =
             OBaseMiddlewareReader(address(middleware)).getValidatorSet(previousEpoch);
 
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         Middleware.ValidatorData[] memory validators =
             OBaseMiddlewareReader(address(middleware)).getValidatorSet(previousEpoch);
         assertEq(validators.length, validatorsPreviousEpoch.length);
@@ -221,7 +221,7 @@ contract MiddlewareTest is Test {
         vm.prank(operator);
         vault.withdraw(operator, withdrawAmount);
 
-        vm.warp(block.timestamp + VAULT_EPOCH_DURATION * 2 + 1);
+        vm.warp(vm.getBlockTimestamp() + VAULT_EPOCH_DURATION * 2 + 1);
         currentEpoch = vault.currentEpoch();
 
         vm.prank(operator);
@@ -246,7 +246,7 @@ contract MiddlewareTest is Test {
         vm.prank(gateway);
         middleware.slash(currentEpoch, operatorData.operatorKey, SLASHING_FRACTION);
 
-        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
 
@@ -267,7 +267,7 @@ contract MiddlewareTest is Test {
         vm.prank(gateway);
         middleware.slash(currentEpoch, operatorData.operatorKey, SLASHING_FRACTION);
 
-        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validators =
             OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
@@ -293,7 +293,7 @@ contract MiddlewareTest is Test {
         vm.prank(gateway);
         middleware.slash(currentEpoch, operatorData.operatorKey, SLASHING_FRACTION);
 
-        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validators =
             OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
@@ -314,7 +314,7 @@ contract MiddlewareTest is Test {
         public
         returns (uint48 currentEpoch, Middleware.ValidatorData[] memory validators, uint256 totalOperatorPower)
     {
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + SLASHING_WINDOW - 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + SLASHING_WINDOW - 1);
         currentEpoch = middleware.getCurrentEpoch();
 
         validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);

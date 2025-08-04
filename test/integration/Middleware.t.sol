@@ -560,7 +560,7 @@ contract MiddlewareTest is Test {
         Middleware.ValidatorData[] memory validatorsPreviousEpoch =
             OBaseMiddlewareReader(address(middleware)).getValidatorSet(previousEpoch);
 
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 2);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 2);
         Middleware.ValidatorData[] memory validators =
             OBaseMiddlewareReader(address(middleware)).getValidatorSet(previousEpoch);
         assertEq(validators.length, validatorsPreviousEpoch.length);
@@ -573,7 +573,7 @@ contract MiddlewareTest is Test {
     }
 
     function testUnregisterOperatorButPastVaultsAreNotShown() public {
-        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         uint48 previousEpoch = middleware.getCurrentEpoch();
         uint48 previousEpochStartTs = middleware.getEpochStart(previousEpoch);
 
@@ -582,7 +582,7 @@ contract MiddlewareTest is Test {
         assertEq(operatorVaults.length, 3);
 
         middleware.pauseOperator(operator2);
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
         middleware.unregisterOperator(operator2);
 
         // Get validator set for current epoch
@@ -640,7 +640,7 @@ contract MiddlewareTest is Test {
 
         vm.prank(resolver1);
         vetoSlasher.vetoSlash(0, hex"");
-        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
 
@@ -697,10 +697,10 @@ contract MiddlewareTest is Test {
         vm.prank(gateway);
         middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
-        vm.warp(block.timestamp + VETO_DURATION);
+        vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
         middleware.executeSlash(address(vaultVetoed), 0, hex"");
 
-        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
 
@@ -726,7 +726,7 @@ contract MiddlewareTest is Test {
         vm.prank(resolver1);
         vetoSlasher.vetoSlash(0, hex"");
 
-        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
 
@@ -749,10 +749,10 @@ contract MiddlewareTest is Test {
         vm.prank(gateway);
         middleware.slash(currentEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
 
-        vm.warp(block.timestamp + VETO_DURATION);
+        vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
         middleware.executeSlash(address(vaultVetoed), 0, hex"");
 
-        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
 
@@ -776,7 +776,7 @@ contract MiddlewareTest is Test {
         vm.prank(gateway);
         middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
-        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
 
@@ -801,7 +801,7 @@ contract MiddlewareTest is Test {
         //! Why this slash should anyway go through if operator was paused? Shouldn't it revert?
         middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
-        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
 
@@ -832,7 +832,7 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(resolver1);
         vetoSlasher.vetoSlash(0, hex"");
-        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
         validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
 
@@ -1009,8 +1009,9 @@ contract MiddlewareTest is Test {
         tanssiCollateral.mint(operator4, 1000 * 10 ** TANSSI_TOKEN_DECIMALS);
         tanssiCollateral.mint(operator5, 1000 * 10 ** TANSSI_TOKEN_DECIMALS);
 
-        DIAOracleMock diaOracle =
-            new DIAOracleMock(TANSSI_PAIR_SYMBOL, uint128(uint256(ORACLE_CONVERSION_TANSSI)), uint128(block.timestamp));
+        DIAOracleMock diaOracle = new DIAOracleMock(
+            TANSSI_PAIR_SYMBOL, uint128(uint256(ORACLE_CONVERSION_TANSSI)), uint128(vm.getBlockTimestamp())
+        );
 
         AggregatorV3DIAProxy tanssiCollateralOracle = new AggregatorV3DIAProxy(address(diaOracle), TANSSI_PAIR_SYMBOL);
         vm.stopPrank();
@@ -1374,7 +1375,7 @@ contract MiddlewareTest is Test {
         (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, false);
 
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
 
@@ -1657,6 +1658,63 @@ contract MiddlewareTest is Test {
         }
     }
 
+    function testUpkeepShouldHaveSameOperatorsEvenIfPaused() public {
+        vm.prank(owner);
+        middleware.setForwarder(forwarder);
+        // It's not needed, it's just for explaining and showing the flow
+        address offlineKeepers = makeAddr("offlineKeepers");
+        vm.startPrank(offlineKeepers);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+
+        vm.startPrank(forwarder);
+        middleware.performUpkeep(performData);
+        uint48 epoch = middleware.getCurrentEpoch();
+
+        uint256 operator1Power = middleware.getOperatorToPower(epoch, OPERATOR_KEY);
+        uint256 operator2Power = middleware.getOperatorToPower(epoch, OPERATOR2_KEY);
+        uint256 operator3Power = middleware.getOperatorToPower(epoch, OPERATOR3_KEY);
+
+        (uint256 totalOperatorPowerAfter,) = _calculateOperatorPower(totalPowerVault, 0, 0);
+        (uint256 totalOperator2PowerAfter,) =
+            _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, 0);
+        (uint256 totalOperator3PowerAfter,) =
+            _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, totalFullRestakePower, 0);
+
+        assertEq(operator1Power, totalOperatorPowerAfter);
+        assertEq(operator2Power, totalOperator2PowerAfter);
+        assertEq(operator3Power, totalOperator3PowerAfter);
+
+        vm.startPrank(owner);
+        middleware.pauseOperator(operator);
+        console2.log("Operator paused at time: ", vm.getBlockTimestamp());
+
+        vm.warp(vm.getBlockTimestamp() + 50);
+        vm.startPrank(offlineKeepers);
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+
+        address[] memory activeOperators = OBaseMiddlewareReader(address(middleware)).activeOperators();
+        assertEq(activeOperators.length, 3);
+
+        (uint8 command, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
+        assertEq(command, middleware.SEND_DATA_COMMAND());
+        assertEq(sortedKeys.length, 3);
+
+        vm.startPrank(forwarder);
+        vm.expectEmit(true, false, false, false);
+        emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
+        middleware.performUpkeep(performData);
+
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+        assertEq(performData.length, 0);
+    }
+
     function testWhenRegisteringVaultThenStakerRewardsAreDeployed() public {
         vm.startPrank(owner);
         uint256 totalEntities = stakerRewardsFactory.totalEntities();
@@ -1764,7 +1822,7 @@ contract MiddlewareTest is Test {
             tanssi.subnetwork(0), operator3, 0
         );
 
-        vm.warp(block.timestamp + VAULT_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + VAULT_EPOCH_DURATION + 1);
         vm.roll(80 + 57_235); // 57_235 is ≈ the number of blocks in 1 week
         keys = middleware.sendCurrentOperatorsKeys();
         assertEq(keys.length, 3);
