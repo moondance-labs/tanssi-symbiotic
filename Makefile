@@ -89,7 +89,7 @@ deploy-operator-rewards:
 
 deploy-staker-rewards-factory:
 	@echo "📡 Deploying Staker Rewards Factory..."
-	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "deployStakerRewardsFactoryContract(address,address,address,address)" $(VAULT_FACTORY_ADDRESS) $(NETWORK_MIDDLEWARE_SERVICE) $(OPERATOR_REWARDS_PROXY_ADDRESS) $(NETWORK) -vv
+	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "deployStakerRewardsFactoryContract(address,address,address,address,address)" $(VAULT_FACTORY_ADDRESS) $(NETWORK_MIDDLEWARE_SERVICE) $(OPERATOR_REWARDS_PROXY_ADDRESS) $(NETWORK) $(ADMIN_ADDRESS) -vv
 	@echo "✅ Staker Rewards Factory deployment completed"
 
 deploy-tanssi-vault:
@@ -104,12 +104,12 @@ deploy-middleware:
 
 deploy-staker-rewards:
 	@echo "📡 Deploying Staker Rewards Implementation..."
-	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "deployStakerRewards(address,address[],address)" $(NETWORK_MIDDLEWARE_SERVICE) $(VAULTS) $(NETWORK) -vv
+	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "deployStakerRewards(address,address)" $(NETWORK_MIDDLEWARE_SERVICE) $(NETWORK) -vv
 	@echo "✅ Staker Rewards Implementation deployment completed"
 
 upgrade-middleware:
 	@echo "📡 Upgrading Middleware..."
-	@forge script script/DeployTanssiEcosystem.s.sol $(NETWORK_ARGS) --sig "upgradeMiddleware(address,uint256,address)" $(MIDDLEWARE_ADDRESS) $(CURRENT_MIDDLEWARE_VERSION) 0x0000000000000000000000000000000000000000 -vv
+	@forge script script/DeployTanssiEcosystem.s.sol $(NETWORK_ARGS) --sig "upgradeMiddlewareBroadcast(address,uint256)" $(MIDDLEWARE_ADDRESS) $(CURRENT_MIDDLEWARE_VERSION) -vv
 	@echo "✅ Middleware upgrade completed"
 
 upgrade-operator-rewards:
@@ -117,12 +117,18 @@ upgrade-operator-rewards:
 	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "upgradeOperatorRewards(address,address,address)" $(OPERATOR_REWARDS_PROXY_ADDRESS) $(NETWORK) $(NETWORK_MIDDLEWARE_SERVICE) -vv
 	@echo "✅ Operator Rewards upgrade completed"
 	
-upgrade-staker-rewards:
-	@echo "📡 Upgrading Staker Rewards..."
-	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "upgradeStakerRewards(address,address,address,address)" $(STAKER_REWARDS_PROXY_ADDRESS) $(NETWORK_MIDDLEWARE_SERVICE) $(VAULT_ADDRESS) $(NETWORK) -vv
-	@echo "✅ Staker Rewards upgrade completed"
-
 deploy-dia-aggregator-oracle-proxy:
 	@echo "📡 Deploying DIA Aggregator Oracle Proxy..."
 	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem $(NETWORK_ARGS) --sig "deployDIAAggregatorOracleProxy(address,string)" $(DIA_ORACLE_ADDRESS) $(PAIR_SYMBOL) -vv
 	@echo "✅ DIA Aggregator Oracle Proxy deployment completed"
+
+deploy-reader:
+	@echo "📡 Deploying Middleware Reader..."
+	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem $(NETWORK_ARGS) --sig "deployMiddlewareReader()" -vv
+	@echo "✅ Middleware Reader deployment completed"
+
+
+deploy-rewards-hints-builder:
+	@echo "📡 Deploying Rewards Hints Builder..."
+	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "deployRewardsHintsBuilder(address,address,address)" $(MIDDLEWARE_ADDRESS) $(OPERATOR_REWARDS_PROXY_ADDRESS) $(VAULT_HINTS_ADDRESS) -vv
+	@echo "✅ Rewards Hints Builder deployment completed"

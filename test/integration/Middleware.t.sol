@@ -1402,6 +1402,7 @@ contract MiddlewareTest is Test {
 
         (uint8 command, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
         assertEq(command, middleware.SEND_DATA_COMMAND());
+        assertEq(sortedKeys.length, 3);
 
         vm.startPrank(forwarder);
         vm.expectEmit(true, false, false, false);

@@ -166,10 +166,36 @@ contract ODefaultOperatorRewards is
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
+    function batchClaimRewards(
+        ClaimRewardsInput[] calldata inputs
+    ) external nonReentrant returns (uint256 amount) {
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        address middlewareAddress = INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network);
+        uint256 totalInputs = inputs.length;
+        for (uint256 i; i < totalInputs;) {
+            amount += _claimRewards(inputs[i], $, middlewareAddress);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /**
+     * @inheritdoc IODefaultOperatorRewards
+     */
     function claimRewards(
         ClaimRewardsInput calldata input
     ) external nonReentrant returns (uint256 amount) {
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        address middlewareAddress = INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network);
+        amount = _claimRewards(input, $, middlewareAddress);
+    }
+
+    function _claimRewards(
+        ClaimRewardsInput calldata input,
+        OperatorRewardsStorage storage $,
+        address middlewareAddress
+    ) private returns (uint256 amount) {
         EraRoot memory eraRoot_ = $.eraRoot[input.eraIndex];
         address tokenAddress = eraRoot_.tokenAddress;
         if (eraRoot_.root == bytes32(0)) {
@@ -187,7 +213,6 @@ contract ODefaultOperatorRewards is
             revert ODefaultOperatorRewards__InvalidProof();
         }
 
-        address middlewareAddress = INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network);
         uint256 stakerAmount;
         address recipient;
 

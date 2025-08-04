@@ -272,7 +272,16 @@ contract ODefaultStakerRewards is
         }
 
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
+        _claimRewards(recipient, epoch, tokenAddress, activeSharesOfHints, $);
+    }
 
+    function _claimRewards(
+        address recipient,
+        uint48 epoch,
+        address tokenAddress,
+        bytes memory activeSharesOfHints,
+        StakerRewardsStorage storage $
+    ) private {
         uint256 rewardsPerEpoch = $.rewards[epoch][tokenAddress];
         uint256 claimedPerEpoch = $.stakerClaimedRewardPerEpoch[recipient][epoch][tokenAddress];
 
@@ -305,8 +314,7 @@ contract ODefaultStakerRewards is
     }
 
     /**
-     * @dev Alternative method to claim rewards with custom data
-     * @dev data = abi.encode(epoch, activeSharesOfHints)
+     * @inheritdoc IODefaultStakerRewards
      */
     function claimRewards(address recipient, address tokenAddress, bytes calldata data) external {
         uint48 epoch;
@@ -314,6 +322,32 @@ contract ODefaultStakerRewards is
             epoch := calldataload(data.offset)
         }
         claimRewards(recipient, epoch, tokenAddress, data[0x20:]);
+    }
+
+    /**
+     * @inheritdoc IODefaultStakerRewards
+     */
+    function batchClaimRewards(
+        address recipient,
+        uint48[] calldata epochs,
+        address tokenAddress,
+        bytes[] calldata activeSharesOfHints
+    ) external {
+        if (recipient == address(0)) {
+            revert ODefaultStakerRewards__InvalidRecipient();
+        }
+        if (epochs.length != activeSharesOfHints.length) {
+            revert ODefaultStakerRewards__InvalidInput();
+        }
+
+        StakerRewardsStorage storage $ = _getStakerRewardsStorage();
+        uint256 epochsLength = epochs.length;
+        for (uint256 i; i < epochsLength;) {
+            _claimRewards(recipient, epochs[i], tokenAddress, activeSharesOfHints[i], $);
+            unchecked {
+                ++i;
+            }
+        }
     }
 
     /**
