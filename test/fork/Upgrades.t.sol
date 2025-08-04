@@ -79,8 +79,8 @@ contract UpgradesTest is Test {
 
         // Need to reinitialize the operatorRewards and stakerRewardsFactory after the first upgrade
         middleware.reinitializeRewards(newOperatorRewardsAddress, newStakerRewardsFactoryAddress);
-        assertEq(middleware.i_operatorRewards(), newOperatorRewardsAddress);
-        assertEq(middleware.i_stakerRewardsFactory(), newStakerRewardsFactoryAddress);
+        assertEq(middleware.getOperatorRewards(), newOperatorRewardsAddress);
+        assertEq(middleware.getStakerRewardsFactory(), newStakerRewardsFactoryAddress);
         assertEq(reader.getCurrentEpoch(), currentEpoch);
         assertEq(reader.NETWORK(), network);
         assertEq(reader.operatorsLength(), operatorsLength);

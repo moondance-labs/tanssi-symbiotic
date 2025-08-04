@@ -136,8 +136,9 @@ contract Middleware is
         address operatorRewards,
         address stakerRewardsFactory
     ) external reinitializer(2) notZeroAddress(operatorRewards) notZeroAddress(stakerRewardsFactory) {
-        i_operatorRewards = operatorRewards;
-        i_stakerRewardsFactory = stakerRewardsFactory;
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        $.i_operatorRewards = operatorRewards;
+        $.i_stakerRewardsFactory = stakerRewardsFactory;
     }
 
     function _validateInitParams(
@@ -241,7 +242,8 @@ contract Middleware is
     function setOperatorShareOnOperatorRewards(
         uint48 operatorShare
     ) external checkAccess {
-        IODefaultOperatorRewards(i_operatorRewards).setOperatorShare(operatorShare);
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        IODefaultOperatorRewards($.i_operatorRewards).setOperatorShare(operatorShare);
     }
 
     /**
@@ -259,9 +261,10 @@ contract Middleware is
             revert Middleware__InsufficientBalance();
         }
 
-        IERC20(tokenAddress).approve(i_operatorRewards, tokenAmount);
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        IERC20(tokenAddress).approve($.i_operatorRewards, tokenAmount);
 
-        IODefaultOperatorRewards(i_operatorRewards).distributeRewards(
+        IODefaultOperatorRewards($.i_operatorRewards).distributeRewards(
             uint48(epoch), uint48(eraIndex), tokenAmount, totalPoints, rewardsRoot, tokenAddress
         );
     }
@@ -498,10 +501,11 @@ contract Middleware is
             revert Middleware__TooManyActiveVaults();
         }
 
+        StorageMiddleware storage $ = _getMiddlewareStorage();
         address stakerRewards =
-            IODefaultStakerRewardsFactory(i_stakerRewardsFactory).create(sharedVault, stakerRewardsParams);
+            IODefaultStakerRewardsFactory($.i_stakerRewardsFactory).create(sharedVault, stakerRewardsParams);
 
-        IODefaultOperatorRewards(i_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
+        IODefaultOperatorRewards($.i_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
 
         _setVaultToCollateral(sharedVault);
     }
