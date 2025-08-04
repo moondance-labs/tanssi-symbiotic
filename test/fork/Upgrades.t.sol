@@ -66,7 +66,7 @@ contract UpgradesTest is Test {
     }
 
     function testUpgradeMiddleware() public {
-        // TODO: Needs to be called like this because method does not exists in current version. After upgrade, change to middleware.getStakerRewardsFactory();
+        // TODO: Needs to be called like this because method does not exists in current version. After upgrade, change to middleware.getStakerRewardsFactoryAddress();
         bytes memory data = abi.encodeWithSignature("i_stakerRewardsFactory()");
         (bool success, bytes memory result) = address(middleware).staticcall(data);
         require(success, "Call failed");
@@ -82,8 +82,8 @@ contract UpgradesTest is Test {
 
         // Need to reinitialize the operatorRewards and stakerRewardsFactory after the first upgrade. TODO: Remove call after upgrade
         middleware.reinitializeRewards(address(operatorRewards), stakerRewardsFactory);
-        assertEq(middleware.getOperatorRewards(), address(operatorRewards));
-        assertEq(middleware.getStakerRewardsFactory(), stakerRewardsFactory);
+        assertEq(middleware.getOperatorRewardsAddress(), address(operatorRewards));
+        assertEq(middleware.getStakerRewardsFactoryAddress(), stakerRewardsFactory);
         assertEq(reader.getCurrentEpoch(), currentEpoch);
         assertEq(reader.NETWORK(), network);
         assertEq(reader.operatorsLength(), operatorsLength);

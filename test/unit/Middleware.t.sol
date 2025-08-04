@@ -1565,7 +1565,7 @@ contract MiddlewareTest is Test {
         vm.prank(owner);
 
         assertEq(middleware.VERSION(), 1);
-        assertEq(middleware.getOperatorRewards(), address(operatorRewards));
+        assertEq(middleware.getOperatorRewardsAddress(), address(operatorRewards));
 
         MiddlewareV2 middlewareImplV2 = new MiddlewareV2();
         bytes memory emptyBytes = hex"";

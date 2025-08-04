@@ -58,7 +58,7 @@ abstract contract MiddlewareStorage {
      * @notice Get the operator rewards contract address
      * @return operator rewards contract address
      */
-    function getOperatorRewards() public view returns (address) {
+    function getOperatorRewardsAddress() public view returns (address) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
         return $.i_operatorRewards;
     }
@@ -67,7 +67,7 @@ abstract contract MiddlewareStorage {
      * @notice Get the staker rewards factory contract address
      * @return staker rewards factory contract address
      */
-    function getStakerRewardsFactory() public view returns (address) {
+    function getStakerRewardsFactoryAddress() public view returns (address) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
         return $.i_stakerRewardsFactory;
     }

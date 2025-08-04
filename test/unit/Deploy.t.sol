@@ -213,22 +213,22 @@ contract DeployTest is Test {
 
     function testUpgradeMiddleware() public {
         address middleware = _deployMiddleware();
-        address previousOperatorRewards = Middleware(middleware).getOperatorRewards();
-        address previousStakerRewardsFactory = Middleware(middleware).getStakerRewardsFactory();
+        address previousOperatorRewards = Middleware(middleware).getOperatorRewardsAddress();
+        address previousStakerRewardsFactory = Middleware(middleware).getStakerRewardsFactoryAddress();
 
         deployTanssiEcosystem.upgradeMiddleware(middleware, 1, tanssi);
-        assertEq(Middleware(middleware).getOperatorRewards(), previousOperatorRewards);
-        assertEq(Middleware(middleware).getStakerRewardsFactory(), previousStakerRewardsFactory);
+        assertEq(Middleware(middleware).getOperatorRewardsAddress(), previousOperatorRewards);
+        assertEq(Middleware(middleware).getStakerRewardsFactoryAddress(), previousStakerRewardsFactory);
     }
 
     function testUpgradeMiddlewareWithBroadcast() public {
         address middleware = _deployMiddleware();
 
-        address previousOperatorRewards = Middleware(middleware).getOperatorRewards();
-        address previousStakerRewardsFactory = Middleware(middleware).getStakerRewardsFactory();
+        address previousOperatorRewards = Middleware(middleware).getOperatorRewardsAddress();
+        address previousStakerRewardsFactory = Middleware(middleware).getStakerRewardsFactoryAddress();
         deployTanssiEcosystem.upgradeMiddlewareBroadcast(middleware, 1);
-        assertEq(Middleware(middleware).getOperatorRewards(), previousOperatorRewards);
-        assertEq(Middleware(middleware).getStakerRewardsFactory(), previousStakerRewardsFactory);
+        assertEq(Middleware(middleware).getOperatorRewardsAddress(), previousOperatorRewards);
+        assertEq(Middleware(middleware).getStakerRewardsFactoryAddress(), previousStakerRewardsFactory);
     }
 
     function testDeployOnlyMiddlewareWithReader() public {
