@@ -1494,6 +1494,141 @@ contract MiddlewareTest is Test {
         console2.log("Total gas used for sorting manually: ", gasSorted);
     }
 
+    function testUpkeepFor100OperatorsIn3VaultsSortedFor2ConsecutiveEpochsForGasOffset() public {
+        uint16 count = 100;
+        _addOperatorsToNetwork(count);
+        count += 3; // 3 operators are already registered
+        vm.prank(owner);
+        middleware.setForwarder(forwarder);
+
+        address offlineKeepers = makeAddr("offlineKeepers");
+
+        vm.startPrank(offlineKeepers);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+
+        {
+            vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+            uint48 epoch = middleware.getCurrentEpoch();
+            console2.log("Current epoch: ", epoch);
+            // This will exhaust and fill the cache in n (count/max_operators_to_process) times
+            uint256 totalGasUsedForCheck = 0;
+            uint256 totalGasUsedForPerform = 0;
+            {
+                uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
+                for (uint256 i = 0; i < (count + max - 1) / max; i++) {
+                    uint256 gasBeforeCheck = gasleft();
+                    (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+                    uint256 gasAfterCheck = gasleft();
+                    uint256 gasUsedCheck = gasBeforeCheck - gasAfterCheck;
+                    totalGasUsedForCheck += gasUsedCheck;
+
+                    console2.log("Gas used for check: ", gasUsedCheck);
+                    assertEq(upkeepNeeded, true);
+
+                    vm.startPrank(forwarder);
+                    uint256 gasBeforePerform = gasleft();
+                    middleware.performUpkeep(performData);
+                    uint256 gasAfterPerform = gasleft();
+                    uint256 gasUsedPerform = gasBeforePerform - gasAfterPerform;
+                    totalGasUsedForPerform += gasUsedPerform;
+                    console2.log("Gas used for perform: ", gasUsedPerform);
+                }
+            }
+
+            // After the loop, we should have all operators processed and cache filled
+            // Now the keepers will call performUpkeep with the cache and sending the operators keys to the gateway
+            uint256 gasBeforeFinalCheck = gasleft();
+            (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+            uint256 gasAfterFinalCheck = gasleft();
+            uint256 gasUsedFinalCheck = gasBeforeFinalCheck - gasAfterFinalCheck;
+            totalGasUsedForCheck += gasUsedFinalCheck;
+            console2.log("Gas used for final check: ", gasUsedFinalCheck);
+            assertEq(upkeepNeeded, true);
+
+            (uint8 command, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
+            assertEq(command, middleware.SEND_DATA_COMMAND());
+            assertEq(sortedKeys.length, count);
+
+            {
+                vm.startPrank(forwarder);
+                vm.expectEmit(true, false, false, false);
+                emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
+                uint256 gasBeforeFinalPerform = gasleft();
+                middleware.performUpkeep(performData);
+                uint256 gasAfterFinalPerform = gasleft();
+                uint256 gasUsedFinalPerform = gasBeforeFinalPerform - gasAfterFinalPerform;
+                totalGasUsedForPerform += gasUsedFinalPerform;
+                console2.log("Gas used for final perform: ", gasUsedFinalPerform);
+            }
+
+            console2.log("Total gas used for check: ", totalGasUsedForCheck);
+            console2.log("Total gas used for perform: ", totalGasUsedForPerform);
+            console2.log("Total gas used for upkeep: ", totalGasUsedForCheck + totalGasUsedForPerform);
+            (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+            assertEq(upkeepNeeded, false);
+        }
+
+        {
+            vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+
+            uint48 epoch = middleware.getCurrentEpoch();
+            console2.log("\n\nCurrent epoch: ", epoch);
+            // This will exhaust and fill the cache in n (count/max_operators_to_process) times
+            uint256 totalGasUsedForCheck = 0;
+            uint256 totalGasUsedForPerform = 0;
+            {
+                uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
+                for (uint256 i = 0; i < (count + max - 1) / max; i++) {
+                    uint256 gasBeforeCheck = gasleft();
+                    (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+                    uint256 gasAfterCheck = gasleft();
+                    uint256 gasUsedCheck = gasBeforeCheck - gasAfterCheck;
+                    totalGasUsedForCheck += gasUsedCheck;
+
+                    console2.log("Gas used for check: ", gasUsedCheck);
+
+                    vm.startPrank(forwarder);
+                    uint256 gasBeforePerform = gasleft();
+                    middleware.performUpkeep(performData);
+                    uint256 gasAfterPerform = gasleft();
+                    uint256 gasUsedPerform = gasBeforePerform - gasAfterPerform;
+                    totalGasUsedForPerform += gasUsedPerform;
+                    console2.log("Gas used for perform: ", gasUsedPerform);
+                }
+            }
+
+            // After the loop, we should have all operators processed and cache filled
+            // Now the keepers will call performUpkeep with the cache and sending the operators keys to the gateway
+            uint256 gasBeforeFinalCheck = gasleft();
+            (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+            uint256 gasAfterFinalCheck = gasleft();
+            uint256 gasUsedFinalCheck = gasBeforeFinalCheck - gasAfterFinalCheck;
+            totalGasUsedForCheck += gasUsedFinalCheck;
+            console2.log("Gas used for final check: ", gasUsedFinalCheck);
+
+            (uint8 command, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
+
+            {
+                vm.startPrank(forwarder);
+                vm.expectEmit(true, false, false, false);
+                emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
+                uint256 gasBeforeFinalPerform = gasleft();
+                middleware.performUpkeep(performData);
+                uint256 gasAfterFinalPerform = gasleft();
+                uint256 gasUsedFinalPerform = gasBeforeFinalPerform - gasAfterFinalPerform;
+                totalGasUsedForPerform += gasUsedFinalPerform;
+                console2.log("Gas used for final perform: ", gasUsedFinalPerform);
+            }
+
+            console2.log("Total gas used for check: ", totalGasUsedForCheck);
+            console2.log("Total gas used for perform: ", totalGasUsedForPerform);
+            console2.log("Total gas used for upkeep: ", totalGasUsedForCheck + totalGasUsedForPerform);
+            (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+            assertEq(upkeepNeeded, false);
+        }
+    }
+
     function testUpkeepPerformDataShouldBeBelow2000Bytes() public {
         uint16 count = 37;
         _addOperatorsToNetwork(count);

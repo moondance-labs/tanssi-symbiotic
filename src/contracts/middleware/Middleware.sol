@@ -340,6 +340,8 @@ contract Middleware is
                 }
 
                 cache.operatorKeyToPower[epoch][validatorKey] = validatorData.power;
+                delete cache.operatorKeyToPower[epoch - 1][validatorKey];
+
                 unchecked {
                     ++i;
                 }
@@ -355,6 +357,8 @@ contract Middleware is
 
                 // Decode the sorted keys and the epoch from performData
                 (uint8 command, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
+
+                delete cache.epochToCacheIndex[epoch - 1];
 
                 if (command != SEND_DATA_COMMAND) {
                     revert Middleware__InvalidCommand(command);
