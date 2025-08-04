@@ -135,7 +135,7 @@ contract Middleware is
     function reinitializeRewards(
         address operatorRewards,
         address stakerRewardsFactory
-    ) external reinitializer(2) notZeroAddress(operatorRewards) notZeroAddress(stakerRewardsFactory) {
+    ) external reinitializer(3) notZeroAddress(operatorRewards) notZeroAddress(stakerRewardsFactory) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
         $.i_operatorRewards = operatorRewards;
         $.i_stakerRewardsFactory = stakerRewardsFactory;
