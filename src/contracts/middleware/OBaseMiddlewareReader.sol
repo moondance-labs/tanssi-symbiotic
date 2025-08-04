@@ -742,7 +742,7 @@ contract OBaseMiddlewareReader is
                 _getValidatorDataForOperators(maxNumOperatorsToCheck, cacheIndex, currentEpochStartTs, activeOperators_);
 
             // encode values to be used in performUpkeep
-            return (true, abi.encode(CACHE_DATA_COMMAND, validatorsData));
+            return (true, abi.encode(CACHE_DATA_COMMAND, epoch, validatorsData));
         }
 
         //Should be at least once per epoch
@@ -750,7 +750,7 @@ contract OBaseMiddlewareReader is
         if (upkeepNeeded) {
             // This will use the cached values, resulting in just a simple sorting operation. We can know a priori how much it cost since it's just an address with a uint256 power. Worst case we can split this too.
             bytes32[] memory sortedKeys = sortOperatorsByPower(epoch);
-            performData = abi.encode(SEND_DATA_COMMAND, sortedKeys);
+            performData = abi.encode(SEND_DATA_COMMAND, epoch, sortedKeys);
             return (true, performData);
         }
 

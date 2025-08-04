@@ -1363,6 +1363,10 @@ contract FullTest is Test {
             uint256 gasBefore = gasleft();
             (, bytes memory performData) = middleware.checkUpkeep(hex"");
             console2.log("Gas used to checkUpkeep:", gasBefore - gasleft());
+            (uint8 command, uint48 encodedEpoch,) =
+                abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
+            assertEq(encodedEpoch, epoch);
+            assertEq(command, middleware.CACHE_DATA_COMMAND());
 
             vm.startPrank(forwarder);
             gasBefore = gasleft();
@@ -2751,11 +2755,14 @@ contract FullTest is Test {
 
     function testWhenOperatorManagesToBeActiveInTooManyVaultsThenItIsIgnored() public {
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        uint48 currentEpoch = middleware.getCurrentEpoch();
 
         // Before everything happens, the operator 1 is already registered in a vault and has power. Once he is in too many vaults his power must become 0 even if no stake is removed.
         (, bytes memory performData) = middleware.checkUpkeep(hex"");
-        (uint8 command, IMiddleware.ValidatorData[] memory validatorsData) =
-            abi.decode(performData, (uint8, IMiddleware.ValidatorData[]));
+        (uint8 command, uint48 epoch, IMiddleware.ValidatorData[] memory validatorsData) =
+            abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
+        assertEq(epoch, currentEpoch);
+
         bool operator1Found = false;
         for (uint256 i = 0; i < validatorsData.length; i++) {
             if (validatorsData[i].key == OPERATOR1_KEY) {
@@ -2811,11 +2818,13 @@ contract FullTest is Test {
         activeSharedVaults = middlewareReader.sharedVaultsLength();
         activeOperatorVaults = middlewareReader.operatorVaultsLength(operator1);
 
+        currentEpoch = middleware.getCurrentEpoch();
         assertEq(activeOperatorVaults, 10);
         assertEq(activeSharedVaults + activeOperatorVaults, maxVaults + 5);
 
         (, performData) = middleware.checkUpkeep(hex"");
-        (command, validatorsData) = abi.decode(performData, (uint8, IMiddleware.ValidatorData[]));
+        (command, epoch, validatorsData) = abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
+        assertEq(epoch, currentEpoch);
 
         operator1Found = false;
         for (uint256 i = 0; i < validatorsData.length; i++) {
