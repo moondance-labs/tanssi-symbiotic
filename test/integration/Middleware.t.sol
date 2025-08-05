@@ -1382,9 +1382,9 @@ contract MiddlewareTest is Test {
         middleware.performUpkeep(performData);
         uint48 epoch = middleware.getCurrentEpoch();
 
-        uint256 operator1Power = middleware.getOperatorToPower(epoch, OPERATOR_KEY);
-        uint256 operator2Power = middleware.getOperatorToPower(epoch, OPERATOR2_KEY);
-        uint256 operator3Power = middleware.getOperatorToPower(epoch, OPERATOR3_KEY);
+        uint256 operator1Power = middleware.getOperatorToPowerCached(epoch, OPERATOR_KEY);
+        uint256 operator2Power = middleware.getOperatorToPowerCached(epoch, OPERATOR2_KEY);
+        uint256 operator3Power = middleware.getOperatorToPowerCached(epoch, OPERATOR3_KEY);
 
         (uint256 totalOperatorPowerAfter,) = _calculateOperatorPower(totalPowerVault, 0, 0);
         (uint256 totalOperator2PowerAfter,) =

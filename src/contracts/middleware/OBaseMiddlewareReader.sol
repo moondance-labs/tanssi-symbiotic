@@ -684,7 +684,7 @@ contract OBaseMiddlewareReader is
             }
 
             if (key != bytes32(0)) {
-                uint256 power = getOperatorToPower(epoch, key);
+                uint256 power = getOperatorToPowerCached(epoch, key);
                 if (power == 0) {
                     power = _optmizedGetOperatorPowerAt(epochStartTs, sharedVaults, subnetwork, operator);
                 }
