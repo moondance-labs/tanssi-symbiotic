@@ -678,19 +678,23 @@ contract OBaseMiddlewareReader is
         for (uint256 i; i < operatorsLength_;) {
             address operator = operators[i];
             bytes32 key = abi.decode(getOperatorKeyAt(operator, epochStartTs), (bytes32));
-            uint256 operatorPowerCached = getOperatorToPower(epoch, key);
-
-            if (operatorPowerCached != 0) {
-                validatorSet[len++] = IMiddleware.ValidatorData(operatorPowerCached, key);
-            } else {
-                uint256 power = _optmizedGetOperatorPowerAt(epochStartTs, sharedVaults, subnetwork, operator);
-                if (key != bytes32(0) && power != 0) {
-                    validatorSet[len++] = IMiddleware.ValidatorData(power, key);
-                }
-            }
 
             unchecked {
                 ++i;
+            }
+
+            if (key != bytes32(0)) {
+                uint256 power = getOperatorToPower(epoch, key);
+                if (power == 0) {
+                    power = _optmizedGetOperatorPowerAt(epochStartTs, sharedVaults, subnetwork, operator);
+                }
+
+                if (power != 0) {
+                    validatorSet[len] = IMiddleware.ValidatorData(power, key);
+                    unchecked {
+                        ++len;
+                    }
+                }
             }
         }
 
