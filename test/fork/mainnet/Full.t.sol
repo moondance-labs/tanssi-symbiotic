@@ -587,6 +587,11 @@ contract FullTest is Test {
             console2.log("Registering operator", operator.evmAddress);
             middleware.registerOperator(operator.evmAddress, abi.encode(operator.operatorKey), address(0));
         }
+
+        // TODO: Remove this once all operators are unpaused in the network
+        try middleware.unpauseOperator(operator.evmAddress) {
+            console2.log("Unpaused  ", operator.evmAddress);
+        } catch {}
     }
 
     function _registerVaultIfNotActive(
