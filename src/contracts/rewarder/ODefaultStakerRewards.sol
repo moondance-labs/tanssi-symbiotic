@@ -116,17 +116,7 @@ contract ODefaultStakerRewards is
         }
 
         if (params.defaultAdminRoleHolder == address(0)) {
-            if (params.adminFee == 0) {
-                if (params.adminFeeClaimRoleHolder == address(0)) {
-                    if (params.adminFeeSetRoleHolder != address(0)) {
-                        revert ODefaultStakerRewards__MissingRoles();
-                    }
-                } else if (params.adminFeeSetRoleHolder == address(0)) {
-                    revert ODefaultStakerRewards__MissingRoles();
-                }
-            } else if (params.adminFeeClaimRoleHolder == address(0)) {
-                revert ODefaultStakerRewards__MissingRoles();
-            }
+            revert ODefaultStakerRewards__MissingRoles();
         }
 
         __AccessControl_init();
@@ -137,9 +127,7 @@ contract ODefaultStakerRewards is
 
         i_vault = vault_;
 
-        if (params.defaultAdminRoleHolder != address(0)) {
-            _grantRole(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
-        }
+        _grantRole(DEFAULT_ADMIN_ROLE, params.defaultAdminRoleHolder);
         if (params.adminFeeClaimRoleHolder != address(0)) {
             _grantRole(ADMIN_FEE_CLAIM_ROLE, params.adminFeeClaimRoleHolder);
         }
