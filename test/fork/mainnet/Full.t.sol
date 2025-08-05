@@ -1360,6 +1360,7 @@ contract FullTest is Test {
         // Remove the code on top once mainnet is upgraded
 
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        uint48 currentEpoch = middleware.getCurrentEpoch();
 
         vm.prank(offlineKeepers);
         uint256 beforeGas = gasleft();
@@ -1369,8 +1370,9 @@ contract FullTest is Test {
         assertEq(upkeepNeeded, true);
         assertLt(beforeGas - afterGas, MAX_CHAINLINK_CHECKUPKEEP_GAS); // Check that gas is lower than 10M limit
 
-        (uint8 command, IMiddleware.ValidatorData[] memory validatorsData) =
-            abi.decode(performData, (uint8, IMiddleware.ValidatorData[]));
+        (uint8 command, uint48 epoch, IMiddleware.ValidatorData[] memory validatorsData) =
+            abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
+        assertEq(epoch, currentEpoch);
         assertEq(command, middleware.CACHE_DATA_COMMAND());
         assertEq(validatorsData.length, TOTAL_OPERATORS);
 
@@ -1388,7 +1390,8 @@ contract FullTest is Test {
         assertLt(beforeGas - afterGas, MAX_CHAINLINK_CHECKUPKEEP_GAS); // Check that gas is lower than 10M limit
 
         bytes32[] memory sortedKeys;
-        (command, sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
+        (command, epoch, sortedKeys) = abi.decode(performData, (uint8, uint48, bytes32[]));
+        assertEq(epoch, currentEpoch);
         assertEq(command, middleware.SEND_DATA_COMMAND());
         assertEq(sortedKeys.length, TOTAL_OPERATORS);
 

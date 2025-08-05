@@ -315,7 +315,18 @@ contract Middleware is
             revert Middleware__GatewayNotSet();
         }
 
+        uint48 encodedEpoch;
+        assembly {
+            // Load 32 bytes starting at offset 64 (third 32-byte slot)
+            let epochData := calldataload(add(performData.offset, 32))
+            encodedEpoch := epochData
+        }
+
         uint48 epoch = getCurrentEpoch();
+        if (encodedEpoch != epoch) {
+            revert Middleware__InvalidEpoch();
+        }
+
         StorageMiddlewareCache storage cache = _getMiddlewareStorageCache();
 
         address[] memory activeOperators = _activeOperators();
@@ -324,7 +335,8 @@ contract Middleware is
         uint256 pendingOperatorsToCache = activeOperatorsLength - cacheIndex;
 
         if (pendingOperatorsToCache > 0) {
-            (uint8 command, ValidatorData[] memory validatorsData) = abi.decode(performData, (uint8, ValidatorData[]));
+            (uint8 command,, ValidatorData[] memory validatorsData) =
+                abi.decode(performData, (uint8, uint48, ValidatorData[]));
 
             if (command != CACHE_DATA_COMMAND) {
                 revert Middleware__InvalidCommand(command);
@@ -354,7 +366,7 @@ contract Middleware is
                 $.lastTimestamp = currentTimestamp;
 
                 // Decode the sorted keys and the epoch from performData
-                (uint8 command, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
+                (uint8 command,, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, uint48, bytes32[]));
 
                 if (command != SEND_DATA_COMMAND) {
                     revert Middleware__InvalidCommand(command);
