@@ -787,14 +787,16 @@ contract OBaseMiddlewareReader is
 
         for (uint256 i = cacheIndex; i < cacheIndex + maxNumOperatorsToCheck && i < operatorsLength_;) {
             (address operator, uint48 enabled, uint48 disabled) = operators.at(i);
-            validatorsData[i - cacheIndex].key = abi.decode(operatorKey(operator), (bytes32));
+            uint256 power;
 
             if (enabled < timestamp && (disabled == 0 || disabled >= timestamp)) {
                 // equivalent to operators.wasActiveAt(timestamp, operator) but slightly reduces gas
                 atLeastOneActive = true;
-                validatorsData[i - cacheIndex].power =
-                    _optmizedGetOperatorPowerAt(timestamp, sharedVaults, subnetwork, operator);
+                power = _optmizedGetOperatorPowerAt(timestamp, sharedVaults, subnetwork, operator);
             }
+
+            validatorsData[i - cacheIndex] =
+                IMiddleware.ValidatorData({key: abi.decode(operatorKey(operator), (bytes32)), power: power});
 
             unchecked {
                 ++i;
