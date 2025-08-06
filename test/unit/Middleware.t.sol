@@ -531,7 +531,7 @@ contract MiddlewareTest is Test {
 
         vm.warp(NETWORK_EPOCH_DURATION + 2);
         middleware.pauseOperator(operator);
-        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         middleware.unpauseOperator(operator);
         vm.stopPrank();
     }
@@ -710,7 +710,7 @@ contract MiddlewareTest is Test {
 
         vm.warp(NETWORK_EPOCH_DURATION + 2);
         middleware.pauseSharedVault(address(vault));
-        vm.warp(block.timestamp + SLASHING_WINDOW + 1);
+        vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         middleware.unpauseSharedVault(address(vault));
         vm.stopPrank();
     }
@@ -1166,8 +1166,8 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(owner);
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
-        uint48 timestamp1 = uint48(block.timestamp);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+        uint48 timestamp1 = uint48(vm.getBlockTimestamp());
 
         assertEq(
             OBaseMiddlewareReader(address(middleware)).getOperatorKeyAt(operator, timestamp1), abi.encode(OPERATOR_KEY)
@@ -1180,7 +1180,9 @@ contract MiddlewareTest is Test {
         assertEq(middleware.operatorKey(operator), abi.encode(bytes32(0)));
         assertEq(middleware.operatorByKey(abi.encode(OPERATOR_KEY)), address(0));
         assertEq(
-            OBaseMiddlewareReader(address(middleware)).getOperatorKeyAt(operator, uint48(block.timestamp) + 10 days),
+            OBaseMiddlewareReader(address(middleware)).getOperatorKeyAt(
+                operator, uint48(vm.getBlockTimestamp()) + 10 days
+            ),
             abi.encode(bytes32(0))
         );
     }
@@ -2288,7 +2290,7 @@ contract MiddlewareTest is Test {
 
         vm.warp(NETWORK_EPOCH_DURATION + 2);
         bytes memory key =
-            OBaseMiddlewareReader(address(middleware)).getOperatorKeyAt(operator, uint48(block.timestamp));
+            OBaseMiddlewareReader(address(middleware)).getOperatorKeyAt(operator, uint48(vm.getBlockTimestamp()));
 
         assertEq(abi.decode(key, (bytes32)), OPERATOR_KEY);
     }
@@ -2304,7 +2306,7 @@ contract MiddlewareTest is Test {
 
         vm.warp(NETWORK_EPOCH_DURATION + 2);
         bytes memory key =
-            OBaseMiddlewareReader(address(middleware)).getOperatorKeyAt(operator, uint48(block.timestamp));
+            OBaseMiddlewareReader(address(middleware)).getOperatorKeyAt(operator, uint48(vm.getBlockTimestamp()));
 
         assertEq(abi.decode(key, (bytes32)), OPERATOR_KEY);
     }
@@ -2315,7 +2317,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         middleware.registerOperator(operator, abi.encode(PREV_OPERATOR_KEY), address(0));
 
-        uint48 activeKeyTimestamp = uint48(block.timestamp + 10);
+        uint48 activeKeyTimestamp = uint48(vm.getBlockTimestamp() + 10);
         vm.warp(activeKeyTimestamp);
 
         middleware.updateOperatorKey(operator, abi.encode(OPERATOR_KEY));
@@ -2325,9 +2327,9 @@ contract MiddlewareTest is Test {
 
         assertEq(abi.decode(key, (bytes32)), PREV_OPERATOR_KEY);
 
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 2);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 2);
 
-        key = OBaseMiddlewareReader(address(middleware)).getOperatorKeyAt(operator, uint48(block.timestamp));
+        key = OBaseMiddlewareReader(address(middleware)).getOperatorKeyAt(operator, uint48(vm.getBlockTimestamp()));
         assertEq(abi.decode(key, (bytes32)), OPERATOR_KEY);
     }
 
@@ -2336,7 +2338,7 @@ contract MiddlewareTest is Test {
         // Don't register any key for the operator
 
         bytes memory key =
-            OBaseMiddlewareReader(address(middleware)).getOperatorKeyAt(operator, uint48(block.timestamp));
+            OBaseMiddlewareReader(address(middleware)).getOperatorKeyAt(operator, uint48(vm.getBlockTimestamp()));
 
         assertEq(abi.decode(key, (bytes32)), bytes32(0));
     }
@@ -2349,7 +2351,7 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
 
         // This implies that for the future the key will not be disabled.
-        uint48 futureTimestamp = uint48(block.timestamp + 1000);
+        uint48 futureTimestamp = uint48(vm.getBlockTimestamp() + 1000);
         bytes memory key = OBaseMiddlewareReader(address(middleware)).getOperatorKeyAt(operator, futureTimestamp);
 
         assertEq(abi.decode(key, (bytes32)), OPERATOR_KEY);
@@ -2378,7 +2380,7 @@ contract MiddlewareTest is Test {
 
         vm.warp(NETWORK_EPOCH_DURATION + 2);
 
-        uint48 activeTimestamp = uint48(block.timestamp);
+        uint48 activeTimestamp = uint48(vm.getBlockTimestamp());
 
         vm.warp(vm.getBlockTimestamp() + activeTimestamp + 10);
         middleware.pauseOperator(operator);
@@ -2547,7 +2549,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(operator2);
         vault.deposit(operator2, OPERATOR_STAKE);
 
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         uint48 epoch = middleware.getCurrentEpoch();
 
         (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
@@ -2570,7 +2572,7 @@ contract MiddlewareTest is Test {
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vm.stopPrank();
 
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
 
@@ -2595,7 +2597,7 @@ contract MiddlewareTest is Test {
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vm.stopPrank();
 
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
 
@@ -2618,7 +2620,7 @@ contract MiddlewareTest is Test {
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         vm.stopPrank();
 
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
 

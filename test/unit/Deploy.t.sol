@@ -179,7 +179,7 @@ contract DeployTest is Test {
 
         (Middleware middleware,,) = deployTanssiEcosystemDemo.ecosystemEntities();
 
-        vm.warp(block.timestamp + 12 days + 1);
+        vm.warp(vm.getBlockTimestamp() + 12 days + 1);
 
         uint48 epoch = middleware.getCurrentEpoch();
         IMiddleware.OperatorVaultPair[] memory operatorVaultPairs =
