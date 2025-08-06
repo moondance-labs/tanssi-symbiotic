@@ -89,4 +89,37 @@ contract RewardsHintsBuilder {
 
         data = abi.encode(maxAdminFee, hints);
     }
+
+    function batchGetHintsForStakerClaimRewards(
+        address vault,
+        address staker,
+        uint48[] calldata epochs
+    ) external view returns (bytes[] memory data) {
+        uint256 totalEpochs = epochs.length;
+        data = new bytes[](totalEpochs);
+        for (uint256 i; i < totalEpochs;) {
+            uint48 epochStartTs = i_middlewareReader.getEpochStart(epochs[i]);
+            data[i] = _getHintsForStakerClaimRewards(vault, staker, epochStartTs);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function getHintsForStakerClaimRewards(
+        address vault,
+        address staker,
+        uint48 epoch
+    ) external view returns (bytes memory data) {
+        uint48 epochStartTs = i_middlewareReader.getEpochStart(epoch);
+        data = _getHintsForStakerClaimRewards(vault, staker, epochStartTs);
+    }
+
+    function _getHintsForStakerClaimRewards(
+        address vault,
+        address staker,
+        uint48 epochStartTs
+    ) private view returns (bytes memory data) {
+        data = i_vaultHints.activeSharesOfHint(vault, staker, epochStartTs);
+    }
 }

@@ -1084,6 +1084,37 @@ contract FullTest is Test {
         assertEq(reader.subnetworksLength(), 1);
     }
 
+    function testUpdateAndUnpause() public {
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        Middleware.ValidatorData[] memory validators = reader.getValidatorSet(currentEpoch);
+        console2.log("Validators length", validators.length);
+        vm.startPrank(admin);
+        try middleware.pauseOperator(operators.operator1PierTwo.evmAddress) {
+            vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
+        } catch {
+            console2.log("Operator is already paused");
+        }
+
+        bytes memory newKey = abi.encode(bytes32(uint256(12)));
+        middleware.updateOperatorKey(operators.operator1PierTwo.evmAddress, newKey);
+        middleware.unpauseOperator(operators.operator1PierTwo.evmAddress);
+
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        currentEpoch = middleware.getCurrentEpoch();
+        validators = reader.getValidatorSet(currentEpoch);
+        console2.log("Validators length", validators.length);
+        bool found = false;
+        for (uint256 i; i < validators.length; i++) {
+            if (validators[i].key == bytes32(uint256(12))) {
+                found = true;
+                break;
+            }
+        }
+        assertEq(found, true);
+    }
+
     function testIfOperatorsAreRegisteredInVaults() public view {
         uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.OperatorVaultPair[] memory operatorVaultPairs = reader.getOperatorVaultPairs(currentEpoch);
@@ -1329,6 +1360,7 @@ contract FullTest is Test {
         // Remove the code on top once mainnet is upgraded
 
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        uint48 currentEpoch = middleware.getCurrentEpoch();
 
         vm.prank(offlineKeepers);
         uint256 beforeGas = gasleft();
@@ -1338,8 +1370,9 @@ contract FullTest is Test {
         assertEq(upkeepNeeded, true);
         assertLt(beforeGas - afterGas, MAX_CHAINLINK_CHECKUPKEEP_GAS); // Check that gas is lower than 10M limit
 
-        (uint8 command, IMiddleware.ValidatorData[] memory validatorsData) =
-            abi.decode(performData, (uint8, IMiddleware.ValidatorData[]));
+        (uint8 command, uint48 epoch, IMiddleware.ValidatorData[] memory validatorsData) =
+            abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
+        assertEq(epoch, currentEpoch);
         assertEq(command, middleware.CACHE_DATA_COMMAND());
         assertEq(validatorsData.length, TOTAL_OPERATORS);
 
@@ -1347,7 +1380,7 @@ contract FullTest is Test {
         beforeGas = gasleft();
         middleware.performUpkeep(performData);
         afterGas = gasleft();
-        assertLt(beforeGas - afterGas, MAX_CHAINLINK_CHECKUPKEEP_GAS); // Check that gas is lower than 10M limit
+        assertLt(beforeGas - afterGas, MAX_CHAINLINK_PERFORMUPKEEP_GAS); // Check that gas is lower than 5M limit
 
         beforeGas = gasleft();
         (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
@@ -1357,7 +1390,8 @@ contract FullTest is Test {
         assertLt(beforeGas - afterGas, MAX_CHAINLINK_CHECKUPKEEP_GAS); // Check that gas is lower than 10M limit
 
         bytes32[] memory sortedKeys;
-        (command, sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
+        (command, epoch, sortedKeys) = abi.decode(performData, (uint8, uint48, bytes32[]));
+        assertEq(epoch, currentEpoch);
         assertEq(command, middleware.SEND_DATA_COMMAND());
         assertEq(sortedKeys.length, TOTAL_OPERATORS);
 

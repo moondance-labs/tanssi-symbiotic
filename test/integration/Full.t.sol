@@ -1363,6 +1363,10 @@ contract FullTest is Test {
             uint256 gasBefore = gasleft();
             (, bytes memory performData) = middleware.checkUpkeep(hex"");
             console2.log("Gas used to checkUpkeep:", gasBefore - gasleft());
+            (uint8 command, uint48 encodedEpoch,) =
+                abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
+            assertEq(encodedEpoch, epoch);
+            assertEq(command, middleware.CACHE_DATA_COMMAND());
 
             vm.startPrank(forwarder);
             gasBefore = gasleft();
@@ -1566,7 +1570,7 @@ contract FullTest is Test {
         assertEq(STAR.balanceOf(stakerRewardsContractVault2), 0);
     }
 
-    function testDistributingAndClaimingRewardsForMultipleEpochsWithHints() public {
+    function testDistributingAndClaimingRewardsForMultipleEpochsWithOperatorHints() public {
         uint256 amountToDistribute = 100 ether;
         // Distribute rewards for 2 epochs, with 2 eras per epoch
         _prepareRewardsDistribution(1, amountToDistribute);
@@ -1654,6 +1658,319 @@ contract FullTest is Test {
                 operator3, epoch, address(STAR), new bytes(0)
             );
             assertEq(STAR.balanceOf(operator3), previousBalance + rewardsOperator3);
+        }
+
+        // Admin Fee
+        {
+            vm.startPrank(tanssi);
+            address recipient = makeAddr("recipient");
+
+            uint256 expectedAdminFee = rewardsOperator2Epoch1.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE)
+                .mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
+            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 1, address(STAR));
+            assertEq(STAR.balanceOf(recipient), expectedAdminFee);
+
+            expectedAdminFee += rewardsOperator2Epoch2.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE).mulDiv(
+                ADMIN_FEE, MAX_PERCENTAGE
+            );
+            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 2, address(STAR));
+            assertEq(STAR.balanceOf(recipient), expectedAdminFee);
+
+            vm.stopPrank();
+        }
+
+        // Staker rewards contract should have distributed all the balance
+        assertEq(STAR.balanceOf(stakerRewardsContractVault2), 0);
+    }
+
+    function testDistributingAndClaimingRewardsForMultipleEpochsWithOperatorAndStakerHints() public {
+        uint256 amountToDistribute = 100 ether;
+        // Distribute rewards for 2 epochs, with 2 eras per epoch
+        _prepareRewardsDistribution(1, amountToDistribute);
+        _prepareRewardsDistribution(2, amountToDistribute);
+        _prepareRewardsDistribution(3, amountToDistribute);
+        _prepareRewardsDistribution(4, amountToDistribute);
+
+        // Claim rewards for operator 2 on era index 1, 2, and 4
+        _claimAndCheckOperatorRewardsForOperator(amountToDistribute, 1, OPERATOR2_KEY, operator2, 2, false, true);
+        _claimAndCheckOperatorRewardsForOperator(amountToDistribute, 2, OPERATOR2_KEY, operator2, 2, false, true);
+        _claimAndCheckOperatorRewardsForOperator(amountToDistribute, 4, OPERATOR2_KEY, operator2, 2, false, true);
+
+        // 20/100 points on era index 1, 60/100 points on era index 2
+        uint256 rewardsOperator2Epoch1 = 20 ether + 60 ether;
+        // 0/100 points on era index 3, 20/100 points on era index 4
+        uint256 rewardsOperator2Epoch2 = 20 ether;
+
+        {
+            uint256 expectedRewardsForOperator =
+                (rewardsOperator2Epoch1 + rewardsOperator2Epoch2).mulDiv(OPERATOR_SHARE, MAX_PERCENTAGE);
+            assertEq(STAR.balanceOf(operator2), expectedRewardsForOperator);
+        }
+
+        address stakerRewardsContractVault2 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v2.vault));
+
+        // Epoch 1
+        {
+            uint48 epoch = 1;
+            uint256 expectedRewardsForStakersEpoch1 = rewardsOperator2Epoch1.mulDiv(
+                MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE
+            ).mulDiv(MAX_PERCENTAGE - ADMIN_FEE, MAX_PERCENTAGE);
+            (uint256 rewardsOperator1, uint256 rewardsOperator2, uint256 rewardsOperator3) =
+                _checkClaimableRewardsVault2(expectedRewardsForStakersEpoch1, epoch);
+
+            // Claim rewards as stakers and check balances. Only stakers are the first 3 operators
+            // Operator 1
+            bytes memory hints =
+                rewardsHintsBuilder.getHintsForStakerClaimRewards(address(vaultsData.v2.vault), operator1, epoch);
+            uint256 previousBalance = STAR.balanceOf(operator1);
+            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(operator1, epoch, address(STAR), hints);
+            assertEq(STAR.balanceOf(operator1), previousBalance + rewardsOperator1);
+
+            // Operator 2
+            hints = rewardsHintsBuilder.getHintsForStakerClaimRewards(address(vaultsData.v2.vault), operator2, epoch);
+            previousBalance = STAR.balanceOf(operator2);
+            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(operator2, epoch, address(STAR), hints);
+            assertEq(STAR.balanceOf(operator2), previousBalance + rewardsOperator2);
+
+            // Operator 3
+            hints = rewardsHintsBuilder.getHintsForStakerClaimRewards(address(vaultsData.v2.vault), operator3, epoch);
+            previousBalance = STAR.balanceOf(operator3);
+            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(operator3, epoch, address(STAR), hints);
+            assertEq(STAR.balanceOf(operator3), previousBalance + rewardsOperator3);
+        }
+
+        // Epoch 2
+        {
+            uint48 epoch = 2;
+            uint256 expectedRewardsForStakersEpoch2 = rewardsOperator2Epoch2.mulDiv(
+                MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE
+            ).mulDiv(MAX_PERCENTAGE - ADMIN_FEE, MAX_PERCENTAGE);
+            (uint256 rewardsOperator1, uint256 rewardsOperator2, uint256 rewardsOperator3) =
+                _checkClaimableRewardsVault2(expectedRewardsForStakersEpoch2, epoch);
+
+            // Claim rewards as stakers and check balances. Only stakers are the first 3 operators
+            // Operator 1
+            bytes memory hints =
+                rewardsHintsBuilder.getHintsForStakerClaimRewards(address(vaultsData.v2.vault), operator1, epoch);
+            uint256 previousBalance = STAR.balanceOf(operator1);
+            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(operator1, epoch, address(STAR), hints);
+            assertEq(STAR.balanceOf(operator1), previousBalance + rewardsOperator1);
+
+            // Operator 2
+            hints = rewardsHintsBuilder.getHintsForStakerClaimRewards(address(vaultsData.v2.vault), operator2, epoch);
+            previousBalance = STAR.balanceOf(operator2);
+            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(operator2, epoch, address(STAR), hints);
+            assertEq(STAR.balanceOf(operator2), previousBalance + rewardsOperator2);
+
+            // Operator 3
+            hints = rewardsHintsBuilder.getHintsForStakerClaimRewards(address(vaultsData.v2.vault), operator3, epoch);
+            previousBalance = STAR.balanceOf(operator3);
+            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(operator3, epoch, address(STAR), hints);
+            assertEq(STAR.balanceOf(operator3), previousBalance + rewardsOperator3);
+        }
+
+        // Admin Fee
+        {
+            vm.startPrank(tanssi);
+            address recipient = makeAddr("recipient");
+
+            uint256 expectedAdminFee = rewardsOperator2Epoch1.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE)
+                .mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
+            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 1, address(STAR));
+            assertEq(STAR.balanceOf(recipient), expectedAdminFee);
+
+            expectedAdminFee += rewardsOperator2Epoch2.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE).mulDiv(
+                ADMIN_FEE, MAX_PERCENTAGE
+            );
+            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 2, address(STAR));
+            assertEq(STAR.balanceOf(recipient), expectedAdminFee);
+
+            vm.stopPrank();
+        }
+
+        // Staker rewards contract should have distributed all the balance
+        assertEq(STAR.balanceOf(stakerRewardsContractVault2), 0);
+    }
+
+    function testDistributingAndBatchClaimingRewardsForMultipleEpochsWithoutHints() public {
+        uint256 amountToDistribute = 100 ether;
+        // Distribute rewards for 2 epochs, with 2 eras per epoch
+        _prepareRewardsDistribution(1, amountToDistribute);
+        _prepareRewardsDistribution(2, amountToDistribute);
+        _prepareRewardsDistribution(3, amountToDistribute);
+        _prepareRewardsDistribution(4, amountToDistribute);
+
+        // Claim rewards for operator 2 on era index 1, 2, and 4
+        _claimAndCheckOperatorRewardsForOperator(amountToDistribute, 1, OPERATOR2_KEY, operator2, 2, false, false);
+        _claimAndCheckOperatorRewardsForOperator(amountToDistribute, 2, OPERATOR2_KEY, operator2, 2, false, false);
+        _claimAndCheckOperatorRewardsForOperator(amountToDistribute, 4, OPERATOR2_KEY, operator2, 2, false, false);
+
+        // 20/100 points on era index 1, 60/100 points on era index 2
+        uint256 rewardsOperator2Epoch1 = 20 ether + 60 ether;
+        // 0/100 points on era index 3, 20/100 points on era index 4
+        uint256 rewardsOperator2Epoch2 = 20 ether;
+
+        {
+            uint256 expectedRewardsForOperator =
+                (rewardsOperator2Epoch1 + rewardsOperator2Epoch2).mulDiv(OPERATOR_SHARE, MAX_PERCENTAGE);
+            assertEq(STAR.balanceOf(operator2), expectedRewardsForOperator);
+        }
+
+        address stakerRewardsContractVault2 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v2.vault));
+
+        // Epoch 1
+        {
+            uint48[] memory epochs = new uint48[](2);
+            epochs[0] = 1;
+            epochs[1] = 2;
+
+            uint256 expectedRewardsForStakersEpoch1 = rewardsOperator2Epoch1.mulDiv(
+                MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE
+            ).mulDiv(MAX_PERCENTAGE - ADMIN_FEE, MAX_PERCENTAGE);
+            (uint256 rewardsOperator1, uint256 rewardsOperator2, uint256 rewardsOperator3) =
+                _checkClaimableRewardsVault2(expectedRewardsForStakersEpoch1, epochs[0]);
+
+            uint256 expectedRewardsForStakersEpoch2 = rewardsOperator2Epoch2.mulDiv(
+                MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE
+            ).mulDiv(MAX_PERCENTAGE - ADMIN_FEE, MAX_PERCENTAGE);
+            (uint256 rewardsOperator1epoch2, uint256 rewardsOperator2epoch2, uint256 rewardsOperator3epoch2) =
+                _checkClaimableRewardsVault2(expectedRewardsForStakersEpoch2, epochs[1]);
+
+            // Claim rewards as stakers and check balances. Only stakers are the first 3 operators
+            // Operator 1
+            bytes[] memory hintsData = new bytes[](2);
+            hintsData[0] = hex"";
+            hintsData[1] = hex"";
+
+            uint256 previousBalance = STAR.balanceOf(operator1);
+            uint256 gasBefore = gasleft();
+            IODefaultStakerRewards(stakerRewardsContractVault2).batchClaimRewards(
+                operator1, epochs, address(STAR), hintsData
+            );
+            console2.log("Gas used for batch claim rewards for operator 1:", gasBefore - gasleft());
+            assertEq(STAR.balanceOf(operator1), previousBalance + rewardsOperator1 + rewardsOperator1epoch2);
+
+            // Operator 2
+            previousBalance = STAR.balanceOf(operator2);
+            gasBefore = gasleft();
+            IODefaultStakerRewards(stakerRewardsContractVault2).batchClaimRewards(
+                operator2, epochs, address(STAR), hintsData
+            );
+            console2.log("Gas used for batch claim rewards for operator 2:", gasBefore - gasleft());
+            assertEq(STAR.balanceOf(operator2), previousBalance + rewardsOperator2 + rewardsOperator2epoch2);
+
+            // Operator 3
+            previousBalance = STAR.balanceOf(operator3);
+            gasBefore = gasleft();
+            IODefaultStakerRewards(stakerRewardsContractVault2).batchClaimRewards(
+                operator3, epochs, address(STAR), hintsData
+            );
+            console2.log("Gas used for batch claim rewards for operator 3:", gasBefore - gasleft());
+            assertEq(STAR.balanceOf(operator3), previousBalance + rewardsOperator3 + rewardsOperator3epoch2);
+        }
+
+        // Admin Fee
+        {
+            vm.startPrank(tanssi);
+            address recipient = makeAddr("recipient");
+
+            uint256 expectedAdminFee = rewardsOperator2Epoch1.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE)
+                .mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
+            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 1, address(STAR));
+            assertEq(STAR.balanceOf(recipient), expectedAdminFee);
+
+            expectedAdminFee += rewardsOperator2Epoch2.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE).mulDiv(
+                ADMIN_FEE, MAX_PERCENTAGE
+            );
+            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 2, address(STAR));
+            assertEq(STAR.balanceOf(recipient), expectedAdminFee);
+
+            vm.stopPrank();
+        }
+
+        // Staker rewards contract should have distributed all the balance
+        assertEq(STAR.balanceOf(stakerRewardsContractVault2), 0);
+    }
+
+    function testDistributingAndBatchClaimingRewardsForMultipleEpochsWithHints() public {
+        uint256 amountToDistribute = 100 ether;
+        // Distribute rewards for 2 epochs, with 2 eras per epoch
+        _prepareRewardsDistribution(1, amountToDistribute);
+        _prepareRewardsDistribution(2, amountToDistribute);
+        _prepareRewardsDistribution(3, amountToDistribute);
+        _prepareRewardsDistribution(4, amountToDistribute);
+
+        // Claim rewards for operator 2 on era index 1, 2, and 4
+        _claimAndCheckOperatorRewardsForOperator(amountToDistribute, 1, OPERATOR2_KEY, operator2, 2, false, false);
+        _claimAndCheckOperatorRewardsForOperator(amountToDistribute, 2, OPERATOR2_KEY, operator2, 2, false, false);
+        _claimAndCheckOperatorRewardsForOperator(amountToDistribute, 4, OPERATOR2_KEY, operator2, 2, false, false);
+
+        // 20/100 points on era index 1, 60/100 points on era index 2
+        uint256 rewardsOperator2Epoch1 = 20 ether + 60 ether;
+        // 0/100 points on era index 3, 20/100 points on era index 4
+        uint256 rewardsOperator2Epoch2 = 20 ether;
+
+        {
+            uint256 expectedRewardsForOperator =
+                (rewardsOperator2Epoch1 + rewardsOperator2Epoch2).mulDiv(OPERATOR_SHARE, MAX_PERCENTAGE);
+            assertEq(STAR.balanceOf(operator2), expectedRewardsForOperator);
+        }
+
+        address stakerRewardsContractVault2 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v2.vault));
+
+        // Epoch 1
+        {
+            uint48[] memory epochs = new uint48[](2);
+            epochs[0] = 1;
+            epochs[1] = 2;
+
+            uint256 expectedRewardsForStakersEpoch1 = rewardsOperator2Epoch1.mulDiv(
+                MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE
+            ).mulDiv(MAX_PERCENTAGE - ADMIN_FEE, MAX_PERCENTAGE);
+            (uint256 rewardsOperator1, uint256 rewardsOperator2, uint256 rewardsOperator3) =
+                _checkClaimableRewardsVault2(expectedRewardsForStakersEpoch1, epochs[0]);
+
+            uint256 expectedRewardsForStakersEpoch2 = rewardsOperator2Epoch2.mulDiv(
+                MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE
+            ).mulDiv(MAX_PERCENTAGE - ADMIN_FEE, MAX_PERCENTAGE);
+            (uint256 rewardsOperator1epoch2, uint256 rewardsOperator2epoch2, uint256 rewardsOperator3epoch2) =
+                _checkClaimableRewardsVault2(expectedRewardsForStakersEpoch2, epochs[1]);
+
+            // Claim rewards as stakers and check balances. Only stakers are the first 3 operators
+            // Operator 1
+            bytes[] memory hintsData =
+                rewardsHintsBuilder.batchGetHintsForStakerClaimRewards(address(vaultsData.v2.vault), operator1, epochs);
+
+            uint256 previousBalance = STAR.balanceOf(operator1);
+            uint256 gasBefore = gasleft();
+            IODefaultStakerRewards(stakerRewardsContractVault2).batchClaimRewards(
+                operator1, epochs, address(STAR), hintsData
+            );
+            console2.log("Gas used for batch claim rewards for operator 1:", gasBefore - gasleft());
+            assertEq(STAR.balanceOf(operator1), previousBalance + rewardsOperator1 + rewardsOperator1epoch2);
+
+            // Operator 2
+            hintsData =
+                rewardsHintsBuilder.batchGetHintsForStakerClaimRewards(address(vaultsData.v2.vault), operator2, epochs);
+
+            previousBalance = STAR.balanceOf(operator2);
+            gasBefore = gasleft();
+            IODefaultStakerRewards(stakerRewardsContractVault2).batchClaimRewards(
+                operator2, epochs, address(STAR), hintsData
+            );
+            console2.log("Gas used for batch claim rewards for operator 2:", gasBefore - gasleft());
+            assertEq(STAR.balanceOf(operator2), previousBalance + rewardsOperator2 + rewardsOperator2epoch2);
+
+            // Operator 3
+            hintsData =
+                rewardsHintsBuilder.batchGetHintsForStakerClaimRewards(address(vaultsData.v2.vault), operator3, epochs);
+            previousBalance = STAR.balanceOf(operator3);
+            gasBefore = gasleft();
+            IODefaultStakerRewards(stakerRewardsContractVault2).batchClaimRewards(
+                operator3, epochs, address(STAR), hintsData
+            );
+            console2.log("Gas used for batch claim rewards for operator 3:", gasBefore - gasleft());
+            assertEq(STAR.balanceOf(operator3), previousBalance + rewardsOperator3 + rewardsOperator3epoch2);
         }
 
         // Admin Fee
@@ -2438,11 +2755,14 @@ contract FullTest is Test {
 
     function testWhenOperatorManagesToBeActiveInTooManyVaultsThenItIsIgnored() public {
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        uint48 currentEpoch = middleware.getCurrentEpoch();
 
         // Before everything happens, the operator 1 is already registered in a vault and has power. Once he is in too many vaults his power must become 0 even if no stake is removed.
         (, bytes memory performData) = middleware.checkUpkeep(hex"");
-        (uint8 command, IMiddleware.ValidatorData[] memory validatorsData) =
-            abi.decode(performData, (uint8, IMiddleware.ValidatorData[]));
+        (uint8 command, uint48 epoch, IMiddleware.ValidatorData[] memory validatorsData) =
+            abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
+        assertEq(epoch, currentEpoch);
+
         bool operator1Found = false;
         for (uint256 i = 0; i < validatorsData.length; i++) {
             if (validatorsData[i].key == OPERATOR1_KEY) {
@@ -2498,11 +2818,13 @@ contract FullTest is Test {
         activeSharedVaults = middlewareReader.sharedVaultsLength();
         activeOperatorVaults = middlewareReader.operatorVaultsLength(operator1);
 
+        currentEpoch = middleware.getCurrentEpoch();
         assertEq(activeOperatorVaults, 10);
         assertEq(activeSharedVaults + activeOperatorVaults, maxVaults + 5);
 
         (, performData) = middleware.checkUpkeep(hex"");
-        (command, validatorsData) = abi.decode(performData, (uint8, IMiddleware.ValidatorData[]));
+        (command, epoch, validatorsData) = abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
+        assertEq(epoch, currentEpoch);
 
         operator1Found = false;
         for (uint256 i = 0; i < validatorsData.length; i++) {

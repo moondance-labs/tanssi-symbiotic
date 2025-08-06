@@ -26,6 +26,8 @@ abstract contract MiddlewareStorage {
         mapping(address collateral => address oracle) collateralToOracle;
         mapping(address vault => address collateral) vaultToCollateral;
         uint256 lastExecutionBlock;
+        address i_operatorRewards;
+        address i_stakerRewardsFactory;
     }
 
     struct StorageMiddlewareCache {
@@ -57,13 +59,19 @@ abstract contract MiddlewareStorage {
      * @notice Get the operator rewards contract address
      * @return operator rewards contract address
      */
-    address public i_operatorRewards;
+    function getOperatorRewardsAddress() public view returns (address) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        return $.i_operatorRewards;
+    }
 
     /**
      * @notice Get the staker rewards factory contract address
      * @return staker rewards factory contract address
      */
-    address public i_stakerRewardsFactory;
+    function getStakerRewardsFactoryAddress() public view returns (address) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        return $.i_stakerRewardsFactory;
+    }
 
     function _getMiddlewareStorage() internal pure returns (StorageMiddleware storage $v1) {
         assembly {

@@ -1565,7 +1565,7 @@ contract MiddlewareTest is Test {
         vm.prank(owner);
 
         assertEq(middleware.VERSION(), 1);
-        assertEq(middleware.i_operatorRewards(), address(operatorRewards));
+        assertEq(middleware.getOperatorRewardsAddress(), address(operatorRewards));
 
         MiddlewareV2 middlewareImplV2 = new MiddlewareV2();
         bytes memory emptyBytes = hex"";
@@ -2548,11 +2548,14 @@ contract MiddlewareTest is Test {
         vault.deposit(operator2, OPERATOR_STAKE);
 
         vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        uint48 epoch = middleware.getCurrentEpoch();
+
         (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
 
-        (uint8 command, IMiddleware.ValidatorData[] memory validatorsData) =
-            abi.decode(performData, (uint8, IMiddleware.ValidatorData[]));
+        (uint8 command, uint48 encodedEpoch, IMiddleware.ValidatorData[] memory validatorsData) =
+            abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
+        assertEq(epoch, encodedEpoch);
         assertEq(command, middleware.CACHE_DATA_COMMAND());
         assertEq(validatorsData.length, 2);
         vm.startPrank(forwarder);

@@ -750,8 +750,7 @@ contract OBaseMiddlewareReader is
             }
 
             // encode values to be used in performUpkeep
-            performData = abi.encode(CACHE_DATA_COMMAND, validatorsData);
-            return (true, performData);
+            return (true, abi.encode(CACHE_DATA_COMMAND, epoch, validatorsData));
         }
 
         //Should be at least once per epoch, but not more than once per interval
@@ -763,7 +762,7 @@ contract OBaseMiddlewareReader is
                     mstore(sortedKeys, MAX_OPERATORS_TO_SEND)
                 }
             }
-            performData = abi.encode(SEND_DATA_COMMAND, sortedKeys);
+            performData = abi.encode(SEND_DATA_COMMAND, epoch, sortedKeys);
             return (true, performData);
         }
 

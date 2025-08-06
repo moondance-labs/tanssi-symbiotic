@@ -21,6 +21,7 @@ interface IODefaultStakerRewards {
     error ODefaultStakerRewards__InsufficientReward();
     error ODefaultStakerRewards__InvalidAddress();
     error ODefaultStakerRewards__InvalidAdminFee();
+    error ODefaultStakerRewards__InvalidInput();
     error ODefaultStakerRewards__InvalidRecipient();
     error ODefaultStakerRewards__InvalidRewardTimestamp();
     error ODefaultStakerRewards__MissingRoles();
@@ -222,6 +223,30 @@ interface IODefaultStakerRewards {
         uint48 epoch,
         address tokenAddress,
         bytes calldata activeSharesOfHints
+    ) external;
+
+    /**
+     * @notice Function to claim rewards for a given epoch, maintaing compatibility with Symbiotic DefaultStakerRewards interface.
+     * @dev Alternative method to claim rewards with custom data
+     * @dev data = abi.encode(epoch, activeSharesOfHints)
+     * @param recipient address of the tokens' recipient
+     * @param tokenAddress address of the reward token
+     * @param data additional bytes containing epoch and hints
+     */
+    function claimRewards(address recipient, address tokenAddress, bytes calldata data) external;
+
+    /**
+     * @notice Helper function to claim rewards for multiple epochs in a single transaction.
+     * @param recipient address of the tokens' recipient
+     * @param epochs array of epochs for which the rewards are being claimed
+     * @param tokenAddress address of the reward token
+     * @param activeSharesOfHints array of hints for optimizing `activeSharesOf()` processing
+     */
+    function batchClaimRewards(
+        address recipient,
+        uint48[] calldata epochs,
+        address tokenAddress,
+        bytes[] calldata activeSharesOfHints
     ) external;
 
     /**
