@@ -2836,6 +2836,17 @@ contract FullTest is Test {
         }
         assertTrue(operator1Found);
 
+        // The operator should be removed from the list of operators to send
+        bytes32[] memory sortedKeys = middlewareReader.sortOperatorsByPower(currentEpoch);
+        operator1Found = false;
+        for (uint256 i = 0; i < sortedKeys.length; i++) {
+            if (sortedKeys[i] == OPERATOR1_KEY) {
+                operator1Found = true;
+                break;
+            }
+        }
+        assertFalse(operator1Found);
+
         vm.stopPrank();
     }
 

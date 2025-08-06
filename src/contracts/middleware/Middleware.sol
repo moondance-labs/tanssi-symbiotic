@@ -332,10 +332,9 @@ contract Middleware is
 
         StorageMiddlewareCache storage cache = _getMiddlewareStorageCache();
 
-        address[] memory activeOperators = _activeOperators();
-        uint256 activeOperatorsLength = activeOperators.length;
+        uint256 operatorsLength = _operatorsLength();
         uint256 cacheIndex = cache.epochToCacheIndex[epoch];
-        uint256 pendingOperatorsToCache = activeOperatorsLength - cacheIndex;
+        uint256 pendingOperatorsToCache = operatorsLength - cacheIndex;
 
         if (pendingOperatorsToCache > 0) {
             (uint8 command,, ValidatorData[] memory validatorsData) =
