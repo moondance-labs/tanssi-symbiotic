@@ -51,14 +51,14 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 //**************************************************************************************************
 //                                      SNOWBRIDGE
 //**************************************************************************************************
-import {OperatingMode, ParaID} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Types.sol";
-import {MockGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/test/mocks/MockGateway.sol";
-import {GatewayProxy} from "@tanssi-bridge-relayer/snowbridge/contracts/src/GatewayProxy.sol";
-import {AgentExecutor} from "@tanssi-bridge-relayer/snowbridge/contracts/src/AgentExecutor.sol";
-import {SetOperatingModeParams} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Params.sol";
-import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfaces/IOGateway.sol";
-import {Gateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Gateway.sol";
-import {MockOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/test/mocks/MockOGateway.sol";
+import {OperatingMode, ParaID} from "@snowbridge/contracts/src/Types.sol";
+import {MockGateway} from "@snowbridge/contracts/test/mocks/MockGateway.sol";
+import {GatewayProxy} from "@snowbridge/contracts/src/GatewayProxy.sol";
+import {AgentExecutor} from "@snowbridge/contracts/src/AgentExecutor.sol";
+import {SetOperatingModeParams} from "@snowbridge/contracts/src/Params.sol";
+import {IOGateway} from "@snowbridge/contracts/src/interfaces/IOGateway.sol";
+import {Gateway} from "@snowbridge/contracts/src/Gateway.sol";
+import {MockOGateway} from "@snowbridge/contracts/test/mocks/MockOGateway.sol";
 
 import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
 

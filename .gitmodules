@@ -26,12 +26,12 @@
 [submodule "lib/tanssi-bridge-relayer/snowbridge"]
 	path = lib/tanssi-bridge-relayer/snowbridge
 	url = https://github.com/Snowfork/snowbridge
-[submodule "lib/tanssi-bridge-relayer"]
-	path = lib/tanssi-bridge-relayer
-	url = https://github.com/moondance-labs/tanssi-bridge-relayer
 [submodule "lib/middleware-sdk"]
 	path = lib/middleware-sdk
 	url = https://github.com/symbioticfi/middleware-sdk
 [submodule "lib/chainlink-brownie-contracts"]
 	path = lib/chainlink-brownie-contracts
 	url = https://github.com/smartcontractkit/chainlink-brownie-contracts
+[submodule "lib/snowbridge"]
+	path = lib/snowbridge
+	url = https://github.com/moondance-labs/snowbridge

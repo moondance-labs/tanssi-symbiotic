@@ -58,7 +58,7 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 //**************************************************************************************************
 //                                      SNOWBRIDGE
 //**************************************************************************************************
-import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfaces/IOGateway.sol";
+import {IOGateway} from "@snowbridge/contracts/src/interfaces/IOGateway.sol";
 
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
