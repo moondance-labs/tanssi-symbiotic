@@ -576,11 +576,18 @@ contract OBaseMiddlewareReader is
 
         sortedKeys = new bytes32[](validatorSet.length);
         uint256 validatorSetLength = validatorSet.length;
-        for (uint256 i; i < validatorSetLength;) {
+        uint256 i;
+        for (; i < validatorSetLength;) {
+            if (validatorSet[i].power == 0) {
+                break;
+            }
             sortedKeys[i] = validatorSet[i].key;
             unchecked {
                 ++i;
             }
+        }
+        assembly ("memory-safe") {
+            mstore(sortedKeys, i)
         }
     }
 

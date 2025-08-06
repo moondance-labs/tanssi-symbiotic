@@ -1481,6 +1481,55 @@ contract MiddlewareTest is Test {
         assertEq(performData.length, 0);
     }
 
+    function testUpkeepIncludingOperatorWithNoPowerViaPeformUpkeep() public {
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+
+        // Effectively sets power to zero for this operator
+        INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares(tanssi.subnetwork(0), operator, 0);
+
+        vm.warp(block.timestamp + VAULT_EPOCH_DURATION + 1);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+
+        vm.startPrank(forwarder);
+        middleware.performUpkeep(performData);
+        uint48 epoch = middleware.getCurrentEpoch();
+
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+
+        (uint8 command, uint48 encodedEpoch, bytes32[] memory sortedKeys) =
+            abi.decode(performData, (uint8, uint48, bytes32[]));
+        assertEq(epoch, encodedEpoch);
+        assertEq(command, middleware.SEND_DATA_COMMAND());
+        assertEq(sortedKeys.length, 2); // Only 2 operators will be sent, the one with power 0 will be ignored
+
+        vm.startPrank(forwarder);
+        vm.expectEmit(true, false, false, false);
+        emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
+        middleware.performUpkeep(performData);
+
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+        assertEq(performData.length, 0);
+    }
+
+    function testUpkeepIncludingOperatorWithNoPowerViaSendCurrentOperatorsKeys() public {
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+
+        // Effectively sets power to zero for this operator
+        INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares(tanssi.subnetwork(0), operator, 0);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + VAULT_EPOCH_DURATION + 1);
+        vm.roll(block.number + 50); // Needed so we are not before MIN_INTERVAL_TO_SEND_OPERATOR_KEYS and gateway is actually called
+        vm.expectEmit(true, false, false, false);
+        emit IOGateway.OperatorsDataCreated(2, hex""); // Only 2 operators will be sent, the one with power 0 will be ignored
+        middleware.sendCurrentOperatorsKeys();
+    }
+
     function testUpkeepFor100OperatorsIn3VaultsSorted() public {
         uint16 count = 100;
         _addOperatorsToNetwork(count);
