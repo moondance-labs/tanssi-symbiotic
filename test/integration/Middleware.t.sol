@@ -1678,16 +1678,16 @@ contract MiddlewareTest is Test {
         assertEq(upkeepNeeded, false);
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+        uint48 epoch = middleware.getCurrentEpoch();
         (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
 
         vm.startPrank(forwarder);
         middleware.performUpkeep(performData);
-        uint48 epoch = middleware.getCurrentEpoch();
 
-        uint256 operator1Power = middleware.getOperatorToPower(epoch, OPERATOR_KEY);
-        uint256 operator2Power = middleware.getOperatorToPower(epoch, OPERATOR2_KEY);
-        uint256 operator3Power = middleware.getOperatorToPower(epoch, OPERATOR3_KEY);
+        uint256 operator1Power = middleware.getOperatorToPowerCached(epoch, OPERATOR_KEY);
+        uint256 operator2Power = middleware.getOperatorToPowerCached(epoch, OPERATOR2_KEY);
+        uint256 operator3Power = middleware.getOperatorToPowerCached(epoch, OPERATOR3_KEY);
 
         (uint256 totalOperatorPowerAfter,) = _calculateOperatorPower(totalPowerVault, 0, 0);
         (uint256 totalOperator2PowerAfter,) =
@@ -1712,7 +1712,9 @@ contract MiddlewareTest is Test {
         address[] memory activeOperators = OBaseMiddlewareReader(address(middleware)).activeOperators();
         assertEq(activeOperators.length, 3);
 
-        (uint8 command, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
+        (uint8 command, uint48 encodedEpoch, bytes32[] memory sortedKeys) =
+            abi.decode(performData, (uint8, uint48, bytes32[]));
+        assertEq(epoch, encodedEpoch);
         assertEq(command, middleware.SEND_DATA_COMMAND());
         assertEq(sortedKeys.length, 3);
 
