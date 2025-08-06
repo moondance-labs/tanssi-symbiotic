@@ -129,6 +129,8 @@ contract MiddlewareTest is Test {
     int256 public constant ORACLE_CONVERSION_TANSSI = 6 * 10 ** 7; // 0.6 USD
     string public constant TANSSI_PAIR_SYMBOL = "TANSSI/USD";
 
+    uint256 public constant MAX_CHAINLINK_PERFORM_DATA_LENGTH = 2000;
+
     uint8 public constant USDC_ORACLE_DECIMALS = 8; // USDC_ORACLE_DECIMALS
     uint8 public constant USDC_TOKEN_DECIMALS = 6; // USDC_TOKEN_DECIMALS
     uint8 public constant USDT_ORACLE_DECIMALS = 18; // USDT_ORACLE_DECIMALS
@@ -1378,19 +1380,20 @@ contract MiddlewareTest is Test {
         uint256 lastGasUsedForCheck = 0;
         uint256 lastGasUsedForPerform = 0;
         while (true) {
-            uint256 gasBefore = gasleft();
+            uint256 gasBefore_ = gasleft();
             (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
             if (!upkeepNeeded) {
                 break;
             }
-            uint256 gasUsedForCheck = gasBefore - gasleft();
+            assertLt(performData.length, MAX_CHAINLINK_PERFORM_DATA_LENGTH);
+            uint256 gasUsedForCheck = gasBefore_ - gasleft();
             // Assert gas usage is below 10M check gas limit by chainlink
             assertLt(gasUsedForCheck, 10_000_000);
             totalGasUsedForCheck += gasUsedForCheck;
             lastGasUsedForCheck = gasUsedForCheck;
-            gasBefore = gasleft();
+            gasBefore_ = gasleft();
             middleware.performUpkeep(performData);
-            uint256 gasUsedForPerform = gasBefore - gasleft();
+            uint256 gasUsedForPerform = gasBefore_ - gasleft();
             // Assert gas usage is below 5M perform gas limit by chainlink
             assertLt(gasUsedForPerform, 5_000_000);
             totalGasUsedForPerform += gasUsedForPerform;
