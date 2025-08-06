@@ -2551,7 +2551,7 @@ contract MiddlewareTest is Test {
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         uint48 epoch = middleware.getCurrentEpoch();
-        
+
         (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
 
