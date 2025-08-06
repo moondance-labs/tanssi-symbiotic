@@ -1383,9 +1383,9 @@ contract MiddlewareTest is Test {
         middleware.performUpkeep(performData);
         uint48 epoch = middleware.getCurrentEpoch();
 
-        uint256 operator1Power = middleware.getOperatorToPower(epoch, OPERATOR_KEY);
-        uint256 operator2Power = middleware.getOperatorToPower(epoch, OPERATOR2_KEY);
-        uint256 operator3Power = middleware.getOperatorToPower(epoch, OPERATOR3_KEY);
+        uint256 operator1Power = middleware.getOperatorToPowerCached(epoch, OPERATOR_KEY);
+        uint256 operator2Power = middleware.getOperatorToPowerCached(epoch, OPERATOR2_KEY);
+        uint256 operator3Power = middleware.getOperatorToPowerCached(epoch, OPERATOR3_KEY);
 
         (uint256 totalOperatorPowerAfter,) = _calculateOperatorPower(totalPowerVault, 0, 0);
         (uint256 totalOperator2PowerAfter,) =
@@ -1401,7 +1401,9 @@ contract MiddlewareTest is Test {
         (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
 
-        (uint8 command, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
+        (uint8 command, uint48 encodedEpoch, bytes32[] memory sortedKeys) =
+            abi.decode(performData, (uint8, uint48, bytes32[]));
+        assertEq(epoch, encodedEpoch);
         assertEq(command, middleware.SEND_DATA_COMMAND());
         assertEq(sortedKeys.length, 3);
 
@@ -1429,6 +1431,8 @@ contract MiddlewareTest is Test {
         assertEq(upkeepNeeded, false);
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+        uint48 epoch = middleware.getCurrentEpoch();
+
         // This will exhaust and fill the cache in n (count/max_operators_to_process) times
         uint256 totalGasUsedForCheck = 0;
         uint256 totalGasUsedForPerform = 0;
@@ -1464,7 +1468,9 @@ contract MiddlewareTest is Test {
         console2.log("Gas used for final check: ", gasUsedFinalCheck);
         assertEq(upkeepNeeded, true);
 
-        (uint8 command, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
+        (uint8 command, uint48 encodedEpoch, bytes32[] memory sortedKeys) =
+            abi.decode(performData, (uint8, uint48, bytes32[]));
+        assertEq(epoch, encodedEpoch);
         assertEq(command, middleware.SEND_DATA_COMMAND());
         assertEq(sortedKeys.length, count);
 
@@ -1509,6 +1515,7 @@ contract MiddlewareTest is Test {
         assertEq(upkeepNeeded, false);
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+        uint48 epoch = middleware.getCurrentEpoch();
 
         uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
         for (uint256 i = 0; i < (count + max - 1) / max; i++) {
@@ -1526,7 +1533,9 @@ contract MiddlewareTest is Test {
         console2.log("Perform Data length while sending: ", performData.length);
         assertLe(performData.length, 2000);
 
-        (uint8 command, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, bytes32[]));
+        (uint8 command, uint48 encodedEpoch, bytes32[] memory sortedKeys) =
+            abi.decode(performData, (uint8, uint48, bytes32[]));
+        assertEq(epoch, encodedEpoch);
         assertEq(command, middleware.SEND_DATA_COMMAND());
         assertEq(sortedKeys.length, count);
         assertLe(performData.length, 2000);
@@ -1579,15 +1588,16 @@ contract MiddlewareTest is Test {
         assertEq(upkeepNeeded, false);
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
-
+        uint48 epoch = middleware.getCurrentEpoch();
         (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
 
-        (uint8 command, IMiddleware.ValidatorData[] memory data) =
-            abi.decode(performData, (uint8, IMiddleware.ValidatorData[]));
+        (uint8 command, uint48 encodedEpoch, IMiddleware.ValidatorData[] memory data) =
+            abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
+        assertEq(epoch, encodedEpoch);
         assertEq(command, middleware.CACHE_DATA_COMMAND());
 
-        performData = abi.encode(middleware.SEND_DATA_COMMAND(), data);
+        performData = abi.encode(middleware.SEND_DATA_COMMAND(), epoch, data);
 
         vm.startPrank(forwarder);
         vm.expectRevert(

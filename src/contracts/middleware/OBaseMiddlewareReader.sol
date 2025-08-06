@@ -668,27 +668,31 @@ contract OBaseMiddlewareReader is
     ) public view returns (IMiddleware.ValidatorData[] memory validatorSet) {
         uint48 epochStartTs = getEpochStart(epoch);
         address[] memory operators = _activeOperatorsAt(epochStartTs);
-        validatorSet = new IMiddleware.ValidatorData[](operators.length);
+        uint256 operatorsLength_ = operators.length;
+        validatorSet = new IMiddleware.ValidatorData[](operatorsLength_);
 
         uint256 len = 0;
         VaultManagerStorage storage $ = _getVaultManagerStorage();
         address[] memory sharedVaults = $._sharedVaults.getActive(epochStartTs);
         uint96 subnetwork = _NETWORK().subnetwork(0).identifier();
-        uint256 operatorsLength_ = operators.length;
         for (uint256 i; i < operatorsLength_;) {
             address operator = operators[i];
             bytes32 key = abi.decode(getOperatorKeyAt(operator, epochStartTs), (bytes32));
-            uint256 operatorPowerCached = getOperatorToPower(epoch, key);
 
             unchecked {
                 ++i;
+            }
 
-                if (operatorPowerCached != 0) {
-                    validatorSet[len++] = IMiddleware.ValidatorData(operatorPowerCached, key);
-                } else {
-                    uint256 power = _optmizedGetOperatorPowerAt(epochStartTs, sharedVaults, subnetwork, operator);
-                    if (key != bytes32(0) && power != 0) {
-                        validatorSet[len++] = IMiddleware.ValidatorData(power, key);
+            if (key != bytes32(0)) {
+                uint256 power = getOperatorToPowerCached(epoch, key);
+                if (power == 0) {
+                    power = _optmizedGetOperatorPowerAt(epochStartTs, sharedVaults, subnetwork, operator);
+                }
+
+                if (power != 0) {
+                    validatorSet[len] = IMiddleware.ValidatorData(power, key);
+                    unchecked {
+                        ++len;
                     }
                 }
             }
@@ -742,7 +746,7 @@ contract OBaseMiddlewareReader is
                 _getValidatorDataForOperators(maxNumOperatorsToCheck, cacheIndex, currentEpochStartTs, activeOperators_);
 
             // encode values to be used in performUpkeep
-            return (true, abi.encode(CACHE_DATA_COMMAND, validatorsData));
+            return (true, abi.encode(CACHE_DATA_COMMAND, epoch, validatorsData));
         }
 
         //Should be at least once per epoch
@@ -750,7 +754,7 @@ contract OBaseMiddlewareReader is
         if (upkeepNeeded) {
             // This will use the cached values, resulting in just a simple sorting operation. We can know a priori how much it cost since it's just an address with a uint256 power. Worst case we can split this too.
             bytes32[] memory sortedKeys = sortOperatorsByPower(epoch);
-            performData = abi.encode(SEND_DATA_COMMAND, sortedKeys);
+            performData = abi.encode(SEND_DATA_COMMAND, epoch, sortedKeys);
             return (true, performData);
         }
 

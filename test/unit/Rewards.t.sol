@@ -963,7 +963,7 @@ contract RewardsTest is Test {
     function testStakerRewardsFactoryConstructorNotVault() public {
         IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
             adminFee: 0,
-            defaultAdminRoleHolder: address(0),
+            defaultAdminRoleHolder: owner,
             adminFeeClaimRoleHolder: address(0),
             adminFeeSetRoleHolder: address(middleware),
             implementation: stakerRewardsImplementation
@@ -979,7 +979,7 @@ contract RewardsTest is Test {
         stakerRewardsFactory.create(address(vault), params);
     }
 
-    function testStakerRewardsConstructorWithNoAdminFeeAndNoAdminFeeClaimRoleHolder() public {
+    function testStakerRewardsConstructorWithNoAdminRoleHolder() public {
         IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
             adminFee: 0,
             defaultAdminRoleHolder: address(0),
@@ -995,7 +995,7 @@ contract RewardsTest is Test {
     function testStakerRewardsConstructorWithNoAdminFeeAndBothAdminRole() public {
         IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
             adminFee: 0,
-            defaultAdminRoleHolder: address(0),
+            defaultAdminRoleHolder: owner,
             adminFeeClaimRoleHolder: address(middleware),
             adminFeeSetRoleHolder: address(middleware),
             implementation: stakerRewardsImplementation
@@ -1020,36 +1020,10 @@ contract RewardsTest is Test {
         stakerRewardsFactory.create(address(vault), params);
     }
 
-    function testStakerRewardsConstructorWithNoAdminFeeSetRoleHolder() public {
-        IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
-            adminFee: 0,
-            defaultAdminRoleHolder: address(0),
-            adminFeeClaimRoleHolder: address(middleware),
-            adminFeeSetRoleHolder: address(0),
-            implementation: stakerRewardsImplementation
-        });
-
-        vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__MissingRoles.selector);
-        stakerRewardsFactory.create(address(vault), params);
-    }
-
-    function testStakerRewardsConstructorWithNoAdminFeeClaimRoleHolder() public {
-        IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
-            adminFee: ADMIN_FEE,
-            defaultAdminRoleHolder: address(0),
-            adminFeeClaimRoleHolder: address(0),
-            adminFeeSetRoleHolder: address(middleware),
-            implementation: stakerRewardsImplementation
-        });
-
-        vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__MissingRoles.selector);
-        stakerRewardsFactory.create(address(vault), params);
-    }
-
     function testStakerRewardsConstructorWithAdminFeeClaimRoleHolder() public {
         IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
             adminFee: ADMIN_FEE,
-            defaultAdminRoleHolder: address(0),
+            defaultAdminRoleHolder: owner,
             adminFeeClaimRoleHolder: address(middleware),
             adminFeeSetRoleHolder: address(middleware),
             implementation: stakerRewardsImplementation
@@ -1898,7 +1872,7 @@ contract RewardsTest is Test {
     function testStakerRewardsFactoryCreate() public {
         IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
             adminFee: ADMIN_FEE,
-            defaultAdminRoleHolder: address(0),
+            defaultAdminRoleHolder: owner,
             adminFeeClaimRoleHolder: address(middleware),
             adminFeeSetRoleHolder: address(middleware),
             implementation: stakerRewardsImplementation
@@ -1953,7 +1927,7 @@ contract RewardsTest is Test {
 
         IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
             adminFee: ADMIN_FEE,
-            defaultAdminRoleHolder: address(0),
+            defaultAdminRoleHolder: owner,
             adminFeeClaimRoleHolder: address(middleware),
             adminFeeSetRoleHolder: address(middleware),
             implementation: invalidImplementation
