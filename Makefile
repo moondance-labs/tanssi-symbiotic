@@ -99,7 +99,7 @@ deploy-tanssi-vault:
 
 deploy-middleware:
 	@echo "📡 Deploying Middleware Implementation..."
-	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem $(NETWORK_ARGS) --sig "deployOnlyMiddleware(bool)" $(SHOULD_DEPLOY_READER) -vv
+	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem $(NETWORK_ARGS) --sig "deployOnlyMiddleware(bool)" $(SHOULD_DEPLOY_READER) --optimize true --optimizer-runs 800 -vv 
 	@echo "✅ Middleware Implementation deployment completed"
 
 deploy-staker-rewards:

@@ -21,9 +21,12 @@ Steps to migrate:
 - Deploy new `MiddlewareReader` contract.
 - Upgrade the `Middleware` contract to the new version `upgradeToAndCall`, with the call being `reinitializeRewards` to the current `operatorRewards` proxy and the current `stakerRewardsFactory` addresses.
 - Set the new `MiddlewareReader` address in the `Middleware` contract via `setReader`.
+- Deploy new `ODefaultOperatorRewards` contract implementation.
+- Upgrade the `ODefaultOperatorRewards` contract to the new version `upgradeToAndCall`.
 - Deploy new `ODefaultStakerRewards` contract implementation.
 - Set the new implementation in the `ODefaultStakerRewardsFactory` contract.
 - Upgrade each `ODefaultStakerRewards` to this new implementation via `upgradeToAndCall`
+- Only in Stagelight/Dancelight, deploy new `RewardsHintsBuilder` contract
 - In v1.2.2, deployed instantly after, upgrade the implementation of the `ODefaultStakerRewards` contracts to a version without `setVault`.
 - In v1.2.2, upgrades in mainnet fork tests should be removed since they are no longer needed. They are marked with TODO.
 
