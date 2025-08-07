@@ -28,7 +28,8 @@ remappings = [
 
 [profile.ci]
 via_ir = false
-optimizer = false
+optimizer = true
+optimizer_runs = 200
 
 
 [rpc_endpoints]
