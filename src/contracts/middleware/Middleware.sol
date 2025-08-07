@@ -320,7 +320,7 @@ contract Middleware is
 
         uint48 encodedEpoch;
         assembly {
-            // Load 32 bytes starting at offset 64 (third 32-byte slot)
+            // Load 32 bytes starting at offset 32 (second 32-byte slot)
             let epochData := calldataload(add(performData.offset, 32))
             encodedEpoch := epochData
         }
