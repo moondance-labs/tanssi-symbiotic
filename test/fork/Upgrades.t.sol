@@ -66,12 +66,7 @@ contract UpgradesTest is Test {
     }
 
     function testUpgradeMiddleware() public {
-        // TODO: Needs to be called like this because method does not exists in current version. After upgrade, change to middleware.getStakerRewardsFactoryAddress();
-        bytes memory data = abi.encodeWithSignature("i_stakerRewardsFactory()");
-        (bool success, bytes memory result) = address(middleware).staticcall(data);
-        require(success, "Call failed");
-        address stakerRewardsFactory = abi.decode(result, (address));
-
+        address stakerRewardsFactory = middleware.getStakerRewardsFactoryAddress();
         IOBaseMiddlewareReader reader = IOBaseMiddlewareReader(address(middleware));
 
         uint48 currentEpoch = reader.getCurrentEpoch();
@@ -80,8 +75,6 @@ contract UpgradesTest is Test {
 
         deployTanssiEcosystem.upgradeMiddlewareBroadcast(address(middleware), 1);
 
-        // Need to reinitialize the operatorRewards and stakerRewardsFactory after the first upgrade. TODO: Remove call after upgrade
-        middleware.reinitializeRewards(address(operatorRewards), stakerRewardsFactory);
         assertEq(middleware.getOperatorRewardsAddress(), address(operatorRewards));
         assertEq(middleware.getStakerRewardsFactoryAddress(), stakerRewardsFactory);
         assertEq(reader.getCurrentEpoch(), currentEpoch);
