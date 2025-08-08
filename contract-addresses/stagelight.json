@@ -7,11 +7,13 @@
   "gateway": "0x0e3dbc66840a36527d21560538907503f672677e",
   "gatewayImplementation": "0x5a7e4193ba91eb7538ff7e1e34e5df4d7ffd9144",
   "middleware": "0xdbc3804a9d3164a438ec222a222e8d8b2dffa0de",
-  "middlewareImplementation": "0x9c77f71365F67130c244f777c78f9a7eA70AF73b",
-  "middlewareReader": "0x088F17C8AB52044Ea932A04C9ACdeb12bbBCf55a",
+  "middlewareImplementation": "0xe9A8e0B86AfcaB173153Dd1b502857417416B92b",
+  "middlewareReader": "0x7280263836b146Eb94A2226BE68133Ac846FE807",
   "operatorRewards": "0x5a1a8ce9f4d294aa1835252b5fe397d607d615c8",
-  "operatorRewardsImplementation": "0x1405660dF1956Ec5289B057715Aa959d9923Cb1E",
+  "operatorRewardsImplementation": "0xf1a7da4d37e75d229066c9d69242d1789ed5763e",
   "stakerRewardsFactory": "0xfe5221bb6ff8df14bc0b69b9e976e0b2bd3cf156",
+  "rewardsHintsBuilder": "0x59364a4e7fdd15c236756fc24a517c3a6028b166",
+
   "delegatorFactory": "0x890ca3f95e0f40a79885b7400926544b2214b03f",
   "slasherFactory": "0xbf34bf75bb779c383267736c53a4ae86ac7bb299",
   "vaultFactory": "0x407a039d94948484d356efb765b3c74382a050b4",
@@ -43,7 +45,7 @@
       "slasher": "0xa2f02442fe12b42929ce9563a289a923f0631a9c",
       "collateral": "0x3e3fe7dbc6b4c189e7128855dd526361c49b40af",
       "stakerRewards": "0x14453f57a92881ba788d0caf29ad6cce1f9028f1",
-      "stakerRewardsImplementation": "0x4dc7A8Db09296ab3b37058cb6DA47cD9e3266a7e"
+      "stakerRewardsImplementation": "0x58faDECfcB16BBc21Dcfd245A5B9690e317546c9"
     }
   ],
   "totalOperators": 1,

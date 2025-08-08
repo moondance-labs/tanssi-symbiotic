@@ -6,4 +6,10 @@ interface IVaultHints {
     function activeStakeHint(address vault, uint48 timestamp) external view returns (bytes memory);
 
     function activeSharesHint(address vault, uint48 timestamp) external view returns (bytes memory);
+
+    function activeSharesOfHint(
+        address vault,
+        address account,
+        uint48 timestamp
+    ) external view returns (bytes memory hint);
 }

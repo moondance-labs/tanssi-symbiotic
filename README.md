@@ -100,3 +100,9 @@ commit/tag. Then return in the root folder and add the git submodule diff to you
 Some contracts have modifiers that restrict the access to some functions. The diagram to explain the ownership of the contracts can be seen in the following image:
 
 ![Ownership](./ownership.png)
+
+## Rewards distribution
+
+The rewards distribution flow is quite complex, but it can be summarized in the following diagram:
+
+![Rewards](./rewards.png)

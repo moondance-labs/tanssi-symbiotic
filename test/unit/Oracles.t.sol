@@ -30,8 +30,9 @@ contract MiddlewareTest is Test {
     function setUp() public {
         tanssiCollateral = new Token("TANSSI", 12);
 
-        diaOracle =
-            new DIAOracleMock(TANSSI_PAIR_SYMBOL, uint128(uint256(ORACLE_CONVERSION_TANSSI)), uint128(block.timestamp));
+        diaOracle = new DIAOracleMock(
+            TANSSI_PAIR_SYMBOL, uint128(uint256(ORACLE_CONVERSION_TANSSI)), uint128(vm.getBlockTimestamp())
+        );
 
         tanssiCollateralOracle = new AggregatorV3DIAProxy(address(diaOracle), TANSSI_PAIR_SYMBOL);
     }
@@ -39,12 +40,12 @@ contract MiddlewareTest is Test {
     function testDIAGetValueTanssiPrice() public view {
         (uint128 latestPrice, uint128 latestTimestamp) = diaOracle.getValue(TANSSI_PAIR_SYMBOL);
         assertEq(latestPrice, uint128(uint256(ORACLE_CONVERSION_TANSSI)));
-        assertEq(latestTimestamp, uint128(block.timestamp));
+        assertEq(latestTimestamp, uint128(vm.getBlockTimestamp()));
     }
 
     function testDIASetValueForeignTokenPrice() public {
         uint128 newPrice = 2 * uint128(uint256(ORACLE_CONVERSION_TANSSI));
-        uint128 newTimestamp = uint128(block.timestamp + 1000);
+        uint128 newTimestamp = uint128(vm.getBlockTimestamp() + 1000);
         diaOracle.setValue(newPrice, newTimestamp, TANSSI_PAIR_SYMBOL);
 
         (uint128 latestPrice, uint128 latestTimestamp) = diaOracle.getValue(TANSSI_PAIR_SYMBOL);
@@ -73,8 +74,8 @@ contract MiddlewareTest is Test {
 
         assertEq(roundId, 1);
         assertEq(price, int256(uint256(ORACLE_CONVERSION_TANSSI)));
-        assertEq(startedAt, block.timestamp);
-        assertEq(updatedAt, block.timestamp);
+        assertEq(startedAt, vm.getBlockTimestamp());
+        assertEq(updatedAt, vm.getBlockTimestamp());
         assertEq(answeredInRound, 1);
     }
 
@@ -84,8 +85,8 @@ contract MiddlewareTest is Test {
 
         assertEq(roundId, 1);
         assertEq(price, int256(uint256(ORACLE_CONVERSION_TANSSI)));
-        assertEq(startedAt, block.timestamp);
-        assertEq(updatedAt, block.timestamp);
+        assertEq(startedAt, vm.getBlockTimestamp());
+        assertEq(updatedAt, vm.getBlockTimestamp());
         assertEq(answeredInRound, 1);
     }
 

@@ -192,7 +192,24 @@ interface IODefaultOperatorRewards {
     ) external;
 
     /**
-     * @notice Claim rewards for a particular epoch by providing a Merkle proof.
+     * @notice Claim rewards for a batch of eras by providing a Merkle proof for each.
+     * @param inputs data to claim rewards
+     * @return amount amount of tokens claimed
+     * @dev Emit ClaimRewards event.
+     * @dev The input data must contain:
+     * @dev - operatorKey operator key of the rewards' recipient
+     * @dev - epoch network epoch of the middleware
+     * @dev - eraIndex era index of Starlight's rewards distribution
+     * @dev - totalPointsClaimable total amount of tokens that can be claimed
+     * @dev - proof Merkle proof of the reward distribution
+     * @dev - data additional data to use to distribute rewards to stakers
+     */
+    function batchClaimRewards(
+        ClaimRewardsInput[] calldata inputs
+    ) external returns (uint256 amount);
+
+    /**
+     * @notice Claim rewards for a particular era by providing a Merkle proof.
      * @param input data to claim rewards
      * @return amount amount of tokens claimed
      * @dev Emit ClaimRewards event.
