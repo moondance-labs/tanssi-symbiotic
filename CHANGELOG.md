@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [1.2.1] - 2025-08-07
+
+### Added
+
+- On ODefaultOperatorRewards. Adds `batchClaimRewards` method.
+- On ODefaultStakerRewards. Adds `batchClaimRewards` method.
+- On RewardsHintsBuilder. Adds `batchGetDataForOperatorClaimRewards`, `getHintsForStakerClaimRewards`, and `batchGetHintsForStakerClaimRewards` methods.
+
+### Changed
+
+- On Middleware. `operatorRewards` and `stakerRewardsFactory` are now saved on the storage.
+- On Middleware and OBaseMiddlewareReader. `checkUpkeep` now includes epoch in the `performData`, `performUpkeep` validates it matches the current one.
+- On Middleware and OBaseMiddlewareReader. Gas optimization for `checkUpkeep` and `performUpkeep` by processing all operators and checking for active ones only within each batch.
+- On OBaseMiddlewareReader. `checkUpkeep` now sends at most `MAX_OPERATORS_TO_SEND`, that is 58 operators. This is to prevent the performData from being over the 2000 bytes limit imposed by Chainlink.
+- On OBaseMiddlewareReader. `getOperatorToPower` was renamed to `getOperatorToPowerCached`, since it only returns cached values.
+- On OBaseMiddlewareReader. `sortOperatorsByPower` now ignores operators with power zero.
+- On OBaseMiddlewareReader. `getOperatorToPower` now returns 0 if the operator is not found.
+- On ODefaultStakerRewards. Admin address is now mandatory on `initialize`, otherwise upgrading would be impossible.
+- Updates ownership and rewards diagrams.
+
 ## [1.2.0] - 2025-07-22
 
 Commit: [48f23a960775c1630b4b4ef384e2a2075a633ecd](https://github.com/moondance-labs/tanssi-symbiotic/commit/48f23a960775c1630b4b4ef384e2a2075a633ecd)
