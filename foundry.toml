@@ -9,6 +9,7 @@ gas_reports = ["*"]
 optimizer = true
 optimizer_runs = 800
 cache_path = "forge-cache"
+evm_version = "cancun"
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
 
