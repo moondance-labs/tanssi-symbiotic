@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - On OBaseMiddlewareReader. `sortOperatorsByPower` now ignores operators with power zero.
 - On OBaseMiddlewareReader. `getOperatorToPower` now returns 0 if the operator is not found.
 - On ODefaultStakerRewards. Admin address is now mandatory on `initialize`, otherwise upgrading would be impossible.
+- Updates ownership and rewards diagrams.
 
 ## [1.2.0] - 2025-07-22
 
