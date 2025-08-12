@@ -127,7 +127,6 @@ deploy-reader:
 	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem $(NETWORK_ARGS) --sig "deployMiddlewareReader()" -vv
 	@echo "✅ Middleware Reader deployment completed"
 
-
 deploy-rewards-hints-builder:
 	@echo "📡 Deploying Rewards Hints Builder..."
 	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "deployRewardsHintsBuilder(address,address,address)" $(MIDDLEWARE_ADDRESS) $(OPERATOR_REWARDS_PROXY_ADDRESS) $(VAULT_HINTS_ADDRESS) -vv
