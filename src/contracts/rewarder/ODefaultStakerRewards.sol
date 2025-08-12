@@ -146,15 +146,19 @@ contract ODefaultStakerRewards is
         address tokenAddress
     ) external view override returns (uint256 amount) {
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
+        uint256 activeSharesCache_ = $.activeSharesCache[epoch];
+        if (activeSharesCache_ == 0) {
+            return 0;
+        }
+
         uint256 rewardsPerEpoch = $.rewards[epoch][tokenAddress];
         uint256 claimedPerEpoch = $.stakerClaimedRewardPerEpoch[account][epoch][tokenAddress];
 
         uint48 epochTs = EpochCapture(INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network))
             .getEpochStart(epoch);
 
-        amount = IVault(i_vault).activeSharesOfAt(account, epochTs, new bytes(0)).mulDiv(
-            rewardsPerEpoch, $.activeSharesCache[epoch]
-        );
+        amount =
+            IVault(i_vault).activeSharesOfAt(account, epochTs, new bytes(0)).mulDiv(rewardsPerEpoch, activeSharesCache_);
 
         // Get the amount that is still unclaimed
         amount -= claimedPerEpoch;

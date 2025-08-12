@@ -1085,6 +1085,12 @@ contract RewardsTest is Test {
         assertEq(claimable, AMOUNT_TO_DISTRIBUTE / 10);
     }
 
+    function testClaimableWithZeroActiveSharesCache() public view {
+        uint48 epoch = 0;
+        uint256 claimable = stakerRewards.claimable(epoch, alice, address(token));
+        assertEq(claimable, 0);
+    }
+
     function testClaimableButWithFakeTokenAddress() public {
         uint48 epoch = 0;
         uint48 epochTs = middleware.getEpochStart(epoch);
