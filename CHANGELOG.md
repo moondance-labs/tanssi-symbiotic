@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [1.2.1] - 2025-08-07
 
+Commit: [e87bb61b74f982344bece33d7173ce99481ee8e8](https://github.com/moondance-labs/tanssi-symbiotic/commit/e87bb61b74f982344bece33d7173ce99481ee8e8)
+
 ### Added
 
 - On ODefaultOperatorRewards. Adds `batchClaimRewards` method.
