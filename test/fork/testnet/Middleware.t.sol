@@ -103,7 +103,7 @@ contract MiddlewareTest is Test {
 
         (admin, tanssi, gateway,, middlewareAddress, operatorRewardsAddress,) = helperConfig.activeEntities();
         HelperConfig.CollateralData memory stEthConfig;
-        (stEthConfig,,,,,) = helperConfig.activeTokensConfig();
+        (stEthConfig,,,,,,) = helperConfig.activeTokensConfig();
         stEth = stEthConfig.collateral;
         (,,,,,,,,, vaultData) = helperConfig.activeVaultsConfigA();
         (,,,,,,,,,, operatorData) = helperConfig.activeOperatorConfig();

@@ -47,6 +47,7 @@ contract HelperConfig is Script {
         CollateralData wBETH;
         CollateralData LsETH;
         CollateralData cbETH;
+        CollateralData tanssi;
     }
 
     struct VaultTrifecta {
@@ -74,6 +75,7 @@ contract HelperConfig is Script {
         VaultData gauntletRestakedRETH; // Gauntlet Restaked rETH
         VaultData gauntletRestakedWBETH; // Gauntlet Restaked wBETH
         VaultData gauntletRestakedcBETH; // Gauntlet Restaked cbETH
+        VaultData tanssi; // Tanssi Vault
     }
 
     struct CollateralData {
@@ -271,6 +273,8 @@ contract HelperConfig is Script {
             tokenConfig.cbETH = collateral;
         } else if (_sameString(collateral.symbol, "wstETH")) {
             tokenConfig.wstETH = collateral;
+        } else if (_sameString(collateral.symbol, "TANSSI")) {
+            tokenConfig.tanssi = collateral;
         }
     }
 
@@ -309,6 +313,8 @@ contract HelperConfig is Script {
             vaultsConfigB.gauntletRestakedWBETH = vault;
         } else if (_sameString(vault.name, "Gauntlet restaked cbETH")) {
             vaultsConfigB.gauntletRestakedcBETH = vault;
+        } else if (_sameString(vault.name, "Tanssi Vault")) {
+            vaultsConfigB.tanssi = vault;
         }
     }
 

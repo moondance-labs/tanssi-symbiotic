@@ -135,7 +135,7 @@ contract FullTest is Test {
     uint256 public constant CP0X_STAKRSPACE_VAULTS = 2;
     uint256 public constant HASHKEY_CLOUD_VAULTS = 1;
     uint256 public constant ALCHEMY_VAULTS = 8;
-    uint256 public constant OPSLAYER_VAULTS = 1;
+    uint256 public constant OPSLAYER_VAULTS = 2;
 
     uint256 public constant TOTAL_OPERATORS = 11;
 
@@ -152,6 +152,7 @@ contract FullTest is Test {
     address public constant VAULT_MANAGER_ETHERFIWSTETH = 0x47482dA197719f2CE0BAeBB7F72D1d7C1D6cc8bD;
     address public constant VAULT_MANAGER_RESTAKEDLSETHVAULT = 0x8989e3f949df80e8eFcbf3372F082699b93E5C09;
     address public constant VAULT_MANAGER_OPSLAYER = 0xf409021Fa7E769837162346CFA8d1eF4DAa77585;
+    address public constant VAULT_MANAGER_TANSSI = 0x43347365ca92539a894437fB59C78d4e6dF123a3;
 
     address public constant WHITELIST_SETTER_ETHERFIWSTETH = 0x2aCA71020De61bb532008049e1Bd41E451aE8AdC;
     address public constant WHITELIST_SETTER_MEVCAPITAL = 0x8989e3f949df80e8eFcbf3372F082699b93E5C09;
@@ -206,6 +207,7 @@ contract FullTest is Test {
         uint256 gauntletRestakedRETH;
         uint256 gauntletRestakedWBETH;
         uint256 gauntletRestakedcBETH;
+        uint256 tanssi;
     }
 
     struct NetworkLimitsA {
@@ -227,6 +229,7 @@ contract FullTest is Test {
         uint256 gauntletRestakedRETH;
         uint256 gauntletRestakedWBETH;
         uint256 gauntletRestakedcBETH;
+        uint256 tanssi;
     }
 
     struct ProofAndPoints {
@@ -262,6 +265,16 @@ contract FullTest is Test {
         _saveTotalShares();
 
         /// middleware.setCollateralToOracle(xxx, oracle); Already added for each collateral: wstETH, rETH, swETH, wBETH, LsETH, cbETH
+
+        vm.startPrank(operators.operator11Opslayer.evmAddress);
+        // TODO: Temporary, only needed since vault is empty at the moment
+        _depositToVault(
+            IVault(vaultsAddressesDeployedB.tanssi.vault),
+            operators.operator11Opslayer.evmAddress,
+            1_000_000 * 10 ** 12,
+            IERC20(tokensConfig.tanssi.collateral)
+        );
+
         vm.stopPrank();
 
         vm.warp(vm.getBlockTimestamp() + 14 days + 1); // In 14 days there should be a new vault epoch in all vaults
@@ -305,6 +318,7 @@ contract FullTest is Test {
         _cacheVaultToStakerRewards(vaultsAddressesDeployedB.gauntletRestakedRETH);
         _cacheVaultToStakerRewards(vaultsAddressesDeployedB.gauntletRestakedWBETH);
         _cacheVaultToStakerRewards(vaultsAddressesDeployedB.gauntletRestakedcBETH);
+        _cacheVaultToStakerRewards(vaultsAddressesDeployedB.tanssi);
     }
 
     function _cacheVaultToStakerRewards(
@@ -516,6 +530,11 @@ contract FullTest is Test {
             operators.operator11Opslayer.evmAddress, vaultsAddressesDeployedA.opslayer, tanssi, VAULT_MANAGER_OPSLAYER
         );
         operators.operator11Opslayer.vaults.push(vaultsAddressesDeployedA.opslayer.vault);
+
+        _optInOperator(
+            operators.operator11Opslayer.evmAddress, vaultsAddressesDeployedB.tanssi, tanssi, VAULT_MANAGER_TANSSI
+        );
+        operators.operator11Opslayer.vaults.push(vaultsAddressesDeployedB.tanssi.vault);
     }
 
     function _depositToVault(IVault vault, address operator, uint256 amount, IERC20 collateral) public {
@@ -564,6 +583,8 @@ contract FullTest is Test {
         _registerVaultIfNotActive(vaultsAddressesDeployedB.gauntletRestakedRETH.vault, stakerRewardsParams);
 
         _registerVaultIfNotActive(vaultsAddressesDeployedB.gauntletRestakedcBETH.vault, stakerRewardsParams);
+
+        _registerVaultIfNotActive(vaultsAddressesDeployedB.tanssi.vault, stakerRewardsParams);
 
         _registerOperatorIfNeeded(operators.operator1PierTwo);
         _registerOperatorIfNeeded(operators.operator2P2P);
@@ -709,6 +730,8 @@ contract FullTest is Test {
 
         _setMaxNetworkLimitIfNeeded(vaultsAddressesDeployedB.gauntletRestakedWstETH.delegator, MAX_NETWORK_LIMIT);
 
+        _setMaxNetworkLimitIfNeeded(vaultsAddressesDeployedB.tanssi.delegator, MAX_NETWORK_LIMIT);
+
         vm.stopPrank();
     }
 
@@ -778,6 +801,10 @@ contract FullTest is Test {
 
         networkLimitsB.gauntletRestakedWstETH = _setNetworkLimitIfNeeded(
             VAULT_MANAGER_GAUNTLET, vaultsAddressesDeployedB.gauntletRestakedWstETH.delegator, OPERATOR_NETWORK_LIMIT
+        );
+
+        networkLimitsB.tanssi = _setNetworkLimitIfNeeded(
+            VAULT_MANAGER_TANSSI, vaultsAddressesDeployedB.tanssi.delegator, OPERATOR_NETWORK_LIMIT
         );
     }
 
@@ -987,6 +1014,11 @@ contract FullTest is Test {
             vaultsAddressesDeployedB.gauntletRestakedWstETH.delegator, operators.operator2P2P.evmAddress, OPERATOR_SHARE
         );
 
+        vm.startPrank(VAULT_MANAGER_TANSSI);
+        _setSharesIfNeeded(
+            vaultsAddressesDeployedB.tanssi.delegator, operators.operator11Opslayer.evmAddress, OPERATOR_SHARE
+        );
+
         vm.stopPrank();
     }
 
@@ -1015,6 +1047,7 @@ contract FullTest is Test {
         totalSharesB.gauntletRestakedSwETH = _getTotalShares(vaultsAddressesDeployedB.gauntletRestakedSwETH.delegator);
         totalSharesB.gauntletRestakedWBETH = _getTotalShares(vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator);
         totalSharesB.gauntletRestakedWstETH = _getTotalShares(vaultsAddressesDeployedB.gauntletRestakedWstETH.delegator);
+        totalSharesB.tanssi = _getTotalShares(vaultsAddressesDeployedB.tanssi.delegator);
     }
 
     function _getTotalShares(
@@ -1193,6 +1226,7 @@ contract FullTest is Test {
         _testWithdrawFromVaultByOperator(
             vaultsAddressesDeployedB.gauntletRestakedWstETH, operator, VAULT_MANAGER_GAUNTLET
         );
+        _testWithdrawFromVaultByOperator(vaultsAddressesDeployedB.tanssi, operator, VAULT_MANAGER_TANSSI);
         _testWithdrawFromVaultByOperator(vaultsAddressesDeployedA.mevRestakedETH, operator, VAULT_MANAGER_COMMON);
         _testWithdrawFromVaultByOperator(vaultsAddressesDeployedA.renzoRestakedETH, operator, VAULT_MANAGER_COMMON);
         _testWithdrawFromVaultByOperator(
@@ -1217,6 +1251,9 @@ contract FullTest is Test {
         );
         _testWithdrawFromVaultByOperator(
             vaultsAddressesDeployedA.opslayer, operators.operator11Opslayer, VAULT_MANAGER_OPSLAYER
+        );
+        _testWithdrawFromVaultByOperator(
+            vaultsAddressesDeployedB.tanssi, operators.operator11Opslayer, VAULT_MANAGER_TANSSI
         );
     }
 
@@ -1317,52 +1354,11 @@ contract FullTest is Test {
         assertEq(validators.length, TOTAL_OPERATORS);
     }
 
-    function testOldUpkeep() public {
-        vm.prank(admin);
-        middleware.setForwarder(forwarder);
-        // It's not needed (anyone can call it), it's just for explaining and showing the flow
-        address offlineKeepers = makeAddr("offlineKeepers");
-
-        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
-
-        vm.prank(offlineKeepers);
-        uint256 beforeGas = gasleft();
-        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
-        uint256 afterGas = gasleft();
-
-        assertEq(upkeepNeeded, true);
-        assertLt(beforeGas - afterGas, MAX_CHAINLINK_CHECKUPKEEP_GAS); // Check that gas is lower than 10M limit
-
-        bytes32[] memory sortedKeys = abi.decode(performData, (bytes32[]));
-        assertEq(sortedKeys.length, TOTAL_OPERATORS);
-        assertLe(performData.length, MAX_CHAINLINK_PROCESSABLE_BYTES);
-
-        vm.prank(forwarder);
-        beforeGas = gasleft();
-        vm.expectEmit(true, false, false, false);
-        emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
-        middleware.performUpkeep(performData);
-        afterGas = gasleft();
-        assertLt(beforeGas - afterGas, MAX_CHAINLINK_PERFORMUPKEEP_GAS); // Check that gas is lower than 5M limit
-
-        (upkeepNeeded,) = middleware.checkUpkeep(hex"");
-        assertEq(upkeepNeeded, false);
-    }
-
     function testUpkeep() public {
         vm.prank(admin);
         middleware.setForwarder(forwarder);
         // It's not needed (anyone can call it), it's just for explaining and showing the flow
         address offlineKeepers = makeAddr("offlineKeepers");
-
-        // TODO: The upgrade is needed only because it didn't happen on mainnet yet
-        DeployTanssiEcosystem deployTanssiEcosystem = new DeployTanssiEcosystem();
-        deployTanssiEcosystem.upgradeMiddleware(address(middleware), 1, admin);
-
-        OBaseMiddlewareReader newReader = new OBaseMiddlewareReader();
-        vm.prank(admin);
-        middleware.setReader(address(newReader));
-        // Remove the code on top once mainnet is upgraded
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
@@ -1518,7 +1514,40 @@ contract FullTest is Test {
     }
 
     function testSlashingAndExecutingSlashForOperator11Opslayer() public {
-        _testSlashingAndExecutingSlashForOperator(operators.operator11Opslayer);
+        // This test is custom because opslayer is in tanssi vault, which is instant slashable. All other vaults are veto and they need to be executed.
+
+        uint48 initialEpoch = middleware.getCurrentEpoch();
+        uint48 epochStartTs = reader.getEpochStart(initialEpoch);
+        HelperConfig.OperatorData memory operator = operators.operator11Opslayer;
+
+        IERC20 tanssiVaultCollateral = IERC20(middleware.vaultToCollateral(vaultsAddressesDeployedB.tanssi.vault));
+        uint256 tanssiVaultBalanceBefore = tanssiVaultCollateral.balanceOf(vaultsAddressesDeployedB.tanssi.vault);
+        uint256 tanssiOperatorStakeBefore = IBaseDelegator(vaultsAddressesDeployedB.tanssi.delegator).stakeAt(
+            tanssi.subnetwork(0), operator.evmAddress, epochStartTs, new bytes(0)
+        );
+        uint256 expectedTanssiSlash = tanssiOperatorStakeBefore.mulDiv(SLASHING_FRACTION, PARTS_PER_BILLION);
+
+        IERC20 opsLayerVaultCollateral = IERC20(middleware.vaultToCollateral(vaultsAddressesDeployedA.opslayer.vault));
+        uint256 opsLayerVaultBalanceBefore = opsLayerVaultCollateral.balanceOf(vaultsAddressesDeployedA.opslayer.vault);
+        uint256 opsLayerOperatorStakeBefore = IBaseDelegator(vaultsAddressesDeployedA.opslayer.delegator).stakeAt(
+            tanssi.subnetwork(0), operator.evmAddress, epochStartTs, new bytes(0)
+        );
+        uint256 expectedOpsLayerSlash = opsLayerOperatorStakeBefore.mulDiv(SLASHING_FRACTION, PARTS_PER_BILLION);
+
+        // We need to track by stake and not by power since power uses live oracle which cannot be mocked
+        vm.prank(address(gateway));
+        middleware.slash(initialEpoch, operator.operatorKey, SLASHING_FRACTION);
+
+        // Tanssi vault is instant slashed. We can check already.
+        uint256 tanssiVaultBalanceAfter = tanssiVaultCollateral.balanceOf(vaultsAddressesDeployedB.tanssi.vault);
+        assertEq(tanssiVaultBalanceBefore - expectedTanssiSlash, tanssiVaultBalanceAfter);
+
+        // Opslayer vault is veto slash, so we need to wait for the veto duration and then execute it
+        vm.warp(vm.getBlockTimestamp() + VETO_DURATION + 1);
+        middleware.executeSlash(vaultsAddressesDeployedA.opslayer.vault, 0, hex"");
+
+        uint256 opsLayerVaultBalanceAfter = opsLayerVaultCollateral.balanceOf(vaultsAddressesDeployedA.opslayer.vault);
+        assertEq(opsLayerVaultBalanceBefore - expectedOpsLayerSlash, opsLayerVaultBalanceAfter);
     }
 
     // Case 1 has rewards for pier two, p2p, nodeinfra and blockscape. Defined in test/fork/mainnet/rewards_data.json
@@ -1736,154 +1765,6 @@ contract FullTest is Test {
         );
     }
 
-    function testTanssiVaultCanBeRegisteredAndOperatorCanOptIn() public {
-        HelperConfig.VaultData memory vaultData = _configureTanssiVault();
-        (,,,,, address operatorVaultOptInServiceAddress,,,) = helperConfig.activeNetworkConfig();
-
-        IOptInService operatorVaultOptInService = IOptInService(operatorVaultOptInServiceAddress);
-        bool optedIn = operatorVaultOptInService.isOptedIn(operators.operator11Opslayer.evmAddress, vaultData.vault);
-        assertTrue(optedIn);
-
-        assertEq(2, operators.operator11Opslayer.vaults.length);
-
-        uint256 expectedPower =
-            TANSSI_VAULT_DEPOSIT_AMOUNT.mulDiv(uint256(TANSSI_ORACLE_CONVERSION_TOKEN), 10 ** TANSSI_ORACLE_DECIMALS);
-        // TANSSI is 12 decimals, we must adjust it to the generic 18.
-        uint256 adjustedDecimalsPower = expectedPower.mulDiv(10 ** 18, 10 ** (rewardsToken.decimals()));
-        assertEq(adjustedDecimalsPower, operators.operator11Opslayer.powers[1]);
-    }
-
-    function testTanssiVaultCanDistributeOperatorRewards() public {
-        _configureTanssiVault();
-
-        // We reuse case 3 were opslayer has rewards.
-        (uint48 eraIndex, uint32 totalPoints) = _prepareRewardsDistributionForCase(3);
-
-        assertGe(totalPoints, 0);
-        assertEq(
-            totalPoints,
-            proofAndPointsByOperator.operator1PierTwo.points + proofAndPointsByOperator.operator2P2P.points
-                + proofAndPointsByOperator.operator10Alchemy.points + proofAndPointsByOperator.operator11Opslayer.points
-        );
-        _claimAndCheckRewardsForOperator(
-            eraIndex, operators.operator11Opslayer, proofAndPointsByOperator.operator11Opslayer, totalPoints
-        );
-    }
-
-    function testTanssiVaultCanDistributeStakerRewards() public {
-        _configureTanssiVault();
-
-        // We reuse case 3 were opslayer has rewards.
-        (uint48 eraIndex, uint32 totalPoints) = _prepareRewardsDistributionForCase(3);
-
-        _claimAndCheckRewardsForStaker(
-            operators.operator11Opslayer, proofAndPointsByOperator.operator11Opslayer, eraIndex, totalPoints
-        );
-    }
-
-    function testTanssiVaultCanGetSlashed() public {
-        HelperConfig.VaultData memory vaultData = _configureTanssiVault();
-
-        uint48 initialEpoch = middleware.getCurrentEpoch();
-        uint48 epochStartTs = reader.getEpochStart(initialEpoch);
-        HelperConfig.OperatorData memory operator = operators.operator11Opslayer;
-
-        uint256 vaultBalanceBefore = rewardsToken.balanceOf(vaultData.vault);
-        uint256 operatorStakeBefore = IBaseDelegator(IVault(vaultData.vault).delegator()).stakeAt(
-            tanssi.subnetwork(0), operator.evmAddress, epochStartTs, new bytes(0)
-        );
-        uint256 expectedSlash = operatorStakeBefore.mulDiv(SLASHING_FRACTION, PARTS_PER_BILLION);
-
-        // We need to track by stake and not by power since power uses live oracle which cannot be mocked
-        vm.prank(address(gateway));
-        middleware.slash(initialEpoch, operator.operatorKey, SLASHING_FRACTION);
-
-        uint256 vaultBalanceAfter = rewardsToken.balanceOf(vaultData.vault);
-        assertEq(vaultBalanceBefore - expectedSlash, vaultBalanceAfter);
-    }
-
-    function _configureTanssiVault() private returns (HelperConfig.VaultData memory vaultData) {
-        (address vaultConfigurator,,,,,, address networkMiddlewareService,,) = helperConfig.activeNetworkConfig();
-        console2.log("vaultConfigurator", vaultConfigurator);
-        console2.log("networkMiddlewareService", networkMiddlewareService);
-        stakerRewardsImpl = address(new ODefaultStakerRewards(networkMiddlewareService, tanssi));
-
-        // TODO: Remove when factory is fixed, currently it points the wrong network and operator rewards
-        {
-            (,,, address vaultRegistry,,,,,) = helperConfig.activeNetworkConfig();
-            DeployRewards deployRewards = new DeployRewards();
-            address stakerRewardsFactory = deployRewards.deployStakerRewardsFactoryContract(
-                vaultRegistry, networkMiddlewareService, address(operatorRewards), tanssi, admin
-            );
-            vm.allowCheatcodes(0x9eb0Ff9A553416Ac9Ec87881aB2ecC4879AdbC21); // No freaking clue why this is needed
-
-            DeployTanssiEcosystem deployTanssiEcosystem = new DeployTanssiEcosystem();
-            deployTanssiEcosystem.upgradeMiddleware(address(middleware), 1, admin);
-            address newReader = address(new OBaseMiddlewareReader());
-            vm.startPrank(admin);
-            ODefaultStakerRewardsFactory(stakerRewardsFactory).setImplementation(stakerRewardsImpl);
-            middleware.setReader(newReader);
-            middleware.reinitializeRewards(address(operatorRewards), address(stakerRewardsFactory));
-            vm.stopPrank();
-        }
-        // Remove until here
-
-        DeployVault deployVault = new DeployVault();
-        (address tanssiVaultAddress, address tanssiDelegatorAddress, address tanssiSlasherAddress) =
-            deployVault.createTanssiVault(vaultConfigurator, address(admin), address(rewardsToken));
-        IVault tanssiVault = IVault(tanssiVaultAddress);
-
-        DIAOracleMock tanssiOracle = new DIAOracleMock(
-            "TANSSI/USD", uint128(uint256(TANSSI_ORACLE_CONVERSION_TOKEN)), uint128(vm.getBlockTimestamp())
-        );
-
-        AggregatorV3DIAProxy aggregatorTanssi = new AggregatorV3DIAProxy(address(tanssiOracle), "TANSSI/USD");
-
-        vm.startPrank(admin);
-
-        middleware.setCollateralToOracle(address(rewardsToken), address(aggregatorTanssi));
-        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
-            adminFee: 0,
-            defaultAdminRoleHolder: admin,
-            adminFeeClaimRoleHolder: admin,
-            adminFeeSetRoleHolder: admin,
-            implementation: stakerRewardsImpl
-        });
-        middleware.registerSharedVault(tanssiVaultAddress, stakerRewardsParams);
-        vaultToStakerRewards[tanssiVaultAddress] = operatorRewards.vaultToStakerRewardsContract(tanssiVaultAddress);
-
-        address operator = operators.operator11Opslayer.evmAddress;
-
-        vm.startPrank(operator);
-        _depositToVault(tanssiVault, operator, TANSSI_VAULT_DEPOSIT_AMOUNT, rewardsToken);
-
-        vaultData = HelperConfig.VaultData({
-            name: "Tanssi Vault",
-            vault: tanssiVaultAddress,
-            delegator: tanssiDelegatorAddress,
-            slasher: tanssiSlasherAddress,
-            collateral: address(rewardsToken),
-            stakerRewards: vaultToStakerRewards[tanssiVaultAddress]
-        });
-        _optInOperator(operator, vaultData, tanssi, admin);
-
-        vm.startPrank(tanssi);
-
-        _setMaxNetworkLimitIfNeeded(tanssiDelegatorAddress, MAX_NETWORK_LIMIT);
-        _setNetworkLimitIfNeeded(admin, tanssiDelegatorAddress, OPERATOR_NETWORK_LIMIT);
-
-        vm.startPrank(admin);
-        _setSharesIfNeeded(tanssiDelegatorAddress, operator, OPERATOR_SHARE);
-
-        vm.stopPrank();
-
-        vm.warp(vm.getBlockTimestamp() + 7 days + 1);
-
-        operators.operator11Opslayer.vaults.push(tanssiVaultAddress);
-        uint256 operatorPower = reader.getOperatorPower(operator, tanssiVaultAddress, tanssi.subnetwork(0).identifier());
-        operators.operator11Opslayer.powers.push(operatorPower);
-    }
-
     function _claimAndCheckRewardsForOperator(
         uint48 eraIndex,
         HelperConfig.OperatorData memory operator,
@@ -1933,8 +1814,8 @@ contract FullTest is Test {
 
         for (uint256 i; i < totalVaults; i++) {
             uint256 expectedStakerRewardsForVault = expectedStakerRewards.mulDiv(operator.powers[i], totalPower);
-            uint256 newStakerRewardsBalancesBefore = rewardsToken.balanceOf(vaultToStakerRewards[operator.vaults[i]]);
-            uint256 actualRewards = newStakerRewardsBalancesBefore - stakerRewardsBalancesBefore[i];
+            uint256 newStakerRewardsBalances = rewardsToken.balanceOf(vaultToStakerRewards[operator.vaults[i]]);
+            uint256 actualRewards = newStakerRewardsBalances - stakerRewardsBalancesBefore[i];
             assertApproxEqAbs(actualRewards, expectedStakerRewardsForVault, 10);
         }
     }
