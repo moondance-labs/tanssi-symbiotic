@@ -209,7 +209,7 @@
       "delegator": "0xA773272913c96ed6D764dc4FBE9790A30b8D816B",
       "slasher": "0x69aE071249129BF52E72dBFc7Ccc10786bE33E58",
       "collateral": "0x553F4cB7256D8fC038E91d36Cb63fa7C13b624AB",
-      "stakerRewards": "",
+      "stakerRewards": "0x19F26797fDE27a906E0670BB5f340D785478C228",
       "stakerRewardsImplementation": "0xcE41F91726719E2A9dE5bb418644cCbC8a54A823"
     }
   ],
