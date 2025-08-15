@@ -13,6 +13,13 @@ Steps to migrate:
 - <step n>
 ```
 
+## [1.2.2]
+
+## Steps to migrate:
+
+- Deploy new `ODefaultStakerRewards` contract implementation.
+- Upgrade each `ODefaultStakerRewards` to this new implementation via `upgradeToAndCall`
+
 ## [1.2.1]
 
 ## Steps to migrate:

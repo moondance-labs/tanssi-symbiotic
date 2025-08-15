@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [1.2.2] - 2025-08-15
+
+### Removed
+
+- On ODefaultStakerRewards. Removed `setVault` method.
+
 ## [1.2.1] - 2025-08-07
 
 Commit: [e87bb61b74f982344bece33d7173ce99481ee8e8](https://github.com/moondance-labs/tanssi-symbiotic/commit/e87bb61b74f982344bece33d7173ce99481ee8e8)
