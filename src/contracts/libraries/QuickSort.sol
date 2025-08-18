@@ -11,7 +11,7 @@
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 // You should have received a copy of the GNU General Public License
-// along with Tanssi.  If not, see  <http://www.gnu.org/licenses/>
+// along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity ^0.8.0;
 
 import {IMiddleware} from "../../interfaces/middleware/IMiddleware.sol";
