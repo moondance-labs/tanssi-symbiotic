@@ -19,6 +19,7 @@ Steps to migrate:
 
 - Deploy new `ODefaultStakerRewards` contract implementation.
 - Upgrade each `ODefaultStakerRewards` to this new implementation via `upgradeToAndCall`
+- Set the new implementation in the `ODefaultStakerRewardsFactory` contract.
 
 ## [1.2.1]
 
