@@ -45,7 +45,7 @@
       "slasher": "0xa2f02442fe12b42929ce9563a289a923f0631a9c",
       "collateral": "0x3e3fe7dbc6b4c189e7128855dd526361c49b40af",
       "stakerRewards": "0x14453f57a92881ba788d0caf29ad6cce1f9028f1",
-      "stakerRewardsImplementation": "0x58faDECfcB16BBc21Dcfd245A5B9690e317546c9"
+      "stakerRewardsImplementation": "0xddb7c3ad9d38c5bff6bcf2b063b8507302a3412a"
     }
   ],
   "totalOperators": 1,
