@@ -106,7 +106,7 @@ contract MiddlewareTest is Test {
         (stEthConfig,,,,,,) = helperConfig.activeTokensConfig();
         stEth = stEthConfig.collateral;
         (,,,,,,,,, vaultData) = helperConfig.activeVaultsConfigA();
-        (,,,,,,,,,, operatorData) = helperConfig.activeOperatorConfig();
+        (operatorData,) = helperConfig.activeOperatorConfigB();
         operator = operatorData.evmAddress;
 
         middleware = Middleware(middlewareAddress);

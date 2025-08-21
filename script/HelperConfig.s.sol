@@ -102,7 +102,7 @@ contract HelperConfig is Script {
         uint256[] powers; // Indexes match vaults array
     }
 
-    struct OperatorConfig {
+    struct OperatorConfigA {
         OperatorData operator1PierTwo;
         OperatorData operator2P2P;
         OperatorData operator3Nodeinfra;
@@ -113,7 +113,11 @@ contract HelperConfig is Script {
         OperatorData operator8CP0XStakrspace;
         OperatorData operator9HashkeyCloud;
         OperatorData operator10Alchemy;
+    }
+
+    struct OperatorConfigB {
         OperatorData operator11Opslayer;
+        OperatorData operator12TanssiFoundation;
     }
 
     Entities public activeEntities;
@@ -121,7 +125,8 @@ contract HelperConfig is Script {
     TokensConfig public activeTokensConfig;
     VaultsConfigA public activeVaultsConfigA;
     VaultsConfigB public activeVaultsConfigB;
-    OperatorConfig public activeOperatorConfig;
+    OperatorConfigA public activeOperatorConfigA;
+    OperatorConfigB public activeOperatorConfigB;
 
     uint256 public PRIVATE_KEY =
         vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
@@ -134,7 +139,8 @@ contract HelperConfig is Script {
                 activeTokensConfig,
                 activeVaultsConfigA,
                 activeVaultsConfigB,
-                activeOperatorConfig
+                activeOperatorConfigA,
+                activeOperatorConfigB
             ) = getChainConfig();
         } else {
             // Other configurations can remain empty
@@ -153,7 +159,8 @@ contract HelperConfig is Script {
             TokensConfig memory tokenConfig,
             VaultsConfigA memory vaultsConfigA,
             VaultsConfigB memory vaultsConfigB,
-            OperatorConfig memory operatorConfig
+            OperatorConfigA memory operatorConfigA,
+            OperatorConfigB memory operatorConfigB
         )
     {
         (string memory json, string memory jsonPath) = getJsonAndPathForChain();
@@ -206,7 +213,7 @@ contract HelperConfig is Script {
             for (uint256 i = 0; i < totalOperators; i++) {
                 OperatorData memory operator =
                     _loadOperator(json, string.concat(jsonPath, ".operators[", vm.toString(i), "]"));
-                _assignOperator(operator, operatorConfig);
+                _assignOperator(operator, operatorConfigA, operatorConfigB);
             }
         } else {
             tokenConfig.wstETH = _loadCollateral(json, string.concat(jsonPath, ".collaterals[0]"));
@@ -216,7 +223,7 @@ contract HelperConfig is Script {
                 VaultData memory vault = _loadVault(json, string.concat(jsonPath, ".vaults[0]"));
                 _assignVault(vault, vaultsConfigA, vaultsConfigB);
                 OperatorData memory operator = _loadOperator(json, string.concat(jsonPath, ".operators[0]"));
-                _assignOperator(operator, operatorConfig);
+                _assignOperator(operator, operatorConfigA, operatorConfigB);
             }
         }
     }
@@ -318,29 +325,35 @@ contract HelperConfig is Script {
         }
     }
 
-    function _assignOperator(OperatorData memory operator, OperatorConfig memory operatorConfig) private pure {
+    function _assignOperator(
+        OperatorData memory operator,
+        OperatorConfigA memory operatorConfigA,
+        OperatorConfigB memory operatorConfigB
+    ) private pure {
         if (_sameString(operator.name, "Pier Two")) {
-            operatorConfig.operator1PierTwo = operator;
+            operatorConfigA.operator1PierTwo = operator;
         } else if (_sameString(operator.name, "P2P")) {
-            operatorConfig.operator2P2P = operator;
+            operatorConfigA.operator2P2P = operator;
         } else if (_sameString(operator.name, "Nodeinfra")) {
-            operatorConfig.operator3Nodeinfra = operator;
+            operatorConfigA.operator3Nodeinfra = operator;
         } else if (_sameString(operator.name, "Blockscape")) {
-            operatorConfig.operator4Blockscape = operator;
+            operatorConfigA.operator4Blockscape = operator;
         } else if (_sameString(operator.name, "Quant Node")) {
-            operatorConfig.operator5QuantNode = operator;
+            operatorConfigA.operator5QuantNode = operator;
         } else if (_sameString(operator.name, "Node Monster")) {
-            operatorConfig.operator6NodeMonster = operator;
+            operatorConfigA.operator6NodeMonster = operator;
         } else if (_sameString(operator.name, "Block n Bones")) {
-            operatorConfig.operator7BlockBones = operator;
+            operatorConfigA.operator7BlockBones = operator;
         } else if (_sameString(operator.name, "CP0X by Stakr.space")) {
-            operatorConfig.operator8CP0XStakrspace = operator;
+            operatorConfigA.operator8CP0XStakrspace = operator;
         } else if (_sameString(operator.name, "Hashkey Cloud")) {
-            operatorConfig.operator9HashkeyCloud = operator;
+            operatorConfigA.operator9HashkeyCloud = operator;
         } else if (_sameString(operator.name, "Alchemy")) {
-            operatorConfig.operator10Alchemy = operator;
+            operatorConfigA.operator10Alchemy = operator;
         } else if (_sameString(operator.name, "Opslayer")) {
-            operatorConfig.operator11Opslayer = operator;
+            operatorConfigB.operator11Opslayer = operator;
+        } else if (_sameString(operator.name, "Tanssi Foundation")) {
+            operatorConfigB.operator12TanssiFoundation = operator;
         }
     }
 
