@@ -250,7 +250,7 @@ contract FullTest is Test {
 
         _getBaseInfrastructure();
         _cacheAllVaultToStakerRewards();
-        _cacheOperatorVaults();
+        _cacheAllOperatorsVaults();
         _saveTotalShares();
 
         vm.warp(vm.getBlockTimestamp() + 14 days + 1); // In 14 days there should be a new vault epoch in all vaults
@@ -297,40 +297,34 @@ contract FullTest is Test {
         _cacheVaultToStakerRewards(vaultsAddressesDeployedB.tanssi);
     }
 
-    function _cacheOperatorVaults() private {
-        // TODO: Make this suck less
+    function _cacheAllOperatorsVaults() private {
         uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.OperatorVaultPair[] memory operatorVaultPairs = reader.getOperatorVaultPairs(currentEpoch);
         for (uint256 i = 0; i < operatorVaultPairs.length; i++) {
             if (operatorVaultPairs[i].operator == operators.operator1PierTwo.evmAddress) {
-                for (uint256 j = 0; j < operatorVaultPairs[i].vaults.length; j++) {
-                    operators.operator1PierTwo.vaults.push(operatorVaultPairs[i].vaults[j]);
-                }
+                _cacheOperatorVaults(operators.operator1PierTwo, operatorVaultPairs[i]);
             } else if (operatorVaultPairs[i].operator == operators.operator2Nodeinfra.evmAddress) {
-                for (uint256 j = 0; j < operatorVaultPairs[i].vaults.length; j++) {
-                    operators.operator2Nodeinfra.vaults.push(operatorVaultPairs[i].vaults[j]);
-                }
+                _cacheOperatorVaults(operators.operator2Nodeinfra, operatorVaultPairs[i]);
             } else if (operatorVaultPairs[i].operator == operators.operator3CP0XStakrspace.evmAddress) {
-                for (uint256 j = 0; j < operatorVaultPairs[i].vaults.length; j++) {
-                    operators.operator3CP0XStakrspace.vaults.push(operatorVaultPairs[i].vaults[j]);
-                }
+                _cacheOperatorVaults(operators.operator3CP0XStakrspace, operatorVaultPairs[i]);
             } else if (operatorVaultPairs[i].operator == operators.operator4HashkeyCloud.evmAddress) {
-                for (uint256 j = 0; j < operatorVaultPairs[i].vaults.length; j++) {
-                    operators.operator4HashkeyCloud.vaults.push(operatorVaultPairs[i].vaults[j]);
-                }
+                _cacheOperatorVaults(operators.operator4HashkeyCloud, operatorVaultPairs[i]);
             } else if (operatorVaultPairs[i].operator == operators.operator5Alchemy.evmAddress) {
-                for (uint256 j = 0; j < operatorVaultPairs[i].vaults.length; j++) {
-                    operators.operator5Alchemy.vaults.push(operatorVaultPairs[i].vaults[j]);
-                }
+                _cacheOperatorVaults(operators.operator5Alchemy, operatorVaultPairs[i]);
             } else if (operatorVaultPairs[i].operator == operators.operator6Opslayer.evmAddress) {
-                for (uint256 j = 0; j < operatorVaultPairs[i].vaults.length; j++) {
-                    operators.operator6Opslayer.vaults.push(operatorVaultPairs[i].vaults[j]);
-                }
+                _cacheOperatorVaults(operators.operator6Opslayer, operatorVaultPairs[i]);
             } else if (operatorVaultPairs[i].operator == operators.operator7TanssiFoundation.evmAddress) {
-                for (uint256 j = 0; j < operatorVaultPairs[i].vaults.length; j++) {
-                    operators.operator7TanssiFoundation.vaults.push(operatorVaultPairs[i].vaults[j]);
-                }
+                _cacheOperatorVaults(operators.operator7TanssiFoundation, operatorVaultPairs[i]);
             }
+        }
+    }
+
+    function _cacheOperatorVaults(
+        HelperConfig.OperatorData storage operator,
+        Middleware.OperatorVaultPair memory operatorVaultPair
+    ) private {
+        for (uint256 i; i < operatorVaultPair.vaults.length; i++) {
+            operator.vaults.push(operatorVaultPair.vaults[i]);
         }
     }
 
@@ -840,16 +834,24 @@ contract FullTest is Test {
         (uint48 eraIndex, uint32 totalPoints) = _prepareRewardsDistributionForCase(1);
 
         assertGe(totalPoints, 0);
-        // assertEq(
-        //     totalPoints,
-        //     proofAndPointsByOperator.operator1PierTwo.points + proofAndPointsByOperator.operator2Nodeinfra.points
-        // ); // TODO: Update rewards data
+        assertEq(
+            totalPoints,
+            proofAndPointsByOperator.operator1PierTwo.points + proofAndPointsByOperator.operator2Nodeinfra.points
+                + proofAndPointsByOperator.operator3CP0XStakrspace.points
+                + proofAndPointsByOperator.operator4HashkeyCloud.points
+        );
 
         _claimAndCheckRewardsForOperator(
             eraIndex, operators.operator1PierTwo, proofAndPointsByOperator.operator1PierTwo, totalPoints
         );
         _claimAndCheckRewardsForOperator(
             eraIndex, operators.operator2Nodeinfra, proofAndPointsByOperator.operator2Nodeinfra, totalPoints
+        );
+        _claimAndCheckRewardsForOperator(
+            eraIndex, operators.operator3CP0XStakrspace, proofAndPointsByOperator.operator3CP0XStakrspace, totalPoints
+        );
+        _claimAndCheckRewardsForOperator(
+            eraIndex, operators.operator4HashkeyCloud, proofAndPointsByOperator.operator4HashkeyCloud, totalPoints
         );
     }
 
@@ -858,25 +860,10 @@ contract FullTest is Test {
         (uint48 eraIndex, uint32 totalPoints) = _prepareRewardsDistributionForCase(2);
 
         assertGe(totalPoints, 0);
-        // assertEq(totalPoints, proofAndPointsByOperator.operator3CP0XStakrspace.points); // TODO: Update rewards data
-        _claimAndCheckRewardsForOperator(
-            eraIndex, operators.operator3CP0XStakrspace, proofAndPointsByOperator.operator3CP0XStakrspace, totalPoints
-        );
-    }
-
-    // Case 3 has rewards for pier two, alchemy and opslayer. Defined in test/fork/mainnet/rewards_data.json
-    function testOperatorRewardsDistributionCase3() public {
-        (uint48 eraIndex, uint32 totalPoints) = _prepareRewardsDistributionForCase(3);
-
-        assertGe(totalPoints, 0);
-        // assertEq(
-        //     totalPoints,
-        //     proofAndPointsByOperator.operator1PierTwo.points + proofAndPointsByOperator.operator5Alchemy.points
-        //         + proofAndPointsByOperator.operator6Opslayer.points
-        // ); // TODO: Update rewards data
-
-        _claimAndCheckRewardsForOperator(
-            eraIndex, operators.operator1PierTwo, proofAndPointsByOperator.operator1PierTwo, totalPoints
+        assertEq(
+            totalPoints,
+            proofAndPointsByOperator.operator5Alchemy.points + proofAndPointsByOperator.operator6Opslayer.points
+                + proofAndPointsByOperator.operator7TanssiFoundation.points
         );
         _claimAndCheckRewardsForOperator(
             eraIndex, operators.operator5Alchemy, proofAndPointsByOperator.operator5Alchemy, totalPoints
@@ -884,20 +871,27 @@ contract FullTest is Test {
         _claimAndCheckRewardsForOperator(
             eraIndex, operators.operator6Opslayer, proofAndPointsByOperator.operator6Opslayer, totalPoints
         );
+        _claimAndCheckRewardsForOperator(
+            eraIndex,
+            operators.operator7TanssiFoundation,
+            proofAndPointsByOperator.operator7TanssiFoundation,
+            totalPoints
+        );
     }
 
     // Case 4 has rewards for all operators. Defined in test/fork/mainnet/rewards_data.json
-    function testOperatorRewardsDistributionCase4() public {
-        (uint48 eraIndex, uint32 totalPoints) = _prepareRewardsDistributionForCase(4);
+    function testOperatorRewardsDistributionCase3() public {
+        (uint48 eraIndex, uint32 totalPoints) = _prepareRewardsDistributionForCase(3);
 
         assertGe(totalPoints, 0);
-        // assertEq(
-        //     totalPoints,
-        //     proofAndPointsByOperator.operator1PierTwo.points + proofAndPointsByOperator.operator2Nodeinfra.points
-        //         + proofAndPointsByOperator.operator3CP0XStakrspace.points
-        //         + proofAndPointsByOperator.operator4HashkeyCloud.points + proofAndPointsByOperator.operator5Alchemy.points
-        //         + proofAndPointsByOperator.operator6Opslayer.points
-        // ); // TODO: Update rewards data
+        assertEq(
+            totalPoints,
+            proofAndPointsByOperator.operator1PierTwo.points + proofAndPointsByOperator.operator2Nodeinfra.points
+                + proofAndPointsByOperator.operator3CP0XStakrspace.points
+                + proofAndPointsByOperator.operator4HashkeyCloud.points + proofAndPointsByOperator.operator5Alchemy.points
+                + proofAndPointsByOperator.operator6Opslayer.points
+                + proofAndPointsByOperator.operator7TanssiFoundation.points
+        );
 
         _claimAndCheckRewardsForOperator(
             eraIndex, operators.operator1PierTwo, proofAndPointsByOperator.operator1PierTwo, totalPoints
@@ -917,6 +911,12 @@ contract FullTest is Test {
         _claimAndCheckRewardsForOperator(
             eraIndex, operators.operator6Opslayer, proofAndPointsByOperator.operator6Opslayer, totalPoints
         );
+        _claimAndCheckRewardsForStaker(
+            operators.operator7TanssiFoundation,
+            proofAndPointsByOperator.operator7TanssiFoundation,
+            eraIndex,
+            totalPoints
+        );
     }
 
     function testStakerRewardsDistributionCase1() public {
@@ -928,32 +928,37 @@ contract FullTest is Test {
         _claimAndCheckRewardsForStaker(
             operators.operator2Nodeinfra, proofAndPointsByOperator.operator2Nodeinfra, eraIndex, totalPoints
         );
+        _claimAndCheckRewardsForStaker(
+            operators.operator3CP0XStakrspace, proofAndPointsByOperator.operator3CP0XStakrspace, eraIndex, totalPoints
+        );
+        _claimAndCheckRewardsForStaker(
+            operators.operator4HashkeyCloud, proofAndPointsByOperator.operator4HashkeyCloud, eraIndex, totalPoints
+        );
     }
 
     function testStakerRewardsDistributionCase2() public {
         (uint48 eraIndex, uint32 totalPoints) = _prepareRewardsDistributionForCase(2);
 
+        console2.log("eraIndex", eraIndex);
         _claimAndCheckRewardsForStaker(
-            operators.operator3CP0XStakrspace, proofAndPointsByOperator.operator3CP0XStakrspace, eraIndex, totalPoints
+            operators.operator5Alchemy, proofAndPointsByOperator.operator5Alchemy, eraIndex, totalPoints
         );
+        console2.log("Claimed alchemy");
+        _claimAndCheckRewardsForStaker(
+            operators.operator6Opslayer, proofAndPointsByOperator.operator6Opslayer, eraIndex, totalPoints
+        );
+        console2.log("Claimed opslayer");
+        _claimAndCheckRewardsForStaker(
+            operators.operator7TanssiFoundation,
+            proofAndPointsByOperator.operator7TanssiFoundation,
+            eraIndex,
+            totalPoints
+        );
+        console2.log("Claimed tanssi");
     }
 
     function testStakerRewardsDistributionCase3() public {
         (uint48 eraIndex, uint32 totalPoints) = _prepareRewardsDistributionForCase(3);
-
-        _claimAndCheckRewardsForStaker(
-            operators.operator1PierTwo, proofAndPointsByOperator.operator1PierTwo, eraIndex, totalPoints
-        );
-        _claimAndCheckRewardsForStaker(
-            operators.operator5Alchemy, proofAndPointsByOperator.operator5Alchemy, eraIndex, totalPoints
-        );
-        _claimAndCheckRewardsForStaker(
-            operators.operator6Opslayer, proofAndPointsByOperator.operator6Opslayer, eraIndex, totalPoints
-        );
-    }
-
-    function testStakerRewardsDistributionCase4() public {
-        (uint48 eraIndex, uint32 totalPoints) = _prepareRewardsDistributionForCase(4);
 
         _claimAndCheckRewardsForStaker(
             operators.operator1PierTwo, proofAndPointsByOperator.operator1PierTwo, eraIndex, totalPoints
@@ -972,6 +977,12 @@ contract FullTest is Test {
         );
         _claimAndCheckRewardsForStaker(
             operators.operator6Opslayer, proofAndPointsByOperator.operator6Opslayer, eraIndex, totalPoints
+        );
+        _claimAndCheckRewardsForStaker(
+            operators.operator7TanssiFoundation,
+            proofAndPointsByOperator.operator7TanssiFoundation,
+            eraIndex,
+            totalPoints
         );
     }
 
