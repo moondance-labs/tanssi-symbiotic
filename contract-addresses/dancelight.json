@@ -3,7 +3,7 @@
   "tanssi": "0xdad051447c4452e15b35b7f831cee8deb890f1a4",
   "rewardsToken": "0x43609791bc5f1b42df1747cddabab77af65a5fe3",
   "beefy": "0xe8dd26d2ec505ac7e51740da84ba2ce9f01a2431",
-  "forwarder": "0x0000000000000000000000000000000000000000",
+  "forwarder": "0x8e4Bb1864B15f4190F8e6bf0E4F33Ec807C61aa0",
   "gateway": "0x503b4d684074888eb7fe82d4c5ab25e57de0e85c",
   "gatewayImplementation": "0xb05b936fcbd7e2176e935cd93ea4fcc690e66ebd",
   "middleware": "0xdf94aaf9684b676db9664a4e9790cfbbbe64ef85",
