@@ -636,7 +636,7 @@ contract FullTest is Test {
         assertEq(tanssiVaultBalanceBefore - expectedTanssiSlash, tanssiVaultBalanceAfter);
     }
 
-    // Case 1 has rewards for pier two, nodeinfra. Defined in test/fork/mainnet/rewards_data.json
+    // Case 1 has rewards for PierTwo, Nodeinfra, CP0X, HashkeyCloud. Defined in test/fork/mainnet/rewards_data.json
     function testOperatorRewardsDistributionCase1() public {
         (uint48 eraIndex, uint32 totalPoints) = _prepareRewardsDistributionForCase(1);
 
@@ -662,7 +662,7 @@ contract FullTest is Test {
         );
     }
 
-    // Case 2 has rewards for cp0x stakrspace. Defined in test/fork/mainnet/rewards_data.json
+    // Case 2 has rewards for Alchemy, Opslayer, TanssiFoundation. Defined in test/fork/mainnet/rewards_data.json
     function testOperatorRewardsDistributionCase2() public {
         (uint48 eraIndex, uint32 totalPoints) = _prepareRewardsDistributionForCase(2);
 
@@ -686,7 +686,7 @@ contract FullTest is Test {
         );
     }
 
-    // Case 3 has rewards for all operators. Defined in test/fork/mainnet/rewards_data.json
+    // Case 3 has rewards for all 7 operators. Defined in test/fork/mainnet/rewards_data.json
     function testOperatorRewardsDistributionCase3() public {
         (uint48 eraIndex, uint32 totalPoints) = _prepareRewardsDistributionForCase(3);
 
