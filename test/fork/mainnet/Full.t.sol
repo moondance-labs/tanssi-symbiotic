@@ -82,49 +82,22 @@ contract FullTest is Test {
     using Subnetwork for bytes32;
     using Math for uint256;
 
-    uint48 public constant VAULT_EPOCH_DURATION = 12 days;
     uint48 public constant NETWORK_EPOCH_DURATION = 1 days;
     uint48 public constant SLASHING_WINDOW = 2 days;
     uint48 public constant VETO_DURATION = 3 days;
-    uint256 public constant SLASH_AMOUNT = 30 ether;
-    uint256 public constant OPERATOR_STAKE = 90 ether;
-    uint256 public constant DEFAULT_WITHDRAW_AMOUNT = 30 ether;
-    uint256 public constant OPERATOR_INITIAL_BALANCE = 1000 ether;
-    uint256 public constant MIN_SLASHING_WINDOW = 1 days;
     uint256 public constant MIN_DEPOSIT = 10 ether; // 10 ETH
     uint256 public constant TOKEN_REWARDS_PER_ERA_INDEX = 10_000 * 10 ** 12; // Tanssi has 12 decimals.
 
     uint256 public constant OPERATOR_SHARE = 2000; // 20%
     uint256 public constant MAX_PERCENTAGE = 10_000;
-    uint256 public constant OPERATOR_SHARE_RE7_LABS = 10 ether;
-    uint256 public constant TOTAL_SHARES_MEV_RESTAKED = 3;
-    uint256 public constant TOTAL_SHARES_MEV_CAPITAL = 4;
-    uint256 public constant TOTAL_SHARES_HASH_KEY_CLOUD = 2;
-    uint256 public constant TOTAL_SHARES_RENZO_RESTAKED = 2;
-    uint256 public constant TOTAL_SHARES_RE7_LABS = 1;
-    uint256 public constant TOTAL_SHARES_RE7_LABS_RESTAKING = 3;
-    uint256 public constant TOTAL_SHARES_CP0X_LRT = 3;
-    uint256 public constant TOTAL_SHARES_GAUNTLET_RESTAKED_SWETH = 4;
-    uint256 public constant TOTAL_SHARES_GAUNTLET_RESTAKED_WSTETH = 3;
-    uint256 public constant TOTAL_SHARES_GAUNTLET_RESTAKED_RETH = 6;
-    uint256 public constant TOTAL_SHARES_GAUNTLET_RESTAKED_WBETH = 6;
-
-    uint128 public constant MAX_NETWORK_LIMIT = 1000 ether;
-    uint128 public constant OPERATOR_NETWORK_LIMIT = 500 ether;
-    uint256 public constant TOTAL_NETWORK_SHARES = 2;
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
     uint256 public constant SLASHING_FRACTION = PARTS_PER_BILLION / 20; // 5%
-    uint8 public constant ORACLE_DECIMALS = 2;
-    int256 public constant ORACLE_CONVERSION_TOKEN = 2000;
+    uint256 public constant MAX_ADMIN_FEE_BPS = 100; // 1%
 
-    uint256 TANSSI_VAULT_DEPOSIT_AMOUNT = 500_000 * 10 ** 12; // 500k TANSSI
-    uint8 public constant TANSSI_ORACLE_DECIMALS = 8;
-    int256 public constant TANSSI_ORACLE_CONVERSION_TOKEN = int256(1 * 10 ** TANSSI_ORACLE_DECIMALS); // 1 USD
-
-    uint256 public constant MAX_CHAINLINK_PROCESSABLE_BYTES = 2000;
     uint256 public constant MAX_CHAINLINK_CHECKUPKEEP_GAS = 10 ** 7; // 10M gas
     uint256 public constant MAX_CHAINLINK_PERFORMUPKEEP_GAS = 5 * 10 ** 6; // 5M gas
 
+    uint256 public constant TOTAL_OPERATORS = 7;
     uint256 public constant PIER_TWO_VAULTS = 3;
     uint256 public constant NODE_INFRA = 3;
     uint256 public constant CP0X_STAKRSPACE_VAULTS = 1;
@@ -133,19 +106,9 @@ contract FullTest is Test {
     uint256 public constant OPSLAYER_VAULTS = 1;
     uint256 public constant TANSSI_FOUNDATION_VAULTS = 1;
 
-    uint256 public constant TOTAL_OPERATORS = 7;
-
-    uint256 public constant MAX_ADMIN_FEE_BPS = 100; // 1%
     address public constant VAULT_MANAGER_COMMON = 0x9437B2a8cF3b69D782a61f9814baAbc172f72003;
-
-    address public constant VAULT_MANAGER_MEVRESTAKEDETH = 0xA1E38210B06A05882a7e7Bfe167Cd67F07FA234A;
-    address public constant VAULT_MANAGER_MEVCAPITALETH = 0x8989e3f949df80e8eFcbf3372F082699b93E5C09;
-    address public constant VAULT_MANAGER_HASHKEYCLOUDETH = 0x323B1370eC7D17D0c70b2CbebE052b9ed0d8A289;
-    address public constant VAULT_MANAGER_RENZORESTAKEDETH = 0x6e5CaD73D00Bc8340f38afb61Fc5E34f7193F599;
-    address public constant VAULT_MANAGER_RE7LABS = 0xE86399fE6d7007FdEcb08A2ee1434Ee677a04433;
     address public constant VAULT_MANAGER_CP0XLRTETH = 0xD1f59ba974E828dF68cB2592C16b967B637cB4e4;
     address public constant VAULT_MANAGER_GAUNTLET = 0x059Ae3F8a1EaDDAAb34D0A74E8Eb752c848062d1;
-    address public constant VAULT_MANAGER_ETHERFIWSTETH = 0x47482dA197719f2CE0BAeBB7F72D1d7C1D6cc8bD;
     address public constant VAULT_MANAGER_RESTAKEDLSETHVAULT = 0x8989e3f949df80e8eFcbf3372F082699b93E5C09;
     address public constant VAULT_MANAGER_OPSLAYER = 0xf409021Fa7E769837162346CFA8d1eF4DAa77585;
     address public constant VAULT_MANAGER_TANSSI = 0x43347365ca92539a894437fB59C78d4e6dF123a3;
@@ -176,57 +139,7 @@ contract FullTest is Test {
     HelperConfig.VaultsConfigA public vaultsAddressesDeployedA;
     HelperConfig.VaultsConfigB public vaultsAddressesDeployedB;
 
-    TotalSharesA public totalSharesA;
-    TotalSharesB public totalSharesB;
-
-    NetworkLimitsA public networkLimitsA;
-    NetworkLimitsB public networkLimitsB;
-
     mapping(address vault => address stakerRewards) vaultToStakerRewards;
-
-    struct TotalSharesA {
-        uint256 mevRestakedETH;
-        uint256 mevCapitalETH;
-        uint256 hashKeyCloudETH;
-        uint256 renzoRestakedETH;
-        uint256 re7LabsETH;
-        uint256 re7LabsRestakingETH;
-        uint256 cp0xLrtETH;
-        uint256 etherfiwstETH;
-        uint256 restakedLsETHVault;
-        uint256 opslayer;
-    }
-
-    struct TotalSharesB {
-        uint256 gauntletRestakedWstETH;
-        uint256 gauntletRestakedSwETH;
-        uint256 gauntletRestakedRETH;
-        uint256 gauntletRestakedWBETH;
-        uint256 gauntletRestakedcBETH;
-        uint256 tanssi;
-    }
-
-    struct NetworkLimitsA {
-        uint256 mevRestakedETH;
-        uint256 mevCapitalETH;
-        uint256 hashKeyCloudETH;
-        uint256 renzoRestakedETH;
-        uint256 re7LabsETH;
-        uint256 re7LabsRestakingETH;
-        uint256 cp0xLrtETH;
-        uint256 etherfiwstETH;
-        uint256 restakedLsETHVault;
-        uint256 opslayer;
-    }
-
-    struct NetworkLimitsB {
-        uint256 gauntletRestakedWstETH;
-        uint256 gauntletRestakedSwETH;
-        uint256 gauntletRestakedRETH;
-        uint256 gauntletRestakedWBETH;
-        uint256 gauntletRestakedcBETH;
-        uint256 tanssi;
-    }
 
     struct ProofAndPoints {
         bytes32[] proof;
@@ -243,6 +156,10 @@ contract FullTest is Test {
         ProofAndPoints operator7TanssiFoundation;
     }
 
+    // ************************************************************************************************
+    // *                                        SETUP
+    // ************************************************************************************************
+
     function setUp() public {
         string memory project_root = vm.projectRoot();
         string memory path = string.concat(project_root, "/test/fork/mainnet/rewards_data.json");
@@ -251,9 +168,9 @@ contract FullTest is Test {
         _getBaseInfrastructure();
         _cacheAllVaultToStakerRewards();
         _cacheAllOperatorsVaults();
-        _saveTotalShares();
 
-        vm.warp(vm.getBlockTimestamp() + 14 days + 1); // In 14 days there should be a new vault epoch in all vaults
+        // Necessary to have predictable powers per vault, in 14 days there should be a new vault epoch in all vaults
+        vm.warp(vm.getBlockTimestamp() + 14 days + 1);
 
         _saveAllOperatorPowers();
     }
@@ -297,6 +214,12 @@ contract FullTest is Test {
         _cacheVaultToStakerRewards(vaultsAddressesDeployedB.tanssi);
     }
 
+    function _cacheVaultToStakerRewards(
+        HelperConfig.VaultData memory vaultData
+    ) private {
+        vaultToStakerRewards[vaultData.vault] = vaultData.stakerRewards;
+    }
+
     function _cacheAllOperatorsVaults() private {
         uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.OperatorVaultPair[] memory operatorVaultPairs = reader.getOperatorVaultPairs(currentEpoch);
@@ -328,50 +251,10 @@ contract FullTest is Test {
         }
     }
 
-    function _cacheVaultToStakerRewards(
-        HelperConfig.VaultData memory vaultData
-    ) private {
-        vaultToStakerRewards[vaultData.vault] = vaultData.stakerRewards;
-    }
-
     function _depositToVault(IVault vault, address operator, uint256 amount, IERC20 collateral) public {
         deal(address(collateral), operator, amount);
         collateral.approve(address(vault), amount);
         vault.deposit(operator, amount);
-    }
-
-    function _saveTotalShares() private {
-        totalSharesA.mevRestakedETH = _getTotalShares(vaultsAddressesDeployedA.mevRestakedETH.delegator);
-        totalSharesA.mevCapitalETH = _getTotalShares(vaultsAddressesDeployedA.mevCapitalETH.delegator);
-        totalSharesA.hashKeyCloudETH = _getTotalShares(vaultsAddressesDeployedA.hashKeyCloudETH.delegator);
-        totalSharesA.renzoRestakedETH = _getTotalShares(vaultsAddressesDeployedA.renzoRestakedETH.delegator);
-        totalSharesA.re7LabsETH = _getTotalShares(vaultsAddressesDeployedA.re7LabsETH.delegator);
-        totalSharesA.re7LabsRestakingETH = _getTotalShares(vaultsAddressesDeployedA.re7LabsRestakingETH.delegator);
-        totalSharesA.cp0xLrtETH = _getTotalShares(vaultsAddressesDeployedA.cp0xLrtETH.delegator);
-        totalSharesA.etherfiwstETH = _getTotalShares(vaultsAddressesDeployedA.etherfiwstETH.delegator);
-        totalSharesA.restakedLsETHVault = _getTotalShares(vaultsAddressesDeployedA.restakedLsETHVault.delegator);
-        totalSharesA.opslayer = _getTotalShares(vaultsAddressesDeployedA.opslayer.delegator);
-
-        totalSharesB.gauntletRestakedcBETH = _getTotalShares(vaultsAddressesDeployedB.gauntletRestakedcBETH.delegator);
-        totalSharesB.gauntletRestakedRETH = _getTotalShares(vaultsAddressesDeployedB.gauntletRestakedRETH.delegator);
-        totalSharesB.gauntletRestakedSwETH = _getTotalShares(vaultsAddressesDeployedB.gauntletRestakedSwETH.delegator);
-        totalSharesB.gauntletRestakedWBETH = _getTotalShares(vaultsAddressesDeployedB.gauntletRestakedWBETH.delegator);
-        totalSharesB.gauntletRestakedWstETH = _getTotalShares(vaultsAddressesDeployedB.gauntletRestakedWstETH.delegator);
-        totalSharesB.tanssi = _getTotalShares(vaultsAddressesDeployedB.tanssi.delegator);
-    }
-
-    function _getTotalShares(
-        address delegator
-    ) private view returns (uint256 totalShares) {
-        totalShares = INetworkRestakeDelegator(delegator).totalOperatorNetworkShares(tanssi.subnetwork(0));
-    }
-
-    function _getMaximumAvailableStakeForVault(
-        address delegator,
-        uint256 vaultActiveStake
-    ) private view returns (uint256 maximumAvailableStake) {
-        maximumAvailableStake =
-            Math.min(INetworkRestakeDelegator(delegator).networkLimit(tanssi.subnetwork(0)), vaultActiveStake);
     }
 
     function _saveAllOperatorPowers() private {
@@ -395,22 +278,6 @@ contract FullTest is Test {
                 ++i;
             }
         }
-    }
-
-    function _checkOperatorVaultPairs(
-        Middleware.OperatorVaultPair[] memory operatorVaultPairs,
-        HelperConfig.OperatorData memory operator,
-        uint256 totalVaults
-    ) private pure {
-        bool found;
-        for (uint256 i = 0; i < operatorVaultPairs.length; i++) {
-            if (operatorVaultPairs[i].operator == operator.evmAddress) {
-                found = true;
-                assertGe(operatorVaultPairs[i].vaults.length, totalVaults);
-                assertGe(operator.vaults.length, totalVaults);
-            }
-        }
-        assertEq(found, true, "Operator not found");
     }
 
     // ************************************************************************************************
@@ -464,11 +331,6 @@ contract FullTest is Test {
         Middleware.OperatorVaultPair[] memory operatorVaultPairs = reader.getOperatorVaultPairs(currentEpoch);
 
         assertGe(operatorVaultPairs.length, TOTAL_OPERATORS);
-        console2.log("Operator vault pairs length", operatorVaultPairs.length);
-        console2.log("Total operators", TOTAL_OPERATORS);
-        for (uint256 i; i < operatorVaultPairs.length; i++) {
-            console2.log("Operator is registered:", operatorVaultPairs[i].operator);
-        }
 
         _checkOperatorVaultPairs(operatorVaultPairs, operators.operator1PierTwo, PIER_TWO_VAULTS);
         _checkOperatorVaultPairs(operatorVaultPairs, operators.operator3CP0XStakrspace, CP0X_STAKRSPACE_VAULTS);
@@ -558,61 +420,6 @@ contract FullTest is Test {
         _testWithdrawFromVaultByOperator(
             vaultsAddressesDeployedB.tanssi, operators.operator7TanssiFoundation, VAULT_MANAGER_TANSSI
         );
-    }
-
-    function _testWithdrawFromVaultByOperator(
-        HelperConfig.VaultData memory vaultData,
-        HelperConfig.OperatorData memory operator,
-        address whitelistSetter
-    ) private {
-        IVault vault = IVault(vaultData.vault);
-        address operatorAddress = operator.evmAddress;
-        uint256 activeBalanceOf = vault.activeBalanceOf(operatorAddress);
-
-        if (activeBalanceOf == 0) {
-            if (vault.depositWhitelist() && !vault.isDepositorWhitelisted(operatorAddress)) {
-                if (IAccessControl(address(vault)).hasRole(DEPOSIT_WHITELIST_SET_ROLE, whitelistSetter)) {
-                    vm.startPrank(whitelistSetter);
-                    vault.setDepositorWhitelistStatus(operatorAddress, true);
-                } else {
-                    // Fail, needs to be configured in the test
-                    revert(
-                        string(
-                            abi.encodePacked(
-                                "Operator is not whitelisted and cannot whitelist depositor for vault", vaultData.name
-                            )
-                        )
-                    );
-                }
-            }
-
-            vm.startPrank(operatorAddress);
-            _depositToVault(vault, operatorAddress, MIN_DEPOSIT, IERC20(vault.collateral()));
-        }
-
-        vm.warp(vm.getBlockTimestamp() + 7 days + 1);
-        uint256 initialEpoch = vault.currentEpoch();
-
-        activeBalanceOf = vault.activeBalanceOf(operatorAddress);
-        uint256 withdrawAmount = activeBalanceOf / 10; // Withdraw amount = 10% of balance
-
-        // Get current operator balance of the vault collateral
-        IERC20 collateral = IERC20(vault.collateral());
-        uint256 initialBalance = collateral.balanceOf(operatorAddress);
-
-        vm.startPrank(operatorAddress);
-        vault.withdraw(operatorAddress, withdrawAmount);
-
-        // Warp the epoch duration * 2
-        vm.warp(vm.getBlockTimestamp() + vault.epochDuration() * 2 + 1);
-
-        // Claim for the right epoch (1 after withdraw started)
-        vault.claim(operatorAddress, initialEpoch + 1);
-
-        // Check new balance, assert difference equals withdraw amount
-        uint256 finalBalance = collateral.balanceOf(operatorAddress);
-        assertEq(finalBalance - initialBalance, withdrawAmount);
-        vm.stopPrank();
     }
 
     function testPauseAndUnregisterOperator() public {
@@ -879,7 +686,7 @@ contract FullTest is Test {
         );
     }
 
-    // Case 4 has rewards for all operators. Defined in test/fork/mainnet/rewards_data.json
+    // Case 3 has rewards for all operators. Defined in test/fork/mainnet/rewards_data.json
     function testOperatorRewardsDistributionCase3() public {
         (uint48 eraIndex, uint32 totalPoints) = _prepareRewardsDistributionForCase(3);
 
@@ -984,6 +791,81 @@ contract FullTest is Test {
             eraIndex,
             totalPoints
         );
+    }
+
+    // ************************************************************************************************
+    // *                                        HELPER FUNCTIONS
+    // ************************************************************************************************
+
+    function _testWithdrawFromVaultByOperator(
+        HelperConfig.VaultData memory vaultData,
+        HelperConfig.OperatorData memory operator,
+        address whitelistSetter
+    ) private {
+        IVault vault = IVault(vaultData.vault);
+        address operatorAddress = operator.evmAddress;
+        uint256 activeBalanceOf = vault.activeBalanceOf(operatorAddress);
+
+        if (activeBalanceOf == 0) {
+            if (vault.depositWhitelist() && !vault.isDepositorWhitelisted(operatorAddress)) {
+                if (IAccessControl(address(vault)).hasRole(DEPOSIT_WHITELIST_SET_ROLE, whitelistSetter)) {
+                    vm.startPrank(whitelistSetter);
+                    vault.setDepositorWhitelistStatus(operatorAddress, true);
+                } else {
+                    // Fail, needs to be configured in the test
+                    revert(
+                        string(
+                            abi.encodePacked(
+                                "Operator is not whitelisted and cannot whitelist depositor for vault", vaultData.name
+                            )
+                        )
+                    );
+                }
+            }
+
+            vm.startPrank(operatorAddress);
+            _depositToVault(vault, operatorAddress, MIN_DEPOSIT, IERC20(vault.collateral()));
+        }
+
+        vm.warp(vm.getBlockTimestamp() + 7 days + 1);
+        uint256 initialEpoch = vault.currentEpoch();
+
+        activeBalanceOf = vault.activeBalanceOf(operatorAddress);
+        uint256 withdrawAmount = activeBalanceOf / 10; // Withdraw amount = 10% of balance
+
+        // Get current operator balance of the vault collateral
+        IERC20 collateral = IERC20(vault.collateral());
+        uint256 initialBalance = collateral.balanceOf(operatorAddress);
+
+        vm.startPrank(operatorAddress);
+        vault.withdraw(operatorAddress, withdrawAmount);
+
+        // Warp the epoch duration * 2
+        vm.warp(vm.getBlockTimestamp() + vault.epochDuration() * 2 + 1);
+
+        // Claim for the right epoch (1 after withdraw started)
+        vault.claim(operatorAddress, initialEpoch + 1);
+
+        // Check new balance, assert difference equals withdraw amount
+        uint256 finalBalance = collateral.balanceOf(operatorAddress);
+        assertEq(finalBalance - initialBalance, withdrawAmount);
+        vm.stopPrank();
+    }
+
+    function _checkOperatorVaultPairs(
+        Middleware.OperatorVaultPair[] memory operatorVaultPairs,
+        HelperConfig.OperatorData memory operator,
+        uint256 totalVaults
+    ) private pure {
+        bool found;
+        for (uint256 i = 0; i < operatorVaultPairs.length; i++) {
+            if (operatorVaultPairs[i].operator == operator.evmAddress) {
+                found = true;
+                assertGe(operatorVaultPairs[i].vaults.length, totalVaults);
+                assertGe(operator.vaults.length, totalVaults);
+            }
+        }
+        assertEq(found, true, "Operator not found");
     }
 
     function _claimAndCheckRewardsForOperator(
