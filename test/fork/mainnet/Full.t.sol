@@ -246,7 +246,6 @@ contract FullTest is Test {
     function testUpdateAndUnpause() public {
         uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validators = reader.getValidatorSet(currentEpoch);
-        console2.log("Validators length", validators.length);
         bytes32 testOperatorKey = validators[0].key;
         address testOperatorAddress = reader.operatorByKey(abi.encode(testOperatorKey));
 
@@ -437,10 +436,6 @@ contract FullTest is Test {
             abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
         assertEq(epoch, currentEpoch);
         assertEq(command, middleware.CACHE_DATA_COMMAND());
-        for (uint256 i = 0; i < validatorsData.length; i++) {
-            console2.log("Validator power:", validatorsData[i].power);
-            console2.logBytes32(validatorsData[i].key);
-        }
         assertGe(validatorsData.length, TOTAL_OPERATORS);
 
         vm.prank(forwarder);
@@ -497,12 +492,14 @@ contract FullTest is Test {
         assertEq(middleware.getGateway(), address(gateway));
     }
 
-    function testSlashingAndVetoingSlashForPierTwoResultInNoChange() public {
+    function testSlashingAndVetoingSlashResultInNoChange() public {
         uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validators = reader.getValidatorSet(currentEpoch);
         uint256 operatorPowerBefore;
+        bytes32 testOperatorKey = validators[0].key;
+        address testOperatorAddress = reader.operatorByKey(abi.encode(testOperatorKey));
         for (uint256 i = 0; i < validators.length; i++) {
-            if (validators[i].key == operators.operator1PierTwo.operatorKey) {
+            if (validators[i].key == testOperatorKey) {
                 operatorPowerBefore = validators[i].power;
                 break;
             }
@@ -510,10 +507,10 @@ contract FullTest is Test {
         assertGe(operatorPowerBefore, 0);
 
         vm.prank(address(gateway));
-        middleware.slash(currentEpoch, operators.operator1PierTwo.operatorKey, SLASHING_FRACTION);
+        middleware.slash(currentEpoch, testOperatorKey, SLASHING_FRACTION);
 
         // We need to veto the slashes for all the vaults of the operator
-        address[] memory operatorVaults = operatorToVaults[operators.operator1PierTwo.evmAddress];
+        address[] memory operatorVaults = operatorToVaults[testOperatorAddress];
         for (uint256 i = 0; i < operatorVaults.length; i++) {
             IVault vault = IVault(operatorVaults[i]);
             IVetoSlasher slasher = IVetoSlasher(vault.slasher());
@@ -532,7 +529,7 @@ contract FullTest is Test {
 
         uint256 operatorPowerAfter;
         for (uint256 i = 0; i < validators.length; i++) {
-            if (validators[i].key == operators.operator1PierTwo.operatorKey) {
+            if (validators[i].key == testOperatorKey) {
                 operatorPowerAfter = validators[i].power;
                 break;
             }
@@ -697,22 +694,18 @@ contract FullTest is Test {
     function testStakerRewardsDistributionCase2() public {
         (uint48 eraIndex, uint32 totalPoints) = _prepareRewardsDistributionForCase(2);
 
-        console2.log("eraIndex", eraIndex);
         _claimAndCheckRewardsForStaker(
             operators.operator5Alchemy, proofAndPointsByOperator.operator5Alchemy, eraIndex, totalPoints
         );
-        console2.log("Claimed alchemy");
         _claimAndCheckRewardsForStaker(
             operators.operator6Opslayer, proofAndPointsByOperator.operator6Opslayer, eraIndex, totalPoints
         );
-        console2.log("Claimed opslayer");
         _claimAndCheckRewardsForStaker(
             operators.operator7TanssiFoundation,
             proofAndPointsByOperator.operator7TanssiFoundation,
             eraIndex,
             totalPoints
         );
-        console2.log("Claimed tanssi");
     }
 
     function testStakerRewardsDistributionCase3() public {
