@@ -1699,38 +1699,6 @@ contract RewardsTest is Test {
     }
 
     //**************************************************************************************************
-    //                                      setVault
-    //**************************************************************************************************
-
-    function testSetVault() public {
-        address newVault = makeAddr("newVault");
-        vm.startPrank(address(tanssi));
-        vm.expectEmit(true, false, false, true);
-        emit IODefaultStakerRewards.SetVault(newVault);
-        stakerRewards.setVault(newVault);
-        assertEq(stakerRewards.i_vault(), newVault);
-    }
-
-    function testSetVaultButZeroAddress() public {
-        vm.startPrank(address(tanssi));
-        vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__InvalidAddress.selector);
-        stakerRewards.setVault(address(0));
-    }
-
-    function testSetVaultWithInvalidRole() public {
-        address newVault = makeAddr("newVault");
-        address randomUser = makeAddr("randomUser");
-        bytes32 defaultAdminRole = stakerRewards.DEFAULT_ADMIN_ROLE();
-        vm.startPrank(randomUser);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, randomUser, defaultAdminRole
-            )
-        );
-        stakerRewards.setVault(newVault);
-    }
-
-    //**************************************************************************************************
     //                                      claimAdminFee
     //**************************************************************************************************
 

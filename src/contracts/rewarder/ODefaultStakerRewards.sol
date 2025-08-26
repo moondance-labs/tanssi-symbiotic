@@ -377,21 +377,6 @@ contract ODefaultStakerRewards is
     }
 
     /**
-     * @dev TODO: This function should be called only once and then should be upgraded to a new implementation without this function.
-     */
-    function setVault(
-        address vault_
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (vault_ == address(0)) {
-            revert ODefaultStakerRewards__InvalidAddress();
-        }
-
-        i_vault = vault_;
-
-        emit SetVault(vault_);
-    }
-
-    /**
      * @inheritdoc IODefaultStakerRewards
      */
     function adminFee() external view returns (uint256) {
