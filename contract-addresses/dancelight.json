@@ -46,7 +46,7 @@
       "slasher": "0x583f9a77af8f4d7aee735a2f7645bbd7a012af1b",
       "collateral": "0x3e3fe7dbc6b4c189e7128855dd526361c49b40af",
       "stakerRewards": "0x54c3fddfafa33e7a0ece37c61e0057bff3a9ef96",
-      "stakerRewardsImplementation": "0xb282fbc3ee111deb39e5adccd149c775c16d3a51"
+      "stakerRewardsImplementation": "0xA85089cCc9dc449bCE089628aD2752C82c6741da"
     },
     {
       "name": "Tanssi",
@@ -55,7 +55,7 @@
       "slasher": "0xbeA63923197a6c79691F9a65Ca7E79C2a854CF5B",
       "collateral": "0x43609791BC5F1B42DF1747cddabab77af65a5fE3",
       "stakerRewards": "0x000c527D9263345B91F946e2579e76d4Ded0AbDC",
-      "stakerRewardsImplementation": "0xb282fbc3ee111deb39e5adccd149c775c16d3a51"
+      "stakerRewardsImplementation": "0xA85089cCc9dc449bCE089628aD2752C82c6741da"
     }
   ]
 }
