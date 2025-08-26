@@ -98,8 +98,6 @@ contract HelperConfig is Script {
         string name;
         address evmAddress;
         bytes32 operatorKey;
-        address[] vaults;
-        uint256[] powers; // Indexes match vaults array
     }
 
     struct OperatorConfig {
