@@ -2,32 +2,32 @@
   "1": {
     "epoch": 1,
     "total_points": 100,
-    "root": "0x3cdf7fd4185ca7eee1a6b4b88a5bc4a850eda2b0e1865537807396765582afb8",
+    "root": "0x97788b8b758dcaac5ac388c52c7a7cda138434752dec075c0e444e18af77928f",
     "PierTwo": {
       "proof": [
-        "0x06e5309757d3528fa8ad258d269176126d1ea4d10aee59ef269a60ee70a0ec7e",
-        "0x7271baf8a0cd4bf51d56f7db2e2806208b47593b247ef3b2e94319631df8d316"
-      ],
-      "points": 30
-    },
-    "P2P": {
-      "proof": [
-        "0x8dc2b89dac045d82c5c2d549395da8975b81c5a2edec4231ee2923b81dd6aec7",
-        "0x7271baf8a0cd4bf51d56f7db2e2806208b47593b247ef3b2e94319631df8d316"
+        "0x6b5c380491be2fde94a93148f872b3a5de673e96173c3d55be582279beb698bc",
+        "0x172db5038d279d77018808af280b9a9626de055eb7a90776f4a154032c4eaa96"
       ],
       "points": 30
     },
     "Nodeinfra": {
       "proof": [
-        "0x8215b27bf47d546cad3c99df3d1ea4e5ced357d6410b044038998cb861cc1e8e",
-        "0x6efc537ed3702daa157e10e6b3907d112d63bc677c5568c94d7dafd2195e92ad"
+        "0x92ff68ed98a5c450cedb59a499ca75f2cee47db8e2ecee73d24432b86cec88fe",
+        "0xd24590a0bac3f85bf6d3629389327a46786549c0f8c4a8330c519ef940965975"
       ],
-      "points": 20
+      "points": 25
     },
-    "Blockscape": {
+    "CP0X": {
       "proof": [
-        "0x6f504d1bf750510796894e913e12d67987b1599165d971b4eb874090fb98f4cb",
-        "0x6efc537ed3702daa157e10e6b3907d112d63bc677c5568c94d7dafd2195e92ad"
+        "0x7883bca4cc86d17ec4a2cc3416af47264c4905552e0aff49a817607ae03f304d",
+        "0x172db5038d279d77018808af280b9a9626de055eb7a90776f4a154032c4eaa96"
+      ],
+      "points": 25
+    },
+    "HashkeyCloud": {
+      "proof": [
+        "0x87e06f214f5c6ca4dfd1c9f7959ef62babc1e02b39c39a785babb51536d61997",
+        "0xd24590a0bac3f85bf6d3629389327a46786549c0f8c4a8330c519ef940965975"
       ],
       "points": 20
     }
@@ -35,167 +35,86 @@
   "2": {
     "epoch": 2,
     "total_points": 100,
-    "root": "0x3851bc201ddcc9b648f7432d6fe4cb0f177401d53cd2b9622e7300a3f63bee24",
-    "QuantNode": {
-      "proof": [
-        "0x6b5c380491be2fde94a93148f872b3a5de673e96173c3d55be582279beb698bc",
-        "0x4f2f6c7633c74dd27ea303e1ca05c3ffd6179b93340f1cbf6c54deba74bfb388"
-      ],
-      "points": 25
-    },
-    "NodeMonster": {
-      "proof": [
-        "0xf39134c7dc34a9f9b448197f3f03b031be280e3e0e763bcc6ba86145714a9a12",
-        "0xdf090d541cdd4697285764afe305edfffb00af40e124a69ceb2c92c0b4a51fda"
-      ],
-      "points": 25
-    },
-    "BlocknBones": {
-      "proof": [
-        "0x22d073767f8826252b41ba86f9f74d6262cd368345be3d0700b951561de97a41",
-        "0xdf090d541cdd4697285764afe305edfffb00af40e124a69ceb2c92c0b4a51fda"
-      ],
-      "points": 25
-    },
-    "CP0X": {
-      "proof": [
-        "0xd7adc90edeea5b813ea235f27597e0aef072c0062b5e507bf7d80cc5ba58cdce",
-        "0x4f2f6c7633c74dd27ea303e1ca05c3ffd6179b93340f1cbf6c54deba74bfb388"
-      ],
-      "points": 25
-    }
-  },
-  "3": {
-    "epoch": 3,
-    "total_points": 100,
-    "root": "0x9925236173936e4c32f539e6640f5947c291037eaf2e860ef8ab2ce0eb0d56bb",
-    "PierTwo": {
-      "proof": [
-        "0x06e5309757d3528fa8ad258d269176126d1ea4d10aee59ef269a60ee70a0ec7e",
-        "0x9a87754c86dcb9ebfcb851ca5c59138d0ba3d78e70c98653b2b2896e6425ede1"
-      ],
-      "points": 30
-    },
-    "P2P": {
-      "proof": [
-        "0x8dc2b89dac045d82c5c2d549395da8975b81c5a2edec4231ee2923b81dd6aec7",
-        "0x9a87754c86dcb9ebfcb851ca5c59138d0ba3d78e70c98653b2b2896e6425ede1"
-      ],
-      "points": 30
-    },
+    "root": "0x3867e8e7ab7f7e28b25ec157a27082c8b342e8c0081b04d9f80300fe1ba9f19a",
     "Alchemy": {
       "proof": [
-        "0x26b80946142edccf61981941cdbf7288ecb333af0468a69a3fa4ae4f76afd3b3",
-        "0x6efc537ed3702daa157e10e6b3907d112d63bc677c5568c94d7dafd2195e92ad"
+        "0xb8dce731726e46dd6206a876ed6110b418bd4f22214f438a7f5fca2c7026c13e"
       ],
-      "points": 20
+      "points": 40
     },
     "Opslayer": {
       "proof": [
-        "0x337365d6d928a3f62983d5eeaef12281923357cf87371e0979dbdad83feb3728",
-        "0x6efc537ed3702daa157e10e6b3907d112d63bc677c5568c94d7dafd2195e92ad"
+        "0x36ab35bbe1ced36d443055e019ce47422d50a96bf82662a53bbab9b85e8160ec",
+        "0xd4c58fa868be4f94915eba12b7136891f8f28e9311d3f173b33dbc5c19a93f6e"
       ],
-      "points": 20
+      "points": 30
+    },
+    "TanssiFoundation": {
+      "proof": [
+        "0x6c5af5ea0250327b179c2d7dfaa5d826fcb0f6c0d607283af9d820347b4d006d",
+        "0xd4c58fa868be4f94915eba12b7136891f8f28e9311d3f173b33dbc5c19a93f6e"
+      ],
+      "points": 30
     }
   },
-  "4": {
+  "3": {
     "total_points": 100,
-    "epoch": 4,
-    "root": "0xb2ed8e58231cbd970b868fc6762f70b7c003f1ad05098916b667fff56647dafd",
+    "epoch": 3,
+    "root": "0x1a8526bf47573a0c5f2e5278eb813c9ff6813589d704c3d6046c9f3c550665a8",
     "PierTwo": {
       "proof": [
+        "0x0fb4f75126d18a566f9e16cf79df616afa51b8685f10e17d986ae21c9bf4896d",
         "0x8024c0eba7b98ebeca044c1010a61da58da8839af69f0130a760ddceb1a057f6",
-        "0x4e82954b3de4726791601dfb450b6ec6a6f359b8bcde2b197009590d052d1f92",
-        "0x69f764326ef1d95d67b4a7cf6a1a7874d52e353bb4dc112f4374b0dc7b997c90"
+        "0x9b33222929501d5cfc57e3e91e3c4aec237ce17110bda8f16c5bffa95846d087"
       ],
-      "points": 10
-    },
-    "P2P": {
-      "proof": [
-        "0xe98fd2fbd79e1bd8ecc8980b6054c201be3df75d560ae55dd2b13e5a0c3cdb07",
-        "0x25b048e29ce1abb3490782d8db5b7d69f6f3fadbea670001c90300cc43800425",
-        "0x5d71ee25fabfb15ec9c8d8a2c9992ab446b8e8bec37a5fcd26ea1a34ad5ec5e1",
-        "0x9f7469a8cdf85adb948af2c308e4ae449b34b0ca135a0051df945943bb11d7b2"
-      ],
-      "points": 10
+      "points": 30
     },
     "Nodeinfra": {
       "proof": [
-        "0x1a1773a45b902e20cbaab9542f99b4c01e051b928a90a0621f01082218615aa2",
-        "0xf52620bf804bfeb09be3a93000daaf0345ee105bfb6c764c041dab723191f57f",
-        "0x060c4c427dbce0dce52b5b602c7655adff84d820673abca1ce774e67f315cf13",
-        "0x9f7469a8cdf85adb948af2c308e4ae449b34b0ca135a0051df945943bb11d7b2"
+        "0xf45bec5df67291b6b6e99321628297ed6f0be24f8d0a5245e48d23580cdb5898",
+        "0x7b692802e11a048754259abbd731f82fb617ebfa365c7269eb333672fefe4090",
+        "0xf8f2adc046f659ea469971af4517e071b8dfb409a8377b0c38c11eb447db64c6"
       ],
-      "points": 10
-    },
-    "Blockscape": {
-      "proof": [
-        "0x6e62551d3b4db86ffb18496ff0bf2461fbc5d463847dc56f081e97c15dc9654a",
-        "0xee5849b2df99ef13284284e8403a02b9aefa776d1aa8ee5b55a552dee3088104",
-        "0x5d71ee25fabfb15ec9c8d8a2c9992ab446b8e8bec37a5fcd26ea1a34ad5ec5e1",
-        "0x9f7469a8cdf85adb948af2c308e4ae449b34b0ca135a0051df945943bb11d7b2"
-      ],
-      "points": 10
-    },
-    "QuantNode": {
-      "proof": [
-        "0x46edf1e19ef0f26e0719068bd29da2e766e4b5003c062feef5f46b8e91faa009",
-        "0x69f764326ef1d95d67b4a7cf6a1a7874d52e353bb4dc112f4374b0dc7b997c90"
-      ],
-      "points": 10
-    },
-    "NodeMonster": {
-      "proof": [
-        "0x59584a567587c0c1ea359968eeb6629364f8c414ee6bdd68d1fc4d7faf94772a",
-        "0x25b048e29ce1abb3490782d8db5b7d69f6f3fadbea670001c90300cc43800425",
-        "0x5d71ee25fabfb15ec9c8d8a2c9992ab446b8e8bec37a5fcd26ea1a34ad5ec5e1",
-        "0x9f7469a8cdf85adb948af2c308e4ae449b34b0ca135a0051df945943bb11d7b2"
-      ],
-      "points": 10
-    },
-    "BlocknBones": {
-      "proof": [
-        "0x55ef5f9b69faea002e66716abe65cb06c482dd537ff4e9a1924993edee682ac8",
-        "0xee5849b2df99ef13284284e8403a02b9aefa776d1aa8ee5b55a552dee3088104",
-        "0x5d71ee25fabfb15ec9c8d8a2c9992ab446b8e8bec37a5fcd26ea1a34ad5ec5e1",
-        "0x9f7469a8cdf85adb948af2c308e4ae449b34b0ca135a0051df945943bb11d7b2"
-      ],
-      "points": 10
+      "points": 20
     },
     "CP0X": {
       "proof": [
-        "0xf8c11542e14116df65e811107ea46ab6fbaec58c5dfaab164161db84c90a8108",
-        "0x4e82954b3de4726791601dfb450b6ec6a6f359b8bcde2b197009590d052d1f92",
-        "0x69f764326ef1d95d67b4a7cf6a1a7874d52e353bb4dc112f4374b0dc7b997c90"
+        "0xc5521c7e635b79f1c73cfcfc983978ebbbee609b3d6270e343bbacc59cf31d5d",
+        "0x9b33222929501d5cfc57e3e91e3c4aec237ce17110bda8f16c5bffa95846d087"
       ],
       "points": 10
     },
     "HashkeyCloud": {
       "proof": [
-        "0xe32055b3cce47e0d84a5de65818bc2bd61e81ddb2c0abfd96172e9dde8942471",
-        "0xf6b707742da6a9cb009160963af9d3dcd1e38358b3a2413b7fcb67664438cd81",
-        "0x060c4c427dbce0dce52b5b602c7655adff84d820673abca1ce774e67f315cf13",
-        "0x9f7469a8cdf85adb948af2c308e4ae449b34b0ca135a0051df945943bb11d7b2"
+        "0x6f504d1bf750510796894e913e12d67987b1599165d971b4eb874090fb98f4cb",
+        "0x7b692802e11a048754259abbd731f82fb617ebfa365c7269eb333672fefe4090",
+        "0xf8f2adc046f659ea469971af4517e071b8dfb409a8377b0c38c11eb447db64c6"
       ],
       "points": 10
     },
     "Alchemy": {
       "proof": [
-        "0xf45bec5df67291b6b6e99321628297ed6f0be24f8d0a5245e48d23580cdb5898",
-        "0xf6b707742da6a9cb009160963af9d3dcd1e38358b3a2413b7fcb67664438cd81",
-        "0x060c4c427dbce0dce52b5b602c7655adff84d820673abca1ce774e67f315cf13",
-        "0x9f7469a8cdf85adb948af2c308e4ae449b34b0ca135a0051df945943bb11d7b2"
+        "0x7883bca4cc86d17ec4a2cc3416af47264c4905552e0aff49a817607ae03f304d",
+        "0x8024c0eba7b98ebeca044c1010a61da58da8839af69f0130a760ddceb1a057f6",
+        "0x9b33222929501d5cfc57e3e91e3c4aec237ce17110bda8f16c5bffa95846d087"
       ],
-      "points": 5
+      "points": 10
     },
     "Opslayer": {
       "proof": [
-        "0x0024368fd2d7bb974bf7d81cb232e64038642d0f53437b36b6a0c4d512d166b4",
-        "0xf52620bf804bfeb09be3a93000daaf0345ee105bfb6c764c041dab723191f57f",
-        "0x060c4c427dbce0dce52b5b602c7655adff84d820673abca1ce774e67f315cf13",
-        "0x9f7469a8cdf85adb948af2c308e4ae449b34b0ca135a0051df945943bb11d7b2"
+        "0x765043ea8ebd8174770a88202a05915a1bc682b28808dbf709ca5e745f5ab550",
+        "0x610c8a2771821efbfa09f7fe84e38054846ab1ed8615e9a7e5601f3f71d21dd0",
+        "0xf8f2adc046f659ea469971af4517e071b8dfb409a8377b0c38c11eb447db64c6"
       ],
-      "points": 5
+      "points": 10
+    },
+    "TanssiFoundation": {
+      "proof": [
+        "0x0d06e28d14683c007eaa9c60ecee398442a7ceaf8bfebe9e93b1b7b2c98632fd",
+        "0x610c8a2771821efbfa09f7fe84e38054846ab1ed8615e9a7e5601f3f71d21dd0",
+        "0xf8f2adc046f659ea469971af4517e071b8dfb409a8377b0c38c11eb447db64c6"
+      ],
+      "points": 10
     }
   }
 }
