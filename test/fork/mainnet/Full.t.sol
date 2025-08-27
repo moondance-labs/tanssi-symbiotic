@@ -27,7 +27,9 @@ import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 import {IOperatorRegistry} from "@symbiotic/interfaces/IOperatorRegistry.sol";
 import {INetworkRegistry} from "@symbiotic/interfaces/INetworkRegistry.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
+import {IEntity} from "@symbiotic/interfaces/common/IEntity.sol";
 import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
+import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
 
 //**************************************************************************************************
@@ -143,6 +145,8 @@ contract FullTest is Test {
     mapping(address vault => address stakerRewards) vaultToStakerRewards;
     mapping(address operator => address[] vaults) operatorToVaults;
     mapping(address operator => uint256[] powers) operatorToPowers;
+    mapping(address vault => address[] operators) vaultToOperators;
+    address[] public allVaults;
 
     struct ProofAndPoints {
         bytes32[] proof;
@@ -215,6 +219,10 @@ contract FullTest is Test {
             for (uint256 j = 0; j < operatorVaults.length; j++) {
                 address vaultAddress = operatorVaults[j];
                 operatorToVaults[operatorAddress].push(vaultAddress);
+                if (vaultToOperators[vaultAddress].length == 0) {
+                    allVaults.push(vaultAddress);
+                }
+                vaultToOperators[vaultAddress].push(operatorAddress);
                 operatorToPowers[operatorAddress].push(
                     reader.getOperatorPower(operatorAddress, vaultAddress, subnetworkIdentifier)
                 );
@@ -266,7 +274,6 @@ contract FullTest is Test {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         currentEpoch = middleware.getCurrentEpoch();
         validators = reader.getValidatorSet(currentEpoch);
-        console2.log("Validators length", validators.length);
         bool found = false;
         for (uint256 i; i < validators.length; i++) {
             if (validators[i].key == bytes32(uint256(12))) {
@@ -492,6 +499,14 @@ contract FullTest is Test {
         assertEq(middleware.getGateway(), address(gateway));
     }
 
+    function testSlashingEachVault() public {
+        for (uint256 i = 0; i < allVaults.length; i++) {
+            address vaultAddress = allVaults[i];
+            address testOperatorAddress = vaultToOperators[vaultAddress][0];
+            _testSlashingAndExecutingSlashForOperator(testOperatorAddress);
+        }
+    }
+
     function testSlashingAndVetoingSlashResultInNoChange() public {
         uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.ValidatorData[] memory validators = reader.getValidatorSet(currentEpoch);
@@ -535,53 +550,6 @@ contract FullTest is Test {
             }
         }
         assertEq(operatorPowerBefore, operatorPowerAfter);
-    }
-
-    function testSlashingAndExecutingSlashForOperator1PierTwo() public {
-        _testSlashingAndExecutingSlashForOperator(operators.operator1PierTwo);
-    }
-
-    function testSlashingAndExecutingSlashForOperator2Nodeinfra() public {
-        _testSlashingAndExecutingSlashForOperator(operators.operator2Nodeinfra);
-    }
-
-    function testSlashingAndExecutingSlashForOperator3CP0XStakrspace() public {
-        _testSlashingAndExecutingSlashForOperator(operators.operator3CP0XStakrspace);
-    }
-
-    function testSlashingAndExecutingSlashForOperator4HashkeyCloud() public {
-        _testSlashingAndExecutingSlashForOperator(operators.operator4HashkeyCloud);
-    }
-
-    function testSlashingAndExecutingSlashForOperator5Alchemy() public {
-        _testSlashingAndExecutingSlashForOperator(operators.operator5Alchemy);
-    }
-
-    function testSlashingAndExecutingSlashForOperator6Opslayer() public {
-        _testSlashingAndExecutingSlashForOperator(operators.operator6Opslayer);
-    }
-
-    function testSlashingAndExecutingSlashForOperator7TanssiFoundation() public {
-        // This test is custom because the tanssi foundation operator is in tanssi vault, which is instant slashable. All other vaults are veto and they need to be executed.
-
-        uint48 initialEpoch = middleware.getCurrentEpoch();
-        uint48 epochStartTs = reader.getEpochStart(initialEpoch);
-        HelperConfig.OperatorData memory operator = operators.operator7TanssiFoundation;
-
-        IERC20 tanssiVaultCollateral = IERC20(middleware.vaultToCollateral(vaultsAddressesDeployedB.tanssi.vault));
-        uint256 tanssiVaultBalanceBefore = tanssiVaultCollateral.balanceOf(vaultsAddressesDeployedB.tanssi.vault);
-        uint256 tanssiOperatorStakeBefore = IBaseDelegator(vaultsAddressesDeployedB.tanssi.delegator).stakeAt(
-            tanssi.subnetwork(0), operator.evmAddress, epochStartTs, new bytes(0)
-        );
-        uint256 expectedTanssiSlash = tanssiOperatorStakeBefore.mulDiv(SLASHING_FRACTION, PARTS_PER_BILLION);
-
-        // We need to track by stake and not by power since power uses live oracle which cannot be mocked
-        vm.prank(address(gateway));
-        middleware.slash(initialEpoch, operator.operatorKey, SLASHING_FRACTION);
-
-        // Tanssi vault is instant slashed. We can check already.
-        uint256 tanssiVaultBalanceAfter = tanssiVaultCollateral.balanceOf(vaultsAddressesDeployedB.tanssi.vault);
-        assertEq(tanssiVaultBalanceBefore - expectedTanssiSlash, tanssiVaultBalanceAfter);
     }
 
     // Case 1 has rewards for PierTwo, Nodeinfra, CP0X, HashkeyCloud. Defined in test/fork/mainnet/rewards_data.json
@@ -967,34 +935,81 @@ contract FullTest is Test {
         vm.stopPrank();
     }
 
-    function _testSlashingAndExecutingSlashForOperator(
-        HelperConfig.OperatorData memory operator
-    ) public {
+    function _cacheBalanceAndStake_AndSlashOperator(
+        address operatorAddress
+    )
+        public
+        returns (
+            uint48 epochStartTs,
+            address[] memory vaults,
+            uint256[] memory vaultBalancesBeforeSlash,
+            uint256[] memory operatorStakesBeforeSlash
+        )
+    {
         uint48 initialEpoch = middleware.getCurrentEpoch();
-        uint48 epochStartTs = reader.getEpochStart(initialEpoch);
+        epochStartTs = reader.getEpochStart(initialEpoch);
+
+        vaults = operatorToVaults[operatorAddress];
+        // For vaults with instant slash, we need the balance before the slash call. For veto slashers we need the balance after the slash call and before the executeSlash call
+        vaultBalancesBeforeSlash = new uint256[](vaults.length);
+        operatorStakesBeforeSlash = new uint256[](vaults.length);
+        for (uint256 i; i < vaults.length; i++) {
+            address vault = vaults[i];
+            address vaultCollateral = middleware.vaultToCollateral(vault);
+            vaultBalancesBeforeSlash[i] = IERC20(vaultCollateral).balanceOf(vault);
+            operatorStakesBeforeSlash[i] = IBaseDelegator(IVault(vault).delegator()).stakeAt(
+                tanssi.subnetwork(0), operatorAddress, epochStartTs, new bytes(0)
+            );
+        }
 
         // We need to track by stake and not by power since power uses live oracle which cannot be mocked
+        bytes32 operatorKey = abi.decode(middleware.operatorKey(operatorAddress), (bytes32));
         vm.prank(address(gateway));
-        middleware.slash(initialEpoch, operator.operatorKey, SLASHING_FRACTION);
+        middleware.slash(initialEpoch, operatorKey, SLASHING_FRACTION);
+    }
+
+    function _testSlashingAndExecutingSlashForOperator(
+        address operatorAddress
+    ) public {
+        (
+            uint48 epochStartTs,
+            address[] memory vaults,
+            uint256[] memory vaultBalancesBeforeSlash,
+            uint256[] memory operatorStakesBeforeSlash
+        ) = _cacheBalanceAndStake_AndSlashOperator(operatorAddress);
 
         vm.warp(vm.getBlockTimestamp() + VETO_DURATION + 1);
 
         // We need to execute the slashes for all the vaults of the operator
-        address[] memory vaults = operatorToVaults[operator.evmAddress];
         for (uint256 i; i < vaults.length; i++) {
             address vault = vaults[i];
             address vaultCollateral = middleware.vaultToCollateral(vault);
-            uint256 vaultBalanceBefore = IERC20(vaultCollateral).balanceOf(vault);
-            uint256 operatorStakeBefore = IBaseDelegator(IVault(vault).delegator()).stakeAt(
-                tanssi.subnetwork(0), operator.evmAddress, epochStartTs, new bytes(0)
-            );
-            uint256 expectedSlash = operatorStakeBefore.mulDiv(SLASHING_FRACTION, PARTS_PER_BILLION);
+            uint256 vaultBalanceBefore;
+            uint256 expectedSlash;
 
-            uint256 slashedAmount = middleware.executeSlash(vault, 0, hex"");
+            address slasher = IVault(vault).slasher();
+            uint64 slasherType = IEntity(slasher).TYPE();
+            if (slasherType == uint64(VaultManager.SlasherType.VETO)) {
+                vaultBalanceBefore = IERC20(vaultCollateral).balanceOf(vault);
+                uint256 operatorStakeBefore = IBaseDelegator(IVault(vault).delegator()).stakeAt(
+                    tanssi.subnetwork(0), operatorAddress, epochStartTs, new bytes(0)
+                );
+                if (operatorStakeBefore == 0) {
+                    continue;
+                }
+                expectedSlash = operatorStakeBefore.mulDiv(SLASHING_FRACTION, PARTS_PER_BILLION);
+                {
+                    uint256 slashIndex = IVetoSlasher(slasher).slashRequestsLength() - 1;
+                    uint256 slashedAmount = middleware.executeSlash(vault, slashIndex, hex"");
+                    assertEq(slashedAmount, expectedSlash);
+                }
+            } else {
+                vaultBalanceBefore = vaultBalancesBeforeSlash[i];
+                expectedSlash = operatorStakesBeforeSlash[i].mulDiv(SLASHING_FRACTION, PARTS_PER_BILLION);
+            }
+
             uint256 vaultBalanceAfter = IERC20(vaultCollateral).balanceOf(vault);
-
-            assertEq(slashedAmount, expectedSlash);
-            assertEq(vaultBalanceBefore - slashedAmount, vaultBalanceAfter);
+            assertEq(vaultBalanceBefore - expectedSlash, vaultBalanceAfter);
         }
     }
 }
