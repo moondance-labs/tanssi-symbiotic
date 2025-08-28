@@ -260,45 +260,13 @@ contract ODefaultStakerRewards is
         }
 
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
-        _claimRewards(recipient, epoch, tokenAddress, activeSharesOfHints, $);
-    }
+        uint256 amount = _claimRewards(recipient, epoch, tokenAddress, activeSharesOfHints, $);
 
-    function _claimRewards(
-        address recipient,
-        uint48 epoch,
-        address tokenAddress,
-        bytes memory activeSharesOfHints,
-        StakerRewardsStorage storage $
-    ) private {
-        uint256 rewardsPerEpoch = $.rewards[epoch][tokenAddress];
-        uint256 claimedPerEpoch = $.stakerClaimedRewardPerEpoch[recipient][epoch][tokenAddress];
-
-        uint48 epochTs = EpochCapture(INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network))
-            .getEpochStart(epoch);
-
-        uint256 activeSharesCache_ = $.activeSharesCache[epoch];
-
-        if (rewardsPerEpoch == 0 || activeSharesCache_ == 0) {
-            revert ODefaultStakerRewards__NoRewardsToClaim();
-        }
-        uint256 amount = IVault(i_vault).activeSharesOfAt(recipient, epochTs, activeSharesOfHints).mulDiv(
-            rewardsPerEpoch, activeSharesCache_
-        );
-
-        // Get the amount that is still unclaimed
-        amount -= claimedPerEpoch;
-
-        // If there are no rewards to claim, revert
-        if (amount == 0) {
-            revert ODefaultStakerRewards__NoRewardsToClaim();
-        }
-
-        $.stakerClaimedRewardPerEpoch[recipient][epoch][tokenAddress] += amount;
-
-        // if the amount is greater than 0, transfer the tokens to the recipient
         IERC20(tokenAddress).safeTransfer(recipient, amount);
 
-        emit ClaimRewards(i_network, tokenAddress, msg.sender, epoch, recipient, amount);
+        uint48[] memory epochs = new uint48[](1);
+        epochs[0] = epoch;
+        emit ClaimRewards(i_network, tokenAddress, msg.sender, epochs, recipient, amount);
     }
 
     /**
@@ -330,12 +298,18 @@ contract ODefaultStakerRewards is
 
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
         uint256 epochsLength = epochs.length;
+        uint256 totalAmount;
         for (uint256 i; i < epochsLength;) {
-            _claimRewards(recipient, epochs[i], tokenAddress, activeSharesOfHints[i], $);
+            uint256 amount = _claimRewards(recipient, epochs[i], tokenAddress, activeSharesOfHints[i], $);
+            totalAmount += amount;
             unchecked {
                 ++i;
             }
         }
+
+        IERC20(tokenAddress).safeTransfer(recipient, totalAmount);
+
+        emit ClaimRewards(i_network, tokenAddress, msg.sender, epochs, recipient, totalAmount);
     }
 
     /**
@@ -410,6 +384,39 @@ contract ODefaultStakerRewards is
     function claimableAdminFee(uint48 epoch, address tokenAddress) external view returns (uint256) {
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
         return $.claimableAdminFee[epoch][tokenAddress];
+    }
+
+    function _claimRewards(
+        address recipient,
+        uint48 epoch,
+        address tokenAddress,
+        bytes memory activeSharesOfHints,
+        StakerRewardsStorage storage $
+    ) private returns (uint256 amount) {
+        uint256 rewardsPerEpoch = $.rewards[epoch][tokenAddress];
+        uint256 claimedPerEpoch = $.stakerClaimedRewardPerEpoch[recipient][epoch][tokenAddress];
+
+        uint48 epochTs = EpochCapture(INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network))
+            .getEpochStart(epoch);
+
+        uint256 activeSharesCache_ = $.activeSharesCache[epoch];
+
+        if (rewardsPerEpoch == 0 || activeSharesCache_ == 0) {
+            revert ODefaultStakerRewards__NoRewardsToClaim();
+        }
+        amount = IVault(i_vault).activeSharesOfAt(recipient, epochTs, activeSharesOfHints).mulDiv(
+            rewardsPerEpoch, activeSharesCache_
+        );
+
+        // Get the amount that is still unclaimed
+        amount -= claimedPerEpoch;
+
+        // If there are no rewards to claim, revert
+        if (amount == 0) {
+            revert ODefaultStakerRewards__NoRewardsToClaim();
+        }
+
+        $.stakerClaimedRewardPerEpoch[recipient][epoch][tokenAddress] += amount;
     }
 
     function _authorizeUpgrade(
