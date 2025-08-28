@@ -50,7 +50,7 @@ interface IODefaultStakerRewards {
      * @param network address of the network
      * @param tokenAddress address of the reward token
      * @param claimer account that claimed the reward
-     * @param epoch epoch of the reward
+     * @param epochs epochs of the rewards
      * @param recipient account that received the reward
      * @param amount amount of tokens claimed
      */
@@ -58,7 +58,7 @@ interface IODefaultStakerRewards {
         address network,
         address indexed tokenAddress,
         address indexed claimer,
-        uint48 indexed epoch,
+        uint48[] epochs,
         address recipient,
         uint256 amount
     );
