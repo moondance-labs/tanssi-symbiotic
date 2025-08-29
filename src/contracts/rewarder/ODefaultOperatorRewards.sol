@@ -62,6 +62,9 @@ contract ODefaultOperatorRewards is
         mapping(uint48 epoch => uint48[] eraIndexes) eraIndexesPerEpoch;
         mapping(uint48 eraIndex => mapping(bytes32 account => uint256 amount)) claimed;
         mapping(address vault => address stakerRewardsAddress) vaultToStakerRewardsContract;
+        address[] tempStakerRewards;
+        mapping(address stakerRewards => uint256[] amounts) tempStakerRewardsAmounts;
+        mapping(address stakerRewards => uint48[] epochs) tempStakerRewardsEpochs;
     }
 
     // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultOperatorRewards.v2")) - 1)) & ~bytes32(uint256(0xff))
@@ -206,6 +209,7 @@ contract ODefaultOperatorRewards is
 
         // We do a single transfer only at the end, to save gas
         IERC20(tokenAddress).safeTransfer(operator, operatorAmount);
+        _distributeRewardsForStakers(tokenAddress, inputs[0].data);
     }
 
     /**
@@ -225,6 +229,8 @@ contract ODefaultOperatorRewards is
 
         // Transfer the operator rewards to the operator
         IERC20(tokenAddress).safeTransfer(operator, operatorAmount);
+
+        _distributeRewardsForStakers(tokenAddress, input.data);
     }
 
     function _claimRewards(
@@ -252,23 +258,18 @@ contract ODefaultOperatorRewards is
 
         uint256 stakerAmount;
 
-        (amount, operatorAmount, stakerAmount,) =
+        (amount, operatorAmount, stakerAmount) =
             _calculateRewardsForOperatorAndStakers($, input, eraRoot_, middlewareAddress);
 
-        _distributeRewardsToStakers(
-            eraRoot_.epoch, input.eraIndex, stakerAmount, operator, middlewareAddress, tokenAddress, input.data
-        );
+        _calculateRewardsForStakers(eraRoot_.epoch, stakerAmount, operator, middlewareAddress);
         emit ClaimRewards(operator, tokenAddress, input.eraIndex, eraRoot_.epoch, msg.sender, amount);
     }
 
-    function _distributeRewardsToStakers(
+    function _calculateRewardsForStakers(
         uint48 epoch,
-        uint48 eraIndex,
         uint256 stakerAmount,
         address operator,
-        address middlewareAddress,
-        address tokenAddress,
-        bytes calldata data
+        address middlewareAddress
     ) private {
         uint48 epochStartTs = EpochCapture(middlewareAddress).getEpochStart(epoch);
 
@@ -284,7 +285,7 @@ contract ODefaultOperatorRewards is
             operatorVaults, totalVaults, epochStartTs, operator, middlewareAddress, stakerAmount
         );
 
-        _distributeRewardsForEachVault(epoch, eraIndex, tokenAddress, totalVaults, operatorVaults, amountPerVault, data);
+        _calculateRewardsForEachVault(epoch, totalVaults, operatorVaults, amountPerVault);
     }
 
     function _calculateRewardsForOperatorAndStakers(
@@ -292,7 +293,7 @@ contract ODefaultOperatorRewards is
         ClaimRewardsInput calldata input,
         EraRoot memory eraRoot_,
         address middlewareAddress
-    ) private returns (uint256 amount, uint256 operatorAmount, uint256 stakerAmount, address recipient) {
+    ) private returns (uint256 amount, uint256 operatorAmount, uint256 stakerAmount) {
         // Calculate the total amount of tokens that can be claimed which is:
         // total amount of tokens = (total points claimable * total amount) / total points
         amount = uint256(input.totalPointsClaimable).mulDiv(eraRoot_.amount, eraRoot_.totalPoints);
@@ -352,30 +353,46 @@ contract ODefaultOperatorRewards is
         }
     }
 
-    function _distributeRewardsForEachVault(
+    function _calculateRewardsForEachVault(
         uint48 epoch,
-        uint48 eraIndex,
-        address tokenAddress,
         uint256 totalVaults,
         address[] memory operatorVaults,
-        uint256[] memory amountPerVault,
-        bytes calldata data
+        uint256[] memory amountPerVault
     ) private {
-        (uint256 maxAdminFee, VaultHints[] memory hints) = abi.decode(data, (uint256, VaultHints[]));
-
         for (uint256 i; i < totalVaults;) {
-            VaultHints memory vaultHints;
-            // For backward compatibility, we allow empty hints array to mean no hints for any vault
-            if (hints.length != 0) {
-                vaultHints = hints[i];
-            }
-            _distributeRewardsForVault(
-                operatorVaults[i], amountPerVault[i], vaultHints, epoch, eraIndex, tokenAddress, maxAdminFee
-            );
+            _calculateRewardsForVault(operatorVaults[i], amountPerVault[i], epoch);
             unchecked {
                 ++i;
             }
         }
+    }
+
+    function _distributeRewardsForStakers(address tokenAddress, bytes calldata data) private {
+        (uint256 maxAdminFee,) = abi.decode(data, (uint256, VaultHints[]));
+        bytes memory dataForStakerRewards = abi.encode(maxAdminFee);
+        OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
+        uint256 totalStakerRewards = $.tempStakerRewards.length;
+        for (uint256 i; i < totalStakerRewards;) {
+            address stakerRewards = $.tempStakerRewards[i];
+            uint256[] memory amounts = $.tempStakerRewardsAmounts[stakerRewards];
+            uint48[] memory epochs = $.tempStakerRewardsEpochs[stakerRewards];
+
+            uint256 totalAmount;
+            for (uint256 j; j < amounts.length;) {
+                totalAmount += amounts[j];
+                unchecked {
+                    ++j;
+                }
+            }
+            IERC20(tokenAddress).approve(stakerRewards, totalAmount);
+            IODefaultStakerRewards(stakerRewards).distributeRewards(epochs, amounts, tokenAddress, dataForStakerRewards);
+            delete $.tempStakerRewardsAmounts[stakerRewards];
+            delete $.tempStakerRewardsEpochs[stakerRewards];
+            unchecked {
+                ++i;
+            }
+        }
+        delete $.tempStakerRewards;
     }
 
     /**
@@ -470,15 +487,7 @@ contract ODefaultOperatorRewards is
         }
     }
 
-    function _distributeRewardsForVault(
-        address vault,
-        uint256 amount,
-        VaultHints memory vaultHint,
-        uint48 epoch,
-        uint48 eraIndex,
-        address tokenAddress,
-        uint256 maxAdminFee
-    ) private {
+    function _calculateRewardsForVault(address vault, uint256 amount, uint48 epoch) private {
         if (amount != 0) {
             {
                 OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
@@ -486,29 +495,13 @@ contract ODefaultOperatorRewards is
                 if (stakerRewardsForVault == address(0)) {
                     revert ODefaultOperatorRewards__StakerRewardsNotSetForVault(vault);
                 }
-                bytes memory stakerRewardsHints = _getStakerRewardsHints(vault, vaultHint, maxAdminFee);
-                IERC20(tokenAddress).approve(stakerRewardsForVault, amount);
-                IODefaultStakerRewards(stakerRewardsForVault).distributeRewards(
-                    epoch, eraIndex, amount, tokenAddress, stakerRewardsHints
-                );
+                if ($.tempStakerRewardsAmounts[stakerRewardsForVault].length == 0) {
+                    $.tempStakerRewards.push(stakerRewardsForVault);
+                }
+                $.tempStakerRewardsAmounts[stakerRewardsForVault].push(amount);
+                $.tempStakerRewardsEpochs[stakerRewardsForVault].push(epoch);
             }
         }
-    }
-
-    function _getStakerRewardsHints(
-        address vault,
-        VaultHints memory vaultHint,
-        uint256 maxAdminFee
-    ) private pure returns (bytes memory) {
-        if (vaultHint.vault == address(0)) {
-            return abi.encode(maxAdminFee, new bytes(0), new bytes(0));
-        }
-
-        if (vaultHint.vault != vault) {
-            revert ODefaultOperatorRewards__InvalidOrderForHintsPerVault();
-        }
-
-        return abi.encode(maxAdminFee, vaultHint.activeSharesHint, vaultHint.activeStakeHint);
     }
 
     function _checkNotZeroAddress(

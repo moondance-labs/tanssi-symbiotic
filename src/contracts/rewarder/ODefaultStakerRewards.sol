@@ -14,6 +14,8 @@
 
 pragma solidity 0.8.25;
 
+import {console2} from "forge-std/console2.sol";
+
 // *********************************************************************************************************************
 //                                                  SYMBIOTIC
 // *********************************************************************************************************************
@@ -152,8 +154,17 @@ contract ODefaultStakerRewards is
         uint48 epochTs = EpochCapture(INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network))
             .getEpochStart(epoch);
 
+        uint256 totalActiveSharesAtEpoch = $.activeSharesCache[epoch];
+        if (totalActiveSharesAtEpoch == 0) {
+            totalActiveSharesAtEpoch = IVault(i_vault).activeSharesAt(epochTs, new bytes(0));
+
+            if (totalActiveSharesAtEpoch == 0) {
+                return 0;
+            }
+        }
+
         amount = IVault(i_vault).activeSharesOfAt(account, epochTs, new bytes(0)).mulDiv(
-            rewardsPerEpoch, $.activeSharesCache[epoch]
+            rewardsPerEpoch, totalActiveSharesAtEpoch
         );
 
         // Get the amount that is still unclaimed
@@ -164,41 +175,57 @@ contract ODefaultStakerRewards is
      * @inheritdoc IODefaultStakerRewards
      */
     function distributeRewards(
-        uint48 epoch,
-        uint48 eraIndex,
-        uint256 amount,
+        uint48[] memory epochs,
+        uint256[] memory amounts,
         address tokenAddress,
         bytes calldata data
     ) external override nonReentrant onlyRole(OPERATOR_REWARDS_ROLE) {
-        // maxAdminFee - the maximum admin fee to allow
-        // activeSharesHint - a hint index to optimize `activeSharesAt()` processing
-        // activeStakeHint - a hint index to optimize `activeStakeAt()` processing
-        (uint256 maxAdminFee, bytes memory activeSharesHint, bytes memory activeStakeHint) =
-            abi.decode(data, (uint256, bytes, bytes));
-
-        uint48 epochTs = EpochCapture(INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network))
-            .getEpochStart(epoch);
-        // If the epoch is in the future, revert
-        if (epochTs > Time.timestamp()) {
-            revert ODefaultStakerRewards__InvalidRewardTimestamp();
-        }
+        // maxAdminFee: The maximum admin fee to allow:
+        uint256 maxAdminFee = abi.decode(data, (uint256));
 
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
-
         uint256 adminFee_ = $.adminFee;
+
         // If the admin fee is higher than the max allowed, revert
         if (maxAdminFee < adminFee_) {
             revert ODefaultStakerRewards__HighAdminFee();
         }
 
-        // This is used to cache the active shares for the epoch and optimize the claiming process
-        _cacheActiveShares($, epoch, epochTs, activeSharesHint, activeStakeHint);
+        uint256 epochsLength = epochs.length;
+        if (epochsLength != amounts.length) {
+            revert ODefaultStakerRewards__InvalidInput();
+        }
 
-        _transferAndCheckAmount(tokenAddress, amount);
+        uint256 totalAmount;
+        for (uint256 i; i < epochsLength;) {
+            unchecked {
+                totalAmount += amounts[i];
+                ++i;
+            }
+        }
 
-        _updateAdminFeeAndRewards(amount, adminFee_, epoch, tokenAddress);
+        _transferAndCheckAmount(tokenAddress, totalAmount);
 
-        emit DistributeRewards(i_network, tokenAddress, eraIndex, epoch, amount, data);
+        for (uint256 i; i < epochsLength;) {
+            uint48 epochTs = EpochCapture(INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network))
+                .getEpochStart(epochs[i]);
+
+            // If the epoch is in the future, revert
+            if (epochTs > Time.timestamp()) {
+                revert ODefaultStakerRewards__InvalidRewardTimestamp();
+            }
+
+            _updateAdminFeeAndRewards(amounts[i], adminFee_, epochs[i], tokenAddress);
+            unchecked {
+                ++i;
+            }
+        }
+
+        console2.log("DistributeRewards", epochs[0], amounts[0]);
+        console2.log("i_network", i_network);
+        console2.log("tokenAddress", tokenAddress);
+        console2.logBytes(data);
+        emit DistributeRewards(i_network, tokenAddress, epochs, amounts, data);
     }
 
     function _transferAndCheckAmount(address tokenAddress, uint256 amount) private {
@@ -212,38 +239,15 @@ contract ODefaultStakerRewards is
         }
     }
 
-    function _cacheActiveShares(
-        StakerRewardsStorage storage $,
-        uint48 epoch,
-        uint48 epochTs,
-        bytes memory activeSharesHint,
-        bytes memory activeStakeHint
-    ) private {
-        if ($.activeSharesCache[epoch] == 0) {
-            uint256 activeShares_ = IVault(i_vault).activeSharesAt(epochTs, activeSharesHint);
-            uint256 activeStake_ = IVault(i_vault).activeStakeAt(epochTs, activeStakeHint);
-
-            if (activeShares_ == 0 || activeStake_ == 0) {
-                revert ODefaultStakerRewards__InvalidRewardTimestamp();
-            }
-
-            $.activeSharesCache[epoch] = activeShares_;
-        }
-    }
-
     function _updateAdminFeeAndRewards(uint256 amount, uint256 adminFee_, uint48 epoch, address tokenAddress) private {
-        // Take out the admin fee from the rewards
-        uint256 adminFeeAmount = amount.mulDiv(adminFee_, ADMIN_FEE_BASE);
-        // And distribute the rest to the stakers
-        uint256 distributeAmount = amount - adminFeeAmount;
-
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
 
-        $.claimableAdminFee[epoch][tokenAddress] += adminFeeAmount;
+        // Take out the admin fee from the rewards
+        uint256 adminFeeAmount = amount.mulDiv(adminFee_, ADMIN_FEE_BASE);
 
-        if (distributeAmount != 0) {
-            $.rewards[epoch][tokenAddress] += distributeAmount;
-        }
+        // And distribute the rest to the stakers
+        $.claimableAdminFee[epoch][tokenAddress] += adminFeeAmount;
+        $.rewards[epoch][tokenAddress] += amount - adminFeeAmount;
     }
 
     /**
@@ -271,18 +275,27 @@ contract ODefaultStakerRewards is
         StakerRewardsStorage storage $
     ) private {
         uint256 rewardsPerEpoch = $.rewards[epoch][tokenAddress];
+        if (rewardsPerEpoch == 0) {
+            revert ODefaultStakerRewards__NoRewardsToClaim();
+        }
+
         uint256 claimedPerEpoch = $.stakerClaimedRewardPerEpoch[recipient][epoch][tokenAddress];
 
         uint48 epochTs = EpochCapture(INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network))
             .getEpochStart(epoch);
 
-        uint256 activeSharesCache_ = $.activeSharesCache[epoch];
+        // The first claimer will pay the price of setting the cache, but we offload it from the operator which would have to pay it for multiple vaults.
+        uint256 totalActiveSharesAtEpoch = $.activeSharesCache[epoch];
+        if (totalActiveSharesAtEpoch == 0) {
+            totalActiveSharesAtEpoch = IVault(i_vault).activeSharesAt(epochTs, new bytes(0));
 
-        if (rewardsPerEpoch == 0 || activeSharesCache_ == 0) {
-            revert ODefaultStakerRewards__NoRewardsToClaim();
+            if (totalActiveSharesAtEpoch == 0) {
+                revert ODefaultStakerRewards__NoRewardsToClaim();
+            }
+            $.activeSharesCache[epoch] = totalActiveSharesAtEpoch;
         }
         uint256 amount = IVault(i_vault).activeSharesOfAt(recipient, epochTs, activeSharesOfHints).mulDiv(
-            rewardsPerEpoch, activeSharesCache_
+            rewardsPerEpoch, totalActiveSharesAtEpoch
         );
 
         // Get the amount that is still unclaimed

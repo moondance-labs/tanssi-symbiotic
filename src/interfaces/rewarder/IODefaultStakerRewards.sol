@@ -31,18 +31,12 @@ interface IODefaultStakerRewards {
      * @notice Emitted when a reward is distributed.
      * @param network network on behalf of which the reward is distributed
      * @param tokenAddress address of the reward token
-     * @param eraIndex era index of Starlight's rewards distribution
-     * @param epoch epoch of the reward distribution
-     * @param amount amount of tokens
+     * @param epochs epochs of the rewards
+     * @param amounts amounts of the rewards
      * @param data some used data
      */
     event DistributeRewards(
-        address network,
-        address indexed tokenAddress,
-        uint48 indexed eraIndex,
-        uint48 indexed epoch,
-        uint256 amount,
-        bytes data
+        address network, address indexed tokenAddress, uint48[] epochs, uint256[] amounts, bytes data
     );
 
     /**
@@ -197,16 +191,14 @@ interface IODefaultStakerRewards {
 
     /**
      * @notice Distribute rewards for a particular epoch
-     * @param epoch epoch of the reward distribution
-     * @param eraIndex era index of Starlight's rewards distribution
-     * @param amount amount of tokens
+     * @param epochs epochs of the reward distribution
+     * @param amounts amounts of the reward distribution
      * @param tokenAddress address of the reward token
      * @param data some data to use
      */
     function distributeRewards(
-        uint48 epoch,
-        uint48 eraIndex,
-        uint256 amount,
+        uint48[] memory epochs,
+        uint256[] memory amounts,
         address tokenAddress,
         bytes calldata data
     ) external;

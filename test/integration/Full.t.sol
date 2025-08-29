@@ -1083,46 +1083,6 @@ contract FullTest is Test {
         _checkClaimableRewardsVault2(expectedRewardsStakerVault2, epoch);
     }
 
-    function testClaimingRewardsRevertsIfVaultsDoNotMatchOnHints() public {
-        uint48 eraIndex = 1;
-        uint48 operatorNumber = 1;
-        uint256 amountToDistribute = 100 ether;
-        _prepareRewardsDistribution(eraIndex, amountToDistribute);
-
-        (,, bytes32[] memory proof, uint32 points,) = _loadRewardsRootAndProof(eraIndex, operatorNumber);
-
-        {
-            bytes memory hintsData =
-                rewardsHintsBuilder.getDataForOperatorClaimRewards(OPERATOR1_KEY, eraIndex, ADMIN_FEE);
-            (, IODefaultOperatorRewards.VaultHints[] memory vaultHints) =
-                abi.decode(hintsData, (uint256, IODefaultOperatorRewards.VaultHints[]));
-
-            assertEq(vaultHints.length, 2);
-
-            // Swap the vaults, the order will be unexpected when claiming rewards so it should revert
-            vaultHints[0].vault = address(vaultsData.v3.vault);
-            vaultHints[1].vault = address(vaultsData.v4.vault);
-
-            hintsData = abi.encode(ADMIN_FEE, vaultHints);
-
-            IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards
-                .ClaimRewardsInput({
-                operatorKey: OPERATOR1_KEY,
-                eraIndex: eraIndex,
-                totalPointsClaimable: points,
-                proof: proof,
-                data: hintsData
-            });
-
-            vm.expectRevert(
-                abi.encodeWithSelector(
-                    IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidOrderForHintsPerVault.selector
-                )
-            );
-            operatorRewards.claimRewards(claimRewardsData);
-        }
-    }
-
     function testRewardsAreDistributedCorrectlyForOperator2WithNoHints() public {
         _testRewardsAreDistributedCorrectlyForOperator2(false);
     }

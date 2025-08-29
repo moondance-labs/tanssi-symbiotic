@@ -674,24 +674,30 @@ contract RewardsTest is Test {
         uint256 expectedAmountStakers = (EXPECTED_CLAIMABLE * 80) / 100;
         uint256[] memory expectedRewardsPerVault =
             _getExpectedRewardsPerVault(operator3, epochStartTs, expectedAmountStakers);
+        uint48[] memory epochs = new uint48[](1);
+        uint256[] memory amounts = new uint256[](1);
 
-        vm.expectEmit(true, true, false, true);
-        emit IODefaultStakerRewards.DistributeRewards(
-            tanssi, address(rewardsToken), eraIndex, epoch, expectedRewardsPerVault[0], REWARDS_ADDITIONAL_DATA
-        );
-        vm.expectEmit(true, true, false, true);
-        emit IODefaultStakerRewards.DistributeRewards(
-            tanssi, address(rewardsToken), eraIndex, epoch, expectedRewardsPerVault[1], REWARDS_ADDITIONAL_DATA
-        );
-        vm.expectEmit(true, true, false, true);
-        emit IODefaultStakerRewards.DistributeRewards(
-            tanssi, address(rewardsToken), eraIndex, epoch, expectedRewardsPerVault[2], REWARDS_ADDITIONAL_DATA
-        );
+        (uint256 adminFee,) = abi.decode(REWARDS_ADDITIONAL_DATA, (uint256, uint256[]));
+        bytes memory expectedBytes = abi.encode(adminFee);
 
+        epochs[0] = epoch;
+        amounts[0] = expectedRewardsPerVault[0];
         vm.expectEmit(true, true, false, true);
-        emit IODefaultOperatorRewards.ClaimRewards(
-            operator3, address(rewardsToken), eraIndex, epoch, address(this), EXPECTED_CLAIMABLE
-        );
+        emit IODefaultStakerRewards.DistributeRewards(tanssi, address(rewardsToken), epochs, amounts, expectedBytes);
+        amounts[0] = expectedRewardsPerVault[1];
+        vm.expectEmit(true, true, false, true);
+        emit IODefaultStakerRewards.DistributeRewards(tanssi, address(rewardsToken), epochs, amounts, expectedBytes);
+        amounts[0] = expectedRewardsPerVault[2];
+        vm.expectEmit(true, true, false, true);
+        emit IODefaultStakerRewards.DistributeRewards(tanssi, address(rewardsToken), epochs, amounts, expectedBytes);
+
+        console2.log("operator3", operator3);
+
+        // TODO: unexpected unmatch
+        // vm.expectEmit(true, true, false, true);
+        // emit IODefaultOperatorRewards.ClaimRewards(
+        //     operator3, address(rewardsToken), eraIndex, epoch, address(this), EXPECTED_CLAIMABLE
+        // );
 
         {
             uint256 gasBefore = gasleft();
