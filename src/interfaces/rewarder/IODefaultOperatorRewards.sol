@@ -26,6 +26,8 @@ interface IODefaultOperatorRewards {
     error ODefaultOperatorRewards__NoVaults();
     error ODefaultOperatorRewards__StakerRewardsNotSetForVault(address vault);
     error ODefaultOperatorRewards__InvalidOrderForHintsPerVault();
+    error ODefaultOperatorRewards__BatchClaimSupportsASingleOperator();
+    error ODefaultOperatorRewards__BatchClaimSupportsASingleToken();
 
     /**
      * @notice Emitted when rewards are distributed by providing a Merkle root.
