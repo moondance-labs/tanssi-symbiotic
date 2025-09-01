@@ -532,7 +532,7 @@ contract RewardsTest is Test {
     //                                      claimRewards
     //**************************************************************************************************
 
-    function testClaimRewardsX() public {
+    function testClaimRewards() public {
         uint48 epoch = 0;
         uint48 eraIndex = 0;
 
@@ -540,7 +540,6 @@ contract RewardsTest is Test {
         _mockVaultActiveSharesStakeAt(address(vault), epoch, true, true);
         _mockGetOperatorVaults(epoch);
         _distributeRewards(epoch, eraIndex, AMOUNT_TO_DISTRIBUTE, address(token));
-        console2.log("AMOUNT_TO_DISTRIBUTE", AMOUNT_TO_DISTRIBUTE);
 
         address recipient = Middleware(middleware).operatorByKey(abi.encode(ALICE_KEY));
         bytes32[] memory proof = _generateValidProof();
@@ -1124,6 +1123,36 @@ contract RewardsTest is Test {
         epochs[0] = epoch;
         amounts[0] = POINTS_TO_CLAIM;
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__InsufficientReward.selector);
+
+        bytes memory data = abi.encode(ADMIN_FEE);
+        newStakerRewards.distributeRewards(epochs, amounts, address(feeToken), data);
+    }
+
+    function testStakerDistributeRewardsWithNonMatchingLenghts() public {
+        uint48 epoch = 0;
+        vm.warp(NETWORK_EPOCH_DURATION);
+
+        IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
+            adminFee: ADMIN_FEE,
+            defaultAdminRoleHolder: address(middleware),
+            adminFeeClaimRoleHolder: address(middleware),
+            adminFeeSetRoleHolder: address(middleware),
+            implementation: stakerRewardsImplementation
+        });
+        IODefaultStakerRewards newStakerRewards =
+            IODefaultStakerRewards(stakerRewardsFactory.create(address(vault), params));
+
+        _setActiveSharesCache(epoch, address(newStakerRewards), STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT);
+
+        vm.startPrank(address(operatorRewards));
+        feeToken.approve(address(newStakerRewards), type(uint256).max);
+
+        uint48[] memory epochs = new uint48[](1);
+        uint256[] memory amounts = new uint256[](2);
+        epochs[0] = epoch;
+        amounts[0] = POINTS_TO_CLAIM;
+        amounts[1] = POINTS_TO_CLAIM;
+        vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__InvalidInput.selector);
 
         bytes memory data = abi.encode(ADMIN_FEE);
         newStakerRewards.distributeRewards(epochs, amounts, address(feeToken), data);
