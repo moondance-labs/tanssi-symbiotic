@@ -14,8 +14,6 @@
 
 pragma solidity 0.8.25;
 
-import {console2} from "forge-std/console2.sol";
-
 // *********************************************************************************************************************
 //                                                  SYMBIOTIC
 // *********************************************************************************************************************
@@ -221,10 +219,6 @@ contract ODefaultStakerRewards is
             }
         }
 
-        console2.log("DistributeRewards", epochs[0], amounts[0]);
-        console2.log("i_network", i_network);
-        console2.log("tokenAddress", tokenAddress);
-        console2.logBytes(data);
         emit DistributeRewards(i_network, tokenAddress, epochs, amounts, data);
     }
 
