@@ -146,6 +146,11 @@ contract ODefaultStakerRewards is
         address tokenAddress
     ) external view override returns (uint256 amount) {
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
+
+        if ($.activeSharesCache[epoch] == 0) {
+            return 0;
+        }
+
         uint256 rewardsPerEpoch = $.rewards[epoch][tokenAddress];
         uint256 claimedPerEpoch = $.stakerClaimedRewardPerEpoch[account][epoch][tokenAddress];
 
