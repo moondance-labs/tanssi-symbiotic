@@ -2257,7 +2257,31 @@ contract FullTest is Test {
         operatorRewards.batchClaimRewards(claimRewardsData);
     }
 
-    function testCannotStakerClaimRewardsForNonStaker() public {
+    function testClaimableIsZeroIfNoRewardsHaveBeenDistributed() public view {
+        uint48 epoch = 1;
+        address stakerRewardsAddress = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v1.vault));
+
+        uint256 claimable = IODefaultStakerRewards(stakerRewardsAddress).claimable(epoch, operator1, address(STAR));
+        assertEq(claimable, 0);
+    }
+
+    function testClaimableIsZeroIfVaultHasNoActiveShares() public {
+        uint256 vaultEpoch = vaultsData.v1.vault.currentEpoch();
+        _withdrawFromVault(vaultsData.v1.vault, operator1, OPERATOR1_STAKE_V1_USDC);
+        vm.warp(vm.getBlockTimestamp() + VAULT_EPOCH_DURATION * 2 + 1);
+
+        vm.prank(operator1);
+        vaultsData.v1.vault.claim(operator1, vaultEpoch + 1);
+
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        address stakerRewardsAddress = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v1.vault));
+
+        uint256 claimable =
+            IODefaultStakerRewards(stakerRewardsAddress).claimable(currentEpoch, operator1, address(STAR));
+        assertEq(claimable, 0);
+    }
+
+    function testStakerCannotClaimRewardsForNonStaker() public {
         uint48 eraIndex = 1;
         uint256 amountToDistribute = 100 ether;
         uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
@@ -2268,11 +2292,17 @@ contract FullTest is Test {
 
         address stakerRewardsAddress = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v1.vault));
 
-        uint256 claimable = IODefaultStakerRewards(stakerRewardsAddress).claimable(epoch, nonStaker, address(STAR));
-        assertEq(claimable, 0);
-
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__NoRewardsToClaim.selector);
         IODefaultStakerRewards(stakerRewardsAddress).claimRewards(nonStaker, epoch, address(STAR), new bytes(0));
+    }
+
+    function testStakerCannotClaimRewardsIfNoRewardsHaveBeenDistributed() public {
+        uint48 epoch = 10;
+
+        address stakerRewardsAddress = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v1.vault));
+
+        vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__NoRewardsToClaim.selector);
+        IODefaultStakerRewards(stakerRewardsAddress).claimRewards(operator1, epoch, address(STAR), new bytes(0));
     }
 
     function _testRewardsAreDistributedCorrectlyWhenBatchClaimed(

@@ -146,8 +146,8 @@ contract ODefaultStakerRewards is
         address tokenAddress
     ) external view override returns (uint256 amount) {
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
-        uint256 rewardsPerEpoch = $.rewards[epoch][tokenAddress];
-        uint256 claimedPerEpoch = $.stakerClaimedRewardPerEpoch[account][epoch][tokenAddress];
+        uint256 rewardsPerEpoch = rewards(epoch, tokenAddress);
+        uint256 claimedPerEpoch = stakerClaimedRewardPerEpoch(account, epoch, tokenAddress);
 
         uint48 epochTs = EpochCapture(INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network))
             .getEpochStart(epoch);
@@ -268,12 +268,12 @@ contract ODefaultStakerRewards is
         bytes memory activeSharesOfHints,
         StakerRewardsStorage storage $
     ) private {
-        uint256 rewardsPerEpoch = $.rewards[epoch][tokenAddress];
+        uint256 rewardsPerEpoch = rewards(epoch, tokenAddress);
         if (rewardsPerEpoch == 0) {
             revert ODefaultStakerRewards__NoRewardsToClaim();
         }
 
-        uint256 claimedPerEpoch = $.stakerClaimedRewardPerEpoch[recipient][epoch][tokenAddress];
+        uint256 claimedPerEpoch = stakerClaimedRewardPerEpoch(recipient, epoch, tokenAddress);
 
         uint48 epochTs = EpochCapture(INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network))
             .getEpochStart(epoch);
@@ -283,9 +283,7 @@ contract ODefaultStakerRewards is
         if (totalActiveSharesAtEpoch == 0) {
             totalActiveSharesAtEpoch = IVault(i_vault).activeSharesAt(epochTs, new bytes(0));
 
-            if (totalActiveSharesAtEpoch == 0) {
-                revert ODefaultStakerRewards__NoRewardsToClaim();
-            }
+            // If there are rewards to claim for the epoch, there must be active shares too, otherwise the vault would have received nothing.
             $.activeSharesCache[epoch] = totalActiveSharesAtEpoch;
         }
         uint256 amount = IVault(i_vault).activeSharesOfAt(recipient, epochTs, activeSharesOfHints).mulDiv(
@@ -394,7 +392,7 @@ contract ODefaultStakerRewards is
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    function rewards(uint48 epoch, address tokenAddress) external view returns (uint256) {
+    function rewards(uint48 epoch, address tokenAddress) public view returns (uint256) {
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
         return $.rewards[epoch][tokenAddress];
     }
@@ -406,7 +404,7 @@ contract ODefaultStakerRewards is
         address account,
         uint48 epoch,
         address tokenAddress
-    ) external view returns (uint256) {
+    ) public view returns (uint256) {
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
         return $.stakerClaimedRewardPerEpoch[account][epoch][tokenAddress];
     }
