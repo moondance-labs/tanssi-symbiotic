@@ -217,9 +217,9 @@
   "operators": [
     {
       "name": "Pier Two",
-      "substrateAddress": "5HRErQcsVBvG1SArk7Xp1Yd8VXSAVGvNHqFnZtGRybCAYotP",
+      "substrateAddress": "5GN5st9G5PzoWjwC3FPWkSVkcfvqGxvhCXuH4fhSV6AsNwwR",
       "evmAddress": "0x51B6D824bd35AeD4FD1a9E253E41Dc7C9feeFa30",
-      "operatorKey": "0xecd66a5fac2d2b6abbc31562058b30dc8eaffaf229b19c0bacd170995dfd0e5e"
+      "operatorKey": "0xbe323c17cac4799b7211a1ca4e18f4bfd7cd2b83c0f5cfbe805809c98397d218"
     },
     {
       "name": "P2P",
@@ -271,9 +271,9 @@
     },
     {
       "name": "Alchemy",
-      "substrateAddress": "5ELACNAAgeRbGFcHBfRo7rQgwKoXnpYEqHd3HB1dYpdd8zRA",
+      "substrateAddress": "5GuT8JLvNw1oy83UqLRBCdzoqUjPChCJ9cFyjghaTVPpBD3h",
       "evmAddress": "0xcf28Fe3A1B73887e405bf955Bf52D9341F666CAa",
-      "operatorKey": "0x6441d0a205bfb34eee189931a672baca6722eddbc05a8e370f72c161d9e72662"
+      "operatorKey": "0xd61e5f10a30cd93a56379800db7e3ff5c042f30bdc38b6ab1ce7bc50c6373b26"
     },
     {
       "name": "Opslayer",

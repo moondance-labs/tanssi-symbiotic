@@ -76,8 +76,7 @@ contract DeployProductionTest is Test {
             HelperConfig.TokensConfig memory tokensConfig,
             HelperConfig.VaultsConfigA memory vaultsConfigA,
             HelperConfig.VaultsConfigB memory vaultsConfigB,
-            HelperConfig.OperatorConfigA memory operatorsA,
-            HelperConfig.OperatorConfigB memory operatorsB
+            HelperConfig.OperatorConfig memory operators
         ) = helperConfig.getChainConfig();
 
         assertNotEq(entities.middleware, address(0));
@@ -111,13 +110,13 @@ contract DeployProductionTest is Test {
         assertNotEq(vaultsConfigB.gauntletRestakedWstETH.delegator, address(0));
         assertNotEq(vaultsConfigB.gauntletRestakedWstETH.slasher, address(0));
 
-        assertNotEq(operatorsA.operator1PierTwo.name, "");
-        assertNotEq(operatorsA.operator1PierTwo.evmAddress, address(0));
-        assertNotEq(operatorsA.operator1PierTwo.operatorKey, bytes32(0));
+        assertNotEq(operators.operator1PierTwo.name, "");
+        assertNotEq(operators.operator1PierTwo.evmAddress, address(0));
+        assertNotEq(operators.operator1PierTwo.operatorKey, bytes32(0));
 
-        assertNotEq(operatorsB.operator11Opslayer.name, "");
-        assertNotEq(operatorsB.operator11Opslayer.evmAddress, address(0));
-        assertNotEq(operatorsB.operator11Opslayer.operatorKey, bytes32(0));
+        assertNotEq(operators.operator6Opslayer.name, "");
+        assertNotEq(operators.operator6Opslayer.evmAddress, address(0));
+        assertNotEq(operators.operator6Opslayer.operatorKey, bytes32(0));
     }
 
     function _checkAddressesAndRoles(
