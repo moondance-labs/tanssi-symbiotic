@@ -2221,7 +2221,7 @@ contract FullTest is Test {
         _prepareRewardsDistribution(eraIndex, amountToDistribute);
 
         (,, bytes32[] memory proofA, uint32 pointsA,) = _loadRewardsRootAndProof(eraIndex, 1); // operatorNumber = 1
-        (,, bytes32[] memory proofB, uint32 pointsB,) = _loadRewardsRootAndProof(eraIndex, 6); // operatorNumber = 2
+        (,, bytes32[] memory proofB, uint32 pointsB,) = _loadRewardsRootAndProof(eraIndex, 6); // operatorNumber = 6
 
         IODefaultOperatorRewards.ClaimRewardsInput[] memory claimRewardsData =
             new IODefaultOperatorRewards.ClaimRewardsInput[](2);
@@ -2271,7 +2271,7 @@ contract FullTest is Test {
         }
 
         (,, bytes32[] memory proofA, uint32 pointsA,) = _loadRewardsRootAndProof(eraIndexes[0], 1); // operatorNumber = 1
-        (,, bytes32[] memory proofB, uint32 pointsB,) = _loadRewardsRootAndProof(eraIndexes[1], 1); // operatorNumber = 2
+        (,, bytes32[] memory proofB, uint32 pointsB,) = _loadRewardsRootAndProof(eraIndexes[1], 1); // operatorNumber = 1
 
         IODefaultOperatorRewards.ClaimRewardsInput[] memory claimRewardsData =
             new IODefaultOperatorRewards.ClaimRewardsInput[](2);
