@@ -75,7 +75,7 @@
       "slasher": "0x04a216411317A334C234C6ABDD589bB94d303d5b",
       "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
       "stakerRewards": "0x36D627d6aB064C5Eb295CB23Ce9d11cb0EfB4377",
-      "stakerRewardsImplementation": "0xcE41F91726719E2A9dE5bb418644cCbC8a54A823"
+      "stakerRewardsImplementation": "0x5ae71dcae12221960c989dd7d07a57da037baa7d"
     },
     {
       "name": "MEV Capital wstETH Vault",
@@ -84,7 +84,7 @@
       "slasher": "0x541c86eb2C5e7F3E0C04eF82aeb68EA6A86409ef",
       "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
       "stakerRewards": "0xa47b15F1cE1240c3b7b9AD2A1dE9C84BF4270715",
-      "stakerRewardsImplementation": "0xcE41F91726719E2A9dE5bb418644cCbC8a54A823"
+      "stakerRewardsImplementation": "0x5ae71dcae12221960c989dd7d07a57da037baa7d"
     },
     {
       "name": "Renzo restaked LST",
@@ -93,7 +93,7 @@
       "slasher": "0xCF42f1B5E0ABB6f1521D8D523715781F9cd933C5",
       "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
       "stakerRewards": "0xf6f65c9AAA62EC5F294843621878673B3668e75E",
-      "stakerRewardsImplementation": "0xcE41F91726719E2A9dE5bb418644cCbC8a54A823"
+      "stakerRewardsImplementation": "0x5ae71dcae12221960c989dd7d07a57da037baa7d"
     },
     {
       "name": "Re7 Restaking Vault ETH [All Networks]",
@@ -102,7 +102,7 @@
       "slasher": "0x295F8c41eA17B330853AC74D1477a6F83B36ee31",
       "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
       "stakerRewards": "0x606E4B46F3A7bA6449D0C9d828A4065BDbf8847e",
-      "stakerRewardsImplementation": "0xcE41F91726719E2A9dE5bb418644cCbC8a54A823"
+      "stakerRewardsImplementation": "0x5ae71dcae12221960c989dd7d07a57da037baa7d"
     },
     {
       "name": "Re7 Labs LRT Vault",
@@ -111,7 +111,7 @@
       "slasher": "0x31Ebe6E0bec2fa2167903D9C4487c9F0F496b64E",
       "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
       "stakerRewards": "0xf45D68652b3caA0A0874E45334603d23E519601f",
-      "stakerRewardsImplementation": "0xcE41F91726719E2A9dE5bb418644cCbC8a54A823"
+      "stakerRewardsImplementation": "0x5ae71dcae12221960c989dd7d07a57da037baa7d"
     },
     {
       "name": "cp0x LRT conservative vault",
@@ -120,7 +120,7 @@
       "slasher": "0xC38027653F91600809850ccf82616F19a99EaC52",
       "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
       "stakerRewards": "0xca89B022820f0b21db88F38A3b75e4ECBAb277c0",
-      "stakerRewardsImplementation": "0xcE41F91726719E2A9dE5bb418644cCbC8a54A823"
+      "stakerRewardsImplementation": "0x5ae71dcae12221960c989dd7d07a57da037baa7d"
     },
     {
       "name": "Opslayer Vault",
@@ -129,7 +129,7 @@
       "slasher": "0x3f55A74B287359bF0fCc8149817C2C6472d6Ba5d",
       "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
       "stakerRewards": "0xCD4eFf52E84a335C3A565598b2a647E2E51d8a38",
-      "stakerRewardsImplementation": "0xcE41F91726719E2A9dE5bb418644cCbC8a54A823"
+      "stakerRewardsImplementation": "0x5ae71dcae12221960c989dd7d07a57da037baa7d"
     },
     {
       "name": "Gauntlet restaked wstETH",
@@ -138,7 +138,7 @@
       "slasher": "0x84a79B33f0F6f92e926309A94Dfb5c2bF7D8716D",
       "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
       "stakerRewards": "0xED1b1b10FD77de6409059B8ffAca6d53fA788Cb0",
-      "stakerRewardsImplementation": "0xcE41F91726719E2A9dE5bb418644cCbC8a54A823"
+      "stakerRewardsImplementation": "0x5ae71dcae12221960c989dd7d07a57da037baa7d"
     },
     {
       "name": "Gauntlet restaked swETH",
@@ -147,7 +147,7 @@
       "slasher": "0x0f6949D05EE5EA589CF86923b4F48110De38f469",
       "collateral": "0xf951E335afb289353dc249e82926178EaC7DEd78",
       "stakerRewards": "0x825F3a31e5988247D40C246FBD483c05B0C0c536",
-      "stakerRewardsImplementation": "0xcE41F91726719E2A9dE5bb418644cCbC8a54A823"
+      "stakerRewardsImplementation": "0x5ae71dcae12221960c989dd7d07a57da037baa7d"
     },
     {
       "name": "Gauntlet restaked wBETH",
@@ -156,7 +156,7 @@
       "slasher": "0x42AEb222f7069E73Cb166c9C57F1110916a6Cc47",
       "collateral": "0xa2E3356610840701BDf5611a53974510Ae27E2e1",
       "stakerRewards": "0x5B624f892DCd467FDDE35336fC917594d6d4C23E",
-      "stakerRewardsImplementation": "0xcE41F91726719E2A9dE5bb418644cCbC8a54A823"
+      "stakerRewardsImplementation": "0x5ae71dcae12221960c989dd7d07a57da037baa7d"
     },
     {
       "name": "Gauntlet restaked rETH",
@@ -165,7 +165,7 @@
       "slasher": "0xD5091fdcaF80b347356F9be1B11BFBE8f754792a",
       "collateral": "0xae78736Cd615f374D3085123A210448E74Fc6393",
       "stakerRewards": "0x02a9DcF4f4b166Db60E0a279FB373Be21d304A4a",
-      "stakerRewardsImplementation": "0xcE41F91726719E2A9dE5bb418644cCbC8a54A823"
+      "stakerRewardsImplementation": "0x5ae71dcae12221960c989dd7d07a57da037baa7d"
     },
     {
       "name": "Gauntlet restaked cbETH",
@@ -174,7 +174,7 @@
       "slasher": "0xaD1891CCe32114a042BaEdf2684B3C4226D395C4",
       "collateral": "0xBe9895146f7AF43049ca1c1AE358B0541Ea49704",
       "stakerRewards": "0xe979eDC4ba911306eeCb0490fb6Ed02b7f63f3bD",
-      "stakerRewardsImplementation": "0xcE41F91726719E2A9dE5bb418644cCbC8a54A823"
+      "stakerRewardsImplementation": "0x5ae71dcae12221960c989dd7d07a57da037baa7d"
     },
     {
       "name": "Hashkey Cloud",
@@ -183,7 +183,7 @@
       "slasher": "0xca7F5040021d51748f65E8524bA11B7705B7A402",
       "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
       "stakerRewards": "0xcb68A5DE5a91FB32563277881d8C2fBC3cEb8bf9",
-      "stakerRewardsImplementation": "0xcE41F91726719E2A9dE5bb418644cCbC8a54A823"
+      "stakerRewardsImplementation": "0x5ae71dcae12221960c989dd7d07a57da037baa7d"
     },
     {
       "name": "Ether fi wstETH",
@@ -192,7 +192,7 @@
       "slasher": "0xdA14110C2B9e120354d36eAcB1bEdf84d532E831",
       "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
       "stakerRewards": "0xF6B65566f6EE16De15E0C128878e477370765Fa9",
-      "stakerRewardsImplementation": "0xcE41F91726719E2A9dE5bb418644cCbC8a54A823"
+      "stakerRewardsImplementation": "0x5ae71dcae12221960c989dd7d07a57da037baa7d"
     },
     {
       "name": "Restaked LsETH Vault (Liquid Collective)",
@@ -201,7 +201,7 @@
       "slasher": "0xC1c5aed50F817d161b72c34942497C3f77B0Ec36",
       "collateral": "0x8c1BEd5b9a0928467c9B1341Da1D7BD5e10b6549",
       "stakerRewards": "0x19CA20beDd3424937e908db526266c45e8384473",
-      "stakerRewardsImplementation": "0xcE41F91726719E2A9dE5bb418644cCbC8a54A823"
+      "stakerRewardsImplementation": "0x5ae71dcae12221960c989dd7d07a57da037baa7d"
     },
     {
       "name": "Tanssi Vault",
@@ -210,7 +210,7 @@
       "slasher": "0x69aE071249129BF52E72dBFc7Ccc10786bE33E58",
       "collateral": "0x553F4cB7256D8fC038E91d36Cb63fa7C13b624AB",
       "stakerRewards": "0x19F26797fDE27a906E0670BB5f340D785478C228",
-      "stakerRewardsImplementation": "0xcE41F91726719E2A9dE5bb418644cCbC8a54A823"
+      "stakerRewardsImplementation": "0x5ae71dcae12221960c989dd7d07a57da037baa7d"
     }
   ],
   "totalOperators": 12,
