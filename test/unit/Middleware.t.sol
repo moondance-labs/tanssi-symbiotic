@@ -1358,6 +1358,7 @@ contract MiddlewareTest is Test {
 
         vm.store(address(middleware), slot, bytes32(0));
 
+        vm.warp(NETWORK_EPOCH_DURATION + 2);
         vm.roll(80);
 
         vm.expectRevert(IMiddleware.Middleware__GatewayNotSet.selector);
