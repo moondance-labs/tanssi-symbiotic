@@ -213,7 +213,7 @@
       "stakerRewardsImplementation": "0xcE41F91726719E2A9dE5bb418644cCbC8a54A823"
     }
   ],
-  "totalOperators": 7,
+  "totalOperators": 12,
   "operators": [
     {
       "name": "Pier Two",
@@ -222,10 +222,40 @@
       "operatorKey": "0xbe323c17cac4799b7211a1ca4e18f4bfd7cd2b83c0f5cfbe805809c98397d218"
     },
     {
+      "name": "P2P",
+      "substrateAddress": "5GYtpbcHHjArLe5PfG2R412JnufdHibPQg2jGCLoEJQC4RVU",
+      "evmAddress": "0x087c25f83ED20bda587CFA035ED0c96338D4660f",
+      "operatorKey": "0xc670b6d72c8457da7fddf8f96d2e02f41c486c755186fd45f7c2d39fdd170843"
+    },
+    {
       "name": "Nodeinfra",
       "substrateAddress": "5D25xzPp1BKmmj5XcbfWuS7UoNffUzLB64CsnUUrdzYkhTt7",
       "evmAddress": "0x9321d38c355d1D8cB9dbfC05a5c0f347b1DDa46a",
       "operatorKey": "0x2a3cec3909122bfdffcc8809a5d5586af1c0554f5e8b34cf747ba3629a6b6303"
+    },
+    {
+      "name": "Blockscape",
+      "substrateAddress": "5GBobCvzxey3xZ84twaWxaX5u9uexF78PYBDzccmZpxUPsEh",
+      "evmAddress": "0xfd42c11Bf9518A078445b04857B205Fee688b133",
+      "operatorKey": "0xb65af3b79dcc9b300df74156a3ca86b959331d57d8d4f5801b40e61d53a5c931"
+    },
+    {
+      "name": "Quant Node",
+      "substrateAddress": "5HdLvZ3D8VN1QojdTxop7BP2pe9R4fueAViiEpjYNxSp48QC",
+      "evmAddress": "0xAF0dbc82EDc4e893d7898Cf6a8eA2497ce859A1F",
+      "operatorKey": "0xf611cc7b7adcdafbe7f2781acc0f0b5926b78f30aa27cf6afb749a9b1b5ac355"
+    },
+    {
+      "name": "Node Monster",
+      "substrateAddress": "5Gw715kUZ5CGuXbUYitfquCAFWTq4y5yWvuCeJxDzVEyGvL8",
+      "evmAddress": "0x030d6216f27B4370D9e173ff6dd2e192166cbA19",
+      "operatorKey": "0xd7611e05b79f07dac15926ac0e20f6e2a002e46cedf074d13e505c27f945e38b"
+    },
+    {
+      "name": "Block n Bones",
+      "substrateAddress": "5ELPH6go5taoPvCi9z46h3XJoS6UcNPPpCFnpricjpsY1vBj",
+      "evmAddress": "0xEe92C0CeF065819BFE17A5626b8209f64D82971e",
+      "operatorKey": "0x646dda01bcc2f11b7d9b7e2311a958941e0b5134776d642d17e0f76bbc46541c"
     },
     {
       "name": "CP0X by Stakr.space",
