@@ -1370,6 +1370,8 @@ contract FullTest is Test {
 
             vm.startPrank(forwarder);
             gasBefore = gasleft();
+            vm.expectEmit(false, false, false, true);
+            emit IMiddleware.OperatorsPowerCached(epoch, 7, 0); // 7 operators cached, 0 pending
             middleware.performUpkeep(performData);
             console2.log("Gas used to performUpkeep:", gasBefore - gasleft());
         }
