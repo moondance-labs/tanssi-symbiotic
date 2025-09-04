@@ -2215,6 +2215,136 @@ contract FullTest is Test {
         _testRewardsAreDistributedCorrectlyWhenBatchClaimed(true);
     }
 
+    function testCannotBatchClaimRewardsForMultipleOperators() public {
+        uint48 eraIndex = 1;
+        uint256 amountToDistribute = 100 ether;
+        _prepareRewardsDistribution(eraIndex, amountToDistribute);
+
+        (,, bytes32[] memory proofA, uint32 pointsA,) = _loadRewardsRootAndProof(eraIndex, 1); // operatorNumber = 1
+        (,, bytes32[] memory proofB, uint32 pointsB,) = _loadRewardsRootAndProof(eraIndex, 6); // operatorNumber = 6
+
+        IODefaultOperatorRewards.ClaimRewardsInput[] memory claimRewardsData =
+            new IODefaultOperatorRewards.ClaimRewardsInput[](2);
+
+        bytes memory hintsData = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
+
+        claimRewardsData[0] = IODefaultOperatorRewards.ClaimRewardsInput({
+            operatorKey: OPERATOR1_KEY,
+            eraIndex: eraIndex,
+            totalPointsClaimable: pointsA,
+            proof: proofA,
+            data: hintsData
+        });
+        claimRewardsData[1] = IODefaultOperatorRewards.ClaimRewardsInput({
+            operatorKey: OPERATOR6_KEY,
+            eraIndex: eraIndex,
+            totalPointsClaimable: pointsB,
+            proof: proofB,
+            data: hintsData
+        });
+
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__BatchClaimSupportsASingleOperator.selector);
+        operatorRewards.batchClaimRewards(claimRewardsData);
+    }
+
+    function testCannotBatchClaimRewardsForMultipleRewardTokens() public {
+        uint48[] memory eraIndexes = new uint48[](2);
+        eraIndexes[0] = 1;
+        eraIndexes[1] = 2;
+        uint256 amountToDistribute = 100 ether;
+        _prepareRewardsDistribution(eraIndexes[0], amountToDistribute);
+
+        // Distribute rewards with a new token
+        {
+            (uint48 epoch, bytes32 rewardsRoot,,, uint32 totalPoints) = _loadRewardsRootAndProof(eraIndexes[1], 1);
+
+            uint48 epochStartTs = middleware.getEpochStart(epoch);
+            vm.warp(epochStartTs + 1);
+
+            Token mockERC20 = new Token("MockERC20", 18);
+            mockERC20.mint(address(middleware), amountToDistribute);
+
+            vm.prank(address(gateway));
+            middleware.distributeRewards(
+                epoch, eraIndexes[1], totalPoints, amountToDistribute, rewardsRoot, address(mockERC20)
+            );
+        }
+
+        (,, bytes32[] memory proofA, uint32 pointsA,) = _loadRewardsRootAndProof(eraIndexes[0], 1); // operatorNumber = 1
+        (,, bytes32[] memory proofB, uint32 pointsB,) = _loadRewardsRootAndProof(eraIndexes[1], 1); // operatorNumber = 1
+
+        IODefaultOperatorRewards.ClaimRewardsInput[] memory claimRewardsData =
+            new IODefaultOperatorRewards.ClaimRewardsInput[](2);
+
+        bytes memory hintsData = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
+
+        claimRewardsData[0] = IODefaultOperatorRewards.ClaimRewardsInput({
+            operatorKey: OPERATOR1_KEY,
+            eraIndex: eraIndexes[0],
+            totalPointsClaimable: pointsA,
+            proof: proofA,
+            data: hintsData
+        });
+        claimRewardsData[1] = IODefaultOperatorRewards.ClaimRewardsInput({
+            operatorKey: OPERATOR1_KEY,
+            eraIndex: eraIndexes[1],
+            totalPointsClaimable: pointsB,
+            proof: proofB,
+            data: hintsData
+        });
+
+        vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__BatchClaimSupportsASingleToken.selector);
+        operatorRewards.batchClaimRewards(claimRewardsData);
+    }
+
+    function testClaimableIsZeroIfNoRewardsHaveBeenDistributed() public view {
+        uint48 epoch = 1;
+        address stakerRewardsAddress = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v1.vault));
+
+        uint256 claimable = IODefaultStakerRewards(stakerRewardsAddress).claimable(epoch, operator1, address(STAR));
+        assertEq(claimable, 0);
+    }
+
+    function testClaimableIsZeroIfVaultHasNoActiveShares() public {
+        uint256 vaultEpoch = vaultsData.v1.vault.currentEpoch();
+        _withdrawFromVault(vaultsData.v1.vault, operator1, OPERATOR1_STAKE_V1_USDC);
+        vm.warp(vm.getBlockTimestamp() + VAULT_EPOCH_DURATION * 2 + 1);
+
+        vm.prank(operator1);
+        vaultsData.v1.vault.claim(operator1, vaultEpoch + 1);
+
+        uint48 currentEpoch = middleware.getCurrentEpoch();
+        address stakerRewardsAddress = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v1.vault));
+
+        uint256 claimable =
+            IODefaultStakerRewards(stakerRewardsAddress).claimable(currentEpoch, operator1, address(STAR));
+        assertEq(claimable, 0);
+    }
+
+    function testStakerCannotClaimRewardsForNonStaker() public {
+        uint48 eraIndex = 1;
+        uint256 amountToDistribute = 100 ether;
+        uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
+
+        _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR1_KEY, operator1, 1, true, true);
+
+        address nonStaker = makeAddr("nonStaker");
+
+        address stakerRewardsAddress = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v1.vault));
+
+        vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__NoRewardsToClaim.selector);
+        IODefaultStakerRewards(stakerRewardsAddress).claimRewards(nonStaker, epoch, address(STAR), new bytes(0));
+    }
+
+    function testStakerCannotClaimRewardsIfNoRewardsHaveBeenDistributed() public {
+        uint48 epoch = 10;
+
+        address stakerRewardsAddress = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v1.vault));
+
+        vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__NoRewardsToClaim.selector);
+        IODefaultStakerRewards(stakerRewardsAddress).claimRewards(operator1, epoch, address(STAR), new bytes(0));
+    }
+
     function _testRewardsAreDistributedCorrectlyWhenBatchClaimed(
         bool withHints
     ) public {
