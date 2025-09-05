@@ -362,6 +362,8 @@ contract Middleware is
             unchecked {
                 cache.epochToCacheIndex[epoch] += validatorsDataLength;
             }
+
+            emit OperatorsPowerCached(epoch, validatorsDataLength, pendingOperatorsToCache - validatorsDataLength);
         } else {
             uint48 currentTimestamp = Time.timestamp();
             if ((currentTimestamp - $.lastTimestamp) > $.interval) {

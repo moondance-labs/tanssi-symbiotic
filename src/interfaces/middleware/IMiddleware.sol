@@ -41,6 +41,14 @@ interface IMiddleware {
      */
     event GatewaySet(address indexed gateway);
 
+    /**
+     * @notice Emitted when the operators' power is cached.
+     * @param epoch The epoch number
+     * @param operatorsCached The number of operators cached
+     * @param operatorsPending The number of operators pending to be cached after the cache update
+     */
+    event OperatorsPowerCached(uint48 indexed epoch, uint256 operatorsCached, uint256 operatorsPending);
+
     // Errors
     error Middleware__GatewayNotSet();
     error Middleware__AlreadySet();
