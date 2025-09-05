@@ -26,6 +26,7 @@ interface IODefaultStakerRewards {
     error ODefaultStakerRewards__InvalidRewardTimestamp();
     error ODefaultStakerRewards__MissingRoles();
     error ODefaultStakerRewards__NoRewardsToClaim();
+    error ODefaultStakerRewards__RewardsTokenIsDifferentFromCollateral();
 
     /**
      * @notice Emitted when a reward is distributed.
@@ -234,6 +235,22 @@ interface IODefaultStakerRewards {
      * @param data additional bytes containing epoch and hints
      */
     function claimRewards(address recipient, address tokenAddress, bytes calldata data) external;
+
+    /**
+     * @notice Helper function to claim rewards for multiple epochs in a single transaction and restake a percentage of the rewards.
+     * @param recipient address of the tokens' recipient
+     * @param epochs array of epochs for which the rewards are being claimed
+     * @param tokenAddress address of the reward token
+     * @param activeSharesOfHints array of hints for optimizing `activeSharesOf()` processing
+     * @param restakePercentageBps percentage of rewards to restake (up to 10000)
+     */
+    function batchClaimRewardsAndRestake(
+        address recipient,
+        uint48[] calldata epochs,
+        address tokenAddress,
+        bytes[] calldata activeSharesOfHints,
+        uint48 restakePercentageBps
+    ) external;
 
     /**
      * @notice Helper function to claim rewards for multiple epochs in a single transaction.
