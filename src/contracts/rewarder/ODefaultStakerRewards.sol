@@ -294,6 +294,43 @@ contract ODefaultStakerRewards is
         address tokenAddress,
         bytes[] calldata activeSharesOfHints
     ) external {
+        batchClaimRewardsAndRestake(recipient, epochs, tokenAddress, activeSharesOfHints, 0);
+    }
+
+    /**
+     * @inheritdoc IODefaultStakerRewards
+     */
+    function batchClaimRewardsAndRestake(
+        address recipient,
+        uint48[] calldata epochs,
+        address tokenAddress,
+        bytes[] calldata activeSharesOfHints,
+        uint48 restakePercentageBps
+    ) public {
+        uint256 totalAmount = _batchClaimRewards(recipient, epochs, tokenAddress, activeSharesOfHints);
+
+        uint256 restakeAmount = totalAmount.mulDiv(restakePercentageBps, 10_000);
+        uint256 claimAmount = totalAmount - restakeAmount;
+
+        if (claimAmount != 0) {
+            IERC20(tokenAddress).safeTransfer(recipient, claimAmount);
+        }
+
+        if (restakeAmount != 0) {
+            if (IVault(i_vault).collateral() != tokenAddress) {
+                revert ODefaultStakerRewards__RewardsTokenIsDifferentFromCollateral();
+            }
+            IERC20(tokenAddress).approve(i_vault, restakeAmount);
+            IVault(i_vault).deposit(recipient, restakeAmount);
+        }
+    }
+
+    function _batchClaimRewards(
+        address recipient,
+        uint48[] calldata epochs,
+        address tokenAddress,
+        bytes[] calldata activeSharesOfHints
+    ) private returns (uint256 totalAmount) {
         if (recipient == address(0)) {
             revert ODefaultStakerRewards__InvalidRecipient();
         }
@@ -303,7 +340,6 @@ contract ODefaultStakerRewards is
 
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
         uint256 epochsLength = epochs.length;
-        uint256 totalAmount;
         for (uint256 i; i < epochsLength;) {
             uint256 amount = _claimRewards(recipient, epochs[i], tokenAddress, activeSharesOfHints[i], $);
             totalAmount += amount;
@@ -311,8 +347,6 @@ contract ODefaultStakerRewards is
                 ++i;
             }
         }
-
-        IERC20(tokenAddress).safeTransfer(recipient, totalAmount);
 
         emit ClaimRewards(i_network, tokenAddress, msg.sender, epochs, recipient, totalAmount);
     }

@@ -92,15 +92,15 @@ contract FullTest is Test {
     // Token and Oracle decimals + conversion rates
     uint8 public constant TOKEN_DECIMALS_BTC = 18;
     uint8 public constant TOKEN_DECIMALS_ETH = 18;
-    uint8 public constant TOKEN_DECIMALS_USDC = 6;
+    uint8 public constant TOKEN_DECIMALS_STAR = 12;
 
     uint8 public constant ORACLE_DECIMALS_ETH = 2;
     uint8 public constant ORACLE_DECIMALS_BTC = 2;
-    uint8 public constant ORACLE_DECIMALS_USDC = 8;
+    uint8 public constant ORACLE_DECIMALS_STAR = 8;
 
     int256 public constant ORACLE_CONVERSION_ST_ETH = int256(3000 * 10 ** ORACLE_DECIMALS_ETH);
     int256 public constant ORACLE_CONVERSION_W_BTC = int256(90_000 * 10 ** ORACLE_DECIMALS_BTC);
-    int256 public constant ORACLE_CONVERSION_USDC = int256(1 * 10 ** ORACLE_DECIMALS_USDC);
+    int256 public constant ORACLE_CONVERSION_STAR = int256(1 * 10 ** ORACLE_DECIMALS_STAR);
 
     uint48 public constant OPERATOR_SHARE = 1000; // 10%
     uint48 public constant MAX_PERCENTAGE = 10_000;
@@ -120,8 +120,8 @@ contract FullTest is Test {
     bytes32 public constant NEW_OPERATOR2_KEY = 0x0202020202020202020202020202020202020202020202020202020222222222;
 
     // Vault 1 - Single Operator
-    uint256 public constant VAULT1_NETWORK_LIMIT = 500_000 * 10 ** TOKEN_DECIMALS_USDC; // 500k power
-    uint256 public constant OPERATOR1_STAKE_V1_USDC = 100_000 * 10 ** TOKEN_DECIMALS_USDC; // 100k power
+    uint256 public constant VAULT1_NETWORK_LIMIT = 500_000 * 10 ** TOKEN_DECIMALS_STAR; // 500k power
+    uint256 public constant OPERATOR1_STAKE_V1_STAR = 100_000 * 10 ** TOKEN_DECIMALS_STAR; // 100k power
 
     // Vault 2 - 3 Operators, Full Restake
     uint256 public constant VAULT2_NETWORK_LIMIT = 10 * 10 ** TOKEN_DECIMALS_BTC; // 900k power
@@ -208,7 +208,6 @@ contract FullTest is Test {
     MetadataService public operatorMetadataService;
     MetadataService public networkMetadataService;
     NetworkMiddlewareService public networkMiddlewareService;
-    Token public usdc;
     Token public wBTC;
     Token public stETH;
     Token public STAR;
@@ -249,7 +248,7 @@ contract FullTest is Test {
     function setUp() public {
         _deployTokens();
 
-        address usdcOracle = _deployOracle(ORACLE_DECIMALS_USDC, ORACLE_CONVERSION_USDC);
+        address starOracle = _deployOracle(ORACLE_DECIMALS_STAR, ORACLE_CONVERSION_STAR);
         address wBtcOracle = _deployOracle(ORACLE_DECIMALS_BTC, ORACLE_CONVERSION_W_BTC);
         address stEthOracle = _deployOracle(ORACLE_DECIMALS_ETH, ORACLE_CONVERSION_ST_ETH);
 
@@ -295,7 +294,7 @@ contract FullTest is Test {
         _deployGateway();
 
         middleware.setGateway(address(gateway));
-        middleware.setCollateralToOracle(address(usdc), usdcOracle);
+        middleware.setCollateralToOracle(address(STAR), starOracle);
         middleware.setCollateralToOracle(address(wBTC), wBtcOracle);
         middleware.setCollateralToOracle(address(stETH), stEthOracle);
         vm.stopPrank();
@@ -328,13 +327,11 @@ contract FullTest is Test {
 
     function _deployTokens() private {
         DeployCollateral deployCollateral = new DeployCollateral();
-        address usdcAddress = deployCollateral.deployCollateral("usdc", TOKEN_DECIMALS_USDC);
-        usdc = Token(usdcAddress);
         address wBTCAddress = deployCollateral.deployCollateral("wBTC", TOKEN_DECIMALS_BTC);
         wBTC = Token(wBTCAddress);
         address stETHAddress = deployCollateral.deployCollateral("stETH", TOKEN_DECIMALS_ETH);
         stETH = Token(stETHAddress);
-        address starAddress = deployCollateral.deployCollateral("STAR", TOKEN_DECIMALS_USDC);
+        address starAddress = deployCollateral.deployCollateral("STAR", TOKEN_DECIMALS_STAR);
         STAR = Token(starAddress);
     }
 
@@ -378,7 +375,7 @@ contract FullTest is Test {
             delegatorIndex: VaultManager.DelegatorType.OPERATOR_SPECIFIC,
             shouldBroadcast: false,
             vaultConfigurator: address(vaultConfigurator),
-            collateral: address(usdc),
+            collateral: address(STAR),
             owner: _owner,
             operator: operator1,
             network: address(0),
@@ -584,7 +581,7 @@ contract FullTest is Test {
 
     function _depositToVaults() private {
         // Operator 1
-        _depositToVault(vaultsData.v1.vault, operator1, OPERATOR1_STAKE_V1_USDC, usdc, true);
+        _depositToVault(vaultsData.v1.vault, operator1, OPERATOR1_STAKE_V1_STAR, STAR, true);
         _depositToVault(vaultsData.v2.vault, operator1, OPERATOR1_STAKE_V2_WBTC, wBTC, true);
         // Operator 2
         _depositToVault(vaultsData.v2.vault, operator2, OPERATOR2_STAKE_V2_WBTC, wBTC, true);
@@ -839,7 +836,7 @@ contract FullTest is Test {
 
         // On Vault 1: Operator 1 is the only staker.
         // On Vault 2: Operator 1 has 2 BTC Staked and it matches its limit.
-        uint256 expectedOperatorPower1 = OPERATOR1_STAKE_V1_USDC.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC) // Normalized to 18 decimals
+        uint256 expectedOperatorPower1 = OPERATOR1_STAKE_V1_STAR.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_STAR) // Normalized to 18 decimals
             + OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
         assertEq(validators[0].power, expectedOperatorPower1);
 
@@ -890,19 +887,19 @@ contract FullTest is Test {
         address staker1 = makeAddr("staker1");
         address staker2 = makeAddr("staker2");
 
-        uint256 staker1Stake = 20_000 * 10 ** TOKEN_DECIMALS_USDC;
-        uint256 staker2Stake = 30_000 * 10 ** TOKEN_DECIMALS_USDC;
+        uint256 staker1Stake = 20_000 * 10 ** TOKEN_DECIMALS_STAR;
+        uint256 staker2Stake = 30_000 * 10 ** TOKEN_DECIMALS_STAR;
 
-        _depositToVault(vaultsData.v1.vault, staker1, staker1Stake, usdc, true);
-        _depositToVault(vaultsData.v1.vault, staker2, staker2Stake, usdc, true);
+        _depositToVault(vaultsData.v1.vault, staker1, staker1Stake, STAR, true);
+        _depositToVault(vaultsData.v1.vault, staker2, staker2Stake, STAR, true);
 
         vm.warp(NETWORK_EPOCH_DURATION + 2);
         Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
 
         // Vault 1 is Operator specific so all the power is taken into account for operator 1
         // Vault 2 is full restake so only the operator limit is taken into account
-        uint256 expectedOperatorPower1 = (OPERATOR1_STAKE_V1_USDC + staker1Stake + staker2Stake).mulDiv(
-            10 ** 18, 10 ** TOKEN_DECIMALS_USDC
+        uint256 expectedOperatorPower1 = (OPERATOR1_STAKE_V1_STAR + staker1Stake + staker2Stake).mulDiv(
+            10 ** 18, 10 ** TOKEN_DECIMALS_STAR
         ) // Normalized to 18 decimals
             + OPERATOR1_LIMIT_V2.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
         assertEq(validators[0].power, expectedOperatorPower1);
@@ -912,13 +909,13 @@ contract FullTest is Test {
         vm.warp(NETWORK_EPOCH_DURATION + 2);
         Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
 
-        uint256 expectedOperatorPower1 = OPERATOR1_STAKE_V1_USDC.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC) // Normalized to 18 decimals
+        uint256 expectedOperatorPower1 = OPERATOR1_STAKE_V1_STAR.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_STAR) // Normalized to 18 decimals
             + OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
         assertEq(validators[0].power, expectedOperatorPower1);
 
-        uint256 operator1_additional_stake = 100_000 * 10 ** TOKEN_DECIMALS_USDC;
+        uint256 operator1_additional_stake = 100_000 * 10 ** TOKEN_DECIMALS_STAR;
 
-        _depositToVault(vaultsData.v1.vault, operator1, operator1_additional_stake, usdc, true);
+        _depositToVault(vaultsData.v1.vault, operator1, operator1_additional_stake, STAR, true);
 
         // Power should not change until the network epoch ends
         validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
@@ -931,7 +928,7 @@ contract FullTest is Test {
 
         // Power changes even before the vault epoch ends, only network epoch needs to
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION);
-        expectedOperatorPower1 += operator1_additional_stake.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC); // Normalized to 18 decimals
+        expectedOperatorPower1 += operator1_additional_stake.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_STAR); // Normalized to 18 decimals
         validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
         assertEq(validators[0].power, expectedOperatorPower1);
     }
@@ -940,11 +937,11 @@ contract FullTest is Test {
         vm.warp(NETWORK_EPOCH_DURATION + 2);
         Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
 
-        uint256 expectedOperatorPower1 = OPERATOR1_STAKE_V1_USDC.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC) // Normalized to 18 decimals
+        uint256 expectedOperatorPower1 = OPERATOR1_STAKE_V1_STAR.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_STAR) // Normalized to 18 decimals
             + OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
         assertEq(validators[0].power, expectedOperatorPower1);
 
-        uint256 operator1_withdraw_stake = 50_000 * 10 ** TOKEN_DECIMALS_USDC;
+        uint256 operator1_withdraw_stake = 50_000 * 10 ** TOKEN_DECIMALS_STAR;
 
         _withdrawFromVault(vaultsData.v1.vault, operator1, operator1_withdraw_stake);
 
@@ -959,7 +956,7 @@ contract FullTest is Test {
 
         // Power changes even before the vault epoch ends, only network epoch needs to
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION);
-        expectedOperatorPower1 -= operator1_withdraw_stake.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC); // Normalized to 18 decimals
+        expectedOperatorPower1 -= operator1_withdraw_stake.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_STAR); // Normalized to 18 decimals
         validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
         assertEq(validators[0].power, expectedOperatorPower1);
     }
@@ -1056,7 +1053,7 @@ contract FullTest is Test {
         address stakerRewardsContractVault1 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v1.vault));
         address stakerRewardsContractVault2 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v2.vault));
 
-        uint256 operatorPowerVault1 = OPERATOR1_STAKE_V1_USDC.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC); // Normalized to 18 decimals
+        uint256 operatorPowerVault1 = OPERATOR1_STAKE_V1_STAR.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_STAR); // Normalized to 18 decimals
         uint256 operatorPowerVault2 =
             OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
 
@@ -1380,7 +1377,7 @@ contract FullTest is Test {
                 amountToDistribute, eraIndex, OPERATOR1_KEY, operator1, 1, true, false
             );
 
-            uint256 operatorPowerVault1 = OPERATOR1_STAKE_V1_USDC.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC); // Normalized to 18 decimals
+            uint256 operatorPowerVault1 = OPERATOR1_STAKE_V1_STAR.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_STAR); // Normalized to 18 decimals
             uint256 operatorPowerVault2 =
                 OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
 
@@ -2160,7 +2157,7 @@ contract FullTest is Test {
             delegatorIndex: VaultManager.DelegatorType.OPERATOR_SPECIFIC,
             shouldBroadcast: false,
             vaultConfigurator: address(vaultConfigurator),
-            collateral: address(usdc),
+            collateral: address(STAR),
             owner: owner,
             operator: operator1,
             network: address(0),
@@ -2178,7 +2175,7 @@ contract FullTest is Test {
         operatorVaultOptInService.optIn(vault);
         // NOTICE: For operator vaults we should manually deploy a staker rewards contract and call setStakerRewardContract, but we are testing the case where we forget to do it
 
-        _depositToVault(IVault(vault), operator1, OPERATOR1_STAKE_V1_USDC, usdc, true);
+        _depositToVault(IVault(vault), operator1, OPERATOR1_STAKE_V1_STAR, STAR, true);
 
         uint48 eraIndex = 4;
         uint256 amountToDistribute = 100 ether;
@@ -2213,6 +2210,92 @@ contract FullTest is Test {
 
     function testRewardsAreDistributedCorrectlyWhenBatchClaimedWithHints() public {
         _testRewardsAreDistributedCorrectlyWhenBatchClaimed(true);
+    }
+
+    function testStakerRewardsCannotBeRestakedIfRewardsTokenIsDifferentFromCollateral() public {
+        uint48[] memory epochs = new uint48[](1);
+        epochs[0] = _testRewardsAreDistributedCorrectlyWhenBatchClaimed(true);
+        address stakerRewardsContractVault2 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v2.vault));
+
+        // Vault 2 has WBTC as collateral, so restaking with STAR should revert
+        vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__RewardsTokenIsDifferentFromCollateral.selector);
+        IODefaultStakerRewards(stakerRewardsContractVault2).batchClaimRewardsAndRestake(
+            operator1, epochs, address(STAR), new bytes[](1), 10_000
+        );
+    }
+
+    function testStakerRewardsAreDistributedCorrectlyWhenBatchClaimedAndRestaked100Percent() public {
+        (
+            uint256 previousFreeBalance,
+            uint256 previousStakedBalance,
+            uint256 stakerRewardsOperator1Vault1,
+            uint256 newFreeBalance,
+            uint256 newStakedBalance
+        ) = _prepareRestakeTest(10_000);
+
+        assertEq(newFreeBalance, previousFreeBalance);
+        assertEq(newStakedBalance, previousStakedBalance + stakerRewardsOperator1Vault1);
+    }
+
+    function testStakerRewardsAreDistributedCorrectlyWhenBatchClaimedAndRestaked0Percent() public {
+        (
+            uint256 previousFreeBalance,
+            uint256 previousStakedBalance,
+            uint256 stakerRewardsOperator1Vault1,
+            uint256 newFreeBalance,
+            uint256 newStakedBalance
+        ) = _prepareRestakeTest(0);
+
+        assertEq(newFreeBalance, previousFreeBalance + stakerRewardsOperator1Vault1);
+        assertEq(newStakedBalance, previousStakedBalance);
+    }
+
+    function testStakerRewardsAreDistributedCorrectlyWhenBatchClaimedAndRestaked50Percent() public {
+        (
+            uint256 previousFreeBalance,
+            uint256 previousStakedBalance,
+            uint256 stakerRewardsOperator1Vault1,
+            uint256 newFreeBalance,
+            uint256 newStakedBalance
+        ) = _prepareRestakeTest(5000);
+
+        assertApproxEqAbs(newFreeBalance, previousFreeBalance + stakerRewardsOperator1Vault1 / 2, 1);
+        assertApproxEqAbs(newStakedBalance, previousStakedBalance + stakerRewardsOperator1Vault1 / 2, 1);
+        assertEq(
+            newFreeBalance + newStakedBalance,
+            previousFreeBalance + previousStakedBalance + stakerRewardsOperator1Vault1
+        );
+    }
+
+    function _prepareRestakeTest(
+        uint48 restakePercentageBps
+    )
+        public
+        returns (
+            uint256 previousFreeBalance,
+            uint256 previousStakedBalance,
+            uint256 stakerRewardsOperator1Vault1,
+            uint256 newFreeBalance,
+            uint256 newStakedBalance
+        )
+    {
+        uint48 epoch = _testRewardsAreDistributedCorrectlyWhenBatchClaimed(true);
+        address stakerRewardsContractVault1 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v1.vault));
+
+        uint48[] memory epochs = new uint48[](1);
+        epochs[0] = epoch;
+
+        previousFreeBalance = STAR.balanceOf(operator1);
+        previousStakedBalance = vaultsData.v1.vault.activeBalanceOf(operator1);
+        stakerRewardsOperator1Vault1 =
+            IODefaultStakerRewards(stakerRewardsContractVault1).claimable(epoch, operator1, address(STAR));
+
+        IODefaultStakerRewards(stakerRewardsContractVault1).batchClaimRewardsAndRestake(
+            operator1, epochs, address(STAR), new bytes[](1), restakePercentageBps
+        );
+
+        newFreeBalance = STAR.balanceOf(operator1);
+        newStakedBalance = vaultsData.v1.vault.activeBalanceOf(operator1);
     }
 
     function testCannotBatchClaimRewardsForMultipleOperators() public {
@@ -2307,7 +2390,7 @@ contract FullTest is Test {
 
     function testClaimableIsZeroIfVaultHasNoActiveShares() public {
         uint256 vaultEpoch = vaultsData.v1.vault.currentEpoch();
-        _withdrawFromVault(vaultsData.v1.vault, operator1, OPERATOR1_STAKE_V1_USDC);
+        _withdrawFromVault(vaultsData.v1.vault, operator1, OPERATOR1_STAKE_V1_STAR);
         vm.warp(vm.getBlockTimestamp() + VAULT_EPOCH_DURATION * 2 + 1);
 
         vm.prank(operator1);
@@ -2347,13 +2430,13 @@ contract FullTest is Test {
 
     function _testRewardsAreDistributedCorrectlyWhenBatchClaimed(
         bool withHints
-    ) public {
+    ) public returns (uint48 epochA) {
         // uint48 operatorNumber = 1; // Commented to prevent stack to deep;
         uint48[] memory eraIndexes = new uint48[](2);
         eraIndexes[0] = 1;
         eraIndexes[1] = 2;
         uint256 amountToDistribute = 100 ether;
-        uint48 epochA = _prepareRewardsDistribution(eraIndexes[0], amountToDistribute);
+        epochA = _prepareRewardsDistribution(eraIndexes[0], amountToDistribute);
         uint48 epochB = _prepareRewardsDistribution(eraIndexes[1], amountToDistribute);
         assertEq(epochA, epochB); // Not a requirement for the process, but it makes it easier to check the results on staker rewards
 
@@ -2363,7 +2446,7 @@ contract FullTest is Test {
         address stakerRewardsContractVault1 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v1.vault));
         address stakerRewardsContractVault2 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v2.vault));
 
-        uint256 operatorPowerVault1 = OPERATOR1_STAKE_V1_USDC.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC); // Normalized to 18 decimals
+        uint256 operatorPowerVault1 = OPERATOR1_STAKE_V1_STAR.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_STAR); // Normalized to 18 decimals
         uint256 operatorPowerVault2 =
             OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
 
@@ -2704,7 +2787,7 @@ contract FullTest is Test {
         // ---------------------
         // Operator 1
         {
-            uint256 operator1PowerVault1 = OPERATOR1_STAKE_V1_USDC.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_USDC); // Normalized to 18 decimals
+            uint256 operator1PowerVault1 = OPERATOR1_STAKE_V1_STAR.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_STAR); // Normalized to 18 decimals
             uint256 operator1PowerVault2 =
                 OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
 
@@ -2785,7 +2868,7 @@ contract FullTest is Test {
             delegatorIndex: VaultManager.DelegatorType.OPERATOR_SPECIFIC,
             shouldBroadcast: false,
             vaultConfigurator: address(vaultConfigurator),
-            collateral: address(usdc),
+            collateral: address(STAR),
             owner: owner,
             operator: operator1,
             network: address(0),
@@ -2815,7 +2898,7 @@ contract FullTest is Test {
             delegatorIndex: VaultManager.DelegatorType.NETWORK_RESTAKE,
             shouldBroadcast: false,
             vaultConfigurator: address(vaultConfigurator),
-            collateral: address(usdc),
+            collateral: address(STAR),
             owner: owner,
             operator: address(0),
             network: address(0),
@@ -2853,7 +2936,7 @@ contract FullTest is Test {
             delegatorIndex: VaultManager.DelegatorType.FULL_RESTAKE,
             shouldBroadcast: false,
             vaultConfigurator: address(vaultConfigurator),
-            collateral: address(usdc),
+            collateral: address(STAR),
             owner: tanssi,
             operator: address(0),
             network: address(0),
@@ -2918,7 +3001,7 @@ contract FullTest is Test {
             delegatorIndex: VaultManager.DelegatorType.OPERATOR_SPECIFIC,
             shouldBroadcast: false,
             vaultConfigurator: address(vaultConfigurator),
-            collateral: address(usdc),
+            collateral: address(STAR),
             owner: tanssi,
             operator: operator1,
             network: address(0),
