@@ -53,9 +53,7 @@ import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 //                                      SNOWBRIDGE
 //**************************************************************************************************
 import {RegisterForeignTokenParams} from "@snowbridge/contracts/src/Params.sol";
-import {
-    OperatingMode, ParaID, Command, InboundMessage
-} from "@snowbridge/contracts/src/Types.sol";
+import {OperatingMode, ParaID, Command, InboundMessage} from "@snowbridge/contracts/src/Types.sol";
 import {MockGateway} from "@snowbridge/contracts/test/mocks/MockGateway.sol";
 import {GatewayProxy} from "@snowbridge/contracts/src/GatewayProxy.sol";
 import {Verification} from "@snowbridge/contracts/src/Verification.sol";
