@@ -40,10 +40,6 @@ jobs:
         with:
           version: stable
 
-      - name: Install dependencies
-        run: |
-          make install-tanssi-relayer
-
       - name: Start Anvil
         run: anvil &
 
