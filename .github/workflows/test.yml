@@ -55,7 +55,7 @@ jobs:
           filters: |
             solidity:
               - '**/*.sol' # Match any file ending in .sol anywhere in the repo
-              - 'lib/tanssi-bridge-relayer/**'
+              - 'lib/snowbridge/**'
 
   check:
     strategy:

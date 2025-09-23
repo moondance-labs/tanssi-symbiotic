@@ -35,7 +35,7 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 //**************************************************************************************************
 //                                      SNOWBRIDGE
 //**************************************************************************************************
-import {ScaleCodec} from "@tanssi-bridge-relayer/snowbridge/contracts/src/utils/ScaleCodec.sol";
+import {ScaleCodec} from "@snowbridge/contracts/src/utils/ScaleCodec.sol";
 
 //**************************************************************************************************
 //                                      TANSSI

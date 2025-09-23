@@ -24,14 +24,9 @@ remove :; rm -rf .gitmodules && rm -rf .git/modules/* && rm -rf lib && touch .gi
 # 			forge install symbioticfi/middleware-sdk --no-commit && \
 # 			forge install Cyfrin/foundry-devops --no-commit && \
 # 			forge install PaulRBerg/prb-math@release-v4 --no-commit&&\
-# 			forge install moondance-labs/tanssi-bridge-relayer --no-commit --no-git && \
-# 			cd lib/tanssi-bridge-relayer && ./add_overridden_contracts.sh
+# 			forge install moondance-labs/snowbrdige --no-commit --no-git && \
 
 install :; 	git submodule update --init --recursive && \
-			cd lib/tanssi-bridge-relayer && ./add_overridden_contracts.sh
-
-
-install-tanssi-relayer :; cd lib/tanssi-bridge-relayer && ./add_overridden_contracts.sh
 
 update:; forge update
 
