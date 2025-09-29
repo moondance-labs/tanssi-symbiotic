@@ -166,15 +166,6 @@ interface IODefaultOperatorRewards {
     function claimed(uint48 eraIndex, bytes32 account) external view returns (uint256 amount);
 
     /**
-     * @notice Get the staker rewards contract's address for a particular vault
-     * @param vault address of the vault
-     * @return stakerRewardsAddress address of the staker rewards contract
-     */
-    function vaultToStakerRewardsContract(
-        address vault
-    ) external view returns (address stakerRewardsAddress);
-
-    /**
      * @notice Distribute rewards for a specific era contained in an epoch by providing a Merkle root, total points, and total amount of tokens.
      * @param epoch network epoch of the middleware
      * @param eraIndex era index of Starlight's rewards distribution
@@ -226,13 +217,6 @@ interface IODefaultOperatorRewards {
     function claimRewards(
         ClaimRewardsInput calldata input
     ) external returns (uint256 amount);
-
-    /**
-     * @notice Set the staker rewards contract's address for a particular vault.
-     * @param stakerRewards The address of the staker rewards contract
-     * @param vault The address of the vault
-     */
-    function setStakerRewardContract(address stakerRewards, address vault) external;
 
     /**
      * @notice Set the operator share of the rewards.

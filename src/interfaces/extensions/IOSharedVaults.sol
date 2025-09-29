@@ -11,11 +11,9 @@ interface IOSharedVaults {
     /**
      * @notice Registers a new shared vault
      * @param sharedVault The address of the vault to register
-     * @param stakerRewardsParams Init params to create a staker rewards contract associated with the shared vault
      */
     function registerSharedVault(
-        address sharedVault,
-        IODefaultStakerRewards.InitParams memory stakerRewardsParams
+        address sharedVault
     ) external;
 
     /**

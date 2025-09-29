@@ -146,13 +146,6 @@ interface IODefaultStakerRewards {
     function i_network() external view returns (address);
 
     /**
-     * @notice Get the vault's address.
-     * @return address of the vault
-     * @dev set during initalization, so it's immutable
-     */
-    function i_vault() external view returns (address);
-
-    /**
      * @notice Get an admin fee.
      * @return admin fee
      */
@@ -161,21 +154,24 @@ interface IODefaultStakerRewards {
     /**
      * @notice Get a specific reward for a given epoch.
      * @param epoch The epoch of the reward.
+     * @param vault The address of the vault for the specified reward.
      * @param tokenAddress The address of the token for the specified reward.
      * @return amount The amount of tokens for the specified reward.
      */
-    function rewards(uint48 epoch, address tokenAddress) external view returns (uint256 amount);
+    function rewards(uint48 epoch, address vault, address tokenAddress) external view returns (uint256 amount);
 
     /**
      * @notice Get the amount already claimed by the staker
      * @param account address of the account
      * @param epoch epoch to check for unclaimed rewards
+     * @param vault address of the vault
      * @param tokenAddress address of the token for the rewards
      * @return claimed amount that has been already claimed
      */
     function stakerClaimedRewardPerEpoch(
         address account,
         uint48 epoch,
+        address vault,
         address tokenAddress
     ) external view returns (uint256 claimed);
 
@@ -191,10 +187,16 @@ interface IODefaultStakerRewards {
      * @notice Get an amount of rewards claimable by a particular account for a given epoch.
      * @param epoch epoch for which the rewards can be claimed
      * @param account address of the claimer
+     * @param vault address of the vault
      * @param tokenAddress address of the reward token
      * @return amount of claimable tokens
      */
-    function claimable(uint48 epoch, address account, address tokenAddress) external view returns (uint256);
+    function claimable(
+        uint48 epoch,
+        address account,
+        address vault,
+        address tokenAddress
+    ) external view returns (uint256);
 
     /**
      * @notice Distribute rewards for a particular epoch
@@ -217,12 +219,14 @@ interface IODefaultStakerRewards {
      * @param recipient address of the tokens' recipient
      * @param epoch epoch for which the rewards are being claimed.
      * @param tokenAddress address of the reward token
+     * @param vault address of the vault
      * @param activeSharesOfHints hint indexes to optimize `activeSharesOf()` processing
      */
     function claimRewards(
         address recipient,
         uint48 epoch,
         address tokenAddress,
+        address vault,
         bytes calldata activeSharesOfHints
     ) external;
 
@@ -241,6 +245,7 @@ interface IODefaultStakerRewards {
      * @param recipient address of the tokens' recipient
      * @param epochs array of epochs for which the rewards are being claimed
      * @param tokenAddress address of the reward token
+     * @param vault address of the vault
      * @param activeSharesOfHints array of hints for optimizing `activeSharesOf()` processing
      * @param restakePercentageBps percentage of rewards to restake (up to 10000)
      */
@@ -248,6 +253,7 @@ interface IODefaultStakerRewards {
         address recipient,
         uint48[] calldata epochs,
         address tokenAddress,
+        address vault,
         bytes[] calldata activeSharesOfHints,
         uint48 restakePercentageBps
     ) external;
@@ -257,12 +263,14 @@ interface IODefaultStakerRewards {
      * @param recipient address of the tokens' recipient
      * @param epochs array of epochs for which the rewards are being claimed
      * @param tokenAddress address of the reward token
+     * @param vault address of the vault
      * @param activeSharesOfHints array of hints for optimizing `activeSharesOf()` processing
      */
     function batchClaimRewards(
         address recipient,
         uint48[] calldata epochs,
         address tokenAddress,
+        address vault,
         bytes[] calldata activeSharesOfHints
     ) external;
 

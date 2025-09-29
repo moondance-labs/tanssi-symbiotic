@@ -15,8 +15,9 @@
 pragma solidity 0.8.25;
 
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
+import {IMiddlewareStorage} from "src/interfaces/middleware/IMiddlewareStorage.sol";
 
-abstract contract MiddlewareStorage {
+abstract contract MiddlewareStorage is IMiddlewareStorage {
     /// @custom:storage-location erc7201:tanssi.middleware.MiddlewareStorage.v1.1
     struct StorageMiddleware {
         address gateway;
@@ -27,7 +28,7 @@ abstract contract MiddlewareStorage {
         mapping(address vault => address collateral) vaultToCollateral;
         uint256 lastExecutionBlock;
         address i_operatorRewards;
-        address i_stakerRewardsFactory;
+        address i_stakerRewards; // Fine to override the previous address since it will just update it and we rename it.
     }
 
     struct StorageMiddlewareCache {
@@ -69,12 +70,12 @@ abstract contract MiddlewareStorage {
     }
 
     /**
-     * @notice Get the staker rewards factory contract address
-     * @return staker rewards factory contract address
+     * @notice Get the staker rewards contract address
+     * @return staker rewards contract address
      */
-    function getStakerRewardsFactoryAddress() public view returns (address) {
+    function getStakerRewardsAddress() public view returns (address) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
-        return $.i_stakerRewardsFactory;
+        return $.i_stakerRewards;
     }
 
     function _getMiddlewareStorage() internal pure returns (StorageMiddleware storage $v1) {
@@ -90,8 +91,7 @@ abstract contract MiddlewareStorage {
     }
 
     /**
-     * @notice Get the gateway contract
-     * @return gateway contract
+     * @inheritdoc IMiddlewareStorage
      */
     function getGateway() public view returns (address) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
@@ -99,8 +99,7 @@ abstract contract MiddlewareStorage {
     }
 
     /**
-     * @notice Get the last timestamp
-     * @return last timestamp
+     * @inheritdoc IMiddlewareStorage
      */
     function getLastTimestamp() public view returns (uint256) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
@@ -108,8 +107,7 @@ abstract contract MiddlewareStorage {
     }
 
     /**
-     * @notice Get the forwarder address
-     * @return forwarder address
+     * @inheritdoc IMiddlewareStorage
      */
     function getForwarderAddress() public view returns (address) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
@@ -117,8 +115,7 @@ abstract contract MiddlewareStorage {
     }
 
     /**
-     * @notice Get the interval
-     * @return interval
+     * @inheritdoc IMiddlewareStorage
      */
     function getInterval() public view returns (uint256) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
@@ -126,8 +123,7 @@ abstract contract MiddlewareStorage {
     }
 
     /**
-     * @notice Get the oracle address for a collateral
-     * @return oracle address
+     * @inheritdoc IMiddlewareStorage
      */
     function collateralToOracle(
         address collateral
@@ -137,8 +133,7 @@ abstract contract MiddlewareStorage {
     }
 
     /**
-     * @notice Get the collateral address for a vault
-     * @return collateral address
+     * @inheritdoc IMiddlewareStorage
      */
     function vaultToCollateral(
         address vault
@@ -148,8 +143,7 @@ abstract contract MiddlewareStorage {
     }
 
     /**
-     * @notice Get the oracle address for a vault
-     * @return oracle address
+     * @inheritdoc IMiddlewareStorage
      */
     function vaultToOracle(
         address vault
@@ -159,9 +153,7 @@ abstract contract MiddlewareStorage {
     }
 
     /**
-     * @notice Get epoch operators cache index
-     * @param epoch The epoch number
-     * @return The index of the cache for the epoch or how many operators have had their powers cached
+     * @inheritdoc IMiddlewareStorage
      */
     function getEpochCacheIndex(
         uint48 epoch
@@ -171,10 +163,7 @@ abstract contract MiddlewareStorage {
     }
 
     /**
-     * @notice Get the power of an operator
-     * @param epoch The epoch number
-     * @param operatorKey The operator key
-     * @return The power of the operator
+     * @inheritdoc IMiddlewareStorage
      */
     function getOperatorToPowerCached(uint48 epoch, bytes32 operatorKey) public view returns (uint256) {
         StorageMiddlewareCache storage $ = _getMiddlewareStorageCache();
@@ -182,10 +171,7 @@ abstract contract MiddlewareStorage {
     }
 
     /**
-     * @notice Get the total power of a vault
-     * @param epoch The epoch number
-     * @param vault The vault address
-     * @return The total power of the vault
+     * @inheritdoc IMiddlewareStorage
      */
     function getVaultToPowerCached(uint48 epoch, address vault) public view returns (uint256) {
         StorageMiddlewareCache storage $ = _getMiddlewareStorageCache();
@@ -193,9 +179,7 @@ abstract contract MiddlewareStorage {
     }
 
     /**
-     * @notice Get next expected cache command for an epoch
-     * @param epoch The epoch number
-     * @return The next expected cache command for the epoch
+     * @inheritdoc IMiddlewareStorage
      */
     function getEpochNextExpectedCacheCommand(
         uint48 epoch
@@ -205,9 +189,7 @@ abstract contract MiddlewareStorage {
     }
 
     /**
-     * @notice Get total power cached for an epoch
-     * @param epoch The epoch number
-     * @return The total power cached for the epoch
+     * @inheritdoc IMiddlewareStorage
      */
     function getEpochTotalPower(
         uint48 epoch

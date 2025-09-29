@@ -54,7 +54,6 @@ import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfa
 //**************************************************************************************************
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
-import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {OSharedVaults} from "src/contracts/extensions/OSharedVaults.sol";
 import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
@@ -140,6 +139,17 @@ contract Middleware is
         StorageMiddleware storage $ = _getMiddlewareStorage();
         $.i_operatorRewards = operatorRewards;
         $.i_stakerRewardsFactory = stakerRewardsFactory;
+    }
+
+    /*
+     * @notice Reinitialize the middleware with only staker rewards contract address
+     * @param stakerRewards The staker rewards address
+     */
+    function reinitializeRewards(
+        address stakerRewards
+    ) external reinitializer(4) notZeroAddress(stakerRewards) {
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        $.i_stakerRewards = stakerRewards;
     }
 
     function _validateInitParams(
@@ -262,11 +272,19 @@ contract Middleware is
             revert Middleware__InsufficientBalance();
         }
 
+        uint48 epochForDistribution = uint48(epoch);
+        uint48 eraForDistribution = uint48(eraIndex);
+
         StorageMiddleware storage $ = _getMiddlewareStorage();
         IERC20(tokenAddress).approve($.i_operatorRewards, tokenAmount);
 
         IODefaultOperatorRewards($.i_operatorRewards).distributeRewards(
-            uint48(epoch), uint48(eraIndex), tokenAmount, totalPoints, rewardsRoot, tokenAddress
+            epochForDistribution, eraForDistribution, tokenAmount, totalPoints, rewardsRoot, tokenAddress
+        );
+
+        IERC20(tokenAddress).approve($.i_stakerRewards, tokenAmount);
+        IODefaultStakerRewards($.i_stakerRewards).distributeRewards(
+            epochForDistribution, eraForDistribution, tokenAmount, tokenAddress, new bytes(0)
         );
     }
 
@@ -532,18 +550,11 @@ contract Middleware is
      * @inheritdoc OSharedVaults
      */
     function _afterRegisterSharedVault(
-        address sharedVault,
-        IODefaultStakerRewards.InitParams memory stakerRewardsParams
+        address sharedVault
     ) internal override {
         if (_sharedVaultsLength() >= MAX_ACTIVE_VAULTS) {
             revert Middleware__TooManyActiveVaults();
         }
-
-        StorageMiddleware storage $ = _getMiddlewareStorage();
-        address stakerRewards =
-            IODefaultStakerRewardsFactory($.i_stakerRewardsFactory).create(sharedVault, stakerRewardsParams);
-
-        IODefaultOperatorRewards($.i_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
 
         _setVaultToCollateral(sharedVault);
     }
