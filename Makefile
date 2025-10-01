@@ -24,9 +24,9 @@ remove :; rm -rf .gitmodules && rm -rf .git/modules/* && rm -rf lib && touch .gi
 # 			forge install symbioticfi/middleware-sdk --no-commit && \
 # 			forge install Cyfrin/foundry-devops --no-commit && \
 # 			forge install PaulRBerg/prb-math@release-v4 --no-commit && \
-# 			forge install moondance-labs/snowbrdige --no-commit --no-git
+# 			forge install moondance-labs/snowbridge --no-git
 
-install :; 	git submodule update --init --recursive && \
+install :; 	git submodule update --init --recursive
 
 update:; forge update
 
