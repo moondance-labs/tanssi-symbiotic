@@ -52,18 +52,16 @@ import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 //**************************************************************************************************
 //                                      SNOWBRIDGE
 //**************************************************************************************************
-import {RegisterForeignTokenParams} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Params.sol";
-import {
-    OperatingMode, ParaID, Command, InboundMessage
-} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Types.sol";
-import {MockGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/test/mocks/MockGateway.sol";
-import {GatewayProxy} from "@tanssi-bridge-relayer/snowbridge/contracts/src/GatewayProxy.sol";
-import {Verification} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Verification.sol";
-import {AgentExecutor} from "@tanssi-bridge-relayer/snowbridge/contracts/src/AgentExecutor.sol";
-import {SetOperatingModeParams} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Params.sol";
-import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfaces/IOGateway.sol";
-import {IGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfaces/IGateway.sol";
-import {Gateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/Gateway.sol";
+import {RegisterForeignTokenParams} from "@snowbridge/contracts/src/Params.sol";
+import {OperatingMode, ParaID, Command, InboundMessage} from "@snowbridge/contracts/src/Types.sol";
+import {MockGateway} from "@snowbridge/contracts/test/mocks/MockGateway.sol";
+import {GatewayProxy} from "@snowbridge/contracts/src/GatewayProxy.sol";
+import {Verification} from "@snowbridge/contracts/src/Verification.sol";
+import {AgentExecutor} from "@snowbridge/contracts/src/AgentExecutor.sol";
+import {SetOperatingModeParams} from "@snowbridge/contracts/src/Params.sol";
+import {IOGateway} from "@snowbridge/contracts/src/interfaces/IOGateway.sol";
+import {IGateway} from "@snowbridge/contracts/src/interfaces/IGateway.sol";
+import {Gateway} from "@snowbridge/contracts/src/Gateway.sol";
 
 import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";

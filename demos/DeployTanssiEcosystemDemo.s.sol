@@ -200,7 +200,6 @@ contract DeployTanssiEcosystemDemo is Script {
         console2.log("SlasherSlashable: ", vaultAddresses.slasherSlashable);
         console2.log(" ");
 
-        params.delegatorIndex = VaultManager.DelegatorType.FULL_RESTAKE;
         params.collateral = address(tokensAddresses.wBTCToken);
         (vaultAddresses.vaultVetoed, vaultAddresses.delegatorVetoed, vaultAddresses.slasherVetoed) =
             contractScripts.deployVault.createVaultVetoed(params, 1 days);
@@ -217,13 +216,12 @@ contract DeployTanssiEcosystemDemo is Script {
     function _setDelegatorConfigs() private {
         INetworkRestakeDelegator(vaultAddresses.delegator).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
         INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
+        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
 
         INetworkRestakeDelegator(vaultAddresses.delegator).setNetworkLimit(tanssi.subnetwork(0), MAX_NETWORK_LIMIT);
         INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setNetworkLimit(
             tanssi.subnetwork(0), MAX_NETWORK_LIMIT
         );
-
-        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setMaxNetworkLimit(0, MAX_NETWORK_LIMIT);
         INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setNetworkLimit(
             tanssi.subnetwork(0), MAX_NETWORK_LIMIT
         );
@@ -308,15 +306,16 @@ contract DeployTanssiEcosystemDemo is Script {
         tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator2, 1000 ether);
         tokensAddresses.stETHToken.transfer{gas: 1_000_000}(operator3, 1000 ether);
         tokensAddresses.rETHToken.transfer{gas: 1_000_000}(operator2, 1000 ether);
-        tokensAddresses.rETHToken.transfer{gas: 1_000_000}(operator3, 1000 ether);
+        tokensAddresses.wBTCToken.transfer{gas: 1_000_000}(operator3, 1000 ether);
         vm.stopBroadcast();
 
         IVault _vault = IVault(vaultAddresses.vault);
         IVault _vaultSlashable = IVault(vaultAddresses.vaultSlashable);
+        IVault _vaultVetoed = IVault(vaultAddresses.vaultVetoed);
 
         // Operator 1 goes to vault without slash
         // Operator 2 goes to vault 1 and 2, the latter being instant slashable
-        // Operator 3 goes only to vault 2, being instant slashable
+        // Operator 3 goes only to vault 3, being veto slashable
         vm.startBroadcast(operatorPrivateKey);
         operatorRegistry.registerOperator();
         operatorNetworkOptInService.optIn(tanssi);
@@ -337,8 +336,8 @@ contract DeployTanssiEcosystemDemo is Script {
         vm.startBroadcast(operator3PrivateKey);
         operatorRegistry.registerOperator();
         operatorNetworkOptInService.optIn(tanssi);
-        operatorVaultOptInService.optIn(vaultAddresses.vaultSlashable);
-        _depositToVault(_vaultSlashable, operator3, 100 ether, tokensAddresses.rETHToken);
+        operatorVaultOptInService.optIn(vaultAddresses.vaultVetoed);
+        _depositToVault(_vaultVetoed, operator3, 100 ether, tokensAddresses.wBTCToken);
         vm.stopBroadcast();
 
         address operatorRewardsAddress = contractScripts.deployRewards.deployOperatorRewardsContract(
@@ -385,8 +384,8 @@ contract DeployTanssiEcosystemDemo is Script {
             tanssi.subnetwork(0), operator2, 1
         );
 
-        // Operator 3 goes to the second vault
-        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setOperatorNetworkShares{gas: 10_000_000}(
+        // Operator 3 goes to the third vault
+        INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkShares{gas: 10_000_000}(
             tanssi.subnetwork(0), operator3, 1
         );
 

@@ -190,8 +190,8 @@ contract DeployTest is Test {
         vm.prank(tanssi_);
         middleware.setGateway(gateway);
 
-        address operator = operatorVaultPairs[2].operator;
-        address vault = operatorVaultPairs[2].vaults[0];
+        address operator = operatorVaultPairs[1].operator;
+        address vault = operatorVaultPairs[1].vaults[1];
         bytes memory operatorKey = middleware.operatorKey(operator);
 
         vm.startPrank(gateway);
@@ -200,6 +200,12 @@ contract DeployTest is Test {
         IBaseSlasher slasher = IBaseSlasher(IVault(vault).slasher());
         assertEq(slasher.TYPE(), uint8(VaultManager.SlasherType.INSTANT));
         assertGt(slasher.cumulativeSlash(tanssi_.subnetwork(0), operator), 0);
+
+        slasher = IBaseSlasher(IVault(operatorVaultPairs[0].vaults[0]).slasher());
+        assertEq(address(slasher), address(0));
+
+        slasher = IBaseSlasher(IVault(operatorVaultPairs[2].vaults[0]).slasher());
+        assertEq(slasher.TYPE(), uint8(VaultManager.SlasherType.VETO));
     }
 
     //**************************************************************************************************
