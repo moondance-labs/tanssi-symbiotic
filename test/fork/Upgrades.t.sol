@@ -66,7 +66,6 @@ contract UpgradesTest is Test {
     }
 
     function testUpgradeMiddleware() public {
-        address stakerRewardsFactory = middleware.getStakerRewardsFactoryAddress();
         IOBaseMiddlewareReader reader = IOBaseMiddlewareReader(address(middleware));
 
         uint48 currentEpoch = reader.getCurrentEpoch();
@@ -76,7 +75,6 @@ contract UpgradesTest is Test {
         deployTanssiEcosystem.upgradeMiddlewareBroadcast(address(middleware), 1);
 
         assertEq(middleware.getOperatorRewardsAddress(), address(operatorRewards));
-        assertEq(middleware.getStakerRewardsFactoryAddress(), stakerRewardsFactory);
         assertEq(reader.getCurrentEpoch(), currentEpoch);
         assertEq(reader.NETWORK(), network);
         assertEq(reader.operatorsLength(), operatorsLength);

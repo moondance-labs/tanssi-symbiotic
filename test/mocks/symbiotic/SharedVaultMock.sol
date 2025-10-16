@@ -25,9 +25,8 @@ contract SharedVaultMock is OSharedVaults, KeyManager256, EpochCapture {
     function stakeToPower(address, uint256) public pure override returns (uint256 power) {}
 
     function callAfterRegisterHook(
-        address sharedVault,
-        IODefaultStakerRewards.InitParams memory stakerRewardsParams
+        address sharedVault
     ) public checkAccess {
-        _afterRegisterSharedVault(sharedVault, stakerRewardsParams);
+        _afterRegisterSharedVault(sharedVault);
     }
 }

@@ -22,6 +22,7 @@ import {Test, console2} from "forge-std/Test.sol";
 import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
 import {KeyManagerAddress} from "@symbiotic-middleware/extensions/managers/keys/KeyManagerAddress.sol";
 import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
+import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
 import {INetworkRestakeDelegator} from "@symbiotic/interfaces/delegator/INetworkRestakeDelegator.sol";
 import {IFullRestakeDelegator} from "@symbiotic/interfaces/delegator/IFullRestakeDelegator.sol";
 import {IOperatorSpecificDelegator} from "@symbiotic/interfaces/delegator/IOperatorSpecificDelegator.sol";
@@ -47,6 +48,7 @@ import {MockV3Aggregator} from "@chainlink/tests/MockV3Aggregator.sol";
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 //**************************************************************************************************
 //                                      SNOWBRIDGE
@@ -75,7 +77,6 @@ import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
-import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {RewardsHintsBuilder} from "src/contracts/rewarder/RewardsHintsBuilder.sol";
 
@@ -122,6 +123,9 @@ contract FullTest is Test {
     // Vault 1 - Single Operator
     uint256 public constant VAULT1_NETWORK_LIMIT = 500_000 * 10 ** TOKEN_DECIMALS_STAR; // 500k power
     uint256 public constant OPERATOR1_STAKE_V1_STAR = 100_000 * 10 ** TOKEN_DECIMALS_STAR; // 100k power
+    uint256 public VAULT1_TOTAL_POWER = OPERATOR1_STAKE_V1_STAR.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_STAR).mulDiv(
+        uint256(ORACLE_CONVERSION_STAR), 10 ** ORACLE_DECIMALS_STAR
+    );
 
     // Vault 2 - 3 Operators, Full Restake
     uint256 public constant VAULT2_NETWORK_LIMIT = 10 * 10 ** TOKEN_DECIMALS_BTC; // 900k power
@@ -130,6 +134,8 @@ contract FullTest is Test {
     uint256 public constant OPERATOR3_STAKE_V2_WBTC = 3 * 10 ** TOKEN_DECIMALS_BTC; // 270k power
     uint256 public constant VAULT2_TOTAL_STAKE =
         OPERATOR1_STAKE_V2_WBTC + OPERATOR2_STAKE_V2_WBTC + OPERATOR3_STAKE_V2_WBTC;
+    uint256 public VAULT2_TOTAL_POWER =
+        VAULT2_TOTAL_STAKE.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
 
     // Limits are set by stake, not power
     uint256 public constant OPERATOR1_LIMIT_V2 = 2 * 10 ** TOKEN_DECIMALS_BTC; // Limited to 2 BTC
@@ -143,6 +149,8 @@ contract FullTest is Test {
     uint256 public constant OPERATOR5_STAKE_V3_WBTC = 2 * 10 ** TOKEN_DECIMALS_BTC; // 180k power
     uint256 public constant VAULT3_TOTAL_STAKE =
         OPERATOR3_STAKE_V3_WBTC + OPERATOR4_STAKE_V3_WBTC + OPERATOR5_STAKE_V3_WBTC;
+    uint256 public VAULT3_TOTAL_POWER =
+        VAULT3_TOTAL_STAKE.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
 
     uint256 public constant OPERATOR3_SHARES_V3 = 1; // Operator 3 will get 20% of the total power
     uint256 public constant OPERATOR4_SHARES_V3 = 2; // Operator 4 will get 40% of the total power
@@ -154,15 +162,21 @@ contract FullTest is Test {
     uint256 public constant OPERATOR5_STAKE_V4_STETH = 50 * 10 ** TOKEN_DECIMALS_ETH; // 150k power
     uint256 public constant OPERATOR6_STAKE_V4_STETH = 30 * 10 ** TOKEN_DECIMALS_ETH; // 90k power
     uint256 public constant VAULT4_TOTAL_STAKE = OPERATOR5_STAKE_V4_STETH + OPERATOR6_STAKE_V4_STETH;
+    uint256 public VAULT4_TOTAL_POWER =
+        VAULT4_TOTAL_STAKE.mulDiv(uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS_ETH);
 
     uint256 public constant OPERATOR5_SHARES_V4 = 2; // Operator 5 will get 2/3 of the total power
     uint256 public constant OPERATOR6_SHARES_V4 = 1; // Operator 6 will get 1/3 of the total power
     uint256 public constant VAULT4_TOTAL_SHARES = OPERATOR5_SHARES_V4 + OPERATOR6_SHARES_V4;
 
     // Vault 5 - Single Operator + Single Network
-    uint256 public constant VAULT5_NETWORK_LIMIT = 200 * 10 ** TOKEN_DECIMALS_ETH; // 200k power
-    uint256 public constant OPERATOR7_STAKE_V5_STETH = 100 * 10 ** TOKEN_DECIMALS_ETH; // 100k power
+    uint256 public constant VAULT5_NETWORK_LIMIT = 200 * 10 ** TOKEN_DECIMALS_ETH; // 600k power
+    uint256 public constant OPERATOR7_STAKE_V5_STETH = 100 * 10 ** TOKEN_DECIMALS_ETH; // 300k power
+    uint256 public VAULT5_TOTAL_POWER =
+        OPERATOR7_STAKE_V5_STETH.mulDiv(uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS_ETH);
 
+    uint256 public TOTAL_VAULT_POWER =
+        VAULT1_TOTAL_POWER + VAULT2_TOTAL_POWER + VAULT3_TOTAL_POWER + VAULT4_TOTAL_POWER + VAULT5_TOTAL_POWER;
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
     uint256 public constant SLASHING_FRACTION = PARTS_PER_BILLION / 10; // 10%
 
@@ -238,8 +252,7 @@ contract FullTest is Test {
     DeployVault deployVault;
     DeployRewards deployRewards;
     ODefaultOperatorRewards operatorRewards;
-    address stakerRewardsImpl;
-    ODefaultStakerRewardsFactory stakerRewardsFactory;
+    ODefaultStakerRewards stakerRewards;
 
     // ************************************************************************************************
     // *                                        SETUP
@@ -279,18 +292,26 @@ contract FullTest is Test {
         );
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
-        address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
-            address(vaultFactory), address(networkMiddlewareService), operatorRewardsAddress, tanssi, owner
-        );
-        stakerRewardsFactory = ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress);
-        stakerRewardsImpl = address(new ODefaultStakerRewards(address(networkMiddlewareService), tanssi));
-
-        _deployMiddlewareWithProxy(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        _deployMiddlewareWithProxy(operatorRewardsAddress);
         middlewareReader = OBaseMiddlewareReader(address(middleware));
 
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            adminFee: ADMIN_FEE,
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: tanssi,
+            adminFeeSetRoleHolder: tanssi
+        });
+
+        stakerRewards = ODefaultStakerRewards(
+            deployRewards.deployStakerRewards(
+                address(networkMiddlewareService), tanssi, address(middleware), stakerRewardsParams
+            )
+        );
+
+        stakerRewards.grantRole(stakerRewards.MIDDLEWARE_ROLE(), address(middleware));
+        middleware.reinitializeForStakerRewards(address(stakerRewards));
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
         operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
-        operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware));
         _deployGateway();
 
         middleware.setGateway(address(gateway));
@@ -300,11 +321,9 @@ contract FullTest is Test {
         vm.stopPrank();
 
         vm.prank(owner);
-        ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress).setImplementation(stakerRewardsImpl);
 
         VaultHints vaultHints = new VaultHints();
-        rewardsHintsBuilder =
-            new RewardsHintsBuilder(address(middleware), address(operatorRewards), address(vaultHints));
+        rewardsHintsBuilder = new RewardsHintsBuilder(address(middleware), address(vaultHints));
 
         _registerOperatorAndOptIn(operator1, tanssi, address(vaultsData.v1.vault), false);
         _registerOperatorAndOptIn(operator1, tanssi, address(vaultsData.v2.vault), false);
@@ -335,7 +354,9 @@ contract FullTest is Test {
         STAR = Token(starAddress);
     }
 
-    function _deployMiddlewareWithProxy(address operatorRewardsAddress, address stakerRewardsFactoryAddress) private {
+    function _deployMiddlewareWithProxy(
+        address operatorRewardsAddress
+    ) private {
         IMiddleware.InitParams memory params = IMiddleware.InitParams({
             network: tanssi,
             operatorRegistry: address(operatorRegistry),
@@ -348,7 +369,8 @@ contract FullTest is Test {
         });
         DeployTanssiEcosystem deployTanssi = new DeployTanssiEcosystem();
         middleware = deployTanssi.deployMiddlewareWithProxy(params);
-        middleware.reinitializeRewards(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        // TODO
+        middleware.reinitializeRewards(operatorRewardsAddress, makeAddr("deprecated"));
         networkMiddlewareService.setMiddleware(address(middleware));
     }
 
@@ -490,30 +512,15 @@ contract FullTest is Test {
         middleware.registerOperator(operator6, abi.encode(OPERATOR6_KEY), address(0));
         middleware.registerOperator(operator7, abi.encode(OPERATOR7_KEY), address(0));
 
-        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
-            adminFee: ADMIN_FEE,
-            defaultAdminRoleHolder: tanssi,
-            adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi,
-            implementation: stakerRewardsImpl
-        });
-
         // OPERATOR SPECIFIC VAULTS
         // We need to deploy their staker rewards and link them
         middleware.registerOperatorVault(operator1, address(vaultsData.v1.vault));
         middleware.registerOperatorVault(operator7, address(vaultsData.v5.vault));
 
-        address stakerRewardsV1 = stakerRewardsFactory.create(address(vaultsData.v1.vault), stakerRewardsParams);
-        address stakerRewardsV5 = stakerRewardsFactory.create(address(vaultsData.v5.vault), stakerRewardsParams);
-
-        operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(owner)); // Admins need to set the staker rewards contract for operator specific vaults
-        operatorRewards.setStakerRewardContract(stakerRewardsV1, address(vaultsData.v1.vault));
-        operatorRewards.setStakerRewardContract(stakerRewardsV5, address(vaultsData.v5.vault));
-
         // SHARED VAULTS
-        middleware.registerSharedVault(address(vaultsData.v2.vault), stakerRewardsParams);
-        middleware.registerSharedVault(address(vaultsData.v3.vault), stakerRewardsParams);
-        middleware.registerSharedVault(address(vaultsData.v4.vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vaultsData.v2.vault));
+        middleware.registerSharedVault(address(vaultsData.v3.vault));
+        middleware.registerSharedVault(address(vaultsData.v4.vault));
 
         vm.stopPrank();
     }
@@ -655,7 +662,18 @@ contract FullTest is Test {
         uint48 epochStartTs = middleware.getEpochStart(epoch);
         vm.warp(epochStartTs + 1);
 
+        vm.mockCall(
+            address(operatorVaultOptInService),
+            abi.encodeWithSelector(
+                OptInService.isOptedInAt.selector, operator6, address(vaultsData.v4.vault), epochStartTs, new bytes(0)
+            ),
+            abi.encode(false)
+        );
+
         STAR.mint(address(middleware), amountToDistribute);
+
+        // Now upkeep is needed to cache everything and must be done before distributing rewards
+        _executeUpkeep(epoch);
 
         vm.prank(address(gateway));
         middleware.distributeRewards(epoch, eraIndex, totalPoints, amountToDistribute, rewardsRoot, address(STAR));
@@ -670,26 +688,18 @@ contract FullTest is Test {
         address operator,
         uint48 operatorNumber,
         bool checkBalance,
-        bool calculateHints
+        bool calculateHints //TODO to remove
     ) private returns (uint256 expectedRewardsForStakers) {
         (,, bytes32[] memory proof, uint32 points, uint32 totalPoints) =
             _loadRewardsRootAndProof(eraIndex, operatorNumber);
 
         {
-            bytes memory hintsData;
-            if (calculateHints) {
-                hintsData = rewardsHintsBuilder.getDataForOperatorClaimRewards(operatorKey, eraIndex, ADMIN_FEE);
-            } else {
-                hintsData = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
-            }
-
             IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards
                 .ClaimRewardsInput({
                 operatorKey: operatorKey,
                 eraIndex: eraIndex,
                 totalPointsClaimable: points,
-                proof: proof,
-                data: hintsData
+                proof: proof
             });
 
             uint256 gasBefore = gasleft();
@@ -708,48 +718,51 @@ contract FullTest is Test {
         uint32 points,
         uint32 totalPoints
     ) private view returns (uint256 expectedRewardsForStakers) {
-        uint256 expectedRewardsForOperator =
-            amountToDistribute.mulDiv(points, totalPoints).mulDiv(OPERATOR_SHARE, MAX_PERCENTAGE);
-        expectedRewardsForStakers = amountToDistribute.mulDiv(points, totalPoints) - expectedRewardsForOperator;
+        uint256 operatorAmount = amountToDistribute.mulDiv(points, totalPoints);
+        uint256 expectedRewardsForOperator = operatorAmount.mulDiv(OPERATOR_SHARE, MAX_PERCENTAGE);
+        expectedRewardsForStakers = operatorAmount - expectedRewardsForOperator;
 
         if (checkBalance) {
             assertEq(STAR.balanceOf(operator), expectedRewardsForOperator);
         }
     }
 
+    function _calculateAmountForOperatorsAndStakers(
+        uint256 amountToDistribute
+    ) private view returns (uint256 amountForOperators, uint256 amountForStakers) {
+        amountForOperators = amountToDistribute.mulDiv(OPERATOR_SHARE, MAX_PERCENTAGE);
+        amountForStakers = amountToDistribute - amountForOperators;
+    }
+
     function _checkClaimableRewardsVault2(
         uint256 expectedRewardsStakerVault2,
         uint48 epoch
     ) private view returns (uint256 rewardsOperator1, uint256 rewardsOperator2, uint256 rewardsOperator3) {
-        address stakerRewardsContractVault2 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v2.vault));
-
         // Operator 1
         rewardsOperator1 = expectedRewardsStakerVault2.mulDiv(OPERATOR1_STAKE_V2_WBTC, VAULT2_TOTAL_STAKE);
-        _checkClaimableRewards(stakerRewardsContractVault2, epoch, operator1, rewardsOperator1);
+        // _checkClaimableRewards(epoch, operator1, address(vaultsData.v2.vault), rewardsOperator1);
 
         // Operator 2
         rewardsOperator2 = expectedRewardsStakerVault2.mulDiv(OPERATOR2_STAKE_V2_WBTC, VAULT2_TOTAL_STAKE);
-        _checkClaimableRewards(stakerRewardsContractVault2, epoch, operator2, rewardsOperator2);
+        _checkClaimableRewards(epoch, operator2, address(vaultsData.v2.vault), rewardsOperator2);
 
         // Operator 3
         rewardsOperator3 = expectedRewardsStakerVault2.mulDiv(OPERATOR3_STAKE_V2_WBTC, VAULT2_TOTAL_STAKE);
-        _checkClaimableRewards(stakerRewardsContractVault2, epoch, operator3, rewardsOperator3);
+        _checkClaimableRewards(epoch, operator3, address(vaultsData.v2.vault), rewardsOperator3);
     }
 
     function _checkClaimableRewardsVault3(uint256 expectedRewardsStakerVault3, uint48 epoch) private view {
-        address stakerRewardsContractVault3 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v3.vault));
-
         // Operator 3
         uint256 expectedRewards = expectedRewardsStakerVault3.mulDiv(OPERATOR3_STAKE_V3_WBTC, VAULT3_TOTAL_STAKE);
-        _checkClaimableRewards(stakerRewardsContractVault3, epoch, operator3, expectedRewards);
+        _checkClaimableRewards(epoch, operator3, address(vaultsData.v3.vault), expectedRewards);
 
         // Operator 4
         expectedRewards = expectedRewardsStakerVault3.mulDiv(OPERATOR4_STAKE_V3_WBTC, VAULT3_TOTAL_STAKE);
-        _checkClaimableRewards(stakerRewardsContractVault3, epoch, operator4, expectedRewards);
+        _checkClaimableRewards(epoch, operator4, address(vaultsData.v3.vault), expectedRewards);
 
         // Operator 5
         expectedRewards = expectedRewardsStakerVault3.mulDiv(OPERATOR5_STAKE_V3_WBTC, VAULT3_TOTAL_STAKE);
-        _checkClaimableRewards(stakerRewardsContractVault3, epoch, operator5, expectedRewards);
+        _checkClaimableRewards(epoch, operator5, address(vaultsData.v3.vault), expectedRewards);
     }
 
     function _checkClaimableRewardsVault4(
@@ -757,37 +770,27 @@ contract FullTest is Test {
         uint256 totalStakeVault4,
         uint48 epoch
     ) private view {
-        address stakerRewardsContractVault4 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v4.vault));
-
         // Operator 5 in Vault 4
         uint256 expectedRewards = expectedRewardsStakerVault4.mulDiv(OPERATOR5_STAKE_V4_STETH, totalStakeVault4);
-        _checkClaimableRewards(stakerRewardsContractVault4, epoch, operator5, expectedRewards);
+        _checkClaimableRewards(epoch, operator5, address(vaultsData.v4.vault), expectedRewards);
 
         // Operator 6 in Vault 4
         expectedRewards = expectedRewardsStakerVault4.mulDiv(OPERATOR6_STAKE_V4_STETH, totalStakeVault4);
-        _checkClaimableRewards(stakerRewardsContractVault4, epoch, operator6, expectedRewards);
+        _checkClaimableRewards(epoch, operator6, address(vaultsData.v4.vault), expectedRewards);
     }
 
     function _checkClaimableRewards(
-        address stakerRewards,
         uint48 epoch,
         address operator,
+        address vault,
         uint256 expectedRewards
     ) private view {
-        uint256 actualRewards = IODefaultStakerRewards(stakerRewards).claimable(epoch, operator, address(STAR));
+        uint256 actualRewards = stakerRewards.claimable(epoch, operator, vault, address(STAR));
         assertApproxEqAbs(expectedRewards, actualRewards, 1);
     }
 
     function _prepareOperatorsInMultipleVaults(address operatorA, address operatorB, uint256 numberOfVaults) private {
         uint256 NETWORK_LIMIT = 100 ether;
-
-        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
-            adminFee: ADMIN_FEE,
-            defaultAdminRoleHolder: tanssi,
-            adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi,
-            implementation: stakerRewardsImpl
-        });
 
         for (uint256 i = 0; i < numberOfVaults; i++) {
             vm.startPrank(tanssi);
@@ -806,7 +809,7 @@ contract FullTest is Test {
             });
             (address vault, address delegator,) = deployVault.createSlashableVault(params);
 
-            middleware.registerSharedVault(address(vault), stakerRewardsParams);
+            middleware.registerSharedVault(address(vault));
             INetworkRestakeDelegator(delegator).setOperatorNetworkShares(tanssi.subnetwork(0), operatorA, 1);
             INetworkRestakeDelegator(delegator).setOperatorNetworkShares(tanssi.subnetwork(0), operatorB, 1);
             INetworkRestakeDelegator(delegator).setMaxNetworkLimit(0, NETWORK_LIMIT);
@@ -965,14 +968,6 @@ contract FullTest is Test {
         address operator8 = makeAddr("operator8");
         uint256 NETWORK_LIMIT = 100 ether;
 
-        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
-            adminFee: ADMIN_FEE,
-            defaultAdminRoleHolder: tanssi,
-            adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi,
-            implementation: stakerRewardsImpl
-        });
-
         vm.startPrank(tanssi);
         DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
             epochDuration: VAULT_EPOCH_DURATION,
@@ -989,7 +984,7 @@ contract FullTest is Test {
         });
         (address vault, address delegator,) = deployVault.createSlashableVault(params);
 
-        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vault));
         INetworkRestakeDelegator(delegator).setOperatorNetworkShares(tanssi.subnetwork(0), operator8, 1);
         INetworkRestakeDelegator(delegator).setMaxNetworkLimit(0, NETWORK_LIMIT);
         INetworkRestakeDelegator(delegator).setNetworkLimit(tanssi.subnetwork(0), NETWORK_LIMIT);
@@ -1050,74 +1045,29 @@ contract FullTest is Test {
         );
 
         // Operator 1 is active in vaults 1 and 2
-        address stakerRewardsContractVault1 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v1.vault));
-        address stakerRewardsContractVault2 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v2.vault));
-
         uint256 operatorPowerVault1 = OPERATOR1_STAKE_V1_STAR.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_STAR); // Normalized to 18 decimals
         uint256 operatorPowerVault2 =
             OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
 
-        uint256 expectedRewardsStakerVault1 =
-            expectedRewardsForStakers.mulDiv(operatorPowerVault1, operatorPowerVault1 + operatorPowerVault2);
-        uint256 expectedRewardsStakerVault2 = expectedRewardsForStakers - expectedRewardsStakerVault1;
-
-        assertApproxEqAbs(STAR.balanceOf(stakerRewardsContractVault1), expectedRewardsStakerVault1, 1);
-        assertApproxEqAbs(STAR.balanceOf(stakerRewardsContractVault2), expectedRewardsStakerVault2, 1);
+        assertApproxEqAbs(STAR.balanceOf(address(stakerRewards)), expectedRewardsForStakers, 1);
 
         // Vault 1
         {
             // Operator 1 is the only staker on the vault, so they get all the rewards minus the admin fee
             uint256 expectedRewardsStakerOperator1Vault1 =
-                expectedRewardsStakerVault1.mulDiv(MAX_PERCENTAGE - ADMIN_FEE, MAX_PERCENTAGE);
+                expectedRewardsForStakers.mulDiv(MAX_PERCENTAGE - ADMIN_FEE, MAX_PERCENTAGE);
+            uint256 expectedRewardsStakerForVault1 =
+                expectedRewardsStakerOperator1Vault1.mulDiv(VAULT1_TOTAL_POWER, TOTAL_VAULT_POWER);
+
             uint256 stakerRewardsOperator1Vault1 =
-                IODefaultStakerRewards(stakerRewardsContractVault1).claimable(epoch, operator1, address(STAR));
+                stakerRewards.claimable(epoch, operator1, address(vaultsData.v1.vault), address(STAR));
             assertApproxEqAbs(expectedRewardsStakerOperator1Vault1, stakerRewardsOperator1Vault1, 2);
         }
 
         // Vault 2
-        uint256 adminFeeStakerRewardsVault2 = expectedRewardsStakerVault2.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
-        expectedRewardsStakerVault2 -= adminFeeStakerRewardsVault2;
+
+        uint256 expectedRewardsStakerVault2 = _calculateRewardsForVault(expectedRewardsForStakers, VAULT2_TOTAL_POWER);
         _checkClaimableRewardsVault2(expectedRewardsStakerVault2, epoch);
-    }
-
-    function testClaimingRewardsRevertsIfVaultsDoNotMatchOnHints() public {
-        uint48 eraIndex = 1;
-        uint48 operatorNumber = 1;
-        uint256 amountToDistribute = 100 ether;
-        _prepareRewardsDistribution(eraIndex, amountToDistribute);
-
-        (,, bytes32[] memory proof, uint32 points,) = _loadRewardsRootAndProof(eraIndex, operatorNumber);
-
-        {
-            bytes memory hintsData =
-                rewardsHintsBuilder.getDataForOperatorClaimRewards(OPERATOR1_KEY, eraIndex, ADMIN_FEE);
-            (, IODefaultOperatorRewards.VaultHints[] memory vaultHints) =
-                abi.decode(hintsData, (uint256, IODefaultOperatorRewards.VaultHints[]));
-
-            assertEq(vaultHints.length, 2);
-
-            // Swap the vaults, the order will be unexpected when claiming rewards so it should revert
-            vaultHints[0].vault = address(vaultsData.v3.vault);
-            vaultHints[1].vault = address(vaultsData.v4.vault);
-
-            hintsData = abi.encode(ADMIN_FEE, vaultHints);
-
-            IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards
-                .ClaimRewardsInput({
-                operatorKey: OPERATOR1_KEY,
-                eraIndex: eraIndex,
-                totalPointsClaimable: points,
-                proof: proof,
-                data: hintsData
-            });
-
-            vm.expectRevert(
-                abi.encodeWithSelector(
-                    IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidOrderForHintsPerVault.selector
-                )
-            );
-            operatorRewards.claimRewards(claimRewardsData);
-        }
     }
 
     function testRewardsAreDistributedCorrectlyForOperator2WithNoHints() public {
@@ -1140,15 +1090,13 @@ contract FullTest is Test {
         );
 
         // Operator 2 is only active on vault 2, so all the stakers rewards go to this vault
-        address stakerRewardsContractVault2 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v2.vault));
-        uint256 expectedRewardsStakerVault2 = expectedRewardsForStakers;
 
-        assertEq(STAR.balanceOf(stakerRewardsContractVault2), expectedRewardsStakerVault2);
+        assertEq(STAR.balanceOf(address(stakerRewards)), expectedRewardsForStakers);
 
         // Vault 2
-        uint256 adminFeeStakerRewardsVault2 = expectedRewardsStakerVault2.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
-        expectedRewardsStakerVault2 -= adminFeeStakerRewardsVault2;
-        _checkClaimableRewardsVault2(expectedRewardsStakerVault2, epoch);
+        uint256 adminFeeStakerRewardsVault2 = expectedRewardsForStakers.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
+        expectedRewardsForStakers -= adminFeeStakerRewardsVault2;
+        _checkClaimableRewardsVault2(expectedRewardsForStakers, epoch);
     }
 
     function testRewardsAreDistributedCorrectlyForOperator3() public {
@@ -1159,10 +1107,6 @@ contract FullTest is Test {
         uint256 expectedRewardsForStakers = _claimAndCheckOperatorRewardsForOperator(
             amountToDistribute, eraIndex, OPERATOR3_KEY, operator3, 3, true, false
         );
-
-        // Operator 3 is active in vaults 2 and 3
-        address stakerRewardsContractVault2 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v2.vault));
-        address stakerRewardsContractVault3 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v3.vault));
 
         // On Vault 2: Operator 3 has 3 BTC staked, but delegator is full restake and their limit is 2 BTC. So only 2 BTC are taken into account.
         // On Vault 3: delegator is network restake and OP3 is assigned 1/5 shares
@@ -1176,21 +1120,18 @@ contract FullTest is Test {
             expectedRewardsForStakers.mulDiv(operatorPowerVault2, operatorPowerVault2 + operatorPowerVault3);
         uint256 expectedRewardsStakerVault3 = expectedRewardsForStakers - expectedRewardsStakerVault2;
 
-        assertEq(STAR.balanceOf(stakerRewardsContractVault2), expectedRewardsStakerVault2);
-        assertEq(STAR.balanceOf(stakerRewardsContractVault3), expectedRewardsStakerVault3);
+        assertEq(STAR.balanceOf(address(stakerRewards)), expectedRewardsForStakers);
 
         // Vault 2
         {
-            uint256 adminFeeStakerRewardsVault2 = expectedRewardsStakerVault2.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
-            expectedRewardsStakerVault2 -= adminFeeStakerRewardsVault2;
+            uint256 expectedRewardsVault2 = _calculateRewardsForVault(expectedRewardsForStakers, VAULT2_TOTAL_POWER);
             _checkClaimableRewardsVault2(expectedRewardsStakerVault2, epoch);
         }
 
         // Vault 3
         {
-            uint256 adminFeeStakerRewardsVault3 = expectedRewardsStakerVault3.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
-            expectedRewardsStakerVault3 -= adminFeeStakerRewardsVault3;
-            _checkClaimableRewardsVault3(expectedRewardsStakerVault3, epoch);
+            uint256 expectedRewardsVault3 = _calculateRewardsForVault(expectedRewardsForStakers, VAULT3_TOTAL_POWER);
+            _checkClaimableRewardsVault3(expectedRewardsVault3, epoch);
         }
     }
 
@@ -1204,16 +1145,14 @@ contract FullTest is Test {
         );
 
         // Operator 4 is only active on vault 3, so all the stakers rewards go to this vault
-        address stakerRewardsContractVault3 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v3.vault));
-        uint256 expectedRewardsStakerVault3 = expectedRewardsForStakers;
 
-        assertEq(STAR.balanceOf(stakerRewardsContractVault3), expectedRewardsStakerVault3);
+        assertEq(STAR.balanceOf(address(stakerRewards)), expectedRewardsForStakers);
 
         // Vault 3
         {
-            uint256 adminFeeStakerRewardsVault3 = expectedRewardsStakerVault3.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
-            expectedRewardsStakerVault3 -= adminFeeStakerRewardsVault3;
-            _checkClaimableRewardsVault3(expectedRewardsStakerVault3, epoch);
+            uint256 adminFeeStakerRewardsVault3 = expectedRewardsForStakers.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
+            expectedRewardsForStakers -= adminFeeStakerRewardsVault3;
+            _checkClaimableRewardsVault3(expectedRewardsForStakers, epoch);
         }
     }
 
@@ -1227,9 +1166,6 @@ contract FullTest is Test {
         );
 
         // Operator 5 is active in vaults 3 and 4
-        address stakerRewardsContractVault3 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v3.vault));
-        address stakerRewardsContractVault4 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v4.vault));
-
         // On Vault 3: delegator is network restake and OP5 is assigned 2/5 shares
         // On Vault 4: delegator is network restake and OP5 is assigned 2/3 shares
         uint256 operatorPowerVault3 = VAULT3_TOTAL_STAKE.mulDiv(OPERATOR5_SHARES_V3, VAULT3_TOTAL_SHARES).mulDiv(
@@ -1239,26 +1175,25 @@ contract FullTest is Test {
             uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS_ETH
         );
 
-        uint256 expectedRewardsStakerVault3 =
-            expectedRewardsForStakers.mulDiv(operatorPowerVault3, operatorPowerVault3 + operatorPowerVault4);
-        uint256 expectedRewardsStakerVault4 = expectedRewardsForStakers - expectedRewardsStakerVault3;
+        // uint256 expectedRewardsStakerVault3 =
+        //     expectedRewardsForStakers.mulDiv(operatorPowerVault3, operatorPowerVault3 + operatorPowerVault4);
+        // uint256 expectedRewardsStakerVault4 = expectedRewardsForStakers - expectedRewardsStakerVault3;
 
-        assertEq(STAR.balanceOf(stakerRewardsContractVault3), expectedRewardsStakerVault3);
-        assertEq(STAR.balanceOf(stakerRewardsContractVault4), expectedRewardsStakerVault4);
+        assertEq(STAR.balanceOf(address(stakerRewards)), expectedRewardsForStakers);
 
         // Vault 3
         {
-            uint256 adminFeeStakerRewardsVault3 = expectedRewardsStakerVault3.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
-            expectedRewardsStakerVault3 -= adminFeeStakerRewardsVault3;
+            uint256 expectedRewardsStakerVault3 =
+                _calculateRewardsForVault(expectedRewardsForStakers, VAULT3_TOTAL_POWER);
+
             _checkClaimableRewardsVault3(expectedRewardsStakerVault3, epoch);
         }
 
         // Vault 4
         {
-            uint256 totalStakeVault4 = VAULT4_TOTAL_STAKE;
-            uint256 adminFeeStakerRewardsVault4 = expectedRewardsStakerVault4.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
-            expectedRewardsStakerVault4 -= adminFeeStakerRewardsVault4;
-            _checkClaimableRewardsVault4(expectedRewardsStakerVault4, totalStakeVault4, epoch);
+            uint256 expectedRewardsStakerVault4 =
+                _calculateRewardsForVault(expectedRewardsForStakers, VAULT4_TOTAL_POWER);
+            _checkClaimableRewardsVault4(expectedRewardsStakerVault4, VAULT4_TOTAL_STAKE, epoch);
         }
     }
 
@@ -1272,19 +1207,14 @@ contract FullTest is Test {
         );
 
         // Operator 7 is only active on vault 5, so all the stakers rewards go to this vault
-        address stakerRewardsContractVault5 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v5.vault));
-        uint256 expectedRewardsStakerVault5 = expectedRewardsForStakers;
 
-        assertEq(STAR.balanceOf(stakerRewardsContractVault5), expectedRewardsStakerVault5);
+        assertEq(STAR.balanceOf(address(stakerRewards)), expectedRewardsForStakers);
 
         // Vault 5
         {
-            uint256 adminFeeStakerRewardsVault5 = expectedRewardsStakerVault5.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
-            expectedRewardsStakerVault5 -= adminFeeStakerRewardsVault5;
-
-            // Operator 7 in Vault 5
-            uint256 expectedRewards = expectedRewardsStakerVault5;
-            _checkClaimableRewards(stakerRewardsContractVault5, epoch, operator7, expectedRewards);
+            uint256 expectedRewardsStakerVault5 =
+                _calculateRewardsForVault(expectedRewardsForStakers, VAULT5_TOTAL_POWER);
+            _checkClaimableRewards(epoch, operator7, address(vaultsData.v5.vault), expectedRewardsStakerVault5);
         }
     }
 
@@ -1305,19 +1235,14 @@ contract FullTest is Test {
         );
 
         // Operator 7 is only active on vault 5, so all the stakers rewards go to this vault
-        address stakerRewardsContractVault5 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v5.vault));
-        uint256 expectedRewardsStakerVault5 = expectedRewardsForStakers;
 
-        assertEq(STAR.balanceOf(stakerRewardsContractVault5), expectedRewardsStakerVault5);
+        assertEq(STAR.balanceOf(address(stakerRewards)), expectedRewardsForStakers);
 
         // Vault 5
         {
-            uint256 adminFeeStakerRewardsVault5 = expectedRewardsStakerVault5.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
-            expectedRewardsStakerVault5 -= adminFeeStakerRewardsVault5;
-
-            // Operator 7 in Vault 5
-            uint256 expectedRewards = expectedRewardsStakerVault5;
-            _checkClaimableRewards(stakerRewardsContractVault5, epoch, operator7, expectedRewards);
+            uint256 expectedRewardsStakerVault5 =
+                _calculateRewardsForVault(expectedRewardsForStakers, VAULT5_TOTAL_POWER);
+            _checkClaimableRewards(epoch, operator7, address(vaultsData.v5.vault), expectedRewardsStakerVault5);
         }
     }
 
@@ -1330,13 +1255,11 @@ contract FullTest is Test {
         (,, bytes32[] memory proof, uint32 points,) = _loadRewardsRootAndProof(eraIndex, 6);
         assertEq(0, proof.length);
 
-        bytes memory additionalData = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
         IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
             operatorKey: OPERATOR6_KEY,
             eraIndex: eraIndex,
             totalPointsClaimable: points,
-            proof: proof,
-            data: additionalData
+            proof: proof
         });
 
         vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__InvalidProof.selector);
@@ -1346,113 +1269,383 @@ contract FullTest is Test {
     function testRewardsAreDistributedCorrectlyForMultipleOperators() public {
         uint48 eraIndex = 1;
         uint256 amountToDistribute = 100 ether;
+
+        console2.log("Vault 1 power: ", VAULT1_TOTAL_POWER);
+        console2.log("Vault 2 power: ", VAULT2_TOTAL_POWER);
+        console2.log("Vault 3 power: ", VAULT3_TOTAL_POWER);
+        console2.log("Vault 4 power: ", VAULT4_TOTAL_POWER);
+        console2.log("Vault 5 power: ", VAULT5_TOTAL_POWER);
+
+        // rewards = 100
+        // v1Power = 10
+        // v2Power = 54
+        // v3Power = 45
+        // v4Power = 24
+        // v5Power = 30
+        // totalPower = 139
+
+        // operators points
+        // op1 = 10
+        // op2 = 20
+        // op3 = 20
+        // op4 = 20
+        // op5 = 20
+        // op6 = 0
+        // op7 = 10
+
+        // v1Rewards = 80*10/163 = 4,90
+        // v2Rewards = 80*54/163 = 26,50
+        // v3Rewards = 80*45/163 = 22,08
+        // v4Rewards = 80*24/163 = 11,77
+        // v5Rewards = 80*30/163 = 14,72
+        // totalRewards = 4,90 + 26,50 + 22,08 + 11,77 + 14,72 = 79,97 (due to rounding)
+
+        // v1Rewards = 80*10/139 = 5,76
+        // v2Rewards = 80*54/139 = 31,03
+        // v3Rewards = 80*45/139 = 25,89
+        // v5Rewards = 80*30/139 = 17,26
+        // totalRewards = 5,76 + 31,03 + 25,89 + 17,26 = 79,94 (due to rounding)
+
+        {
+            // Operator 6 has no rewards hence his power has to be 0
+        }
         uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
 
-        // This test will use vault 3, which has 3 active operators. Each of them will perform claim.
-        uint256 expectedRewardsForStakersFromOperator1;
-        uint256 expectedRewardsForStakersFromOperator2;
-        uint256 expectedRewardsForStakersFromOperator3;
+        (uint256 operatorAmount, uint256 stakerAmount) = _calculateAmountForOperatorsAndStakers(amountToDistribute);
 
-        {
-            vm.prank(owner);
-            middleware.setForwarder(forwarder);
+        // Step 1: Calculate the expected rewards for each operator based on the new system.
+        // This is used for comparison to ensure the new system distributes the same total amount.
 
-            uint256 gasBefore = gasleft();
-            (, bytes memory performData) = middleware.checkUpkeep(hex"");
-            console2.log("Gas used to checkUpkeep:", gasBefore - gasleft());
-            (uint8 command, uint48 encodedEpoch,) =
-                abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
-            assertEq(encodedEpoch, epoch);
-            assertEq(command, middleware.CACHE_DATA_COMMAND());
+        // Operator 1 only Vaults 1 and 2
+        (uint256 expectedTotalForStakersOp1, uint256 expectedRewardsForVault2FromOp1) =
+            _calculateExpectedRewardsForOperator1(amountToDistribute, eraIndex);
 
-            vm.startPrank(forwarder);
-            gasBefore = gasleft();
-            middleware.performUpkeep(performData);
-            console2.log("Gas used to performUpkeep:", gasBefore - gasleft());
-        }
+        // Operator 2 only Vault 2
+        uint256 expectedTotalForStakersOp2 = _calculateExpectedRewardsForOperator2(amountToDistribute, eraIndex);
 
-        // Operator 1
-        {
-            uint256 expectedRewardsForStakers = _claimAndCheckOperatorRewardsForOperator(
-                amountToDistribute, eraIndex, OPERATOR1_KEY, operator1, 1, true, false
-            );
+        // Operator 3 Vaults 2 and 3
+        (uint256 expectedTotalForStakersOp3, uint256 expectedRewardsForVault2FromOp3) =
+            _calculateExpectedRewardsForOperator3(amountToDistribute, eraIndex);
 
-            uint256 operatorPowerVault1 = OPERATOR1_STAKE_V1_STAR.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_STAR); // Normalized to 18 decimals
-            uint256 operatorPowerVault2 =
-                OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+        // Operator 4 only Vault 3
+        uint256 expectedTotalForStakersOp4 = _claimAndCheckOperatorRewardsForOperator(
+            amountToDistribute, eraIndex, OPERATOR4_KEY, operator4, 4, true, false
+        );
+        // Operator 5 Vaults 3 and 4
+        uint256 expectedTotalForStakersOp5 = _claimAndCheckOperatorRewardsForOperator(
+            amountToDistribute, eraIndex, OPERATOR5_KEY, operator5, 5, true, false
+        );
 
-            uint256 expectedRewardsStakerVault1 =
-                expectedRewardsForStakers.mulDiv(operatorPowerVault1, operatorPowerVault1 + operatorPowerVault2);
-            expectedRewardsForStakersFromOperator1 = expectedRewardsForStakers - expectedRewardsStakerVault1;
-        }
+        // Operator 7 only Vault 5
+        uint256 expectedTotalForStakersOp7 = _claimAndCheckOperatorRewardsForOperator(
+            amountToDistribute, eraIndex, OPERATOR7_KEY, operator7, 7, true, false
+        );
 
-        // Operator 2
-        {
-            uint256 expectedRewardsForStakers = _claimAndCheckOperatorRewardsForOperator(
-                amountToDistribute, eraIndex, OPERATOR2_KEY, operator2, 2, true, false
-            );
-            // Operator 2 is only active on vault 2, so all the stakers rewards go to this vault
-            expectedRewardsForStakersFromOperator2 = expectedRewardsForStakers;
-        }
+        // Step 3: Aggregate the results and verify the new distribution logic.
+        uint256 totalExpectedForStakersFromOperators = expectedTotalForStakersOp1 + expectedTotalForStakersOp2
+            + expectedTotalForStakersOp3 + expectedTotalForStakersOp4 + expectedTotalForStakersOp5
+            + expectedTotalForStakersOp7;
 
-        // Operator 3
-        {
-            uint256 expectedRewardsForStakers = _claimAndCheckOperatorRewardsForOperator(
-                amountToDistribute, eraIndex, OPERATOR3_KEY, operator3, 3, true, false
-            );
-            // Operator 3 is active in vaults 2 and 3
-            // On Vault 2: Operator 3 has 3 BTC staked, but delegator is full restake and their limit is 2 BTC. So only 2 BTC are taken into account.
-            // On Vault 3: delegator is network restake and OP3 is assigned 1/5 shares
-            uint256 operatorPowerVault2 =
-                OPERATOR3_LIMIT_V2.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
-            uint256 operatorPowerVault3 = VAULT3_TOTAL_STAKE.mulDiv(
-                uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC
-            ).mulDiv(OPERATOR3_SHARES_V3, VAULT3_TOTAL_SHARES);
+        assertEq(totalExpectedForStakersFromOperators, stakerAmount);
 
-            expectedRewardsForStakersFromOperator3 =
-                expectedRewardsForStakers.mulDiv(operatorPowerVault2, operatorPowerVault2 + operatorPowerVault3);
-        }
+        // The total expected rewards for Vault 2 stakers is the sum of contributions from each operator.
+        uint256 expectedRewardsStakerVault2 =
+            expectedRewardsForVault2FromOp1 + expectedTotalForStakersOp2 + expectedRewardsForVault2FromOp3;
 
-        // Operator 2 is only active on vault 2, so all the stakers rewards go to this vault
-        address stakerRewardsContractVault2 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v2.vault));
-        uint256 expectedRewardsStakerVault2 = expectedRewardsForStakersFromOperator1
-            + expectedRewardsForStakersFromOperator2 + expectedRewardsForStakersFromOperator3;
+        expectedRewardsStakerVault2 -= expectedRewardsStakerVault2.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
 
-        assertApproxEqAbs(STAR.balanceOf(stakerRewardsContractVault2), expectedRewardsStakerVault2, 1);
+        uint256 rewardsForVault2 = stakerRewards.rewards(epoch, address(vaultsData.v2.vault), address(STAR));
+        assertEq(expectedRewardsStakerVault2, rewardsForVault2);
 
-        // Vault 2
-        uint256 adminFeeStakerRewardsVault2 = expectedRewardsStakerVault2.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
-        expectedRewardsStakerVault2 -= adminFeeStakerRewardsVault2;
+        _calculateRewardsAmountForVaultEqualToStakerRewards(epoch, stakerAmount);
+        // _verifyNewDistribution(totalExpectedForStakersFromOperators, expectedRewardsStakerVault2);
 
-        // Check claimable rewards
-        (uint256 rewardsOperator1, uint256 rewardsOperator2, uint256 rewardsOperator3) =
-            _checkClaimableRewardsVault2(expectedRewardsStakerVault2, epoch);
-
-        // Claim rewards and check balances
-        {
-            uint256 previousBalance = STAR.balanceOf(operator1);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(
-                operator1, epoch, address(STAR), new bytes(0)
-            );
-            assertApproxEqAbs(STAR.balanceOf(operator1), previousBalance + rewardsOperator1, 1);
-        }
-
-        {
-            uint256 previousBalance = STAR.balanceOf(operator2);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(
-                operator2, epoch, address(STAR), new bytes(0)
-            );
-            assertApproxEqAbs(STAR.balanceOf(operator2), previousBalance + rewardsOperator2, 1);
-        }
-
-        {
-            uint256 previousBalance = STAR.balanceOf(operator3);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(
-                operator3, epoch, address(STAR), new bytes(0)
-            );
-            assertApproxEqAbs(STAR.balanceOf(operator3), previousBalance + rewardsOperator3, 1);
-        }
+        // Step 4: Check and claim the rewards for each operator from the StakerRewards contract.
+        _checkAndClaimFinalRewards(expectedRewardsStakerVault2, epoch);
     }
+
+    function _calculateRewardsAmountForVaultEqualToStakerRewards(uint48 epoch, uint256 stakerAmount) private view {
+        uint256 rewardsForVault1 = stakerRewards.rewards(epoch, address(vaultsData.v1.vault), address(STAR));
+        uint256 rewardsForVault2 = stakerRewards.rewards(epoch, address(vaultsData.v2.vault), address(STAR));
+        uint256 rewardsForVault3 = stakerRewards.rewards(epoch, address(vaultsData.v3.vault), address(STAR));
+        uint256 rewardsForVault4 = stakerRewards.rewards(epoch, address(vaultsData.v4.vault), address(STAR));
+        uint256 rewardsForVault5 = stakerRewards.rewards(epoch, address(vaultsData.v5.vault), address(STAR));
+
+        uint256 totalRewardsForStakers =
+            rewardsForVault1 + rewardsForVault2 + rewardsForVault3 + rewardsForVault4 + rewardsForVault5;
+
+        uint256 rewardsAfterAdminFee = stakerAmount.mulDiv(MAX_PERCENTAGE - ADMIN_FEE, MAX_PERCENTAGE);
+
+        assertEq(totalRewardsForStakers, rewardsAfterAdminFee);
+    }
+
+    function _executeUpkeep(
+        uint48 epoch
+    ) private {
+        vm.prank(owner);
+        middleware.setForwarder(forwarder);
+
+        uint256 gasBefore = gasleft();
+        (, bytes memory performData) = middleware.checkUpkeep(hex"");
+        console2.log("Gas used to checkUpkeep:", gasBefore - gasleft());
+        (uint8 command, uint48 encodedEpoch,) = abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
+        assertEq(encodedEpoch, epoch);
+        assertEq(command, middleware.CACHE_DATA_COMMAND());
+
+        vm.startPrank(forwarder);
+        gasBefore = gasleft();
+        middleware.performUpkeep(performData);
+        console2.log("Gas used to performUpkeep:", gasBefore - gasleft());
+
+        gasBefore = gasleft();
+        (, performData) = middleware.checkUpkeep(hex"");
+        console2.log("Gas used to checkUpkeep:", gasBefore - gasleft());
+        uint256 operatorsProcessed;
+        IMiddleware.VaultPower[] memory vaultsPower;
+        (command, encodedEpoch, operatorsProcessed, vaultsPower) =
+            abi.decode(performData, (uint8, uint48, uint256, IMiddleware.VaultPower[]));
+
+        assertEq(encodedEpoch, epoch);
+        assertEq(command, middleware.CACHE_VAULTS_DATA_COMMAND());
+        assertGe(operatorsProcessed, 0);
+        for (uint256 i = 0; i < vaultsPower.length; i++) {
+            if (vaultsPower[i].vault == address(vaultsData.v1.vault)) {
+                assertEq(vaultsPower[i].power, VAULT1_TOTAL_POWER);
+            } else if (vaultsPower[i].vault == address(vaultsData.v2.vault)) {
+                assertEq(vaultsPower[i].power, VAULT2_TOTAL_POWER);
+            } else if (vaultsPower[i].vault == address(vaultsData.v3.vault)) {
+                assertEq(vaultsPower[i].power, VAULT3_TOTAL_POWER);
+            } else if (vaultsPower[i].vault == address(vaultsData.v4.vault)) {
+                assertEq(vaultsPower[i].power, VAULT4_TOTAL_POWER);
+            } else if (vaultsPower[i].vault == address(vaultsData.v5.vault)) {
+                assertEq(vaultsPower[i].power, VAULT5_TOTAL_POWER);
+            }
+        }
+
+        gasBefore = gasleft();
+        middleware.performUpkeep(performData);
+        console2.log("Gas used to performUpkeep:", gasBefore - gasleft());
+        vm.stopPrank();
+    }
+
+    function _calculateExpectedRewardsForOperator1(
+        uint256 amountToDistribute,
+        uint48 eraIndex
+    ) private returns (uint256 expectedTotal, uint256 rewardsForVault2) {
+        expectedTotal = _claimAndCheckOperatorRewardsForOperator(
+            amountToDistribute, eraIndex, OPERATOR1_KEY, operator1, 1, true, false
+        );
+
+        uint256 operatorPowerVault1 = OPERATOR1_STAKE_V1_STAR.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_STAR);
+        uint256 operatorPowerVault2 =
+            OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+
+        uint256 expectedRewardsStakerVault1 =
+            expectedTotal.mulDiv(operatorPowerVault1, operatorPowerVault1 + operatorPowerVault2);
+
+        // The remainder goes to Vault 2
+        rewardsForVault2 = expectedTotal - expectedRewardsStakerVault1;
+    }
+
+    function _calculateExpectedRewardsForOperator2(
+        uint256 amountToDistribute,
+        uint48 eraIndex
+    ) private returns (uint256) {
+        uint256 expectedTotalForStakers = _claimAndCheckOperatorRewardsForOperator(
+            amountToDistribute, eraIndex, OPERATOR2_KEY, operator2, 2, true, false
+        );
+        return expectedTotalForStakers;
+    }
+
+    function _calculateExpectedRewardsForOperator3(
+        uint256 amountToDistribute,
+        uint48 eraIndex
+    ) private returns (uint256 expectedTotal, uint256 rewardsForVault2) {
+        expectedTotal = _claimAndCheckOperatorRewardsForOperator(
+            amountToDistribute, eraIndex, OPERATOR3_KEY, operator3, 3, true, false
+        );
+
+        uint256 operatorPowerVault2 =
+            OPERATOR3_LIMIT_V2.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+        uint256 operatorPowerVault3 = VAULT3_TOTAL_STAKE.mulDiv(
+            uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC
+        ).mulDiv(OPERATOR3_SHARES_V3, VAULT3_TOTAL_SHARES);
+
+        rewardsForVault2 = expectedTotal.mulDiv(operatorPowerVault2, operatorPowerVault2 + operatorPowerVault3);
+    }
+
+    // }
+
+    // function _calculateExpectedRewardsForOperator5(
+    //     uint256 amountToDistribute,
+    //     uint48 eraIndex
+    // ) private returns (uint256 expectedTotal) {
+    //     expectedTotal = _claimAndCheckOperatorRewardsForOperator(
+    //         amountToDistribute, eraIndex, OPERATOR5_KEY, operator5, 5, true, false
+    //     );
+
+    //     // Operator 5 is active in vaults 3 and 4
+    //     // On Vault 3: delegator is network restake and OP5 is assigned 2/5 shares
+    //     // On Vault 4: delegator is network restake and OP5 is assigned 2/3 shares
+    //     uint256 operatorPowerVault3 = VAULT3_TOTAL_STAKE.mulDiv(OPERATOR5_SHARES_V3, VAULT3_TOTAL_SHARES).mulDiv(
+    //         uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC
+    //     );
+    //     uint256 operatorPowerVault4 = VAULT4_TOTAL_STAKE.mulDiv(OPERATOR5_SHARES_V4, VAULT4_TOTAL_SHARES).mulDiv(
+    //         uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS_ETH
+    //     );
+
+    //     uint256 expectedRewardsStakerVault3 =
+    //         expectedTotal.mulDiv(operatorPowerVault3, operatorPowerVault3 + operatorPowerVault4);
+    //     uint256 expectedRewardsStakerVault4 = expectedTotal - expectedRewardsStakerVault3;
+    //     return expectedTotalForStakers;
+    // }
+
+    function _verifyNewDistribution(uint256 totalExpectedForStakers, uint256 expectedRewardsStakerVault2) private {
+        uint256 newExpectedRewardsStakerVault2 = VAULT2_TOTAL_POWER.mulDiv(totalExpectedForStakers, TOTAL_VAULT_POWER);
+        // _calculateRewardsForVault(totalExpectedForStakers, VAULT2_TOTAL_POWER);
+
+        assertEq(expectedRewardsStakerVault2, newExpectedRewardsStakerVault2, "New vault reward calculation mismatch");
+        assertApproxEqAbs(
+            STAR.balanceOf(address(stakerRewards)),
+            totalExpectedForStakers,
+            1,
+            "StakerRewards contract balance mismatch"
+        );
+    }
+
+    function _checkAndClaimFinalRewards(uint256 expectedRewardsStakerVault2, uint48 epoch) private {
+        uint256 adminFee = expectedRewardsStakerVault2.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
+        uint256 rewardsAfterFee = expectedRewardsStakerVault2 - adminFee;
+
+        // Claim for Operator 1
+        uint256 prevBalanceOp1 = STAR.balanceOf(operator1);
+        stakerRewards.claimRewards(operator1, epoch, address(STAR), address(vaultsData.v2.vault), new bytes(0));
+        // assertApproxEqAbs(STAR.balanceOf(operator1), prevBalanceOp1 + rewardsOp1, 1);
+
+        (uint256 rewardsOp1, uint256 rewardsOp2, uint256 rewardsOp3) =
+            _checkClaimableRewardsVault2(rewardsAfterFee, epoch);
+
+        // Claim for Operator 2
+        uint256 prevBalanceOp2 = STAR.balanceOf(operator2);
+        stakerRewards.claimRewards(operator2, epoch, address(STAR), address(vaultsData.v2.vault), new bytes(0));
+        assertApproxEqAbs(STAR.balanceOf(operator2), prevBalanceOp2 + rewardsOp2, 1);
+
+        // Claim for Operator 3
+        uint256 prevBalanceOp3 = STAR.balanceOf(operator3);
+        stakerRewards.claimRewards(operator3, epoch, address(STAR), address(vaultsData.v2.vault), new bytes(0));
+        assertApproxEqAbs(STAR.balanceOf(operator3), prevBalanceOp3 + rewardsOp3, 1);
+    }
+
+    // function testRewardsAreDistributedCorrectlyForMultipleOperatorsX() public {
+    //     uint48 eraIndex = 1;
+    //     uint256 amountToDistribute = 100 ether;
+    //     uint48 epoch = _prepareRewardsDistribution(eraIndex, amountToDistribute);
+
+    //     // This test will use vault 3, which has 3 active operators. Each of them will perform claim.
+    //     uint256 expectedRewardsForStakersFromOperator1;
+    //     uint256 expectedRewardsForStakersFromOperator2;
+    //     uint256 expectedRewardsForStakersFromOperator3;
+
+    //     {
+    //         vm.prank(owner);
+    //         middleware.setForwarder(forwarder);
+
+    //         uint256 gasBefore = gasleft();
+    //         (, bytes memory performData) = middleware.checkUpkeep(hex"");
+    //         console2.log("Gas used to checkUpkeep:", gasBefore - gasleft());
+    //         (uint8 command, uint48 encodedEpoch,) =
+    //             abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
+    //         assertEq(encodedEpoch, epoch);
+    //         assertEq(command, middleware.CACHE_DATA_COMMAND());
+
+    //         vm.startPrank(forwarder);
+    //         gasBefore = gasleft();
+    //         middleware.performUpkeep(performData);
+    //         console2.log("Gas used to performUpkeep:", gasBefore - gasleft());
+    //     }
+
+    //     // Operator 1
+    //     {
+    //         uint256 expectedRewardsForStakers = _claimAndCheckOperatorRewardsForOperator(
+    //             amountToDistribute, eraIndex, OPERATOR1_KEY, operator1, 1, true, false
+    //         );
+
+    //         uint256 operatorPowerVault1 = OPERATOR1_STAKE_V1_STAR.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_STAR); // Normalized to 18 decimals
+    //         uint256 operatorPowerVault2 =
+    //             OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+
+    //         uint256 expectedRewardsStakerVault1 =
+    //             expectedRewardsForStakers.mulDiv(operatorPowerVault1, operatorPowerVault1 + operatorPowerVault2);
+    //         expectedRewardsForStakersFromOperator1 = expectedRewardsForStakers - expectedRewardsStakerVault1;
+    //     }
+
+    //     // Operator 2
+    //     {
+    //         uint256 expectedRewardsForStakers = _claimAndCheckOperatorRewardsForOperator(
+    //             amountToDistribute, eraIndex, OPERATOR2_KEY, operator2, 2, true, false
+    //         );
+    //         // Operator 2 is only active on vault 2, so all the stakers rewards go to this vault
+    //         expectedRewardsForStakersFromOperator2 = expectedRewardsForStakers;
+    //     }
+
+    //     // Operator 3
+    //     {
+    //         uint256 expectedRewardsForStakers = _claimAndCheckOperatorRewardsForOperator(
+    //             amountToDistribute, eraIndex, OPERATOR3_KEY, operator3, 3, true, false
+    //         );
+    //         // Operator 3 is active in vaults 2 and 3
+    //         // On Vault 2: Operator 3 has 3 BTC staked, but delegator is full restake and their limit is 2 BTC. So only 2 BTC are taken into account.
+    //         // On Vault 3: delegator is network restake and OP3 is assigned 1/5 shares
+    //         uint256 operatorPowerVault2 =
+    //             OPERATOR3_LIMIT_V2.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
+    //         uint256 operatorPowerVault3 = VAULT3_TOTAL_STAKE.mulDiv(
+    //             uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC
+    //         ).mulDiv(OPERATOR3_SHARES_V3, VAULT3_TOTAL_SHARES);
+
+    //         expectedRewardsForStakersFromOperator3 =
+    //             expectedRewardsForStakers.mulDiv(operatorPowerVault2, operatorPowerVault2 + operatorPowerVault3);
+    //     }
+
+    //     // Operator 2 is only active on vault 2, so all the stakers rewards go to this vault
+    //     address stakerRewardsContractVault2 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v2.vault));
+    //     uint256 expectedRewardsStakerVault2 = expectedRewardsForStakersFromOperator1
+    //         + expectedRewardsForStakersFromOperator2 + expectedRewardsForStakersFromOperator3;
+
+    //     assertApproxEqAbs(STAR.balanceOf(stakerRewardsContractVault2), expectedRewardsStakerVault2, 1);
+
+    //     // Vault 2
+    //     uint256 adminFeeStakerRewardsVault2 = expectedRewardsStakerVault2.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
+    //     expectedRewardsStakerVault2 -= adminFeeStakerRewardsVault2;
+
+    //     // Check claimable rewards
+    //     (uint256 rewardsOperator1, uint256 rewardsOperator2, uint256 rewardsOperator3) =
+    //         _checkClaimableRewardsVault2(expectedRewardsStakerVault2, epoch);
+
+    //     // Claim rewards and check balances
+    //     {
+    //         uint256 previousBalance = STAR.balanceOf(operator1);
+    //         IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(
+    //             operator1, epoch, address(STAR), new bytes(0)
+    //         );
+    //         assertApproxEqAbs(STAR.balanceOf(operator1), previousBalance + rewardsOperator1, 1);
+    //     }
+
+    //     {
+    //         uint256 previousBalance = STAR.balanceOf(operator2);
+    //         IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(
+    //             operator2, epoch, address(STAR), new bytes(0)
+    //         );
+    //         assertApproxEqAbs(STAR.balanceOf(operator2), previousBalance + rewardsOperator2, 1);
+    //     }
+
+    //     {
+    //         uint256 previousBalance = STAR.balanceOf(operator3);
+    //         IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(
+    //             operator3, epoch, address(STAR), new bytes(0)
+    //         );
+    //         assertApproxEqAbs(STAR.balanceOf(operator3), previousBalance + rewardsOperator3, 1);
+    //     }
+    // }
 
     function testDistributingAndClaimingRewardsForMultipleEpochs() public {
         uint256 amountToDistribute = 100 ether;
@@ -1478,8 +1671,6 @@ contract FullTest is Test {
             assertEq(STAR.balanceOf(operator2), expectedRewardsForOperator);
         }
 
-        address stakerRewardsContractVault2 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v2.vault));
-
         // Epoch 1
         {
             uint48 epoch = 1;
@@ -1492,23 +1683,17 @@ contract FullTest is Test {
             // Claim rewards as stakers and check balances. Only stakers are the first 3 operators
             // Operator 1
             uint256 previousBalance = STAR.balanceOf(operator1);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(
-                operator1, epoch, address(STAR), new bytes(0)
-            );
+            stakerRewards.claimRewards(operator1, epoch, address(vaultsData.v2.vault), address(STAR), new bytes(0));
             assertEq(STAR.balanceOf(operator1), previousBalance + rewardsOperator1);
 
             // Operator 2
             previousBalance = STAR.balanceOf(operator2);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(
-                operator2, epoch, address(STAR), new bytes(0)
-            );
+            stakerRewards.claimRewards(operator2, epoch, address(vaultsData.v2.vault), address(STAR), new bytes(0));
             assertEq(STAR.balanceOf(operator2), previousBalance + rewardsOperator2);
 
             // Operator 3
             previousBalance = STAR.balanceOf(operator3);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(
-                operator3, epoch, address(STAR), new bytes(0)
-            );
+            stakerRewards.claimRewards(operator3, epoch, address(vaultsData.v2.vault), address(STAR), new bytes(0));
             assertEq(STAR.balanceOf(operator3), previousBalance + rewardsOperator3);
         }
 
@@ -1524,23 +1709,17 @@ contract FullTest is Test {
             // Claim rewards as stakers and check balances. Only stakers are the first 3 operators
             // Operator 1
             uint256 previousBalance = STAR.balanceOf(operator1);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(
-                operator1, epoch, address(STAR), new bytes(0)
-            );
+            stakerRewards.claimRewards(operator1, epoch, address(vaultsData.v2.vault), address(STAR), new bytes(0));
             assertEq(STAR.balanceOf(operator1), previousBalance + rewardsOperator1);
 
             // Operator 2
             previousBalance = STAR.balanceOf(operator2);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(
-                operator2, epoch, address(STAR), new bytes(0)
-            );
+            stakerRewards.claimRewards(operator2, epoch, address(vaultsData.v2.vault), address(STAR), new bytes(0));
             assertEq(STAR.balanceOf(operator2), previousBalance + rewardsOperator2);
 
             // Operator 3
             previousBalance = STAR.balanceOf(operator3);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(
-                operator3, epoch, address(STAR), new bytes(0)
-            );
+            stakerRewards.claimRewards(operator3, epoch, address(vaultsData.v2.vault), address(STAR), new bytes(0));
             assertEq(STAR.balanceOf(operator3), previousBalance + rewardsOperator3);
         }
 
@@ -1551,20 +1730,20 @@ contract FullTest is Test {
 
             uint256 expectedAdminFee = rewardsOperator2Epoch1.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE)
                 .mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 1, address(STAR));
+            stakerRewards.claimAdminFee(recipient, 1, address(STAR));
             assertEq(STAR.balanceOf(recipient), expectedAdminFee);
 
             expectedAdminFee += rewardsOperator2Epoch2.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE).mulDiv(
                 ADMIN_FEE, MAX_PERCENTAGE
             );
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 2, address(STAR));
+            stakerRewards.claimAdminFee(recipient, 2, address(STAR));
             assertEq(STAR.balanceOf(recipient), expectedAdminFee);
 
             vm.stopPrank();
         }
 
         // Staker rewards contract should have distributed all the balance
-        assertEq(STAR.balanceOf(stakerRewardsContractVault2), 0);
+        assertEq(STAR.balanceOf(address(stakerRewards)), 0);
     }
 
     function testDistributingAndClaimingRewardsForMultipleEpochsWithOperatorHints() public {
@@ -1591,8 +1770,6 @@ contract FullTest is Test {
             assertEq(STAR.balanceOf(operator2), expectedRewardsForOperator);
         }
 
-        address stakerRewardsContractVault2 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v2.vault));
-
         // Epoch 1
         {
             uint48 epoch = 1;
@@ -1605,23 +1782,17 @@ contract FullTest is Test {
             // Claim rewards as stakers and check balances. Only stakers are the first 3 operators
             // Operator 1
             uint256 previousBalance = STAR.balanceOf(operator1);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(
-                operator1, epoch, address(STAR), new bytes(0)
-            );
+            stakerRewards.claimRewards(operator1, epoch, address(vaultsData.v2.vault), address(STAR), new bytes(0));
             assertEq(STAR.balanceOf(operator1), previousBalance + rewardsOperator1);
 
             // Operator 2
             previousBalance = STAR.balanceOf(operator2);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(
-                operator2, epoch, address(STAR), new bytes(0)
-            );
+            stakerRewards.claimRewards(operator2, epoch, address(vaultsData.v2.vault), address(STAR), new bytes(0));
             assertEq(STAR.balanceOf(operator2), previousBalance + rewardsOperator2);
 
             // Operator 3
             previousBalance = STAR.balanceOf(operator3);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(
-                operator3, epoch, address(STAR), new bytes(0)
-            );
+            stakerRewards.claimRewards(operator3, epoch, address(vaultsData.v2.vault), address(STAR), new bytes(0));
             assertEq(STAR.balanceOf(operator3), previousBalance + rewardsOperator3);
         }
 
@@ -1637,23 +1808,17 @@ contract FullTest is Test {
             // Claim rewards as stakers and check balances. Only stakers are the first 3 operators
             // Operator 1
             uint256 previousBalance = STAR.balanceOf(operator1);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(
-                operator1, epoch, address(STAR), new bytes(0)
-            );
+            stakerRewards.claimRewards(operator1, epoch, address(vaultsData.v2.vault), address(STAR), new bytes(0));
             assertEq(STAR.balanceOf(operator1), previousBalance + rewardsOperator1);
 
             // Operator 2
             previousBalance = STAR.balanceOf(operator2);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(
-                operator2, epoch, address(STAR), new bytes(0)
-            );
+            stakerRewards.claimRewards(operator2, epoch, address(vaultsData.v2.vault), address(STAR), new bytes(0));
             assertEq(STAR.balanceOf(operator2), previousBalance + rewardsOperator2);
 
             // Operator 3
             previousBalance = STAR.balanceOf(operator3);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(
-                operator3, epoch, address(STAR), new bytes(0)
-            );
+            stakerRewards.claimRewards(operator3, epoch, address(vaultsData.v2.vault), address(STAR), new bytes(0));
             assertEq(STAR.balanceOf(operator3), previousBalance + rewardsOperator3);
         }
 
@@ -1664,20 +1829,20 @@ contract FullTest is Test {
 
             uint256 expectedAdminFee = rewardsOperator2Epoch1.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE)
                 .mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 1, address(STAR));
+            stakerRewards.claimAdminFee(recipient, 1, address(STAR));
             assertEq(STAR.balanceOf(recipient), expectedAdminFee);
 
             expectedAdminFee += rewardsOperator2Epoch2.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE).mulDiv(
                 ADMIN_FEE, MAX_PERCENTAGE
             );
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 2, address(STAR));
+            stakerRewards.claimAdminFee(recipient, 2, address(STAR));
             assertEq(STAR.balanceOf(recipient), expectedAdminFee);
 
             vm.stopPrank();
         }
 
         // Staker rewards contract should have distributed all the balance
-        assertEq(STAR.balanceOf(stakerRewardsContractVault2), 0);
+        assertEq(STAR.balanceOf(address(stakerRewards)), 0);
     }
 
     function testDistributingAndClaimingRewardsForMultipleEpochsWithOperatorAndStakerHints() public {
@@ -1704,8 +1869,6 @@ contract FullTest is Test {
             assertEq(STAR.balanceOf(operator2), expectedRewardsForOperator);
         }
 
-        address stakerRewardsContractVault2 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v2.vault));
-
         // Epoch 1
         {
             uint48 epoch = 1;
@@ -1720,19 +1883,19 @@ contract FullTest is Test {
             bytes memory hints =
                 rewardsHintsBuilder.getHintsForStakerClaimRewards(address(vaultsData.v2.vault), operator1, epoch);
             uint256 previousBalance = STAR.balanceOf(operator1);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(operator1, epoch, address(STAR), hints);
+            stakerRewards.claimRewards(operator1, epoch, address(vaultsData.v2.vault), address(STAR), hints);
             assertEq(STAR.balanceOf(operator1), previousBalance + rewardsOperator1);
 
             // Operator 2
             hints = rewardsHintsBuilder.getHintsForStakerClaimRewards(address(vaultsData.v2.vault), operator2, epoch);
             previousBalance = STAR.balanceOf(operator2);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(operator2, epoch, address(STAR), hints);
+            stakerRewards.claimRewards(operator2, epoch, address(vaultsData.v2.vault), address(STAR), hints);
             assertEq(STAR.balanceOf(operator2), previousBalance + rewardsOperator2);
 
             // Operator 3
             hints = rewardsHintsBuilder.getHintsForStakerClaimRewards(address(vaultsData.v2.vault), operator3, epoch);
             previousBalance = STAR.balanceOf(operator3);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(operator3, epoch, address(STAR), hints);
+            stakerRewards.claimRewards(operator3, epoch, address(vaultsData.v2.vault), address(STAR), hints);
             assertEq(STAR.balanceOf(operator3), previousBalance + rewardsOperator3);
         }
 
@@ -1750,19 +1913,19 @@ contract FullTest is Test {
             bytes memory hints =
                 rewardsHintsBuilder.getHintsForStakerClaimRewards(address(vaultsData.v2.vault), operator1, epoch);
             uint256 previousBalance = STAR.balanceOf(operator1);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(operator1, epoch, address(STAR), hints);
+            stakerRewards.claimRewards(operator1, epoch, address(vaultsData.v2.vault), address(STAR), hints);
             assertEq(STAR.balanceOf(operator1), previousBalance + rewardsOperator1);
 
             // Operator 2
             hints = rewardsHintsBuilder.getHintsForStakerClaimRewards(address(vaultsData.v2.vault), operator2, epoch);
             previousBalance = STAR.balanceOf(operator2);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(operator2, epoch, address(STAR), hints);
+            stakerRewards.claimRewards(operator2, epoch, address(vaultsData.v2.vault), address(STAR), hints);
             assertEq(STAR.balanceOf(operator2), previousBalance + rewardsOperator2);
 
             // Operator 3
             hints = rewardsHintsBuilder.getHintsForStakerClaimRewards(address(vaultsData.v2.vault), operator3, epoch);
             previousBalance = STAR.balanceOf(operator3);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimRewards(operator3, epoch, address(STAR), hints);
+            stakerRewards.claimRewards(operator3, epoch, address(vaultsData.v2.vault), address(STAR), hints);
             assertEq(STAR.balanceOf(operator3), previousBalance + rewardsOperator3);
         }
 
@@ -1773,20 +1936,20 @@ contract FullTest is Test {
 
             uint256 expectedAdminFee = rewardsOperator2Epoch1.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE)
                 .mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 1, address(STAR));
+            stakerRewards.claimAdminFee(recipient, 1, address(STAR));
             assertEq(STAR.balanceOf(recipient), expectedAdminFee);
 
             expectedAdminFee += rewardsOperator2Epoch2.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE).mulDiv(
                 ADMIN_FEE, MAX_PERCENTAGE
             );
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 2, address(STAR));
+            stakerRewards.claimAdminFee(recipient, 2, address(STAR));
             assertEq(STAR.balanceOf(recipient), expectedAdminFee);
 
             vm.stopPrank();
         }
 
         // Staker rewards contract should have distributed all the balance
-        assertEq(STAR.balanceOf(stakerRewardsContractVault2), 0);
+        assertEq(STAR.balanceOf(address(stakerRewards)), 0);
     }
 
     function testDistributingAndBatchClaimingRewardsForMultipleEpochsWithoutHints() public {
@@ -1812,8 +1975,6 @@ contract FullTest is Test {
                 (rewardsOperator2Epoch1 + rewardsOperator2Epoch2).mulDiv(OPERATOR_SHARE, MAX_PERCENTAGE);
             assertEq(STAR.balanceOf(operator2), expectedRewardsForOperator);
         }
-
-        address stakerRewardsContractVault2 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v2.vault));
 
         // Epoch 1
         {
@@ -1841,27 +2002,21 @@ contract FullTest is Test {
 
             uint256 previousBalance = STAR.balanceOf(operator1);
             uint256 gasBefore = gasleft();
-            IODefaultStakerRewards(stakerRewardsContractVault2).batchClaimRewards(
-                operator1, epochs, address(STAR), hintsData
-            );
+            stakerRewards.batchClaimRewards(operator1, epochs, address(vaultsData.v2.vault), address(STAR), hintsData);
             console2.log("Gas used for batch claim rewards for operator 1:", gasBefore - gasleft());
             assertEq(STAR.balanceOf(operator1), previousBalance + rewardsOperator1 + rewardsOperator1epoch2);
 
             // Operator 2
             previousBalance = STAR.balanceOf(operator2);
             gasBefore = gasleft();
-            IODefaultStakerRewards(stakerRewardsContractVault2).batchClaimRewards(
-                operator2, epochs, address(STAR), hintsData
-            );
+            stakerRewards.batchClaimRewards(operator2, epochs, address(vaultsData.v2.vault), address(STAR), hintsData);
             console2.log("Gas used for batch claim rewards for operator 2:", gasBefore - gasleft());
             assertEq(STAR.balanceOf(operator2), previousBalance + rewardsOperator2 + rewardsOperator2epoch2);
 
             // Operator 3
             previousBalance = STAR.balanceOf(operator3);
             gasBefore = gasleft();
-            IODefaultStakerRewards(stakerRewardsContractVault2).batchClaimRewards(
-                operator3, epochs, address(STAR), hintsData
-            );
+            stakerRewards.batchClaimRewards(operator3, epochs, address(vaultsData.v2.vault), address(STAR), hintsData);
             console2.log("Gas used for batch claim rewards for operator 3:", gasBefore - gasleft());
             assertEq(STAR.balanceOf(operator3), previousBalance + rewardsOperator3 + rewardsOperator3epoch2);
         }
@@ -1873,20 +2028,20 @@ contract FullTest is Test {
 
             uint256 expectedAdminFee = rewardsOperator2Epoch1.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE)
                 .mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 1, address(STAR));
+            stakerRewards.claimAdminFee(recipient, 1, address(STAR));
             assertEq(STAR.balanceOf(recipient), expectedAdminFee);
 
             expectedAdminFee += rewardsOperator2Epoch2.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE).mulDiv(
                 ADMIN_FEE, MAX_PERCENTAGE
             );
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 2, address(STAR));
+            stakerRewards.claimAdminFee(recipient, 2, address(STAR));
             assertEq(STAR.balanceOf(recipient), expectedAdminFee);
 
             vm.stopPrank();
         }
 
         // Staker rewards contract should have distributed all the balance
-        assertEq(STAR.balanceOf(stakerRewardsContractVault2), 0);
+        assertEq(STAR.balanceOf(address(stakerRewards)), 0);
     }
 
     function testDistributingAndBatchClaimingRewardsForMultipleEpochsWithHints() public {
@@ -1913,8 +2068,6 @@ contract FullTest is Test {
             assertEq(STAR.balanceOf(operator2), expectedRewardsForOperator);
         }
 
-        address stakerRewardsContractVault2 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v2.vault));
-
         // Epoch 1
         {
             uint48[] memory epochs = new uint48[](2);
@@ -1940,9 +2093,7 @@ contract FullTest is Test {
 
             uint256 previousBalance = STAR.balanceOf(operator1);
             uint256 gasBefore = gasleft();
-            IODefaultStakerRewards(stakerRewardsContractVault2).batchClaimRewards(
-                operator1, epochs, address(STAR), hintsData
-            );
+            stakerRewards.batchClaimRewards(operator1, epochs, address(vaultsData.v2.vault), address(STAR), hintsData);
             console2.log("Gas used for batch claim rewards for operator 1:", gasBefore - gasleft());
             assertEq(STAR.balanceOf(operator1), previousBalance + rewardsOperator1 + rewardsOperator1epoch2);
 
@@ -1952,9 +2103,7 @@ contract FullTest is Test {
 
             previousBalance = STAR.balanceOf(operator2);
             gasBefore = gasleft();
-            IODefaultStakerRewards(stakerRewardsContractVault2).batchClaimRewards(
-                operator2, epochs, address(STAR), hintsData
-            );
+            stakerRewards.batchClaimRewards(operator2, epochs, address(vaultsData.v2.vault), address(STAR), hintsData);
             console2.log("Gas used for batch claim rewards for operator 2:", gasBefore - gasleft());
             assertEq(STAR.balanceOf(operator2), previousBalance + rewardsOperator2 + rewardsOperator2epoch2);
 
@@ -1963,9 +2112,7 @@ contract FullTest is Test {
                 rewardsHintsBuilder.batchGetHintsForStakerClaimRewards(address(vaultsData.v2.vault), operator3, epochs);
             previousBalance = STAR.balanceOf(operator3);
             gasBefore = gasleft();
-            IODefaultStakerRewards(stakerRewardsContractVault2).batchClaimRewards(
-                operator3, epochs, address(STAR), hintsData
-            );
+            stakerRewards.batchClaimRewards(operator3, epochs, address(vaultsData.v2.vault), address(STAR), hintsData);
             console2.log("Gas used for batch claim rewards for operator 3:", gasBefore - gasleft());
             assertEq(STAR.balanceOf(operator3), previousBalance + rewardsOperator3 + rewardsOperator3epoch2);
         }
@@ -1977,20 +2124,20 @@ contract FullTest is Test {
 
             uint256 expectedAdminFee = rewardsOperator2Epoch1.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE)
                 .mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 1, address(STAR));
+            stakerRewards.claimAdminFee(recipient, 1, address(STAR));
             assertEq(STAR.balanceOf(recipient), expectedAdminFee);
 
             expectedAdminFee += rewardsOperator2Epoch2.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE).mulDiv(
                 ADMIN_FEE, MAX_PERCENTAGE
             );
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 2, address(STAR));
+            stakerRewards.claimAdminFee(recipient, 2, address(STAR));
             assertEq(STAR.balanceOf(recipient), expectedAdminFee);
 
             vm.stopPrank();
         }
 
         // Staker rewards contract should have distributed all the balance
-        assertEq(STAR.balanceOf(stakerRewardsContractVault2), 0);
+        assertEq(STAR.balanceOf(address(stakerRewards)), 0);
     }
 
     function testCannotReclaimRewardsIfEvmKeyChangesForOperator() public {
@@ -2047,13 +2194,11 @@ contract FullTest is Test {
 
         // Try to claim anyway, it will revert with already claimed
         (,, bytes32[] memory proof, uint32 points,) = _loadRewardsRootAndProof(eraIndex, 2);
-        bytes memory additionalData = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
         IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
             operatorKey: OPERATOR2_KEY,
             eraIndex: eraIndex,
             totalPointsClaimable: points,
-            proof: proof,
-            data: additionalData
+            proof: proof
         });
 
         vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__AlreadyClaimed.selector);
@@ -2100,13 +2245,11 @@ contract FullTest is Test {
 
         // TRY CLAIM
         (,, bytes32[] memory proof, uint32 points,) = _loadRewardsRootAndProof(eraIndex, 2);
-        bytes memory additionalData = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
         IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
             operatorKey: OPERATOR2_KEY,
             eraIndex: eraIndex,
             totalPointsClaimable: points,
-            proof: proof,
-            data: additionalData
+            proof: proof
         });
 
         vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__AlreadyClaimed.selector);
@@ -2136,13 +2279,11 @@ contract FullTest is Test {
 
         // Try to claim, since substrate key still points to the original EVM address, claim is valid.
         (,, bytes32[] memory proof, uint32 points,) = _loadRewardsRootAndProof(eraIndex, 2);
-        bytes memory additionalData = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
         IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
             operatorKey: OPERATOR2_KEY,
             eraIndex: eraIndex,
             totalPointsClaimable: points,
-            proof: proof,
-            data: additionalData
+            proof: proof
         });
 
         vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__AlreadyClaimed.selector);
@@ -2184,15 +2325,12 @@ contract FullTest is Test {
         (,, bytes32[] memory proof, uint32 points,) = _loadRewardsRootAndProof(eraIndex, 1);
 
         {
-            bytes memory additionalData = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
-
             IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards
                 .ClaimRewardsInput({
                 operatorKey: OPERATOR1_KEY,
                 eraIndex: eraIndex,
                 totalPointsClaimable: points,
-                proof: proof,
-                data: additionalData
+                proof: proof
             });
 
             vm.expectRevert(
@@ -2205,22 +2343,17 @@ contract FullTest is Test {
     }
 
     function testRewardsAreDistributedCorrectlyWhenBatchClaimedWithNoHints() public {
-        _testRewardsAreDistributedCorrectlyWhenBatchClaimed(false);
-    }
-
-    function testRewardsAreDistributedCorrectlyWhenBatchClaimedWithHints() public {
-        _testRewardsAreDistributedCorrectlyWhenBatchClaimed(true);
+        _testRewardsAreDistributedCorrectlyWhenBatchClaimed();
     }
 
     function testStakerRewardsCannotBeRestakedIfRewardsTokenIsDifferentFromCollateral() public {
         uint48[] memory epochs = new uint48[](1);
-        epochs[0] = _testRewardsAreDistributedCorrectlyWhenBatchClaimed(true);
-        address stakerRewardsContractVault2 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v2.vault));
+        epochs[0] = _testRewardsAreDistributedCorrectlyWhenBatchClaimed();
 
         // Vault 2 has WBTC as collateral, so restaking with STAR should revert
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__RewardsTokenIsDifferentFromCollateral.selector);
-        IODefaultStakerRewards(stakerRewardsContractVault2).batchClaimRewardsAndRestake(
-            operator1, epochs, address(STAR), new bytes[](1), 10_000
+        stakerRewards.batchClaimRewardsAndRestake(
+            operator1, epochs, address(vaultsData.v2.vault), address(STAR), new bytes[](1), 10_000
         );
     }
 
@@ -2279,8 +2412,7 @@ contract FullTest is Test {
             uint256 newStakedBalance
         )
     {
-        uint48 epoch = _testRewardsAreDistributedCorrectlyWhenBatchClaimed(true);
-        address stakerRewardsContractVault1 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v1.vault));
+        uint48 epoch = _testRewardsAreDistributedCorrectlyWhenBatchClaimed();
 
         uint48[] memory epochs = new uint48[](1);
         epochs[0] = epoch;
@@ -2288,10 +2420,10 @@ contract FullTest is Test {
         previousFreeBalance = STAR.balanceOf(operator1);
         previousStakedBalance = vaultsData.v1.vault.activeBalanceOf(operator1);
         stakerRewardsOperator1Vault1 =
-            IODefaultStakerRewards(stakerRewardsContractVault1).claimable(epoch, operator1, address(STAR));
+            stakerRewards.claimable(epoch, operator1, address(vaultsData.v1.vault), address(STAR));
 
-        IODefaultStakerRewards(stakerRewardsContractVault1).batchClaimRewardsAndRestake(
-            operator1, epochs, address(STAR), new bytes[](1), restakePercentageBps
+        stakerRewards.batchClaimRewardsAndRestake(
+            operator1, epochs, address(vaultsData.v1.vault), address(STAR), new bytes[](1), restakePercentageBps
         );
 
         newFreeBalance = STAR.balanceOf(operator1);
@@ -2309,21 +2441,17 @@ contract FullTest is Test {
         IODefaultOperatorRewards.ClaimRewardsInput[] memory claimRewardsData =
             new IODefaultOperatorRewards.ClaimRewardsInput[](2);
 
-        bytes memory hintsData = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
-
         claimRewardsData[0] = IODefaultOperatorRewards.ClaimRewardsInput({
             operatorKey: OPERATOR1_KEY,
             eraIndex: eraIndex,
             totalPointsClaimable: pointsA,
-            proof: proofA,
-            data: hintsData
+            proof: proofA
         });
         claimRewardsData[1] = IODefaultOperatorRewards.ClaimRewardsInput({
             operatorKey: OPERATOR6_KEY,
             eraIndex: eraIndex,
             totalPointsClaimable: pointsB,
-            proof: proofB,
-            data: hintsData
+            proof: proofB
         });
 
         vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__BatchClaimSupportsASingleOperator.selector);
@@ -2359,21 +2487,17 @@ contract FullTest is Test {
         IODefaultOperatorRewards.ClaimRewardsInput[] memory claimRewardsData =
             new IODefaultOperatorRewards.ClaimRewardsInput[](2);
 
-        bytes memory hintsData = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
-
         claimRewardsData[0] = IODefaultOperatorRewards.ClaimRewardsInput({
             operatorKey: OPERATOR1_KEY,
             eraIndex: eraIndexes[0],
             totalPointsClaimable: pointsA,
-            proof: proofA,
-            data: hintsData
+            proof: proofA
         });
         claimRewardsData[1] = IODefaultOperatorRewards.ClaimRewardsInput({
             operatorKey: OPERATOR1_KEY,
             eraIndex: eraIndexes[1],
             totalPointsClaimable: pointsB,
-            proof: proofB,
-            data: hintsData
+            proof: proofB
         });
 
         vm.expectRevert(IODefaultOperatorRewards.ODefaultOperatorRewards__BatchClaimSupportsASingleToken.selector);
@@ -2382,9 +2506,8 @@ contract FullTest is Test {
 
     function testClaimableIsZeroIfNoRewardsHaveBeenDistributed() public view {
         uint48 epoch = 1;
-        address stakerRewardsAddress = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v1.vault));
 
-        uint256 claimable = IODefaultStakerRewards(stakerRewardsAddress).claimable(epoch, operator1, address(STAR));
+        uint256 claimable = stakerRewards.claimable(epoch, operator1, address(vaultsData.v1.vault), address(STAR));
         assertEq(claimable, 0);
     }
 
@@ -2397,10 +2520,9 @@ contract FullTest is Test {
         vaultsData.v1.vault.claim(operator1, vaultEpoch + 1);
 
         uint48 currentEpoch = middleware.getCurrentEpoch();
-        address stakerRewardsAddress = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v1.vault));
 
         uint256 claimable =
-            IODefaultStakerRewards(stakerRewardsAddress).claimable(currentEpoch, operator1, address(STAR));
+            stakerRewards.claimable(currentEpoch, operator1, address(vaultsData.v1.vault), address(STAR));
         assertEq(claimable, 0);
     }
 
@@ -2413,24 +2535,18 @@ contract FullTest is Test {
 
         address nonStaker = makeAddr("nonStaker");
 
-        address stakerRewardsAddress = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v1.vault));
-
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__NoRewardsToClaim.selector);
-        IODefaultStakerRewards(stakerRewardsAddress).claimRewards(nonStaker, epoch, address(STAR), new bytes(0));
+        stakerRewards.claimRewards(nonStaker, epoch, address(vaultsData.v1.vault), address(STAR), new bytes(0));
     }
 
     function testStakerCannotClaimRewardsIfNoRewardsHaveBeenDistributed() public {
         uint48 epoch = 10;
 
-        address stakerRewardsAddress = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v1.vault));
-
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__NoRewardsToClaim.selector);
-        IODefaultStakerRewards(stakerRewardsAddress).claimRewards(operator1, epoch, address(STAR), new bytes(0));
+        stakerRewards.claimRewards(operator1, epoch, address(vaultsData.v1.vault), address(STAR), new bytes(0));
     }
 
-    function _testRewardsAreDistributedCorrectlyWhenBatchClaimed(
-        bool withHints
-    ) public returns (uint48 epochA) {
+    function _testRewardsAreDistributedCorrectlyWhenBatchClaimed() public returns (uint48 epochA) {
         // uint48 operatorNumber = 1; // Commented to prevent stack to deep;
         uint48[] memory eraIndexes = new uint48[](2);
         eraIndexes[0] = 1;
@@ -2440,55 +2556,32 @@ contract FullTest is Test {
         uint48 epochB = _prepareRewardsDistribution(eraIndexes[1], amountToDistribute);
         assertEq(epochA, epochB); // Not a requirement for the process, but it makes it easier to check the results on staker rewards
 
-        uint256 expectedRewardsForStakers = _prepareAndClaimBatchForOperator1(eraIndexes, amountToDistribute, withHints);
+        uint256 expectedRewardsForStakers = _prepareAndClaimBatchForOperator1(eraIndexes, amountToDistribute);
 
-        // Operator 1 is active in vaults 1 and 2
-        address stakerRewardsContractVault1 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v1.vault));
-        address stakerRewardsContractVault2 = operatorRewards.vaultToStakerRewardsContract(address(vaultsData.v2.vault));
-
-        uint256 operatorPowerVault1 = OPERATOR1_STAKE_V1_STAR.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_STAR); // Normalized to 18 decimals
-        uint256 operatorPowerVault2 =
-            OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
-
-        uint256 expectedRewardsStakerVault1 =
-            expectedRewardsForStakers.mulDiv(operatorPowerVault1, operatorPowerVault1 + operatorPowerVault2);
-        uint256 expectedRewardsStakerVault2 = expectedRewardsForStakers - expectedRewardsStakerVault1;
-
-        assertApproxEqAbs(STAR.balanceOf(stakerRewardsContractVault1), expectedRewardsStakerVault1, 1);
-        assertApproxEqAbs(STAR.balanceOf(stakerRewardsContractVault2), expectedRewardsStakerVault2, 1);
+        assertEq(STAR.balanceOf(address(stakerRewards)), expectedRewardsForStakers);
 
         // Vault 1
         {
             // Operator 1 is the only staker on the vault, so they get all the rewards minus the admin fee
+
             uint256 expectedRewardsStakerOperator1Vault1 =
-                expectedRewardsStakerVault1.mulDiv(MAX_PERCENTAGE - ADMIN_FEE, MAX_PERCENTAGE);
+                _calculateRewardsForVault(expectedRewardsForStakers, VAULT1_TOTAL_POWER);
             uint256 stakerRewardsOperator1Vault1 =
-                IODefaultStakerRewards(stakerRewardsContractVault1).claimable(epochA, operator1, address(STAR));
+                stakerRewards.claimable(epochA, operator1, address(vaultsData.v1.vault), address(STAR));
             assertApproxEqAbs(expectedRewardsStakerOperator1Vault1, stakerRewardsOperator1Vault1, 3);
         }
 
         // Vault 2
-        uint256 adminFeeStakerRewardsVault2 = expectedRewardsStakerVault2.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
-        expectedRewardsStakerVault2 -= adminFeeStakerRewardsVault2;
+        uint256 expectedRewardsStakerVault2 = _calculateRewardsForVault(expectedRewardsForStakers, VAULT2_TOTAL_POWER);
         _checkClaimableRewardsVault2(expectedRewardsStakerVault2, epochA);
     }
 
     function _prepareAndClaimBatchForOperator1(
         uint48[] memory eraIndexes,
-        uint256 amountToDistribute,
-        bool withHints
+        uint256 amountToDistribute
     ) private returns (uint256 expectedRewardsForStakers) {
         (,, bytes32[] memory proofA, uint32 pointsA, uint32 totalPointsA) = _loadRewardsRootAndProof(eraIndexes[0], 1); // operatorNumber = 1
         (,, bytes32[] memory proofB, uint32 pointsB, uint32 totalPointsB) = _loadRewardsRootAndProof(eraIndexes[1], 1); // operatorNumber = 1
-
-        bytes[] memory hintsData;
-        if (withHints) {
-            hintsData = rewardsHintsBuilder.batchGetDataForOperatorClaimRewards(OPERATOR1_KEY, eraIndexes, ADMIN_FEE);
-        } else {
-            hintsData = new bytes[](2);
-            hintsData[0] = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
-            hintsData[1] = abi.encode(ADMIN_FEE, new bytes(0), new bytes(0));
-        }
 
         IODefaultOperatorRewards.ClaimRewardsInput[] memory claimRewardsData =
             new IODefaultOperatorRewards.ClaimRewardsInput[](2);
@@ -2496,15 +2589,13 @@ contract FullTest is Test {
             operatorKey: OPERATOR1_KEY,
             eraIndex: eraIndexes[0],
             totalPointsClaimable: pointsA,
-            proof: proofA,
-            data: hintsData[0]
+            proof: proofA
         });
         claimRewardsData[1] = IODefaultOperatorRewards.ClaimRewardsInput({
             operatorKey: OPERATOR1_KEY,
             eraIndex: eraIndexes[1],
             totalPointsClaimable: pointsB,
-            proof: proofB,
-            data: hintsData[1]
+            proof: proofB
         });
 
         uint256 gasBefore = gasleft();
@@ -2762,6 +2853,16 @@ contract FullTest is Test {
         _checkStakesAfterVetoSlashing(withdrawAmount, staker1Stake);
     }
 
+    function _calculateRewardsForVault(
+        uint256 expectedRewardsForStakers,
+        uint256 vaultPower
+    ) private view returns (uint256 expectedRewards) {
+        uint256 adminFeeStakerRewards = expectedRewardsForStakers.mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
+        expectedRewardsForStakers -= adminFeeStakerRewards;
+
+        expectedRewards = vaultPower.mulDiv(expectedRewardsForStakers, TOTAL_VAULT_POWER);
+    }
+
     function _checkStakesAfterVetoSlashing(uint256 withdrawAmount, uint256 additionalStake) private view {
         uint256 expectedActualWithdrawAmount =
             withdrawAmount.mulDiv(PARTS_PER_BILLION - SLASHING_FRACTION, PARTS_PER_BILLION);
@@ -2909,16 +3010,8 @@ contract FullTest is Test {
 
         IVetoSlasher(slasher).setResolver(0, resolver1, hex"");
 
-        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
-            adminFee: ADMIN_FEE,
-            defaultAdminRoleHolder: tanssi,
-            adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi,
-            implementation: stakerRewardsImpl
-        });
-
         vm.expectRevert(VaultManager.VaultEpochTooShort.selector);
-        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vault));
 
         vm.stopPrank();
     }
@@ -2943,17 +3036,9 @@ contract FullTest is Test {
             burner: address(0xDead)
         });
 
-        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
-            adminFee: ADMIN_FEE,
-            defaultAdminRoleHolder: tanssi,
-            adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi,
-            implementation: stakerRewardsImpl
-        });
-
         for (uint256 i; i < maxVaults - activeSharedVaults - 1; i++) {
             (address vault,,) = deployVault.createBaseVault(params);
-            middleware.registerSharedVault(address(vault), stakerRewardsParams);
+            middleware.registerSharedVault(address(vault));
         }
         vm.warp(vm.getBlockTimestamp() + VAULT_EPOCH_DURATION + 1);
         activeSharedVaults = middlewareReader.sharedVaultsLength();
@@ -2961,7 +3046,7 @@ contract FullTest is Test {
 
         (address vaultAfterLimit,,) = deployVault.createBaseVault(params);
         vm.expectRevert(IMiddleware.Middleware__TooManyActiveVaults.selector);
-        middleware.registerSharedVault(address(vaultAfterLimit), stakerRewardsParams);
+        middleware.registerSharedVault(address(vaultAfterLimit));
 
         vm.stopPrank();
     }
@@ -3008,14 +3093,6 @@ contract FullTest is Test {
             burner: address(0xDead)
         });
 
-        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
-            adminFee: ADMIN_FEE,
-            defaultAdminRoleHolder: tanssi,
-            adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi,
-            implementation: stakerRewardsImpl
-        });
-
         for (uint256 i; i < operatorSpecificVaultToCreate; i++) {
             (address vault,,) = deployVault.createBaseVault(params);
             middleware.registerOperatorVault(operator1, address(vault));
@@ -3025,7 +3102,7 @@ contract FullTest is Test {
         params.operator = address(0);
         for (uint256 i; i < sharedVaultsToCreate; i++) {
             (address vault,,) = deployVault.createBaseVault(params);
-            middleware.registerSharedVault(address(vault), stakerRewardsParams);
+            middleware.registerSharedVault(address(vault));
         }
         vm.warp(vm.getBlockTimestamp() + VAULT_EPOCH_DURATION + 1);
         activeSharedVaults = middlewareReader.sharedVaultsLength();

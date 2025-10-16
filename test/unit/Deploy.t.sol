@@ -67,7 +67,6 @@ contract DeployTest is Test {
     address tanssi;
 
     address operatorRewardsAddress;
-    address stakerRewardsFactoryAddress;
 
     function setUp() public {
         deployCollateral = new DeployCollateral();
@@ -80,7 +79,6 @@ contract DeployTest is Test {
         (, tanssi,,,,,) = helperConfig.activeEntities();
 
         operatorRewardsAddress = makeAddr("operatorRewards");
-        stakerRewardsFactoryAddress = makeAddr("stakerRewardsFactory");
     }
 
     function _setIsTest() public {
@@ -220,21 +218,17 @@ contract DeployTest is Test {
     function testUpgradeMiddleware() public {
         address middleware = _deployMiddleware();
         address previousOperatorRewards = Middleware(middleware).getOperatorRewardsAddress();
-        address previousStakerRewardsFactory = Middleware(middleware).getStakerRewardsFactoryAddress();
 
         deployTanssiEcosystem.upgradeMiddleware(middleware, 1, tanssi);
         assertEq(Middleware(middleware).getOperatorRewardsAddress(), previousOperatorRewards);
-        assertEq(Middleware(middleware).getStakerRewardsFactoryAddress(), previousStakerRewardsFactory);
     }
 
     function testUpgradeMiddlewareWithBroadcast() public {
         address middleware = _deployMiddleware();
 
         address previousOperatorRewards = Middleware(middleware).getOperatorRewardsAddress();
-        address previousStakerRewardsFactory = Middleware(middleware).getStakerRewardsFactoryAddress();
         deployTanssiEcosystem.upgradeMiddlewareBroadcast(middleware, 1);
         assertEq(Middleware(middleware).getOperatorRewardsAddress(), previousOperatorRewards);
-        assertEq(Middleware(middleware).getStakerRewardsFactoryAddress(), previousStakerRewardsFactory);
     }
 
     function testDeployOnlyMiddlewareWithReader() public {
@@ -380,31 +374,28 @@ contract DeployTest is Test {
     function testDeployRewardsStaker() public {
         DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
 
-        address stakerRewards = address(deployRewards.deployStakerRewards(addresses.networkMiddlewareService, tanssi));
+        address middleware = makeAddr("middleware");
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            adminFee: 100, //1%
+            defaultAdminRoleHolder: tanssi,
+            adminFeeClaimRoleHolder: tanssi,
+            adminFeeSetRoleHolder: tanssi
+        });
+
+        address stakerRewards = deployRewards.deployStakerRewards(
+            addresses.networkMiddlewareService, tanssi, middleware, stakerRewardsParams
+        );
 
         assertNotEq(stakerRewards, ZERO_ADDRESS);
     }
 
     function testDeployRewardsHintsBuilder() public {
         address middleware = makeAddr("middleware");
-        address operatorRewards = makeAddr("operatorRewards");
         address vaultHints = makeAddr("vaultHints");
 
-        address rewardsHintsBuilder =
-            address(deployRewards.deployRewardsHintsBuilder(middleware, operatorRewards, vaultHints));
+        address rewardsHintsBuilder = address(deployRewards.deployRewardsHintsBuilder(middleware, vaultHints));
 
         assertNotEq(rewardsHintsBuilder, ZERO_ADDRESS);
-    }
-
-    function testDeployRewardsStakerFactory() public {
-        DeploySymbiotic.SymbioticAddresses memory addresses = deploySymbiotic.deploySymbioticBroadcast();
-        address operatorRewards =
-            deployRewards.deployOperatorRewardsContract(tanssi, addresses.networkMiddlewareService, 20, tanssi);
-
-        address stakerFactory = deployRewards.deployStakerRewardsFactoryContract(
-            addresses.vaultFactory, addresses.networkMiddlewareService, operatorRewards, tanssi, tanssi
-        );
-        assertNotEq(stakerFactory, ZERO_ADDRESS);
     }
 
     function testDeployTanssiVault() public {
@@ -464,7 +455,7 @@ contract DeployTest is Test {
             reader: address(0)
         });
         address middleware = deployTanssiEcosystem.deployMiddleware(params, networkMiddlewareService);
-        Middleware(middleware).reinitializeRewards(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        Middleware(middleware).reinitializeRewards(operatorRewardsAddress, makeAddr("deprecated"));
         return middleware;
     }
 }

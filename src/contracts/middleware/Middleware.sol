@@ -129,23 +129,23 @@ contract Middleware is
 
     /*
      * @notice Reinitialize the middleware with only operator rewards and staker rewards factory addresses
+     * @dev Deprecated. Only for legacy compatibility 
      * @param operatorRewards The operator rewards address
      * @param stakerRewardsFactory The staker rewards factory address
      */
     function reinitializeRewards(
         address operatorRewards,
-        address stakerRewardsFactory
-    ) external reinitializer(3) notZeroAddress(operatorRewards) notZeroAddress(stakerRewardsFactory) {
+        address deprecated /* stakerRewardsFactory */
+    ) external reinitializer(3) notZeroAddress(operatorRewards) notZeroAddress(deprecated) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
         $.i_operatorRewards = operatorRewards;
-        $.i_stakerRewardsFactory = stakerRewardsFactory;
     }
 
     /*
      * @notice Reinitialize the middleware with only staker rewards contract address
      * @param stakerRewards The staker rewards address
      */
-    function reinitializeRewards(
+    function reinitializeForStakerRewards(
         address stakerRewards
     ) external reinitializer(4) notZeroAddress(stakerRewards) {
         StorageMiddleware storage $ = _getMiddlewareStorage();
@@ -276,15 +276,24 @@ contract Middleware is
         uint48 eraForDistribution = uint48(eraIndex);
 
         StorageMiddleware storage $ = _getMiddlewareStorage();
-        IERC20(tokenAddress).approve($.i_operatorRewards, tokenAmount);
+        IODefaultOperatorRewards operatorRewards = IODefaultOperatorRewards($.i_operatorRewards);
 
+        uint256 operatorAmount = tokenAmount.mulDiv(operatorRewards.operatorShare(), operatorRewards.MAX_PERCENTAGE());
+        uint256 stakerAmount = tokenAmount - operatorAmount;
+
+        // Operators
+        IERC20(tokenAddress).approve($.i_operatorRewards, operatorAmount);
         IODefaultOperatorRewards($.i_operatorRewards).distributeRewards(
-            epochForDistribution, eraForDistribution, tokenAmount, totalPoints, rewardsRoot, tokenAddress
+            epochForDistribution, eraForDistribution, operatorAmount, totalPoints, rewardsRoot, tokenAddress
         );
 
-        IERC20(tokenAddress).approve($.i_stakerRewards, tokenAmount);
+        // Stakers
+        IERC20(tokenAddress).approve($.i_stakerRewards, stakerAmount);
+        //TODO CREATE SETTER
+        bytes memory data = abi.encode(IODefaultStakerRewards($.i_stakerRewards).adminFee());
+
         IODefaultStakerRewards($.i_stakerRewards).distributeRewards(
-            epochForDistribution, eraForDistribution, tokenAmount, tokenAddress, new bytes(0)
+            epochForDistribution, eraForDistribution, stakerAmount, tokenAddress, data
         );
     }
 
@@ -393,6 +402,7 @@ contract Middleware is
                     if (vault == address(0)) {
                         revert Middleware__InvalidAddress();
                     }
+
                     unchecked {
                         ++i;
                         cache.vaultToPower[epoch][vault] += vaultPower.power;

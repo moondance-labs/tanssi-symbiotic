@@ -14,6 +14,7 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
+import {console2} from "forge-std/console2.sol";
 //**************************************************************************************************
 //                                      CHAINLINK
 //**************************************************************************************************
@@ -25,6 +26,7 @@ import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {EnumerableMap} from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 
 //**************************************************************************************************
 //                                      SYMBIOTIC
@@ -62,6 +64,7 @@ contract OBaseMiddlewareReader is
     KeyManager256
 {
     using QuickSort for IMiddleware.ValidatorData[];
+    using EnumerableMap for EnumerableMap.AddressToAddressMap;
     using PauseableEnumerableSet for PauseableEnumerableSet.AddressSet;
     using PauseableEnumerableSet for PauseableEnumerableSet.Status;
     using Subnetwork for address;
@@ -809,8 +812,9 @@ contract OBaseMiddlewareReader is
     {
         VaultManagerStorage storage $ = _getVaultManagerStorage();
         address[] memory sharedVaults = $._sharedVaults.getActive(timestamp);
+        uint256 operatorVaultsLen = $._vaultOperator.length();
 
-        vaultsPower = new IMiddleware.VaultPower[](sharedVaults.length);
+        vaultsPower = new IMiddleware.VaultPower[](sharedVaults.length + operatorVaultsLen);
 
         IMiddleware.AccumulateCtx memory ctx;
         ctx.timestamp = timestamp;
@@ -827,7 +831,10 @@ contract OBaseMiddlewareReader is
         operatorsProcessed = i - cacheIndex;
 
         uint256 totalVaultsIndex = ctx.totalVaultsIndex;
-
+        console2.log("Total vaults with power:", totalVaultsIndex);
+        for (uint256 j; j < vaultsPower.length; ++j) {
+            console2.log("  Vault:", vaultsPower[j].vault, " Power:", vaultsPower[j].power);
+        }
         // Shrink array length to actual number of used slots
         assembly ("memory-safe") {
             mstore(vaultsPower, totalVaultsIndex)
@@ -841,7 +848,7 @@ contract OBaseMiddlewareReader is
         IMiddleware.AccumulateCtx memory ctx
     ) private view returns (uint256, bool) {
         (address operator, uint48 enabled, uint48 disabled) = operators.at(index);
-
+        console2.log("Checking operator", operator);
         if (enabled < ctx.timestamp && (disabled == 0 || disabled >= ctx.timestamp)) {
             ctx.atLeastOneActive = true;
 
@@ -849,8 +856,9 @@ contract OBaseMiddlewareReader is
 
             for (uint256 j; j < operatorVaults.length;) {
                 address vault = operatorVaults[j];
+                console2.log("  Checking vault", vault);
                 uint256 power = _getOperatorPowerAt(ctx.timestamp, operator, vault, ctx.subnetwork);
-
+                console2.log("    Power", power);
                 if (power != 0) {
                     ctx.totalVaultsIndex += _extractVaultsPower(vaultsPower, ctx.totalVaultsIndex, vault, power);
                 }
@@ -893,7 +901,6 @@ contract OBaseMiddlewareReader is
     function getVaultPower(address vault, uint48 epoch) external view returns (uint256 power) {
         VaultManagerStorage storage $ = _getVaultManagerStorage();
         uint48 epochStartTs = getEpochStart(epoch);
-        address[] memory sharedVaults = $._sharedVaults.getActive(epochStartTs);
         uint96 subnetwork = _NETWORK().subnetwork(0).identifier();
         power = getVaultToPowerCached(epoch, vault);
 

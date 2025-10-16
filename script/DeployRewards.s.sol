@@ -18,15 +18,14 @@ import {Script, console2} from "forge-std/Script.sol";
 
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
+import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
-import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
 import {RewardsHintsBuilder} from "src/contracts/rewarder/RewardsHintsBuilder.sol";
 
 contract DeployRewards is Script {
-    ODefaultStakerRewardsFactory public stakerRewardsFactory;
     ODefaultOperatorRewards public operatorRewards;
-    ODefaultStakerRewards public stakerRewardsImpl;
+    ODefaultStakerRewards public stakerRewards;
 
     uint256 public ownerPrivateKey =
         vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
@@ -75,38 +74,25 @@ contract DeployRewards is Script {
         return address(operatorRewards);
     }
 
-    function deployStakerRewardsFactoryContract(
-        address vaultFactory,
+    function deployStakerRewards(
         address networkMiddlewareService,
-        address operatorRewardsAddress,
         address network,
-        address owner_
-    ) public returns (address) {
+        address middleware,
+        IODefaultStakerRewards.InitParams memory params
+    ) external returns (address) {
         if (!isTest) {
             vm.startBroadcast(broadcaster());
         }
-        stakerRewardsFactory = new ODefaultStakerRewardsFactory(
-            vaultFactory, networkMiddlewareService, operatorRewardsAddress, network, owner_
-        );
-        console2.log("Staker rewards factory deployed at address: ", address(stakerRewardsFactory));
+        ODefaultStakerRewards stakerRewardsImpl = new ODefaultStakerRewards(networkMiddlewareService, network);
+        stakerRewards = ODefaultStakerRewards(address(new ERC1967Proxy(address(stakerRewardsImpl), "")));
+
+        stakerRewards.initialize(middleware, params);
+        console2.log("New Staker Rewards: ", address(stakerRewards));
 
         if (!isTest) {
             vm.stopBroadcast();
         }
-
-        return address(stakerRewardsFactory);
-    }
-
-    function deployStakerRewards(
-        address networkMiddlewareService,
-        address network
-    ) external returns (ODefaultStakerRewards stakerRewards) {
-        vm.startBroadcast(broadcaster());
-
-        stakerRewards = new ODefaultStakerRewards(networkMiddlewareService, network);
-        console2.log("New Staker Rewards Implementation: ", address(stakerRewards));
-
-        vm.stopBroadcast();
+        return address(stakerRewards);
     }
 
     function upgradeStakerRewards(address proxyAddress, address networkMiddlewareService, address network) external {
@@ -150,12 +136,11 @@ contract DeployRewards is Script {
 
     function deployRewardsHintsBuilder(
         address middleware,
-        address operatorRewards_,
         address vaultHints
     ) external returns (RewardsHintsBuilder rewardsHintsBuilder) {
         vm.startBroadcast(broadcaster());
 
-        rewardsHintsBuilder = new RewardsHintsBuilder(middleware, operatorRewards_, vaultHints);
+        rewardsHintsBuilder = new RewardsHintsBuilder(middleware, vaultHints);
         console2.log("New Rewards Hints Builder: ", address(rewardsHintsBuilder));
 
         vm.stopBroadcast();

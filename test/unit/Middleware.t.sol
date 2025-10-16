@@ -64,7 +64,6 @@ import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRew
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
-import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
 import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
@@ -73,7 +72,6 @@ import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareRea
 import {MiddlewareV2} from "./utils/MiddlewareV2.sol";
 import {MiddlewareV3} from "./utils/MiddlewareV3.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
-import {IODefaultStakerRewardsFactory} from "src/interfaces/rewarder/IODefaultStakerRewardsFactory.sol";
 import {QuickSort} from "src/contracts/libraries/QuickSort.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
@@ -138,15 +136,7 @@ contract MiddlewareTest is Test {
     DeployRewards deployRewards;
     DeployCollateral deployCollateral;
     ODefaultOperatorRewards operatorRewards;
-    ODefaultStakerRewardsFactory stakerRewardsFactory;
-
-    IODefaultStakerRewards.InitParams stakerRewardsParams = IODefaultStakerRewards.InitParams({
-        adminFee: 0,
-        defaultAdminRoleHolder: owner,
-        adminFeeClaimRoleHolder: owner,
-        adminFeeSetRoleHolder: owner,
-        implementation: address(0)
-    });
+    ODefaultStakerRewards stakerRewards;
 
     function setUp() public {
         vm.startPrank(owner);
@@ -194,16 +184,6 @@ contract MiddlewareTest is Test {
             deployRewards.deployOperatorRewardsContract(tanssi, address(networkMiddlewareService), 5000, owner);
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
-        address stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
-            vaultFactory, address(networkMiddlewareService), operatorRewardsAddress, tanssi, owner
-        );
-        stakerRewardsFactory = ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress);
-        vm.mockCall(
-            address(stakerRewardsFactory),
-            abi.encodeWithSelector(IODefaultStakerRewardsFactory.create.selector),
-            abi.encode(makeAddr("stakerRewards"))
-        );
-
         middlewareImpl = new Middleware();
         middleware = Middleware(address(new MiddlewareProxy(address(middlewareImpl), "")));
         IMiddleware.InitParams memory params = IMiddleware.InitParams({
@@ -217,17 +197,27 @@ contract MiddlewareTest is Test {
             reader: readHelper
         });
         middleware.initialize(params);
-        middleware.reinitializeRewards(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        middleware.reinitializeRewards(operatorRewardsAddress, makeAddr("deprecated"));
+
+        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+            adminFee: 100, //1%
+            defaultAdminRoleHolder: owner,
+            adminFeeClaimRoleHolder: tanssi,
+            adminFeeSetRoleHolder: tanssi
+        });
+        stakerRewards = ODefaultStakerRewards(
+            deployRewards.deployStakerRewards(
+                address(networkMiddlewareService), tanssi, address(middleware), stakerRewardsParams
+            )
+        );
+        middleware.reinitializeForStakerRewards(address(stakerRewards));
+        stakerRewards.grantRole(stakerRewards.MIDDLEWARE_ROLE(), address(middleware));
 
         middleware.setGateway(address(gateway));
         middleware.setCollateralToOracle(address(collateral), address(collateralOracle));
 
-        stakerRewardsParams.implementation =
-            address(new ODefaultStakerRewards(address(networkMiddlewareService), tanssi));
-
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
         operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
-        operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware));
 
         vm.startPrank(tanssi);
         registry.register();
@@ -599,7 +589,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vault));
 
         assertEq(OBaseMiddlewareReader(address(middleware)).isVaultRegistered(address(vault)), true);
         vm.stopPrank();
@@ -611,7 +601,7 @@ contract MiddlewareTest is Test {
                 IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
             )
         );
-        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vault));
     }
 
     function testRegisterVaultAlreadyRegistered() public {
@@ -621,23 +611,17 @@ contract MiddlewareTest is Test {
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
 
-        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vault));
 
         vm.expectRevert(VaultManager.VaultAlreadyRegistered.selector);
-
-        vm.mockCall(
-            address(stakerRewardsFactory),
-            abi.encodeWithSelector(IODefaultStakerRewardsFactory.create.selector),
-            abi.encode(makeAddr("stakerRewards2"))
-        );
-        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vault));
         vm.stopPrank();
     }
 
     function testRegisterVaultNotVault() public {
         vm.startPrank(owner);
         vm.expectRevert(VaultManager.NotVault.selector);
-        middleware.registerSharedVault(owner, stakerRewardsParams);
+        middleware.registerSharedVault(owner);
         vm.stopPrank();
     }
 
@@ -648,7 +632,7 @@ contract MiddlewareTest is Test {
         vault.setSlasher(address(vetoSlasher));
         vm.store(address(vetoSlasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
         vm.expectRevert(VaultManager.VaultEpochTooShort.selector);
-        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vault));
         vm.stopPrank();
     }
 
@@ -658,7 +642,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         vault.setSlasher(address(vetoSlasher));
         vm.store(address(vetoSlasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vault));
 
         assertEq(OBaseMiddlewareReader(address(middleware)).isVaultRegistered(address(vault)), true);
         vm.stopPrank();
@@ -667,7 +651,7 @@ contract MiddlewareTest is Test {
     function testRegisterVaultWithNoHookOverwritten() public {
         // This was added just to cover the default implementation of the _beforeRegisterSharedVault hook
         SharedVaultMock vaultMock = new SharedVaultMock();
-        vaultMock.callAfterRegisterHook(address(vaultMock), stakerRewardsParams);
+        vaultMock.callAfterRegisterHook(address(vaultMock));
         assertEq(vaultMock.stakeToPower(makeAddr("mock"), 1), 0);
     }
 
@@ -681,7 +665,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vault));
 
         middleware.pauseSharedVault(address(vault));
         vm.stopPrank();
@@ -706,7 +690,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vault));
 
         vm.warp(NETWORK_EPOCH_DURATION + 2);
         middleware.pauseSharedVault(address(vault));
@@ -734,7 +718,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vault));
 
         middleware.pauseSharedVault(address(vault));
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
@@ -759,7 +743,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vault));
 
         middleware.pauseSharedVault(address(vault));
         vm.warp(START_TIME + SLASHING_WINDOW - 1);
@@ -843,7 +827,7 @@ contract MiddlewareTest is Test {
         middleware.registerOperator(operatorUnregistered, abi.encode(OPERATOR_KEY), address(0));
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
-        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vault));
         middleware.pauseSharedVault(address(vault));
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
@@ -1039,7 +1023,7 @@ contract MiddlewareTest is Test {
         vault2.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault2)))));
 
-        middleware.registerSharedVault(address(vault2), stakerRewardsParams);
+        middleware.registerSharedVault(address(vault2));
 
         vault.setSlasher(address(slasher));
         vm.store(address(slasher), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
@@ -1101,7 +1085,7 @@ contract MiddlewareTest is Test {
         vault.setSlasher(address(slasherWithBadType));
         vm.store(address(slasherWithBadType), bytes32(uint256(0)), bytes32(uint256(uint160(address(vault)))));
         vm.expectRevert(VaultManager.UnknownSlasherType.selector);
-        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vault));
 
         vm.startPrank(operator);
         vault.deposit(operator, OPERATOR_STAKE);
@@ -1482,7 +1466,7 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(owner);
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
-        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vault));
         middleware.pauseSharedVault(address(vault));
 
         vm.warp(NETWORK_EPOCH_DURATION + 2);
@@ -1506,7 +1490,7 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(owner);
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
-        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vault));
         middleware.pauseSharedVault(address(vault));
         vm.warp(START_TIME + SLASHING_WINDOW + 1);
         middleware.unregisterSharedVault(address(vault));
@@ -2542,7 +2526,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
         middleware.registerOperator(operator2, abi.encode(OPERATOR2_KEY), address(0));
-        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vault));
 
         vm.startPrank(operator);
         vault.deposit(operator, OPERATOR_STAKE);
@@ -2638,7 +2622,7 @@ contract MiddlewareTest is Test {
             address(registry), abi.encodeWithSelector(IRegistry.isEntity.selector, address(vault)), abi.encode(true)
         );
         vm.startPrank(owner);
-        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vault));
         vm.stopPrank();
 
         address currentCollateral = middleware.vaultToCollateral(address(vault));
@@ -2653,7 +2637,7 @@ contract MiddlewareTest is Test {
         );
 
         vm.expectRevert(abi.encodeWithSelector(IMiddleware.Middleware__InvalidAddress.selector));
-        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vault));
         vm.stopPrank();
     }
 
@@ -2662,7 +2646,7 @@ contract MiddlewareTest is Test {
             address(registry), abi.encodeWithSelector(IRegistry.isEntity.selector, address(vault)), abi.encode(true)
         );
         vm.startPrank(owner);
-        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vault));
         vm.stopPrank();
 
         address currentOracle = middleware.vaultToOracle(address(vault));
@@ -2723,7 +2707,7 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(owner);
         middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
-        middleware.registerSharedVault(address(vault), stakerRewardsParams);
+        middleware.registerSharedVault(address(vault));
 
         if (slasher_ != address(0)) {
             vault.setSlasher(slasher_);

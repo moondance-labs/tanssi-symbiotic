@@ -71,7 +71,6 @@ import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
-import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {MiddlewareV2} from "test/unit/utils/MiddlewareV2.sol";
 import {DeployRewards} from "script/DeployRewards.s.sol";
@@ -134,6 +133,7 @@ contract FullTest is Test {
     Middleware middleware;
     OBaseMiddlewareReader reader;
     ODefaultOperatorRewards operatorRewards;
+    ODefaultStakerRewards stakerRewards;
     Token rewardsToken;
     HelperConfig.TokensConfig public tokensConfig;
     HelperConfig.OperatorConfig public operators;
@@ -142,7 +142,6 @@ contract FullTest is Test {
     HelperConfig.VaultsConfigA public vaultsAddressesDeployedA;
     HelperConfig.VaultsConfigB public vaultsAddressesDeployedB;
 
-    mapping(address vault => address stakerRewards) vaultToStakerRewards;
     mapping(address operator => address[] vaults) operatorToVaults;
     mapping(address operator => uint256[] powers) operatorToPowers;
     mapping(address vault => address[] operators) vaultToOperators;
@@ -173,7 +172,6 @@ contract FullTest is Test {
         json = vm.readFile(path);
 
         _getBaseInfrastructure();
-        _cacheAllVaultToStakerRewards();
 
         // Necessary to have predictable powers per vault, in 14 days there should be a new vault epoch in all vaults with all deposits and withdrawals in effect
         vm.warp(vm.getBlockTimestamp() + 14 days + 1);
@@ -199,14 +197,6 @@ contract FullTest is Test {
 
         // For now we need this as we can't use the one already deployed
         stakerRewardsImpl = address(new ODefaultStakerRewards(networkConfig.networkMiddlewareService, entities.tanssi));
-    }
-
-    function _cacheAllVaultToStakerRewards() private {
-        address[] memory sharedVaults = reader.activeSharedVaults();
-        for (uint256 i = 0; i < sharedVaults.length; i++) {
-            address vault = sharedVaults[i];
-            vaultToStakerRewards[vault] = operatorRewards.vaultToStakerRewardsContract(vault);
-        }
     }
 
     function _cacheAllOperatorsVaults() private {
@@ -804,14 +794,12 @@ contract FullTest is Test {
         ProofAndPoints memory proofAndPoints,
         uint256 totalPoints
     ) private returns (uint256 expectedRewardsForStakers) {
-        bytes memory additionalData = abi.encode(MAX_ADMIN_FEE_BPS, new bytes(0), new bytes(0));
         uint256 previousBalance = rewardsToken.balanceOf(operator.evmAddress);
         IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
             operatorKey: operator.operatorKey,
             eraIndex: eraIndex,
             totalPointsClaimable: proofAndPoints.points,
-            proof: proofAndPoints.proof,
-            data: additionalData
+            proof: proofAndPoints.proof
         });
         operatorRewards.claimRewards(claimRewardsData);
 
@@ -839,7 +827,7 @@ contract FullTest is Test {
         uint256 totalPower;
         for (uint256 i; i < totalVaults; i++) {
             address vault = vaults[i];
-            stakerRewardsBalancesBefore[i] = rewardsToken.balanceOf(vaultToStakerRewards[vault]);
+            stakerRewardsBalancesBefore[i] = rewardsToken.balanceOf(address(stakerRewards)); //TODO Adjust with new math
 
             totalPower += powers[i];
         }
@@ -849,7 +837,7 @@ contract FullTest is Test {
 
         for (uint256 i; i < totalVaults; i++) {
             uint256 expectedStakerRewardsForVault = expectedStakerRewards.mulDiv(powers[i], totalPower);
-            uint256 newStakerRewardsBalances = rewardsToken.balanceOf(vaultToStakerRewards[vaults[i]]);
+            uint256 newStakerRewardsBalances = rewardsToken.balanceOf(address(stakerRewards)); //TODO Adjust with new math
             uint256 actualRewards = newStakerRewardsBalances - stakerRewardsBalancesBefore[i];
             assertApproxEqAbs(actualRewards, expectedStakerRewardsForVault, 10);
         }

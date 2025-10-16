@@ -119,8 +119,14 @@ interface IODefaultOperatorRewards {
         uint48 eraIndex;
         uint32 totalPointsClaimable; // On substrate side it's also u32
         bytes32[] proof;
-        bytes data;
     }
+
+    /**
+     * @notice Get the maximum percentage value (100% represented as 10000).
+     * @return maximum percentage value
+     * @dev This value is used to represent percentages with two decimal places to increase precision (e.g., 1% = 100, 0.01% = 1).
+     */
+    function MAX_PERCENTAGE() external pure returns (uint48);
 
     /**
      * @notice Get the network middleware service's address.

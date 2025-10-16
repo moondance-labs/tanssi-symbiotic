@@ -36,7 +36,6 @@ import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 //**************************************************************************************************
 import {MockV3Aggregator} from "@chainlink/tests/MockV3Aggregator.sol";
 
-import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
@@ -228,16 +227,9 @@ contract DeployTanssiEcosystemDemo is Script {
     }
 
     function _registerEntitiesToMiddleware() private {
-        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
-            adminFee: 0,
-            defaultAdminRoleHolder: tanssi,
-            adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi,
-            implementation: stakerRewardsImpl
-        });
-        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault, stakerRewardsParams);
-        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed, stakerRewardsParams);
-        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultSlashable, stakerRewardsParams);
+        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vault);
+        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultVetoed);
+        ecosystemEntities.middleware.registerSharedVault(vaultAddresses.vaultSlashable);
         ecosystemEntities.middleware.registerOperator(operator, abi.encode(operatorKey1), address(0));
         ecosystemEntities.middleware.registerOperator(operator2, abi.encode(operatorKey2), address(0));
         ecosystemEntities.middleware.registerOperator(operator3, abi.encode(operatorKey3), address(0));
@@ -345,10 +337,6 @@ contract DeployTanssiEcosystemDemo is Script {
         );
         ODefaultOperatorRewards operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 
-        address stakerRewardsFactoryAddress = contractScripts.deployRewards.deployStakerRewardsFactoryContract(
-            vaultRegistryAddress, address(networkMiddlewareService), operatorRewardsAddress, tanssi, tanssi
-        );
-
         vm.startBroadcast(ownerPrivateKey);
 
         IMiddleware.InitParams memory params = IMiddleware.InitParams({
@@ -362,14 +350,11 @@ contract DeployTanssiEcosystemDemo is Script {
             reader: address(0)
         });
 
-        ecosystemEntities.middleware =
-            _deployMiddlewareWithProxy(params, operatorRewardsAddress, stakerRewardsFactoryAddress);
+        ecosystemEntities.middleware = _deployMiddlewareWithProxy(params, operatorRewardsAddress);
 
         stakerRewardsImpl = address(new ODefaultStakerRewards(address(networkMiddlewareService), tanssi));
-        ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress).setImplementation(stakerRewardsImpl);
 
         operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(ecosystemEntities.middleware));
-        operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(ecosystemEntities.middleware));
 
         // Operator 1 goes to first vault
         INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares{gas: 10_000_000}(
@@ -424,8 +409,7 @@ contract DeployTanssiEcosystemDemo is Script {
 
     function _deployMiddlewareWithProxy(
         IMiddleware.InitParams memory params,
-        address operatorRewardsAddress,
-        address stakerRewardsFactoryAddress
+        address operatorRewardsAddress
     ) private returns (Middleware _middleware) {
         Middleware _middlewareImpl = new Middleware();
         _middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
@@ -433,7 +417,7 @@ contract DeployTanssiEcosystemDemo is Script {
 
         params.reader = address(new OBaseMiddlewareReader());
         _middleware.initialize(params);
-        _middleware.reinitializeRewards(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        _middleware.reinitializeRewards(operatorRewardsAddress, makeAddr("deprecated"));
     }
 
     function run() external {

@@ -14,6 +14,7 @@
 
 pragma solidity 0.8.25;
 
+import {console2} from "forge-std/console2.sol";
 // *********************************************************************************************************************
 //                                                  SYMBIOTIC
 // *********************************************************************************************************************
@@ -49,15 +50,9 @@ contract ODefaultStakerRewards is
     using SafeERC20 for IERC20;
     using Math for uint256;
 
-    /// @custom:storage-location erc7201:tanssi.rewards.ODefaultStakerRewards.v1.1
+    /// @custom:storage-location erc7201:tanssi.rewards.ODefaultStakerRewards.v1.2
     struct StakerRewardsStorage {
         uint256 adminFee;
-        //     mapping(uint48 epoch => mapping(address tokenAddress => uint256 rewards_)) rewards;
-        //     mapping(address account => mapping(uint48 epoch => mapping(address tokenAddress => uint256 claimed)))
-        //         stakerClaimedRewardPerEpoch;
-        //     mapping(uint48 epoch => mapping(address tokenAddress => uint256 amount)) claimableAdminFee;
-        //     mapping(uint48 epoch => uint256 amount) activeSharesCache;
-        // }
         mapping(uint48 epoch => mapping(address vault => mapping(address tokenAddress => uint256 rewards_))) rewards;
         mapping(
             address account
@@ -67,7 +62,7 @@ contract ODefaultStakerRewards is
         mapping(uint48 epoch => mapping(address vault => uint256 amount)) activeSharesCache;
     }
 
-    // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultStakerRewards.v1.1")) - 1)) & ~bytes32(uint256(0xff))
+    // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultStakerRewards.v1.2")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant STAKER_REWARDS_STORAGE_LOCATION =
         0xef473712465551821e7a51c85c06a1bf76bdf2a3508e28184170ac7eb0322c00;
 
@@ -137,7 +132,7 @@ contract ODefaultStakerRewards is
         if (params.adminFeeSetRoleHolder != address(0)) {
             _grantRole(ADMIN_FEE_SET_ROLE, params.adminFeeSetRoleHolder);
         }
-        _grantRole(MIDDLEWARE_ROLE, operatorRewards);
+        _grantRole(MIDDLEWARE_ROLE, middleware);
     }
 
     /**
@@ -180,10 +175,7 @@ contract ODefaultStakerRewards is
         bytes calldata data
     ) external override nonReentrant onlyRole(MIDDLEWARE_ROLE) {
         // maxAdminFee - the maximum admin fee to allow
-        // activeSharesHint - a hint index to optimize `activeSharesAt()` processing
-        // activeStakeHint - a hint index to optimize `activeStakeAt()` processing
-        (uint256 maxAdminFee, bytes memory activeSharesHint, bytes memory activeStakeHint) =
-            abi.decode(data, (uint256, bytes, bytes));
+        (uint256 maxAdminFee) = abi.decode(data, (uint256));
 
         uint48 epochTs = EpochCapture(INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network))
             .getEpochStart(epoch);
@@ -192,8 +184,15 @@ contract ODefaultStakerRewards is
             revert ODefaultStakerRewards__InvalidRewardTimestamp();
         }
 
-        StakerRewardsStorage storage $ = _getStakerRewardsStorage();
+        _setFeeAndSetRewards(maxAdminFee, epoch, amount, tokenAddress);
 
+        _transferAndCheckAmount(tokenAddress, amount);
+
+        emit DistributeRewards(i_network, tokenAddress, eraIndex, epoch, amount, data);
+    }
+
+    function _setFeeAndSetRewards(uint256 maxAdminFee, uint48 epoch, uint256 amount, address tokenAddress) private {
+        StakerRewardsStorage storage $ = _getStakerRewardsStorage();
         uint256 adminFee_ = $.adminFee;
         // If the admin fee is higher than the max allowed, revert
         if (maxAdminFee < adminFee_) {
@@ -208,12 +207,40 @@ contract ODefaultStakerRewards is
         $.claimableAdminFee[epoch][tokenAddress] += adminFeeAmount;
 
         if (distributeAmount != 0) {
-            _setRewardsPerVault($, distributeAmount, epoch, epochTs, tokenAddress, activeSharesHint, activeStakeHint);
+            _setRewardsPerVault($, distributeAmount, epoch, tokenAddress);
         }
+    }
 
-        _transferAndCheckAmount(tokenAddress, amount);
+    function _setRewardsPerVault(
+        StakerRewardsStorage storage $,
+        uint256 amount,
+        uint48 epoch,
+        address tokenAddress
+    ) private {
+        address middleware = INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network);
 
-        emit DistributeRewards(i_network, tokenAddress, eraIndex, epoch, amount, data);
+        address[] memory activeVaults = IOBaseMiddlewareReader(middleware).activeVaults();
+        uint256 totalVaultPower = IMiddlewareStorage(middleware).getEpochTotalPower(epoch);
+        console2.log("Total vault power:", totalVaultPower);
+        uint256 cumulativeAmount;
+        for (uint256 i; i < activeVaults.length;) {
+            address vault = activeVaults[i];
+            uint256 vaultPower = IMiddlewareStorage(middleware).getVaultToPowerCached(epoch, vault);
+            console2.log("Vault power: ", vaultPower);
+            uint256 rewardsPerVault;
+            if (i == activeVaults.length - 1) {
+                rewardsPerVault = amount - cumulativeAmount;
+            } else {
+                rewardsPerVault = amount.mulDiv(vaultPower, totalVaultPower);
+            }
+            console2.log("Rewards for vault: ", rewardsPerVault);
+            $.rewards[epoch][vault][tokenAddress] = rewardsPerVault;
+
+            unchecked {
+                cumulativeAmount += rewardsPerVault;
+                ++i;
+            }
+        }
     }
 
     function _transferAndCheckAmount(address tokenAddress, uint256 amount) private {
@@ -224,56 +251,6 @@ contract ODefaultStakerRewards is
         // Check if the amount being sent is greater than 0
         if (finalAmount != amount) {
             revert ODefaultStakerRewards__InsufficientReward();
-        }
-    }
-
-    function _setRewardsPerVault(
-        StakerRewardsStorage storage $,
-        uint256 amount,
-        uint48 epoch,
-        uint48 epochTs,
-        address tokenAddress,
-        bytes memory activeSharesHint,
-        bytes memory activeStakeHint
-    ) private {
-        address middleware = INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network);
-
-        address[] memory activeVaults = IOBaseMiddlewareReader(middleware).activeVaults();
-        uint256 totalVaultPower = IMiddlewareStorage(middleware).getEpochTotalPower(epoch);
-
-        for (uint256 i = 0; i < activeVaults.length;) {
-            address vault = activeVaults[i];
-            uint256 vaultPower = IMiddlewareStorage(middleware).getVaultToPowerCached(epoch, vault);
-
-            uint256 rewardsPerVault = vaultPower.mulDiv(amount, totalVaultPower);
-            // This is used to cache the active shares for the epoch and optimize the claiming process
-            _cacheActiveShares($, epoch, epochTs, vault, activeSharesHint, activeStakeHint);
-
-            $.rewards[epoch][vault][tokenAddress] += rewardsPerVault;
-
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    function _cacheActiveShares(
-        StakerRewardsStorage storage $,
-        uint48 epoch,
-        uint48 epochTs,
-        address vault,
-        bytes memory activeSharesHint,
-        bytes memory activeStakeHint
-    ) private {
-        if ($.activeSharesCache[epoch][vault] == 0) {
-            uint256 activeShares_ = IVault(vault).activeSharesAt(epochTs, activeSharesHint);
-            uint256 activeStake_ = IVault(vault).activeStakeAt(epochTs, activeStakeHint);
-
-            if (activeShares_ == 0 || activeStake_ == 0) {
-                revert ODefaultStakerRewards__InvalidRewardTimestamp();
-            }
-
-            $.activeSharesCache[epoch][vault] = activeShares_;
         }
     }
 
@@ -473,10 +450,22 @@ contract ODefaultStakerRewards is
             .getEpochStart(epoch);
 
         uint256 activeSharesCache_ = $.activeSharesCache[epoch][vault];
+        if (activeSharesCache_ == 0) {
+            uint256 activeShares_ = IVault(vault).activeSharesAt(epochTs, activeSharesOfHints);
+            uint256 activeStake_ = IVault(vault).activeStakeAt(epochTs, new bytes(0));
+
+            if (activeShares_ == 0 || activeStake_ == 0) {
+                revert ODefaultStakerRewards__InvalidRewardTimestamp();
+            }
+
+            $.activeSharesCache[epoch][vault] = activeShares_;
+            activeSharesCache_ = activeShares_;
+        }
 
         if (rewardsPerEpoch == 0 || activeSharesCache_ == 0) {
             revert ODefaultStakerRewards__NoRewardsToClaim();
         }
+
         amount = IVault(vault).activeSharesOfAt(recipient, epochTs, activeSharesOfHints).mulDiv(
             rewardsPerEpoch, activeSharesCache_
         );

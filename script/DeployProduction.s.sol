@@ -59,38 +59,29 @@ contract DeployProduction is Script {
         HelperConfig _helperConfig,
         Entities memory _entities,
         address _initialAdmin
-    )
-        external
-        returns (address middlewareAddress, address operatorRewardsAddress, address stakerRewardsFactoryAddress)
-    {
+    ) external returns (address middlewareAddress, address operatorRewardsAddress) {
         helperConfig = _helperConfig;
         deployRewards = new DeployRewards();
         deployRewards.setIsTest(true);
         entities = _entities;
         initialAdmin = _initialAdmin;
 
-        (middlewareAddress, operatorRewardsAddress, stakerRewardsFactoryAddress) = _deploy(true);
+        (middlewareAddress, operatorRewardsAddress) = _deploy(true);
     }
 
-    function deploy()
-        external
-        returns (address middlewareAddress, address operatorRewardsAddress, address stakerRewardsFactoryAddress)
-    {
+    function deploy() external returns (address middlewareAddress, address operatorRewardsAddress) {
         helperConfig = new HelperConfig();
         deployRewards = new DeployRewards();
         deployRewards.setIsTest(false);
         _loadEntities();
         initialAdmin = vm.addr(ownerPrivateKey);
 
-        (middlewareAddress, operatorRewardsAddress, stakerRewardsFactoryAddress) = _deploy(false);
+        (middlewareAddress, operatorRewardsAddress) = _deploy(false);
     }
 
     function _deploy(
         bool isTest
-    )
-        private
-        returns (address middlewareAddress, address operatorRewardsAddress, address stakerRewardsFactoryAddress)
-    {
+    ) private returns (address middlewareAddress, address operatorRewardsAddress) {
         (
             ,
             address operatorRegistryAddress,
@@ -106,10 +97,6 @@ contract DeployProduction is Script {
         operatorRewardsAddress = deployRewards.deployOperatorRewardsContract(
             entities.tanssi, networkMiddlewareServiceAddress, OPERATOR_SHARE, initialAdmin
         );
-        stakerRewardsFactoryAddress = deployRewards.deployStakerRewardsFactoryContract(
-            vaultRegistryAddress, networkMiddlewareServiceAddress, operatorRewardsAddress, entities.tanssi, initialAdmin
-        );
-
         if (isTest) {
             vm.startPrank(initialAdmin);
         } else {
@@ -140,7 +127,6 @@ contract DeployProduction is Script {
 
         ODefaultOperatorRewards operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
         operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
-        operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware));
         operatorRewards.grantRole(operatorRewards.DEFAULT_ADMIN_ROLE(), entities.admin);
 
         if (isTest) {
@@ -167,7 +153,6 @@ contract DeployProduction is Script {
             console2.log("Middleware Implementation: ", address(middlewareImpl));
             console2.log("Reader: ", address(reader));
             console2.log("OperatorRewards: ", operatorRewardsAddress);
-            console2.log("StakerRewardsFactory: ", stakerRewardsFactoryAddress);
         }
     }
 
