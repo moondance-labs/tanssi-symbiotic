@@ -1482,6 +1482,58 @@ contract MiddlewareTest is Test {
         assertEq(performData.length, 0);
     }
 
+    function testUpkeepFlowReturnsEarlyIfAllAreInactiveAndFitInOneBatch() public {
+        vm.startPrank(owner);
+        middleware.pauseOperator(operator);
+        middleware.pauseOperator(operator2);
+        middleware.pauseOperator(operator3);
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        middleware.setForwarder(forwarder);
+        vm.stopPrank();
+
+        uint16 count = uint16(middleware.MAX_OPERATORS_TO_PROCESS()) - 1;
+        _addOperatorsToNetwork(count - 3); // 3 operators are already registered
+
+        uint256 totalBatches = _getTotalBatchesForCount(count);
+        assertEq(totalBatches, 1);
+
+        (bool upkeepNeeded,) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+    }
+
+    function testUpkeepFlowCachesInactiveOperatorsIfTheyDontFitInOneBatchEvenIfAllInactive() public {
+        vm.startPrank(owner);
+        middleware.pauseOperator(operator);
+        middleware.pauseOperator(operator2);
+        middleware.pauseOperator(operator3);
+
+        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
+        middleware.setForwarder(forwarder);
+        uint48 epoch = middleware.getCurrentEpoch();
+        vm.stopPrank();
+
+        uint16 count = uint16(middleware.MAX_OPERATORS_TO_PROCESS()) + 1;
+        _addOperatorsToNetwork(count - 3); // 3 operators are already registered
+
+        uint256 totalBatches = _getTotalBatchesForCount(count);
+        for (uint256 i = 0; i < totalBatches; i++) {
+            (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+            assertEq(upkeepNeeded, true);
+
+            vm.prank(forwarder);
+            middleware.performUpkeep(performData);
+        }
+
+        // After the loop, we should have all operators processed and cache filled
+        uint256 cacheIndex = middleware.getEpochCacheIndex(epoch);
+        assertEq(cacheIndex, count);
+
+        // upkeep is not needed because there are no operators with power
+        (bool upkeepNeeded,) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+    }
+
     function testUpkeepIncludingOperatorWithNoPowerViaPeformUpkeep() public {
         vm.startPrank(owner);
         middleware.setForwarder(forwarder);
@@ -1551,8 +1603,8 @@ contract MiddlewareTest is Test {
         uint256 totalGasUsedForCheck = 0;
         uint256 totalGasUsedForPerform = 0;
         {
-            uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
-            for (uint256 i = 0; i < (count + max - 1) / max; i++) {
+            uint256 totalBatches = _getTotalBatchesForCount(count);
+            for (uint256 i = 0; i < totalBatches; i++) {
                 uint256 gasBeforeCheck = gasleft();
                 (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
                 uint256 gasAfterCheck = gasleft();
@@ -1623,16 +1675,16 @@ contract MiddlewareTest is Test {
         middleware.setForwarder(forwarder);
 
         address offlineKeepers = makeAddr("offlineKeepers");
-
         vm.startPrank(offlineKeepers);
-        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
-        assertEq(upkeepNeeded, false);
+        bool upkeepNeeded;
+        bytes memory performData;
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         uint48 epoch = middleware.getCurrentEpoch();
 
-        uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
-        for (uint256 i = 0; i < (count + max - 1) / max; i++) {
+        uint256 totalBatches = _getTotalBatchesForCount(count);
+        console2.log("Total batches: ", totalBatches);
+        for (uint256 i = 0; i < totalBatches; i++) {
             (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
             assertEq(upkeepNeeded, true);
             console2.log("Perform Data length while caching: ", performData.length);
@@ -1666,15 +1718,14 @@ contract MiddlewareTest is Test {
         middleware.setForwarder(forwarder);
 
         address offlineKeepers = makeAddr("offlineKeepers");
-
         vm.startPrank(offlineKeepers);
-        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
-        assertEq(upkeepNeeded, false);
+        bool upkeepNeeded;
+        bytes memory performData;
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
-        uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
-        for (uint256 i = 0; i < (count + max - 1) / max; i++) {
+        uint256 totalBatches = _getTotalBatchesForCount(count);
+        for (uint256 i = 0; i < totalBatches; i++) {
             (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
             assertEq(upkeepNeeded, true);
 
@@ -1696,10 +1747,9 @@ contract MiddlewareTest is Test {
         middleware.setForwarder(forwarder);
 
         address offlineKeepers = makeAddr("offlineKeepers");
-
         vm.startPrank(offlineKeepers);
-        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
-        assertEq(upkeepNeeded, false);
+        bool upkeepNeeded;
+        bytes memory performData;
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         uint48 epoch = middleware.getCurrentEpoch();
@@ -1728,15 +1778,14 @@ contract MiddlewareTest is Test {
         middleware.setForwarder(forwarder);
 
         address offlineKeepers = makeAddr("offlineKeepers");
-
         vm.startPrank(offlineKeepers);
-        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
-        assertEq(upkeepNeeded, false);
+        bool upkeepNeeded;
+        bytes memory performData;
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
-        uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
-        for (uint256 i = 0; i < (count + max - 1) / max; i++) {
+        uint256 totalBatches = _getTotalBatchesForCount(count);
+        for (uint256 i = 0; i < totalBatches; i++) {
             (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
             assertEq(upkeepNeeded, true);
 
@@ -1759,15 +1808,14 @@ contract MiddlewareTest is Test {
         middleware.setForwarder(forwarder);
 
         address offlineKeepers = makeAddr("offlineKeepers");
-
         vm.startPrank(offlineKeepers);
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         uint48 epoch = middleware.getCurrentEpoch();
         uint256 activeOperatorsLength = (OBaseMiddlewareReader(address(middleware)).activeOperators()).length;
         {
-            uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
-            for (uint256 i = 0; i < (count + max - 1) / max; i++) {
+            uint256 totalBatches = _getTotalBatchesForCount(count);
+            for (uint256 i = 0; i < totalBatches; i++) {
                 (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
 
                 uint256 cacheIndex = middleware.getEpochCacheIndex(epoch);
@@ -1894,6 +1942,17 @@ contract MiddlewareTest is Test {
             deployVault.createBaseVault(params);
 
         return testVaultAddresses;
+    }
+
+    function _getTotalBatchesForCount(
+        uint256 count
+    ) public returns (uint256) {
+        uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
+        uint256 totalBatches = count / max;
+        if (totalBatches * max < count) {
+            totalBatches++;
+        }
+        return totalBatches;
     }
 
     function _prepareSlashingTest()
