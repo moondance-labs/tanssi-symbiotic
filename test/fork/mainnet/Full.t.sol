@@ -1089,6 +1089,7 @@ contract FullTest is Test {
         for (uint256 i = 0; i < operatorVaultPairs.length; i++) {
             if (operatorVaultPairs[i].operator == operator.evmAddress) {
                 found = true;
+                // TODO change to Eq
                 assertGe(operatorVaultPairs[i].vaults.length, totalVaults);
                 assertGe(operator.vaults.length, totalVaults);
             }
