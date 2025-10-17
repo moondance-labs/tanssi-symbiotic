@@ -1549,15 +1549,11 @@ contract FullTest is Test {
             vm.startPrank(tanssi);
             address recipient = makeAddr("recipient");
 
-            uint256 expectedAdminFee = rewardsOperator2Epoch1.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE)
-                .mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 1, address(STAR));
-            assertEq(STAR.balanceOf(recipient), expectedAdminFee);
+            uint256 expectedAdminFee = (rewardsOperator2Epoch1 + rewardsOperator2Epoch2).mulDiv(
+                MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE
+            ).mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
 
-            expectedAdminFee += rewardsOperator2Epoch2.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE).mulDiv(
-                ADMIN_FEE, MAX_PERCENTAGE
-            );
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 2, address(STAR));
+            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, address(STAR));
             assertEq(STAR.balanceOf(recipient), expectedAdminFee);
 
             vm.stopPrank();
@@ -1662,15 +1658,10 @@ contract FullTest is Test {
             vm.startPrank(tanssi);
             address recipient = makeAddr("recipient");
 
-            uint256 expectedAdminFee = rewardsOperator2Epoch1.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE)
-                .mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 1, address(STAR));
-            assertEq(STAR.balanceOf(recipient), expectedAdminFee);
-
-            expectedAdminFee += rewardsOperator2Epoch2.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE).mulDiv(
-                ADMIN_FEE, MAX_PERCENTAGE
-            );
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 2, address(STAR));
+            uint256 expectedAdminFee = (rewardsOperator2Epoch1 + rewardsOperator2Epoch2).mulDiv(
+                MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE
+            ).mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
+            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, address(STAR));
             assertEq(STAR.balanceOf(recipient), expectedAdminFee);
 
             vm.stopPrank();
@@ -1771,15 +1762,10 @@ contract FullTest is Test {
             vm.startPrank(tanssi);
             address recipient = makeAddr("recipient");
 
-            uint256 expectedAdminFee = rewardsOperator2Epoch1.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE)
-                .mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 1, address(STAR));
-            assertEq(STAR.balanceOf(recipient), expectedAdminFee);
-
-            expectedAdminFee += rewardsOperator2Epoch2.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE).mulDiv(
-                ADMIN_FEE, MAX_PERCENTAGE
-            );
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 2, address(STAR));
+            uint256 expectedAdminFee = (rewardsOperator2Epoch1 + rewardsOperator2Epoch2).mulDiv(
+                MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE
+            ).mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
+            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, address(STAR));
             assertEq(STAR.balanceOf(recipient), expectedAdminFee);
 
             vm.stopPrank();
@@ -1871,15 +1857,10 @@ contract FullTest is Test {
             vm.startPrank(tanssi);
             address recipient = makeAddr("recipient");
 
-            uint256 expectedAdminFee = rewardsOperator2Epoch1.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE)
-                .mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 1, address(STAR));
-            assertEq(STAR.balanceOf(recipient), expectedAdminFee);
-
-            expectedAdminFee += rewardsOperator2Epoch2.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE).mulDiv(
-                ADMIN_FEE, MAX_PERCENTAGE
-            );
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 2, address(STAR));
+            uint256 expectedAdminFee = (rewardsOperator2Epoch1 + rewardsOperator2Epoch2).mulDiv(
+                MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE
+            ).mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
+            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, address(STAR));
             assertEq(STAR.balanceOf(recipient), expectedAdminFee);
 
             vm.stopPrank();
@@ -1975,15 +1956,10 @@ contract FullTest is Test {
             vm.startPrank(tanssi);
             address recipient = makeAddr("recipient");
 
-            uint256 expectedAdminFee = rewardsOperator2Epoch1.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE)
-                .mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 1, address(STAR));
-            assertEq(STAR.balanceOf(recipient), expectedAdminFee);
-
-            expectedAdminFee += rewardsOperator2Epoch2.mulDiv(MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE).mulDiv(
-                ADMIN_FEE, MAX_PERCENTAGE
-            );
-            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, 2, address(STAR));
+            uint256 expectedAdminFee = (rewardsOperator2Epoch1 + rewardsOperator2Epoch2).mulDiv(
+                MAX_PERCENTAGE - OPERATOR_SHARE, MAX_PERCENTAGE
+            ).mulDiv(ADMIN_FEE, MAX_PERCENTAGE);
+            IODefaultStakerRewards(stakerRewardsContractVault2).claimAdminFee(recipient, address(STAR));
             assertEq(STAR.balanceOf(recipient), expectedAdminFee);
 
             vm.stopPrank();

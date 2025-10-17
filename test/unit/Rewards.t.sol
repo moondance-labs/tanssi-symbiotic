@@ -354,10 +354,9 @@ contract RewardsTest is Test {
         vm.store(address(_stakerRewards), slot, bytes32(amount));
     }
 
-    function _setClaimableAdminFee(uint48 epoch, address _token, bytes32 location, uint256 amount) private {
+    function _setClaimableAdminFee(address _token, bytes32 location, uint256 amount) private {
         // For StakerRewardsStorage.claimableAdminFee[epoch][tokenAddress] = 10 ether
-        bytes32 slot = bytes32(uint256(location) + uint256(3)); // 3 is slot number for the variable claimableAdminFee
-        slot = keccak256(abi.encode(epoch, slot));
+        bytes32 slot = bytes32(uint256(location) + uint256(3)); // 5 is slot number for the variable claimableAdminFee
         slot = keccak256(abi.encode(_token, slot));
         vm.store(address(stakerRewards), slot, bytes32(amount));
     }
@@ -1720,9 +1719,9 @@ contract RewardsTest is Test {
 
     function testClaimAdminFee() public {
         uint48 epoch = 0;
-        _setClaimableAdminFee(epoch, address(token), STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT);
+        _setClaimableAdminFee(address(token), STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT);
 
-        uint256 claimableFee = stakerRewards.claimableAdminFee(epoch, address(token));
+        uint256 claimableFee = stakerRewards.claimableAdminFee(address(token));
         assertEq(claimableFee, 10 ether);
 
         vm.prank(address(middleware));
@@ -1730,23 +1729,20 @@ contract RewardsTest is Test {
 
         vm.startPrank(address(tanssi));
         vm.expectEmit(true, true, false, true);
-        emit IODefaultStakerRewards.ClaimAdminFee(tanssi, address(token), epoch, 10 ether);
-        stakerRewards.claimAdminFee(tanssi, epoch, address(token));
+        emit IODefaultStakerRewards.ClaimAdminFee(tanssi, address(token), 10 ether);
+        stakerRewards.claimAdminFee(tanssi, address(token));
 
-        claimableFee = stakerRewards.claimableAdminFee(epoch, address(token));
+        claimableFee = stakerRewards.claimableAdminFee(address(token));
         assertEq(claimableFee, 0);
     }
 
     function testClaimAdminFeeInsufficientAdminFee() public {
-        uint48 epoch = 0;
-
         vm.startPrank(address(tanssi));
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__InsufficientAdminFee.selector);
-        stakerRewards.claimAdminFee(tanssi, epoch, address(token));
+        stakerRewards.claimAdminFee(tanssi, address(token));
     }
 
     function testClaimAdminFeeWithInvalidRole() public {
-        uint48 epoch = 0;
         address randomUser = makeAddr("randomUser");
 
         bytes32 adminFeeClaimRole = stakerRewards.ADMIN_FEE_CLAIM_ROLE();
@@ -1756,7 +1752,7 @@ contract RewardsTest is Test {
                 IAccessControl.AccessControlUnauthorizedAccount.selector, randomUser, adminFeeClaimRole
             )
         );
-        stakerRewards.claimAdminFee(tanssi, epoch, address(token));
+        stakerRewards.claimAdminFee(tanssi, address(token));
     }
 
     //**************************************************************************************************
@@ -1790,8 +1786,7 @@ contract RewardsTest is Test {
     }
 
     function testUpgradeStakerRewards() public {
-        uint48 epoch = 0;
-        _setClaimableAdminFee(epoch, address(token), STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT);
+        _setClaimableAdminFee(address(token), STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT);
 
         vm.startPrank(address(tanssi));
         ODefaultStakerRewards newStakerRewards = new ODefaultStakerRewards(address(networkMiddlewareService), tanssi);
@@ -1802,7 +1797,7 @@ contract RewardsTest is Test {
         assertEq(stakerRewards.i_network(), tanssi);
         assertEq(stakerRewards.i_networkMiddlewareService(), address(networkMiddlewareService));
 
-        uint256 claimableFee = stakerRewards.claimableAdminFee(epoch, address(token));
+        uint256 claimableFee = stakerRewards.claimableAdminFee(address(token));
         assertEq(claimableFee, 10 ether);
     }
 
