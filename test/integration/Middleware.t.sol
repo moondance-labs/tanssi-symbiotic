@@ -1446,6 +1446,25 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(forwarder);
         middleware.performUpkeep(performData);
+
+        //This is needed to cache vault power
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+
+        (uint8 command, uint48 encodedEpoch, uint256 operatorsProcessed, IMiddleware.VaultPower[] memory vaultsPower) =
+            abi.decode(performData, (uint8, uint48, uint256, IMiddleware.VaultPower[]));
+        {
+            for (uint256 i = 0; i < vaultsPower.length; i++) {
+                uint256 vaultPower =
+                    OBaseMiddlewareReader(address(middleware)).getVaultPower(vaultsPower[i].vault, encodedEpoch);
+                assertEq(vaultsPower[i].power, vaultPower);
+            }
+            address[] memory activeOperators = OBaseMiddlewareReader(address(middleware)).activeOperators();
+            assertEq(operatorsProcessed, activeOperators.length);
+            assertEq(command, middleware.CACHE_VAULTS_DATA_COMMAND());
+            middleware.performUpkeep(performData);
+        }
+
         uint48 epoch = middleware.getCurrentEpoch();
 
         uint256 operator1Power = middleware.getOperatorToPowerCached(epoch, OPERATOR_KEY);
@@ -1466,8 +1485,8 @@ contract MiddlewareTest is Test {
         (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
 
-        (uint8 command, uint48 encodedEpoch, bytes32[] memory sortedKeys) =
-            abi.decode(performData, (uint8, uint48, bytes32[]));
+        bytes32[] memory sortedKeys;
+        (command, encodedEpoch, sortedKeys) = abi.decode(performData, (uint8, uint48, bytes32[]));
         assertEq(epoch, encodedEpoch);
         assertEq(command, middleware.SEND_DATA_COMMAND());
         assertEq(sortedKeys.length, 3);
@@ -1496,6 +1515,13 @@ contract MiddlewareTest is Test {
         vm.startPrank(forwarder);
         middleware.performUpkeep(performData);
         uint48 epoch = middleware.getCurrentEpoch();
+
+        // Cache vaults power
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+
+        vm.startPrank(forwarder);
+        middleware.performUpkeep(performData);
 
         (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
@@ -1553,6 +1579,8 @@ contract MiddlewareTest is Test {
         {
             uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
             for (uint256 i = 0; i < (count + max - 1) / max; i++) {
+                IMiddleware.CachingState cacheState = middleware.getEpochNextExpectedCacheCommand(epoch);
+                assertEq(uint8(cacheState), uint8(IMiddleware.CachingState.ExpectingOperatorData));
                 uint256 gasBeforeCheck = gasleft();
                 (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
                 uint256 gasAfterCheck = gasleft();
@@ -1569,7 +1597,40 @@ contract MiddlewareTest is Test {
                 uint256 gasUsedPerform = gasBeforePerform - gasAfterPerform;
                 totalGasUsedForPerform += gasUsedPerform;
                 console2.log("Gas used for perform: ", gasUsedPerform);
+
+                //This is needed to cache vault power
+                cacheState = middleware.getEpochNextExpectedCacheCommand(epoch);
+                assertEq(uint8(cacheState), uint8(IMiddleware.CachingState.ExpectingVaultData));
+
+                gasBeforeCheck = gasleft();
+                (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+                gasAfterCheck = gasleft();
+                gasUsedCheck = gasBeforeCheck - gasAfterCheck;
+                totalGasUsedForCheck += gasUsedCheck;
+                console2.log("Gas used for check on caching vault power: ", gasUsedCheck);
+                assertEq(upkeepNeeded, true);
+
+                gasBeforePerform = gasleft();
+                middleware.performUpkeep(performData);
+                gasAfterPerform = gasleft();
+                gasUsedPerform = gasBeforePerform - gasAfterPerform;
+                totalGasUsedForPerform += gasUsedPerform;
+                console2.log("Gas used for perform on caching vault power: ", gasUsedPerform);
             }
+        }
+
+        //Check that all vaults have correct power
+        {
+            address[] memory currentActiveVaults = OBaseMiddlewareReader(address(middleware)).activeSharedVaults();
+            uint256 totalNetworkPower = 0;
+            for (uint256 i = 0; i < currentActiveVaults.length; i++) {
+                uint256 vaultPower =
+                    OBaseMiddlewareReader(address(middleware)).getVaultPower(currentActiveVaults[i], epoch);
+                uint256 cachedVaultPower = middleware.getVaultToPowerCached(epoch, currentActiveVaults[i]);
+                totalNetworkPower += vaultPower;
+                assertEq(cachedVaultPower, vaultPower);
+            }
+            assertEq(totalNetworkPower, middleware.getEpochTotalPower(epoch));
         }
 
         // After the loop, we should have all operators processed and cache filled
@@ -1633,6 +1694,16 @@ contract MiddlewareTest is Test {
 
         uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
         for (uint256 i = 0; i < (count + max - 1) / max; i++) {
+            // Cache operators power
+            (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+            assertEq(upkeepNeeded, true);
+            console2.log("Perform Data length while caching: ", performData.length);
+            assertLe(performData.length, 2000);
+
+            vm.startPrank(forwarder);
+            middleware.performUpkeep(performData);
+
+            // Cache vaults power
             (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
             assertEq(upkeepNeeded, true);
             console2.log("Perform Data length while caching: ", performData.length);
@@ -1658,7 +1729,7 @@ contract MiddlewareTest is Test {
         middleware.performUpkeep(performData);
     }
 
-    function testUpkeepShouldFailDueToWrongCacheCommand() public {
+    function testUpkeepShouldFailDueToWrongCacheCommandWhileSendingOperators() public {
         uint16 count = 37;
         _addOperatorsToNetwork(count);
         count += 3; // 3 operators are already registered
@@ -1680,10 +1751,92 @@ contract MiddlewareTest is Test {
 
             vm.startPrank(forwarder);
             middleware.performUpkeep(performData);
+
+            // Cache vaults power
+            (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+            assertEq(upkeepNeeded, true);
+
+            vm.startPrank(forwarder);
+            middleware.performUpkeep(performData);
         }
 
         vm.expectRevert(
-            abi.encodeWithSelector(IMiddleware.Middleware__InvalidCommand.selector, middleware.CACHE_DATA_COMMAND())
+            abi.encodeWithSelector(
+                IMiddleware.Middleware__InvalidCommand.selector, middleware.CACHE_VAULTS_DATA_COMMAND()
+            )
+        );
+        middleware.performUpkeep(performData);
+    }
+
+    function testUpkeepShouldFailDueToWrongCacheCommand() public {
+        uint16 count = 37;
+        _addOperatorsToNetwork(count);
+        count += 3; // 3 operators are already registered
+        vm.prank(owner);
+        middleware.setForwarder(forwarder);
+
+        address offlineKeepers = makeAddr("offlineKeepers");
+
+        vm.startPrank(offlineKeepers);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+
+        uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
+
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+
+        vm.startPrank(forwarder);
+        middleware.performUpkeep(performData);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IMiddleware.Middleware__InvalidCommandSequence.selector,
+                middleware.CACHE_DATA_COMMAND(),
+                IMiddleware.CachingState.ExpectingVaultData
+            )
+        );
+        middleware.performUpkeep(performData);
+    }
+
+    function testUpkeepShouldFailDueToWrongCacheVaultCommand() public {
+        uint16 count = 37;
+        _addOperatorsToNetwork(count);
+        count += 3; // 3 operators are already registered
+        vm.prank(owner);
+        middleware.setForwarder(forwarder);
+
+        address offlineKeepers = makeAddr("offlineKeepers");
+
+        vm.startPrank(offlineKeepers);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+
+        uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
+
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+
+        vm.startPrank(forwarder);
+        middleware.performUpkeep(performData);
+
+        // Cache vaults power
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+
+        vm.startPrank(forwarder);
+        middleware.performUpkeep(performData);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IMiddleware.Middleware__InvalidCommandSequence.selector,
+                middleware.CACHE_VAULTS_DATA_COMMAND(),
+                IMiddleware.CachingState.ExpectingOperatorData
+            )
         );
         middleware.performUpkeep(performData);
     }
@@ -1715,8 +1868,51 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(forwarder);
         vm.expectRevert(
-            abi.encodeWithSelector(IMiddleware.Middleware__InvalidCommand.selector, middleware.SEND_DATA_COMMAND())
+            abi.encodeWithSelector(
+                IMiddleware.Middleware__InvalidCommandSequence.selector,
+                middleware.SEND_DATA_COMMAND(),
+                IMiddleware.CachingState.ExpectingOperatorData
+            )
         );
+        middleware.performUpkeep(performData);
+    }
+
+    function testUpkeepShouldFailDueToVaultPowerWithZeroAddress() public {
+        uint16 count = 37;
+        _addOperatorsToNetwork(count);
+        count += 3; // 3 operators are already registered
+        vm.prank(owner);
+        middleware.setForwarder(forwarder);
+
+        address offlineKeepers = makeAddr("offlineKeepers");
+
+        vm.startPrank(offlineKeepers);
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, false);
+
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+        uint48 epoch = middleware.getCurrentEpoch();
+
+        // Cache operators power
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+        console2.log("Perform Data length while caching: ", performData.length);
+        assertLe(performData.length, 2000);
+
+        vm.startPrank(forwarder);
+        middleware.performUpkeep(performData);
+
+        // Cache vaults power
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+        (uint8 command, uint48 encodedEpoch, uint256 operatorsProcessed, IMiddleware.VaultPower[] memory vaultsPower) =
+            abi.decode(performData, (uint8, uint48, uint256, IMiddleware.VaultPower[]));
+        vaultsPower[0].vault = address(0);
+
+        performData = abi.encode(command, encodedEpoch, operatorsProcessed, vaultsPower);
+
+        vm.startPrank(forwarder);
+        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
         middleware.performUpkeep(performData);
     }
 
@@ -1791,6 +1987,13 @@ contract MiddlewareTest is Test {
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         uint48 epoch = middleware.getCurrentEpoch();
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+
+        vm.startPrank(forwarder);
+        middleware.performUpkeep(performData);
+
+        // Cache vaults power
         (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
 

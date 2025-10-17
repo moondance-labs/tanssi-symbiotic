@@ -48,6 +48,7 @@ interface IMiddleware {
     error Middleware__TooOldEpoch();
     error Middleware__InvalidEpoch();
     error Middleware__InvalidCommand(uint8 command);
+    error Middleware__InvalidCommandSequence(uint8 command, CachingState expected);
     error Middleware__InvalidEpochDuration();
     error Middleware__InvalidAddress();
     error Middleware__InvalidKey();
@@ -58,6 +59,18 @@ interface IMiddleware {
     error Middleware__OperatorNotFound(bytes32 operatorKey, uint48 epoch);
     error Middleware__SlashPercentageTooBig(uint48 epoch, address operator, uint256 percentage);
     error Middleware__TooManyActiveVaults();
+
+    /**
+     * @notice Caching state enum to track the expected command in the caching process
+     * @dev ExpectingOperatorData means the next expected command is CACHE_DATA_COMMAND
+     * @dev ExpectingVaultData means the next expected command is CACHE_VAULTS_DATA_COMMAND
+     * @dev The enum is used to make the CL automation works like a state machine
+     */
+    enum CachingState {
+        ExpectingOperatorData, // 0
+        ExpectingVaultData // 1
+
+    }
 
     /**
      * @notice Validator data structure containing stake and key
@@ -112,6 +125,30 @@ interface IMiddleware {
         uint48 epochDuration;
         uint48 slashingWindow;
         address reader;
+    }
+
+    /**
+     * @notice Structure to pair a vault with its power
+     * @param vault The vault address
+     * @param power The power of the vault
+     */
+    struct VaultPower {
+        address vault;
+        uint256 power;
+    }
+
+    /**
+     * @notice Context structure used during the accumulation of operator vault powers
+     * @param timestamp The timestamp of the epoch start
+     * @param subnetwork The subnetwork identifier
+     * @param totalVaultsIndex The total index of vaults processed
+     * @param atLeastOneActive Flag indicating if at least one active operator was found
+     */
+    struct AccumulateCtx {
+        uint48 timestamp;
+        uint96 subnetwork;
+        uint256 totalVaultsIndex;
+        bool atLeastOneActive;
     }
 
     /**

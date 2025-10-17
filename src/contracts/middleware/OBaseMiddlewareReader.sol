@@ -746,11 +746,27 @@ contract OBaseMiddlewareReader is
         }
 
         uint256 cacheIndex = cache.epochToCacheIndex[epoch];
-        uint256 pendingOperatorsToCache = operatorsLength_ - cacheIndex;
 
+        IMiddleware.CachingState cacheState = cache.epochToNextExpectedCacheCommand[epoch];
+
+        uint256 pendingOperatorsToCache = operatorsLength_ - cacheIndex;
         // Check if cache is still not filled with the current epoch validators
         if (pendingOperatorsToCache > 0) {
             uint256 maxNumOperatorsToCheck = Math.min(pendingOperatorsToCache, MAX_OPERATORS_TO_PROCESS);
+            if (cacheState == IMiddleware.CachingState.ExpectingVaultData) {
+                (IMiddleware.VaultPower[] memory vaultsPower, bool atLeastOne, uint256 operatorsProcessed) =
+                _getOperatorPowerPerVault(
+                    maxNumOperatorsToCheck, cacheIndex, currentEpochStartTs, operators, operatorsLength_
+                );
+
+                // This should be useless since it is always checked on the validator operators process. Impossible to reach this state
+                if (operatorsLength_ <= MAX_OPERATORS_TO_SEND && !atLeastOne) {
+                    return (false, hex"");
+                }
+
+                return (true, abi.encode(CACHE_VAULTS_DATA_COMMAND, epoch, operatorsProcessed, vaultsPower));
+            }
+
             (IMiddleware.ValidatorData[] memory validatorsData, bool atLeastOneActive) = _getValidatorDataForOperators(
                 maxNumOperatorsToCheck, cacheIndex, currentEpochStartTs, operators, operatorsLength_
             );
@@ -778,6 +794,121 @@ contract OBaseMiddlewareReader is
         }
 
         return (false, hex"");
+    }
+
+    function _getOperatorPowerPerVault(
+        uint256 maxNumOperatorsToCheck,
+        uint256 cacheIndex,
+        uint48 timestamp,
+        PauseableEnumerableSet.AddressSet storage operators,
+        uint256 operatorsLength_
+    )
+        private
+        view
+        returns (IMiddleware.VaultPower[] memory vaultsPower, bool atLeastOneActive, uint256 operatorsProcessed)
+    {
+        VaultManagerStorage storage $ = _getVaultManagerStorage();
+        address[] memory sharedVaults = $._sharedVaults.getActive(timestamp);
+
+        vaultsPower = new IMiddleware.VaultPower[](sharedVaults.length);
+
+        IMiddleware.AccumulateCtx memory ctx;
+        ctx.timestamp = timestamp;
+        ctx.subnetwork = _NETWORK().subnetwork(0).identifier();
+        uint256 i;
+
+        for (i = cacheIndex; i < cacheIndex + maxNumOperatorsToCheck && i < operatorsLength_;) {
+            (ctx.totalVaultsIndex, atLeastOneActive) = _accumulateOperatorVaultPower(vaultsPower, operators, i, ctx);
+            unchecked {
+                ++i;
+            }
+        }
+
+        operatorsProcessed = i - cacheIndex;
+
+        uint256 totalVaultsIndex = ctx.totalVaultsIndex;
+
+        // Shrink array length to actual number of used slots
+        assembly ("memory-safe") {
+            mstore(vaultsPower, totalVaultsIndex)
+        }
+    }
+
+    function _accumulateOperatorVaultPower(
+        IMiddleware.VaultPower[] memory vaultsPower,
+        PauseableEnumerableSet.AddressSet storage operators,
+        uint256 index,
+        IMiddleware.AccumulateCtx memory ctx
+    ) private view returns (uint256, bool) {
+        (address operator, uint48 enabled, uint48 disabled) = operators.at(index);
+
+        if (enabled < ctx.timestamp && (disabled == 0 || disabled >= ctx.timestamp)) {
+            ctx.atLeastOneActive = true;
+
+            address[] memory operatorVaults = _activeVaultsAt(ctx.timestamp, operator);
+
+            for (uint256 j; j < operatorVaults.length;) {
+                address vault = operatorVaults[j];
+                uint256 power = _getOperatorPowerAt(ctx.timestamp, operator, vault, ctx.subnetwork);
+
+                if (power != 0) {
+                    ctx.totalVaultsIndex += _extractVaultsPower(vaultsPower, ctx.totalVaultsIndex, vault, power);
+                }
+
+                unchecked {
+                    ++j;
+                }
+            }
+        }
+
+        return (ctx.totalVaultsIndex, ctx.atLeastOneActive);
+    }
+
+    function _extractVaultsPower(
+        IMiddleware.VaultPower[] memory vaultsPower,
+        uint256 totalVaultsIndex_,
+        address vault,
+        uint256 power
+    ) private pure returns (uint256 totalVaultsIndex) {
+        // Inner accumulation loop
+        for (uint256 k; k < vaultsPower.length; ++k) {
+            if (vaultsPower[k].vault == address(0)) {
+                vaultsPower[k].vault = vault;
+                unchecked {
+                    vaultsPower[k].power += power;
+                    ++totalVaultsIndex;
+                    ++k;
+                }
+                break;
+            } else if (vaultsPower[k].vault == vault) {
+                unchecked {
+                    vaultsPower[k].power += power;
+                    ++k;
+                }
+                break;
+            }
+        }
+    }
+
+    function getVaultPower(address vault, uint48 epoch) external view returns (uint256 power) {
+        VaultManagerStorage storage $ = _getVaultManagerStorage();
+        uint48 epochStartTs = getEpochStart(epoch);
+        address[] memory sharedVaults = $._sharedVaults.getActive(epochStartTs);
+        uint96 subnetwork = _NETWORK().subnetwork(0).identifier();
+        power = getVaultToPowerCached(epoch, vault);
+
+        if (power != 0) {
+            return power;
+        }
+
+        address[] memory operators = _activeOperatorsAt(epochStartTs);
+        uint256 operatorsLength_ = operators.length;
+        for (uint256 i; i < operatorsLength_;) {
+            power += _getOperatorPowerAt(epochStartTs, operators[i], vault, subnetwork);
+            unchecked {
+                ++i;
+            }
+        }
     }
 
     function _getValidatorDataForOperators(

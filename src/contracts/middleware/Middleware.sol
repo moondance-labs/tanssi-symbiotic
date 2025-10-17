@@ -14,6 +14,7 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
+import {console2} from "forge-std/console2.sol";
 //**************************************************************************************************
 //                                      CHAINLINK
 //**************************************************************************************************
@@ -319,7 +320,13 @@ contract Middleware is
         }
 
         uint48 encodedEpoch;
+        uint8 command;
         assembly {
+            // Load first 32 bytes of performData
+            let commandData := calldataload(performData.offset)
+            // First byte is the command
+            command := byte(31, commandData)
+
             // Load 32 bytes starting at offset 32 (second 32-byte slot)
             let epochData := calldataload(add(performData.offset, 32))
             encodedEpoch := epochData
@@ -334,45 +341,65 @@ contract Middleware is
 
         uint256 operatorsLength = _operatorsLength();
         uint256 cacheIndex = cache.epochToCacheIndex[epoch];
-        uint256 pendingOperatorsToCache = operatorsLength - cacheIndex;
 
-        if (pendingOperatorsToCache > 0) {
-            (uint8 command,, ValidatorData[] memory validatorsData) =
-                abi.decode(performData, (uint8, uint48, ValidatorData[]));
+        if (cacheIndex < operatorsLength) {
+            CachingState expectedState = cache.epochToNextExpectedCacheCommand[epoch];
+            if (command == CACHE_DATA_COMMAND && expectedState == CachingState.ExpectingOperatorData) {
+                (,, ValidatorData[] memory validatorsData) = abi.decode(performData, (uint8, uint48, ValidatorData[]));
 
-            if (command != CACHE_DATA_COMMAND) {
-                revert Middleware__InvalidCommand(command);
-            }
+                uint256 validatorsDataLength = validatorsData.length;
+                for (uint256 i = 0; i < validatorsDataLength;) {
+                    ValidatorData memory validatorData = validatorsData[i];
+                    bytes32 validatorKey = validatorData.key;
+                    // Update the cache with the operator power and the operator
+                    if (cache.operatorKeyToPower[epoch][validatorKey] != 0) {
+                        revert Middleware__AlreadyCached();
+                    }
 
-            uint256 validatorsDataLength = validatorsData.length;
-            for (uint256 i = 0; i < validatorsDataLength;) {
-                ValidatorData memory validatorData = validatorsData[i];
-                bytes32 validatorKey = validatorData.key;
-                // Update the cache with the operator power and the operator
-                if (cache.operatorKeyToPower[epoch][validatorKey] != 0) {
-                    revert Middleware__AlreadyCached();
+                    cache.operatorKeyToPower[epoch][validatorKey] = validatorData.power;
+                    unchecked {
+                        ++i;
+                    }
                 }
 
-                cache.operatorKeyToPower[epoch][validatorKey] = validatorData.power;
+                // IMPORTANT: We don't update the main counter yet. But rather we transition to the next state.
+                cache.epochToNextExpectedCacheCommand[epoch] = CachingState.ExpectingVaultData;
+            } else if (command == CACHE_VAULTS_DATA_COMMAND && expectedState == CachingState.ExpectingVaultData) {
+                (,, uint256 operatorsProcessed, VaultPower[] memory vaultsPower) =
+                    abi.decode(performData, (uint8, uint48, uint256, VaultPower[]));
+
+                uint256 vaultsPowerLength = vaultsPower.length;
+                for (uint256 i = 0; i < vaultsPowerLength;) {
+                    VaultPower memory vaultPower = vaultsPower[i];
+                    address vault = vaultPower.vault;
+                    if (vault == address(0)) {
+                        revert Middleware__InvalidAddress();
+                    }
+                    unchecked {
+                        ++i;
+                        cache.vaultToPower[epoch][vault] += vaultPower.power;
+                        cache.epochToTotalPower[epoch] += vaultPower.power;
+                    }
+                }
+
                 unchecked {
-                    ++i;
+                    cache.epochToCacheIndex[epoch] += operatorsProcessed;
                 }
-            }
-
-            unchecked {
-                cache.epochToCacheIndex[epoch] += validatorsDataLength;
+                cache.epochToNextExpectedCacheCommand[epoch] = CachingState.ExpectingOperatorData;
+            } else {
+                revert Middleware__InvalidCommandSequence(command, expectedState);
             }
         } else {
             uint48 currentTimestamp = Time.timestamp();
             if ((currentTimestamp - $.lastTimestamp) > $.interval) {
                 $.lastTimestamp = currentTimestamp;
 
-                // Decode the sorted keys and the epoch from performData
-                (uint8 command,, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, uint48, bytes32[]));
-
                 if (command != SEND_DATA_COMMAND) {
                     revert Middleware__InvalidCommand(command);
                 }
+
+                // Decode the sorted keys and the epoch from performData
+                (,, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, uint48, bytes32[]));
 
                 IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);
             }

@@ -33,6 +33,9 @@ abstract contract MiddlewareStorage {
     struct StorageMiddlewareCache {
         mapping(uint48 epoch => uint256 cacheIndex) epochToCacheIndex;
         mapping(uint48 epoch => mapping(bytes32 operatorKey => uint256 operatorPower)) operatorKeyToPower;
+        mapping(uint48 epoch => mapping(address vault => uint256 totalPower)) vaultToPower;
+        mapping(uint48 epoch => IMiddleware.CachingState state) epochToNextExpectedCacheCommand;
+        mapping(uint48 epoch => uint256 totalPower) epochToTotalPower;
     }
 
     // keccak256(abi.encode(uint256(keccak256("tanssi.middleware.MiddlewareStorage.v1.1")) - 1)) & ~bytes32(uint256(0xff));
@@ -46,6 +49,7 @@ abstract contract MiddlewareStorage {
     uint8 public constant DEFAULT_DECIMALS = 18;
     uint8 public constant CACHE_DATA_COMMAND = 1;
     uint8 public constant SEND_DATA_COMMAND = 2;
+    uint8 public constant CACHE_VAULTS_DATA_COMMAND = 3;
     uint256 public constant VERSION = 1;
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
     uint256 public constant MIN_INTERVAL_TO_SEND_OPERATOR_KEYS = 50; // 50 blocks of ~12 seconds each ≈ 600 seconds ≈ 10 minutes
@@ -175,5 +179,40 @@ abstract contract MiddlewareStorage {
     function getOperatorToPowerCached(uint48 epoch, bytes32 operatorKey) public view returns (uint256) {
         StorageMiddlewareCache storage $ = _getMiddlewareStorageCache();
         return $.operatorKeyToPower[epoch][operatorKey];
+    }
+
+    /**
+     * @notice Get the total power of a vault
+     * @param epoch The epoch number
+     * @param vault The vault address
+     * @return The total power of the vault
+     */
+    function getVaultToPowerCached(uint48 epoch, address vault) public view returns (uint256) {
+        StorageMiddlewareCache storage $ = _getMiddlewareStorageCache();
+        return $.vaultToPower[epoch][vault];
+    }
+
+    /**
+     * @notice Get next expected cache command for an epoch
+     * @param epoch The epoch number
+     * @return The next expected cache command for the epoch
+     */
+    function getEpochNextExpectedCacheCommand(
+        uint48 epoch
+    ) public view returns (IMiddleware.CachingState) {
+        StorageMiddlewareCache storage $ = _getMiddlewareStorageCache();
+        return $.epochToNextExpectedCacheCommand[epoch];
+    }
+
+    /**
+     * @notice Get total power cached for an epoch
+     * @param epoch The epoch number
+     * @return The total power cached for the epoch
+     */
+    function getEpochTotalPower(
+        uint48 epoch
+    ) public view returns (uint256) {
+        StorageMiddlewareCache storage $ = _getMiddlewareStorageCache();
+        return $.epochToTotalPower[epoch];
     }
 }
