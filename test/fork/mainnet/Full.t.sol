@@ -121,7 +121,7 @@ contract FullTest is Test {
     uint256 public constant QUANT_NODE_VAULTS = 1;
     uint256 public constant NODE_MONSTER_VAULTS = 1;
     uint256 public constant BLOCK_BONES_VAULTS = 1;
-    uint256 public constant CP0X_STAKRSPACE_VAULTS = 1;
+    uint256 public constant CP0X_STAKRSPACE_VAULTS = 2;
     uint256 public constant HASHKEY_CLOUD_VAULTS = 1;
     uint256 public constant ALCHEMY_VAULTS = 8;
     uint256 public constant OPSLAYER_VAULTS = 1;
@@ -311,6 +311,10 @@ contract FullTest is Test {
         _cacheVaultToStakerRewards(vaultsAddressesDeployedB.gauntletRestakedWBETH);
         _cacheVaultToStakerRewards(vaultsAddressesDeployedB.gauntletRestakedcBETH);
         _cacheVaultToStakerRewards(vaultsAddressesDeployedB.tanssi);
+        _cacheVaultToStakerRewards(vaultsAddressesDeployedB.infraSingularityRestakedETH);
+        _cacheVaultToStakerRewards(vaultsAddressesDeployedB.xHashDualYieldRestakeVault);
+        _cacheVaultToStakerRewards(vaultsAddressesDeployedB.infraSingularityRestakedETHLidoV3);
+        _cacheVaultToStakerRewards(vaultsAddressesDeployedB.ryabinaWstETH);
     }
 
     function _cacheVaultToStakerRewards(
@@ -461,6 +465,13 @@ contract FullTest is Test {
             operatorsA.operator8CP0XStakrspace.evmAddress, vaultsAddressesDeployedA.cp0xLrtETH, tanssi, address(0)
         );
         operatorsA.operator8CP0XStakrspace.vaults.push(vaultsAddressesDeployedA.cp0xLrtETH.vault);
+        _optInOperator(
+            operatorsA.operator8CP0XStakrspace.evmAddress,
+            vaultsAddressesDeployedB.xHashDualYieldRestakeVault,
+            tanssi,
+            address(0)
+        );
+        operatorsA.operator8CP0XStakrspace.vaults.push(vaultsAddressesDeployedB.xHashDualYieldRestakeVault.vault);
 
         // OPERATOR 9 - Hashkey Cloud
         _optInOperator(
@@ -1711,10 +1722,9 @@ contract FullTest is Test {
         _claimAndCheckRewardsForStaker(
             operatorsA.operator7BlockBones, proofAndPointsByOperator.operator7BlockBones, eraIndex, totalPoints
         );
-        // TODO: CP0X was added to a new vault we don't track in these test, so we can't calcualte the rewards correctly
-        // _claimAndCheckRewardsForStaker(
-        //     operatorsA.operator8CP0XStakrspace, proofAndPointsByOperator.operator8CP0XStakrspace, eraIndex, totalPoints
-        // );
+        _claimAndCheckRewardsForStaker(
+            operatorsA.operator8CP0XStakrspace, proofAndPointsByOperator.operator8CP0XStakrspace, eraIndex, totalPoints
+        );
     }
 
     function testStakerRewardsDistributionCase3() public {
@@ -1758,10 +1768,9 @@ contract FullTest is Test {
         _claimAndCheckRewardsForStaker(
             operatorsA.operator7BlockBones, proofAndPointsByOperator.operator7BlockBones, eraIndex, totalPoints
         );
-        // TODO: CP0X was added to a new vault we don't track in these test, so we can't calcualte the rewards correctly
-        // _claimAndCheckRewardsForStaker(
-        //     operatorsA.operator8CP0XStakrspace, proofAndPointsByOperator.operator8CP0XStakrspace, eraIndex, totalPoints
-        // );
+        _claimAndCheckRewardsForStaker(
+            operatorsA.operator8CP0XStakrspace, proofAndPointsByOperator.operator8CP0XStakrspace, eraIndex, totalPoints
+        );
         _claimAndCheckRewardsForStaker(
             operatorsA.operator9HashkeyCloud, proofAndPointsByOperator.operator9HashkeyCloud, eraIndex, totalPoints
         );
