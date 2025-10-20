@@ -356,7 +356,7 @@ contract RewardsTest is Test {
 
     function _setClaimableAdminFee(address _token, bytes32 location, uint256 amount) private {
         // For StakerRewardsStorage.claimableAdminFee[epoch][tokenAddress] = 10 ether
-        bytes32 slot = bytes32(uint256(location) + uint256(3)); // 5 is slot number for the variable claimableAdminFee
+        bytes32 slot = bytes32(uint256(location) + uint256(5)); // 5 is slot number for the variable claimableAdminFee
         slot = keccak256(abi.encode(_token, slot));
         vm.store(address(stakerRewards), slot, bytes32(amount));
     }
@@ -1718,7 +1718,6 @@ contract RewardsTest is Test {
     //**************************************************************************************************
 
     function testClaimAdminFee() public {
-        uint48 epoch = 0;
         _setClaimableAdminFee(address(token), STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT);
 
         uint256 claimableFee = stakerRewards.claimableAdminFee(address(token));
