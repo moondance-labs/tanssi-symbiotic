@@ -1357,15 +1357,6 @@ contract FullTest is Test {
     }
 
     function testUpkeep() public {
-        // Upgrade. Can be removed after v1.2.4
-        address newMiddleware = address(new Middleware());
-        address newReader = address(new OBaseMiddlewareReader());
-        vm.startPrank(admin);
-        middleware.upgradeToAndCall(newMiddleware, hex"");
-        middleware.setReader(newReader);
-        vm.stopPrank();
-        // End of upgrade
-
         vm.prank(admin);
         middleware.setForwarder(forwarder);
 
