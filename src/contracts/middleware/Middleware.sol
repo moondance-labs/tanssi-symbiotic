@@ -46,7 +46,7 @@ import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
 //**************************************************************************************************
 //                                      SNOWBRIDGE
 //**************************************************************************************************
-import {IOGateway} from "@tanssi-bridge-relayer/snowbridge/contracts/src/interfaces/IOGateway.sol";
+import {IOGateway} from "@snowbridge/contracts/src/interfaces/IOGateway.sol";
 
 //**************************************************************************************************
 //                                      TANSSI
