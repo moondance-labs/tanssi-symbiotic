@@ -129,6 +129,8 @@ contract FullTest is Test {
     address public admin;
     address public tanssi;
     address stakerRewardsImpl;
+    uint256 totalOperators;
+    uint256 totalActiveOperators;
 
     GatewayProxy gateway;
     Middleware middleware;
@@ -177,6 +179,10 @@ contract FullTest is Test {
 
         // Necessary to have predictable powers per vault, in 14 days there should be a new vault epoch in all vaults with all deposits and withdrawals in effect
         vm.warp(vm.getBlockTimestamp() + 14 days + 1);
+
+        totalOperators = reader.operatorsLength();
+        // We use this instead of activeOperators() because it accounts only operators with power
+        totalActiveOperators = reader.getOperatorVaultPairs(middleware.getCurrentEpoch()).length;
 
         _cacheAllOperatorsVaults();
     }
@@ -288,7 +294,7 @@ contract FullTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.OperatorVaultPair[] memory operatorVaultPairs = reader.getOperatorVaultPairs(currentEpoch);
 
-        assertGe(operatorVaultPairs.length, TOTAL_OPERATORS);
+        assertEq(operatorVaultPairs.length, totalActiveOperators);
 
         _checkOperatorVaultPairs(operatorVaultPairs, operators.operator1PierTwo, PIER_TWO_VAULTS);
         _checkOperatorVaultPairs(operatorVaultPairs, operators.operator3CP0XStakrspace, CP0X_STAKRSPACE_VAULTS);
@@ -425,44 +431,59 @@ contract FullTest is Test {
     function testUpkeep() public {
         vm.prank(admin);
         middleware.setForwarder(forwarder);
+
         // It's not needed (anyone can call it), it's just for explaining and showing the flow
         address offlineKeepers = makeAddr("offlineKeepers");
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
+        bool upkeepNeeded;
+        bytes memory performData;
+        uint256 beforeGas;
+        uint256 afterGas;
+        uint8 command;
+        uint48 epoch;
 
         vm.prank(offlineKeepers);
-        uint256 beforeGas = gasleft();
-        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
-        uint256 afterGas = gasleft();
+        uint256 processedOperators;
+        uint256 totalBatches = _getTotalBatchesForCount(totalActiveOperators);
+        for (uint256 i = 0; i < totalBatches; i++) {
+            beforeGas = gasleft();
+            (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+            afterGas = gasleft();
 
-        assertEq(upkeepNeeded, true);
-        assertLt(beforeGas - afterGas, MAX_CHAINLINK_CHECKUPKEEP_GAS); // Check that gas is lower than 10M limit
+            assertEq(upkeepNeeded, true);
+            console2.log("Gas used for check on caching: ", beforeGas - afterGas);
+            assertLt(beforeGas - afterGas, MAX_CHAINLINK_CHECKUPKEEP_GAS); // Check that gas is lower than 10M limit
 
-        (uint8 command, uint48 epoch, IMiddleware.ValidatorData[] memory validatorsData) =
-            abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
-        assertEq(epoch, currentEpoch);
-        assertEq(command, middleware.CACHE_DATA_COMMAND());
-        assertGe(validatorsData.length, TOTAL_OPERATORS);
+            IMiddleware.ValidatorData[] memory validatorsData;
+            (command, epoch, validatorsData) = abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
+            assertEq(epoch, currentEpoch);
+            assertEq(command, middleware.CACHE_DATA_COMMAND());
 
-        vm.prank(forwarder);
-        beforeGas = gasleft();
-        middleware.performUpkeep(performData);
-        afterGas = gasleft();
-        assertLt(beforeGas - afterGas, MAX_CHAINLINK_PERFORMUPKEEP_GAS); // Check that gas is lower than 5M limit
+            vm.prank(forwarder);
+            beforeGas = gasleft();
+            middleware.performUpkeep(performData);
+            afterGas = gasleft();
+            console2.log("Gas used for perform on caching: ", beforeGas - afterGas);
+            assertLt(beforeGas - afterGas, MAX_CHAINLINK_PERFORMUPKEEP_GAS); // Check that gas is lower than 5M limit
+            processedOperators += validatorsData.length;
+        }
+        assertEq(processedOperators, totalOperators); // Due to the strategy, all operators should be processed
 
         beforeGas = gasleft();
         (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
         afterGas = gasleft();
 
         assertEq(upkeepNeeded, true);
+        console2.log("Gas used for final check (sorting): ", beforeGas - afterGas);
         assertLt(beforeGas - afterGas, MAX_CHAINLINK_CHECKUPKEEP_GAS); // Check that gas is lower than 10M limit
 
         bytes32[] memory sortedKeys;
         (command, epoch, sortedKeys) = abi.decode(performData, (uint8, uint48, bytes32[]));
         assertEq(epoch, currentEpoch);
         assertEq(command, middleware.SEND_DATA_COMMAND());
-        assertGe(sortedKeys.length, TOTAL_OPERATORS);
+        assertEq(sortedKeys.length, totalActiveOperators); // On sorting, only operators with power > 0 are included
 
         vm.prank(forwarder);
         beforeGas = gasleft();
@@ -470,6 +491,7 @@ contract FullTest is Test {
         emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
         middleware.performUpkeep(performData);
         afterGas = gasleft();
+        console2.log("Gas used for final perform (sending): ", beforeGas - afterGas);
         assertLt(beforeGas - afterGas, MAX_CHAINLINK_PERFORMUPKEEP_GAS); // Check that gas is lower than 5M limit
 
         (upkeepNeeded,) = middleware.checkUpkeep(hex"");
@@ -1011,5 +1033,16 @@ contract FullTest is Test {
             uint256 vaultBalanceAfter = IERC20(vaultCollateral).balanceOf(vault);
             assertEq(vaultBalanceBefore - expectedSlash, vaultBalanceAfter);
         }
+    }
+
+    function _getTotalBatchesForCount(
+        uint256 count
+    ) public returns (uint256) {
+        uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
+        uint256 totalBatches = count / max;
+        if (totalBatches * max < count) {
+            totalBatches++;
+        }
+        return totalBatches;
     }
 }
