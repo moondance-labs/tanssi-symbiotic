@@ -755,7 +755,7 @@ contract OBaseMiddlewareReader is
                 maxNumOperatorsToCheck, cacheIndex, currentEpochStartTs, operators, operatorsLength_
             );
 
-            // This is the first bacth (cacheIndex == 0) and all of the operators are being processed in this batch (operatorsLength_ <= MAX_OPERATORS_TO_PROCESS) and they are all inactive, so we don't need to send anything
+            // This is the first batch (cacheIndex == 0) and all of the operators are being processed in this batch (operatorsLength_ <= MAX_OPERATORS_TO_PROCESS) and they are all inactive, so we don't need to send anything
             if (cacheIndex == 0 && operatorsLength_ <= MAX_OPERATORS_TO_PROCESS && !atLeastOneActive) {
                 return (false, hex"");
             }
