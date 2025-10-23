@@ -26,6 +26,7 @@ interface IODefaultStakerRewards {
     error ODefaultStakerRewards__InvalidRewardTimestamp();
     error ODefaultStakerRewards__MissingRoles();
     error ODefaultStakerRewards__NoRewardsToClaim();
+    error ODefaultStakerRewards__RewardsTokenIsDifferentFromCollateral();
 
     /**
      * @notice Emitted when a reward is distributed.
@@ -50,7 +51,7 @@ interface IODefaultStakerRewards {
      * @param network address of the network
      * @param tokenAddress address of the reward token
      * @param claimer account that claimed the reward
-     * @param epoch epoch of the reward
+     * @param epochs epochs of the rewards
      * @param recipient account that received the reward
      * @param amount amount of tokens claimed
      */
@@ -58,7 +59,7 @@ interface IODefaultStakerRewards {
         address network,
         address indexed tokenAddress,
         address indexed claimer,
-        uint48 indexed epoch,
+        uint48[] epochs,
         address recipient,
         uint256 amount
     );
@@ -67,10 +68,9 @@ interface IODefaultStakerRewards {
      * @notice Emitted when an admin fee is claimed.
      * @param recipient account that received the fee
      * @param tokenAddress address of the reward token
-     * @param epoch epoch of the claimed fee
      * @param amount amount of the fee claimed
      */
-    event ClaimAdminFee(address indexed recipient, address indexed tokenAddress, uint48 indexed epoch, uint256 amount);
+    event ClaimAdminFee(address indexed recipient, address indexed tokenAddress, uint256 amount);
 
     /**
      * @notice Emitted when an admin fee is set.
@@ -108,10 +108,16 @@ interface IODefaultStakerRewards {
     function VERSION() external view returns (uint64);
 
     /**
+     * @notice Represents 100% in the admin fee basis points.
+     * @return Admin fee base basis points.
+     */
+    function ADMIN_FEE_BASE() external view returns (uint256);
+
+    /**
      * @notice Get the maximum admin fee (= 100%).
      * @return maximum admin fee
      */
-    function ADMIN_FEE_BASE() external view returns (uint256);
+    function MAX_ADMIN_FEE() external view returns (uint256);
 
     /**
      * @notice Get the admin fee claimer's role.
@@ -180,11 +186,12 @@ interface IODefaultStakerRewards {
 
     /**
      * @notice Get a claimable admin fee amount for a given epoch.
-     * @param epoch epoch for which the admin fee can be claimed
      * @param tokenAddress address of the token for the admin fee
      * @return amount claimable admin fee
      */
-    function claimableAdminFee(uint48 epoch, address tokenAddress) external view returns (uint256 amount);
+    function claimableAdminFee(
+        address tokenAddress
+    ) external view returns (uint256 amount);
 
     /**
      * @notice Get an amount of rewards claimable by a particular account for a given epoch.
@@ -236,6 +243,22 @@ interface IODefaultStakerRewards {
     function claimRewards(address recipient, address tokenAddress, bytes calldata data) external;
 
     /**
+     * @notice Helper function to claim rewards for multiple epochs in a single transaction and restake a percentage of the rewards.
+     * @param recipient address of the tokens' recipient
+     * @param epochs array of epochs for which the rewards are being claimed
+     * @param tokenAddress address of the reward token
+     * @param activeSharesOfHints array of hints for optimizing `activeSharesOf()` processing
+     * @param restakePercentageBps percentage of rewards to restake (up to 10000)
+     */
+    function batchClaimRewardsAndRestake(
+        address recipient,
+        uint48[] calldata epochs,
+        address tokenAddress,
+        bytes[] calldata activeSharesOfHints,
+        uint48 restakePercentageBps
+    ) external;
+
+    /**
      * @notice Helper function to claim rewards for multiple epochs in a single transaction.
      * @param recipient address of the tokens' recipient
      * @param epochs array of epochs for which the rewards are being claimed
@@ -252,11 +275,10 @@ interface IODefaultStakerRewards {
     /**
      * @notice Claim an admin fee.
      * @param recipient account that will receive the fee
-     * @param epoch epoch for which the fee is being claimed
      * @param tokenAddress address of the token for the admin fee
      * @dev Only the vault owner can call this function.
      */
-    function claimAdminFee(address recipient, uint48 epoch, address tokenAddress) external;
+    function claimAdminFee(address recipient, address tokenAddress) external;
 
     /**
      * @notice Set an admin fee.

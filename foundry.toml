@@ -17,12 +17,12 @@ remappings = [
     '@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/',
     '@symbiotic-middleware/=lib/middleware-sdk/src/',
     '@symbiotic/=lib/middleware-sdk/lib/core/src/',
-    '@tanssi-bridge-relayer/=lib/tanssi-bridge-relayer/',
+    '@snowbridge/=lib/snowbridge/',
     "@chainlink/=lib/chainlink-brownie-contracts/contracts/src/v0.8/",
     # These are for snowbridge. Needs to emulate their remappings.
     'openzeppelin-contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/',
     'openzeppelin/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/',
-    'prb/math/=lib/tanssi-bridge-relayer/snowbridge/contracts/lib/prb-math/',
+    'prb/math/=lib/snowbridge/contracts/lib/prb-math/',
 ]
 
 

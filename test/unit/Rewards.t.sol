@@ -44,7 +44,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 //**************************************************************************************************
 //                                      SNOWBRIDGE
 //**************************************************************************************************
-import {ScaleCodec} from "@tanssi-bridge-relayer/snowbridge/contracts/src/utils/ScaleCodec.sol";
+import {ScaleCodec} from "@snowbridge/contracts/src/utils/ScaleCodec.sol";
 
 //**************************************************************************************************
 //                                      TANSSI
@@ -354,10 +354,9 @@ contract RewardsTest is Test {
         vm.store(address(_stakerRewards), slot, bytes32(amount));
     }
 
-    function _setClaimableAdminFee(uint48 epoch, address _token, bytes32 location, uint256 amount) private {
+    function _setClaimableAdminFee(address _token, bytes32 location, uint256 amount) private {
         // For StakerRewardsStorage.claimableAdminFee[epoch][tokenAddress] = 10 ether
-        bytes32 slot = bytes32(uint256(location) + uint256(3)); // 3 is slot number for the variable claimableAdminFee
-        slot = keccak256(abi.encode(epoch, slot));
+        bytes32 slot = bytes32(uint256(location) + uint256(5)); // 5 is slot number for the variable claimableAdminFee
         slot = keccak256(abi.encode(_token, slot));
         vm.store(address(stakerRewards), slot, bytes32(amount));
     }
@@ -1214,7 +1213,11 @@ contract RewardsTest is Test {
 
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
-        emit IODefaultStakerRewards.ClaimRewards(tanssi, address(token), alice, epoch, alice, AMOUNT_TO_DISTRIBUTE / 10);
+        uint48[] memory epochs = new uint48[](1);
+        epochs[0] = epoch;
+        emit IODefaultStakerRewards.ClaimRewards(
+            tanssi, address(token), alice, epochs, alice, AMOUNT_TO_DISTRIBUTE / 10
+        );
         stakerRewards.claimRewards(alice, epoch, address(token), CLAIM_REWARDS_ADDITIONAL_DATA);
 
         claimed = stakerRewards.stakerClaimedRewardPerEpoch(alice, epoch, address(token));
@@ -1239,7 +1242,11 @@ contract RewardsTest is Test {
 
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
-        emit IODefaultStakerRewards.ClaimRewards(tanssi, address(token), alice, epoch, alice, AMOUNT_TO_DISTRIBUTE / 10);
+        uint48[] memory epochs = new uint48[](1);
+        epochs[0] = epoch;
+        emit IODefaultStakerRewards.ClaimRewards(
+            tanssi, address(token), alice, epochs, alice, AMOUNT_TO_DISTRIBUTE / 10
+        );
         stakerRewards.claimRewards(alice, epoch, address(token), CLAIM_REWARDS_ADDITIONAL_DATA);
     }
 
@@ -1261,7 +1268,11 @@ contract RewardsTest is Test {
 
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
-        emit IODefaultStakerRewards.ClaimRewards(tanssi, address(token), alice, epoch, alice, AMOUNT_TO_DISTRIBUTE / 10);
+        uint48[] memory epochs = new uint48[](1);
+        epochs[0] = epoch;
+        emit IODefaultStakerRewards.ClaimRewards(
+            tanssi, address(token), alice, epochs, alice, AMOUNT_TO_DISTRIBUTE / 10
+        );
         bytes memory customData = abi.encode(epoch);
         stakerRewards.claimRewards(alice, address(token), customData);
     }
@@ -1284,7 +1295,11 @@ contract RewardsTest is Test {
 
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
-        emit IODefaultStakerRewards.ClaimRewards(tanssi, address(token), alice, epoch, alice, AMOUNT_TO_DISTRIBUTE / 10);
+        uint48[] memory epochs = new uint48[](1);
+        epochs[0] = epoch;
+        emit IODefaultStakerRewards.ClaimRewards(
+            tanssi, address(token), alice, epochs, alice, AMOUNT_TO_DISTRIBUTE / 10
+        );
         bytes memory customData = abi.encode(epoch, 2);
         stakerRewards.claimRewards(alice, address(token), customData);
     }
@@ -1343,7 +1358,11 @@ contract RewardsTest is Test {
 
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
-        emit IODefaultStakerRewards.ClaimRewards(tanssi, address(token), alice, epoch, alice, AMOUNT_TO_DISTRIBUTE / 10);
+        uint48[] memory epochs = new uint48[](1);
+        epochs[0] = epoch;
+        emit IODefaultStakerRewards.ClaimRewards(
+            tanssi, address(token), alice, epochs, alice, AMOUNT_TO_DISTRIBUTE / 10
+        );
         stakerRewards.claimRewards(alice, epoch, address(token), claimRewardsWithFakeHints);
     }
 
@@ -1391,7 +1410,9 @@ contract RewardsTest is Test {
 
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
-        emit IODefaultStakerRewards.ClaimRewards(tanssi, address(newToken), alice, epoch, alice, newTokenAmountRewards);
+        uint48[] memory epochs = new uint48[](1);
+        epochs[0] = epoch;
+        emit IODefaultStakerRewards.ClaimRewards(tanssi, address(newToken), alice, epochs, alice, newTokenAmountRewards);
         stakerRewards.claimRewards(alice, epoch, address(newToken), CLAIM_REWARDS_ADDITIONAL_DATA);
     }
 
@@ -1432,17 +1453,16 @@ contract RewardsTest is Test {
         uint256 totalGasUsed = 0;
         vm.startPrank(alice);
         vm.expectEmit(true, true, true, true);
-        emit IODefaultStakerRewards.ClaimRewards(
-            tanssi, address(newToken), alice, currentEpoch, alice, newTokenAmountRewards
-        );
+        uint48[] memory epochs = new uint48[](1);
+        epochs[0] = currentEpoch;
+        emit IODefaultStakerRewards.ClaimRewards(tanssi, address(newToken), alice, epochs, alice, newTokenAmountRewards);
         uint256 gasBefore = gasleft();
         stakerRewards.claimRewards(alice, currentEpoch, address(newToken), CLAIM_REWARDS_ADDITIONAL_DATA);
         uint256 gasAfter = gasleft();
         totalGasUsed += gasBefore - gasAfter;
         vm.expectEmit(true, true, true, true);
-        emit IODefaultStakerRewards.ClaimRewards(
-            tanssi, address(newToken), alice, currentEpoch + 1, alice, newTokenAmountRewards
-        );
+        epochs[0] = currentEpoch + 1;
+        emit IODefaultStakerRewards.ClaimRewards(tanssi, address(newToken), alice, epochs, alice, newTokenAmountRewards);
         gasBefore = gasleft();
         stakerRewards.claimRewards(alice, currentEpoch + 1, address(newToken), CLAIM_REWARDS_ADDITIONAL_DATA);
         totalGasUsed += gasBefore - gasleft();
@@ -1497,13 +1517,12 @@ contract RewardsTest is Test {
 
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
-        emit IODefaultStakerRewards.ClaimRewards(
-            tanssi, address(newToken), alice, currentEpoch, alice, newTokenAmountRewards
-        );
+        uint48[] memory epochs = new uint48[](1);
+        epochs[0] = currentEpoch;
+        emit IODefaultStakerRewards.ClaimRewards(tanssi, address(newToken), alice, epochs, alice, newTokenAmountRewards);
         vm.expectEmit(true, true, true, true);
-        emit IODefaultStakerRewards.ClaimRewards(
-            tanssi, address(newToken), alice, currentEpoch + 1, alice, newTokenAmountRewards
-        );
+        epochs[0] = currentEpoch + 1;
+        emit IODefaultStakerRewards.ClaimRewards(tanssi, address(newToken), alice, epochs, alice, newTokenAmountRewards);
         uint256 gasBefore = gasleft();
         stakerRewards.multicall(calls);
         console2.log("Gas used for multicall: ", gasBefore - gasleft());
@@ -1554,11 +1573,7 @@ contract RewardsTest is Test {
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
         emit IODefaultStakerRewards.ClaimRewards(
-            tanssi, address(newToken), alice, currentEpoch, alice, newTokenAmountRewards
-        );
-        vm.expectEmit(true, true, true, true);
-        emit IODefaultStakerRewards.ClaimRewards(
-            tanssi, address(newToken), alice, currentEpoch + 1, alice, newTokenAmountRewards
+            tanssi, address(newToken), alice, epochs, alice, newTokenAmountRewards * 2
         );
         uint256 gasBefore = gasleft();
         stakerRewards.batchClaimRewards(alice, epochs, address(newToken), hints);
@@ -1703,10 +1718,9 @@ contract RewardsTest is Test {
     //**************************************************************************************************
 
     function testClaimAdminFee() public {
-        uint48 epoch = 0;
-        _setClaimableAdminFee(epoch, address(token), STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT);
+        _setClaimableAdminFee(address(token), STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT);
 
-        uint256 claimableFee = stakerRewards.claimableAdminFee(epoch, address(token));
+        uint256 claimableFee = stakerRewards.claimableAdminFee(address(token));
         assertEq(claimableFee, 10 ether);
 
         vm.prank(address(middleware));
@@ -1714,23 +1728,20 @@ contract RewardsTest is Test {
 
         vm.startPrank(address(tanssi));
         vm.expectEmit(true, true, false, true);
-        emit IODefaultStakerRewards.ClaimAdminFee(tanssi, address(token), epoch, 10 ether);
-        stakerRewards.claimAdminFee(tanssi, epoch, address(token));
+        emit IODefaultStakerRewards.ClaimAdminFee(tanssi, address(token), 10 ether);
+        stakerRewards.claimAdminFee(tanssi, address(token));
 
-        claimableFee = stakerRewards.claimableAdminFee(epoch, address(token));
+        claimableFee = stakerRewards.claimableAdminFee(address(token));
         assertEq(claimableFee, 0);
     }
 
     function testClaimAdminFeeInsufficientAdminFee() public {
-        uint48 epoch = 0;
-
         vm.startPrank(address(tanssi));
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__InsufficientAdminFee.selector);
-        stakerRewards.claimAdminFee(tanssi, epoch, address(token));
+        stakerRewards.claimAdminFee(tanssi, address(token));
     }
 
     function testClaimAdminFeeWithInvalidRole() public {
-        uint48 epoch = 0;
         address randomUser = makeAddr("randomUser");
 
         bytes32 adminFeeClaimRole = stakerRewards.ADMIN_FEE_CLAIM_ROLE();
@@ -1740,7 +1751,7 @@ contract RewardsTest is Test {
                 IAccessControl.AccessControlUnauthorizedAccount.selector, randomUser, adminFeeClaimRole
             )
         );
-        stakerRewards.claimAdminFee(tanssi, epoch, address(token));
+        stakerRewards.claimAdminFee(tanssi, address(token));
     }
 
     //**************************************************************************************************
@@ -1774,8 +1785,7 @@ contract RewardsTest is Test {
     }
 
     function testUpgradeStakerRewards() public {
-        uint48 epoch = 0;
-        _setClaimableAdminFee(epoch, address(token), STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT);
+        _setClaimableAdminFee(address(token), STAKER_REWARDS_STORAGE_LOCATION, DEFAULT_AMOUNT);
 
         vm.startPrank(address(tanssi));
         ODefaultStakerRewards newStakerRewards = new ODefaultStakerRewards(address(networkMiddlewareService), tanssi);
@@ -1786,7 +1796,7 @@ contract RewardsTest is Test {
         assertEq(stakerRewards.i_network(), tanssi);
         assertEq(stakerRewards.i_networkMiddlewareService(), address(networkMiddlewareService));
 
-        uint256 claimableFee = stakerRewards.claimableAdminFee(epoch, address(token));
+        uint256 claimableFee = stakerRewards.claimableAdminFee(address(token));
         assertEq(claimableFee, 10 ether);
     }
 

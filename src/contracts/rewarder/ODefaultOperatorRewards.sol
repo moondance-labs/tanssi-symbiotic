@@ -35,7 +35,7 @@ import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/ut
 //**************************************************************************************************
 //                                      SNOWBRIDGE
 //**************************************************************************************************
-import {ScaleCodec} from "@tanssi-bridge-relayer/snowbridge/contracts/src/utils/ScaleCodec.sol";
+import {ScaleCodec} from "@snowbridge/contracts/src/utils/ScaleCodec.sol";
 
 //**************************************************************************************************
 //                                      TANSSI
@@ -172,12 +172,40 @@ contract ODefaultOperatorRewards is
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         address middlewareAddress = INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network);
         uint256 totalInputs = inputs.length;
+        uint256 operatorAmount;
+        address tokenAddress;
+        address operator;
+
         for (uint256 i; i < totalInputs;) {
-            amount += _claimRewards(inputs[i], $, middlewareAddress);
+            address currentOperator =
+                IOBaseMiddlewareReader(middlewareAddress).operatorByKey(abi.encode(inputs[i].operatorKey));
+
+            if (operator == address(0)) {
+                operator = currentOperator;
+            } else if (operator != currentOperator) {
+                revert ODefaultOperatorRewards__BatchClaimSupportsASingleOperator();
+            }
+
+            (uint256 newAmount, uint256 newOperatorAmount, address newTokenAddress) =
+                _claimRewards(inputs[i], $, middlewareAddress, operator);
+
+            if (tokenAddress == address(0)) {
+                tokenAddress = newTokenAddress;
+            } else if (tokenAddress != newTokenAddress) {
+                revert ODefaultOperatorRewards__BatchClaimSupportsASingleToken();
+            }
+
+            amount += newAmount;
+            operatorAmount += newOperatorAmount;
+            tokenAddress = newTokenAddress;
+
             unchecked {
                 ++i;
             }
         }
+
+        // We do a single transfer only at the end, to save gas
+        IERC20(tokenAddress).safeTransfer(operator, operatorAmount);
     }
 
     /**
@@ -188,16 +216,25 @@ contract ODefaultOperatorRewards is
     ) external nonReentrant returns (uint256 amount) {
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         address middlewareAddress = INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network);
-        amount = _claimRewards(input, $, middlewareAddress);
+        uint256 operatorAmount;
+        address tokenAddress;
+
+        address operator = IOBaseMiddlewareReader(middlewareAddress).operatorByKey(abi.encode(input.operatorKey));
+
+        (amount, operatorAmount, tokenAddress) = _claimRewards(input, $, middlewareAddress, operator);
+
+        // Transfer the operator rewards to the operator
+        IERC20(tokenAddress).safeTransfer(operator, operatorAmount);
     }
 
     function _claimRewards(
         ClaimRewardsInput calldata input,
         OperatorRewardsStorage storage $,
-        address middlewareAddress
-    ) private returns (uint256 amount) {
+        address middlewareAddress,
+        address operator
+    ) private returns (uint256 amount, uint256 operatorAmount, address tokenAddress) {
         EraRoot memory eraRoot_ = $.eraRoot[input.eraIndex];
-        address tokenAddress = eraRoot_.tokenAddress;
+        tokenAddress = eraRoot_.tokenAddress;
         if (eraRoot_.root == bytes32(0)) {
             revert ODefaultOperatorRewards__RootNotSet();
         }
@@ -214,14 +251,14 @@ contract ODefaultOperatorRewards is
         }
 
         uint256 stakerAmount;
-        address recipient;
 
-        (amount, stakerAmount, recipient) = _distributeRewardsToOperator($, input, eraRoot_, middlewareAddress);
+        (amount, operatorAmount, stakerAmount,) =
+            _calculateRewardsForOperatorAndStakers($, input, eraRoot_, middlewareAddress);
 
         _distributeRewardsToStakers(
-            eraRoot_.epoch, input.eraIndex, stakerAmount, recipient, middlewareAddress, tokenAddress, input.data
+            eraRoot_.epoch, input.eraIndex, stakerAmount, operator, middlewareAddress, tokenAddress, input.data
         );
-        emit ClaimRewards(recipient, tokenAddress, input.eraIndex, eraRoot_.epoch, msg.sender, amount);
+        emit ClaimRewards(operator, tokenAddress, input.eraIndex, eraRoot_.epoch, msg.sender, amount);
     }
 
     function _distributeRewardsToStakers(
@@ -250,38 +287,29 @@ contract ODefaultOperatorRewards is
         _distributeRewardsForEachVault(epoch, eraIndex, tokenAddress, totalVaults, operatorVaults, amountPerVault, data);
     }
 
-    function _distributeRewardsToOperator(
+    function _calculateRewardsForOperatorAndStakers(
         OperatorRewardsStorage storage $,
         ClaimRewardsInput calldata input,
         EraRoot memory eraRoot_,
         address middlewareAddress
-    ) private returns (uint256 amount, uint256 stakerAmount, address recipient) {
+    ) private returns (uint256 amount, uint256 operatorAmount, uint256 stakerAmount, address recipient) {
         // Calculate the total amount of tokens that can be claimed which is:
         // total amount of tokens = (total points claimable * total amount) / total points
         amount = uint256(input.totalPointsClaimable).mulDiv(eraRoot_.amount, eraRoot_.totalPoints);
 
-        bytes32 operatorKey = input.operatorKey;
-        // Starlight sends back only the operator key, thus we need to get back the operator address
-        recipient = IOBaseMiddlewareReader(middlewareAddress).operatorByKey(abi.encode(operatorKey));
-
         uint48 eraIndex = input.eraIndex;
         // You can only claim everything and if it's claimed before revert
-        if ($.claimed[eraIndex][operatorKey] != 0) {
+        if ($.claimed[eraIndex][input.operatorKey] != 0) {
             revert ODefaultOperatorRewards__AlreadyClaimed();
         }
 
-        $.claimed[eraIndex][operatorKey] = amount;
+        $.claimed[eraIndex][input.operatorKey] = amount;
 
         // operatorShare% of the rewards to the operator
-        uint256 operatorAmount = amount.mulDiv($.operatorShare, MAX_PERCENTAGE);
+        operatorAmount = amount.mulDiv($.operatorShare, MAX_PERCENTAGE);
 
         // (1-s_operatorShare)% of the rewards to the stakers
         stakerAmount = amount - operatorAmount;
-
-        // On every claim send operatorShare% of the rewards to the operator
-        // And then distribute rewards to the stakers
-        // This is gonna send (1-s_operatorShare)% of the rewards
-        IERC20(eraRoot_.tokenAddress).safeTransfer(recipient, operatorAmount);
     }
 
     function _getRewardsAmountPerVault(

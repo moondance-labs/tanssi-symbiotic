@@ -55,7 +55,7 @@ jobs:
           filters: |
             solidity:
               - '**/*.sol' # Match any file ending in .sol anywhere in the repo
-              - 'lib/tanssi-bridge-relayer/**'
+              - 'lib/snowbridge/**'
 
   check:
     strategy:
@@ -88,10 +88,6 @@ jobs:
       - name: Show Forge version
         run: |
           forge --version
-
-      - name: Install dependencies
-        run: |
-          make install-tanssi-relayer
 
       - name: Run Forge fmt
         run: |
