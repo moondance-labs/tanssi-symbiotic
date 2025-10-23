@@ -53,8 +53,9 @@ contract ODefaultStakerRewards is
         mapping(uint48 epoch => mapping(address tokenAddress => uint256 rewards_)) rewards;
         mapping(address account => mapping(uint48 epoch => mapping(address tokenAddress => uint256 claimed)))
             stakerClaimedRewardPerEpoch;
-        mapping(uint48 epoch => mapping(address tokenAddress => uint256 amount)) claimableAdminFee;
+        mapping(uint48 epoch => mapping(address tokenAddress => uint256 amount)) _legacyClaimableAdminFee;
         mapping(uint48 epoch => uint256 amount) activeSharesCache;
+        mapping(address tokenAddress => uint256 amount) claimableAdminFee;
     }
 
     // keccak256(abi.encode(uint256(keccak256("tanssi.rewards.ODefaultStakerRewards.v1.1")) - 1)) & ~bytes32(uint256(0xff))
@@ -70,6 +71,11 @@ contract ODefaultStakerRewards is
      * @inheritdoc IODefaultStakerRewards
      */
     uint256 public constant ADMIN_FEE_BASE = 10_000;
+
+    /**
+     * @inheritdoc IODefaultStakerRewards
+     */
+    uint256 public constant MAX_ADMIN_FEE = 1000; // 10%
 
     /**
      * @inheritdoc IODefaultStakerRewards
@@ -244,7 +250,7 @@ contract ODefaultStakerRewards is
 
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
 
-        $.claimableAdminFee[epoch][tokenAddress] += adminFeeAmount;
+        $.claimableAdminFee[tokenAddress] += adminFeeAmount;
 
         if (distributeAmount != 0) {
             $.rewards[epoch][tokenAddress] += distributeAmount;
@@ -356,21 +362,20 @@ contract ODefaultStakerRewards is
      */
     function claimAdminFee(
         address recipient,
-        uint48 epoch,
         address tokenAddress
     ) external nonReentrant onlyRole(ADMIN_FEE_CLAIM_ROLE) {
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
-        uint256 claimableAdminFee_ = $.claimableAdminFee[epoch][tokenAddress];
+        uint256 claimableAdminFee_ = $.claimableAdminFee[tokenAddress];
 
         if (claimableAdminFee_ == 0) {
             revert ODefaultStakerRewards__InsufficientAdminFee();
         }
 
-        $.claimableAdminFee[epoch][tokenAddress] = 0;
+        $.claimableAdminFee[tokenAddress] = 0;
 
         IERC20(tokenAddress).safeTransfer(recipient, claimableAdminFee_);
 
-        emit ClaimAdminFee(recipient, tokenAddress, epoch, claimableAdminFee_);
+        emit ClaimAdminFee(recipient, tokenAddress, claimableAdminFee_);
     }
 
     /**
@@ -420,9 +425,11 @@ contract ODefaultStakerRewards is
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    function claimableAdminFee(uint48 epoch, address tokenAddress) external view returns (uint256) {
+    function claimableAdminFee(
+        address tokenAddress
+    ) external view returns (uint256) {
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
-        return $.claimableAdminFee[epoch][tokenAddress];
+        return $.claimableAdminFee[tokenAddress];
     }
 
     function _claimRewards(
@@ -467,7 +474,7 @@ contract ODefaultStakerRewards is
     ) private {
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
 
-        if (adminFee_ > ADMIN_FEE_BASE) {
+        if (adminFee_ > MAX_ADMIN_FEE) {
             revert ODefaultStakerRewards__InvalidAdminFee();
         }
 

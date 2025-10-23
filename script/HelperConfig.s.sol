@@ -76,6 +76,10 @@ contract HelperConfig is Script {
         VaultData gauntletRestakedWBETH; // Gauntlet Restaked wBETH
         VaultData gauntletRestakedcBETH; // Gauntlet Restaked cbETH
         VaultData tanssi; // Tanssi Vault
+        VaultData infraSingularityRestakedETH; // InfraSingularity Restaked ETH
+        VaultData xHashDualYieldRestakeVault; // XHash Dual-Yield Restake Vault
+        VaultData infraSingularityRestakedETHLidoV3; // InfraSingularity Restaked ETH Lido v3
+        VaultData ryabinaWstETH; // Ryabina wstETH
     }
 
     struct CollateralData {
@@ -309,6 +313,14 @@ contract HelperConfig is Script {
             vaultsConfigB.gauntletRestakedcBETH = vault;
         } else if (_sameString(vault.name, "Tanssi Vault")) {
             vaultsConfigB.tanssi = vault;
+        } else if (_sameString(vault.name, "InfraSingularity Restaked ETH")) {
+            vaultsConfigB.infraSingularityRestakedETH = vault;
+        } else if (_sameString(vault.name, "XHash Dual-Yield Restake Vault")) {
+            vaultsConfigB.xHashDualYieldRestakeVault = vault;
+        } else if (_sameString(vault.name, "InfraSingularity Restaked ETH Lido v3")) {
+            vaultsConfigB.infraSingularityRestakedETHLidoV3 = vault;
+        } else if (_sameString(vault.name, "Ryabina wstETH")) {
+            vaultsConfigB.ryabinaWstETH = vault;
         }
     }
 

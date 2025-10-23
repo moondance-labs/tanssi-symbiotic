@@ -1143,46 +1143,55 @@ contract MiddlewareTest is Test {
     function _addOperatorsToNetwork(
         uint256 _count
     ) public {
+        vm.pauseGasMetering();
+        address[3] memory vaults = [address(vault), address(vaultSlashable), address(vaultVetoed)];
+        Token[3] memory tokens = [stETH, rETH, wBTC];
+        address[3] memory delegators = [
+            address(vaultAddresses.delegator),
+            address(vaultAddresses.delegatorSlashable),
+            address(vaultAddresses.delegatorVetoed)
+        ];
+
         for (uint256 i = 0; i < _count; i++) {
             address _operator = makeAddr(string.concat("operator", Strings.toString(i + 4)));
-            address _vault = address(vault);
-            address _delegator = address(vaultAddresses.delegator);
-            Token token = stETH;
-            vm.startPrank(owner);
-            if (i % 3 == 0) {
-                _vault = address(vaultSlashable);
-                _delegator = address(vaultAddresses.delegatorSlashable);
-                rETH.transfer(_operator, 1 ether);
-                token = rETH;
-            } else if (i % 3 == 1) {
-                _vault = address(vaultVetoed);
-                _delegator = address(vaultAddresses.delegatorVetoed);
-                wBTC.transfer(_operator, 1 ether);
-                token = wBTC;
-            } else {
-                stETH.transfer(_operator, 1 ether);
-            }
-            _registerOperatorAndOptIn(_operator, tanssi, address(_vault), true);
-            vm.startPrank(_operator);
-            uint256 depositAmount = 0.000001 ether * (i + 1);
-            _depositToVault(Vault(_vault), _operator, depositAmount, token);
-
-            vm.startPrank(owner);
-            if (i % 3 == 1) {
-                // FULL_RESTAKE, needs to set the operator network limit
-                IFullRestakeDelegator(_delegator).setOperatorNetworkLimit(
-                    tanssi.subnetwork(0), _operator, OPERATOR_STAKE_BTC
-                );
-            } else {
-                // NETWORK_RESTAKE, needs to set the operator network shares
-                INetworkRestakeDelegator(_delegator).setOperatorNetworkShares(
-                    tanssi.subnetwork(0), _operator, OPERATOR_SHARE
-                );
-            }
             bytes32 operatorKey = bytes32(uint256(i + 4));
+
+            // Register operator once (network-wide)
+            _registerOperatorAndOptIn(_operator, tanssi, address(vault), true);
+
+            // Give the operator some of each token
+            vm.startPrank(owner);
+            stETH.transfer(_operator, 1 ether);
+            rETH.transfer(_operator, 1 ether);
+            wBTC.transfer(_operator, 1 ether);
             middleware.registerOperator(_operator, abi.encode(operatorKey), address(0));
+
+            // Stake in each vault
+            for (uint256 j = 0; j < vaults.length; ++j) {
+                address _vault = vaults[j];
+                address _delegator = delegators[j];
+                Token token = tokens[j];
+                vm.startPrank(_operator);
+                uint256 depositAmount = 0.000001 ether * (i + 1);
+                _depositToVault(Vault(_vault), _operator, depositAmount, token);
+
+                vm.startPrank(owner);
+                if (j == 2) {
+                    // FULL_RESTAKE
+                    IFullRestakeDelegator(_delegator).setOperatorNetworkLimit(
+                        tanssi.subnetwork(0), _operator, OPERATOR_STAKE_BTC
+                    );
+                } else {
+                    // NETWORK_RESTAKE
+                    INetworkRestakeDelegator(_delegator).setOperatorNetworkShares(
+                        tanssi.subnetwork(0), _operator, OPERATOR_SHARE
+                    );
+                }
+            }
+
             vm.stopPrank();
         }
+        vm.resumeGasMetering();
     }
 
     function quickSort(Middleware.ValidatorData[] memory arr, int256 left, int256 right) public pure {
