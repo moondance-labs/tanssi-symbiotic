@@ -66,7 +66,7 @@
       "oracle": "0x5567De5280bdA9EedCC8254350833c913362B469"
     }
   ],
-  "totalVaults": 16,
+  "totalVaults": 20,
   "vaults": [
     {
       "name": "MEV Capital restaked ETH",
@@ -210,6 +210,42 @@
       "slasher": "0x69aE071249129BF52E72dBFc7Ccc10786bE33E58",
       "collateral": "0x553F4cB7256D8fC038E91d36Cb63fa7C13b624AB",
       "stakerRewards": "0x19F26797fDE27a906E0670BB5f340D785478C228",
+      "stakerRewardsImplementation": "0x5ae71dcae12221960c989dd7d07a57da037baa7d"
+    },
+    {
+      "name": "InfraSingularity Restaked ETH",
+      "vault": "0xbA91473072EBD125C3cB8D251fd02bf21FDea8Df",
+      "delegator": "0x9A6CC2671F836274e265f9772C47cf744eddf8c2",
+      "slasher": "0x7b9aeEA7CfD883125BAe1C70421cA16019005529",
+      "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+      "stakerRewards": "0x0dAF67166C330bB1B077B15C1Ba05a5c4B94F97c",
+      "stakerRewardsImplementation": "0x5ae71dcae12221960c989dd7d07a57da037baa7d"
+    },
+    {
+      "name": "XHash Dual-Yield Restake Vault",
+      "vault": "0xD6A7933D2Ac0BAf297944d254Eb62A48dEa6E19b",
+      "delegator": "0xEC48Ba9e7F455C289DCc39bAD830Ce237Db9698E",
+      "slasher": "0xEe43E93E30dE2820Ec173fa1478a852cEfDB00c4",
+      "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+      "stakerRewards": "0xDCfCe0a6199208678413F0Ef7663A0aFFF273eEB",
+      "stakerRewardsImplementation": "0x5ae71dcae12221960c989dd7d07a57da037baa7d"
+    },
+    {
+      "name": "InfraSingularity Restaked ETH Lido v3",
+      "vault": "0x24EC7ac12137E778731E1C1C54abf743CBF02881",
+      "delegator": "0x81503A9C5D83F8140F2f07eD42E09d30FdFcBf5C",
+      "slasher": "0xCaF91354b5e654d4d20b2d3beb5a9dDdc971AAfa",
+      "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+      "stakerRewards": "0x3BBE378Ee3286194EaE2bbAc808f3C08c5BD86db",
+      "stakerRewardsImplementation": "0x5ae71dcae12221960c989dd7d07a57da037baa7d"
+    },
+    {
+      "name": "Ryabina wstETH",
+      "vault": "0x93b96D7cDe40DC340CA55001F46B3B8E41bC89B4",
+      "delegator": "0x742DD9676086579994E9a3DD536C9CCc0Cc6e78D",
+      "slasher": "0xCCA42120Dc4fc945F2fBd227d7D9EA5963bba490",
+      "collateral": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+      "stakerRewards": "0xD5F7D55c161D694715ceB191890c9995B2DF95E5",
       "stakerRewardsImplementation": "0x5ae71dcae12221960c989dd7d07a57da037baa7d"
     }
   ],
