@@ -755,8 +755,8 @@ contract OBaseMiddlewareReader is
                 maxNumOperatorsToCheck, cacheIndex, currentEpochStartTs, operators, operatorsLength_
             );
 
-            // This is the case were 100% of the operators are inactive, so we don't need to send anything
-            if (operatorsLength_ <= MAX_OPERATORS_TO_SEND && !atLeastOneActive) {
+            // This is the first batch (cacheIndex == 0) and all of the operators are being processed in this batch (operatorsLength_ <= MAX_OPERATORS_TO_PROCESS) and they are all inactive, so we don't need to send anything
+            if (cacheIndex == 0 && operatorsLength_ <= MAX_OPERATORS_TO_PROCESS && !atLeastOneActive) {
                 return (false, hex"");
             }
 
@@ -768,6 +768,7 @@ contract OBaseMiddlewareReader is
         if ((Time.timestamp() - $.lastTimestamp) > $.interval) {
             // This will use the cached values, resulting in just a simple sorting operation. We can know a priori how much it cost since it's just an address with a uint256 power. Worst case we can split this too.
             bytes32[] memory sortedKeys = sortOperatorsByPower(epoch);
+
             if (sortedKeys.length > MAX_OPERATORS_TO_SEND) {
                 assembly ("memory-safe") {
                     mstore(sortedKeys, MAX_OPERATORS_TO_SEND)

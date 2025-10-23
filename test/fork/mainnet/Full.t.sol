@@ -79,6 +79,7 @@ import {DeployVault} from "script/DeployVault.s.sol";
 import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
 import {Token} from "test/mocks/Token.sol";
+import {TestUtils} from "test/utils/Utils.t.sol";
 
 contract FullTest is Test {
     using Subnetwork for address;
@@ -446,7 +447,8 @@ contract FullTest is Test {
 
         vm.prank(offlineKeepers);
         uint256 processedOperators;
-        uint256 totalBatches = _getTotalBatchesForCount(totalActiveOperators);
+        TestUtils testUtils = new TestUtils();
+        uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, totalActiveOperators);
         for (uint256 i = 0; i < totalBatches; i++) {
             beforeGas = gasleft();
             (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
@@ -1033,16 +1035,5 @@ contract FullTest is Test {
             uint256 vaultBalanceAfter = IERC20(vaultCollateral).balanceOf(vault);
             assertEq(vaultBalanceBefore - expectedSlash, vaultBalanceAfter);
         }
-    }
-
-    function _getTotalBatchesForCount(
-        uint256 count
-    ) public returns (uint256) {
-        uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
-        uint256 totalBatches = count / max;
-        if (totalBatches * max < count) {
-            totalBatches++;
-        }
-        return totalBatches;
     }
 }
