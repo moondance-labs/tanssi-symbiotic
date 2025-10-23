@@ -1542,9 +1542,14 @@ contract MiddlewareTest is Test {
         uint256 cacheIndex = middleware.getEpochCacheIndex(epoch);
         assertEq(cacheIndex, count);
 
-        // upkeep is not needed because there are no operators with power
-        (bool upkeepNeeded,) = middleware.checkUpkeep(hex"");
-        assertEq(upkeepNeeded, false);
+        // List should be empty, but we still need to call performUpkeep to call the gateway
+        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        assertEq(upkeepNeeded, true);
+        (uint8 command, uint48 encodedEpoch, bytes32[] memory sortedKeys) =
+            abi.decode(performData, (uint8, uint48, bytes32[]));
+        assertEq(command, middleware.SEND_DATA_COMMAND());
+        assertEq(encodedEpoch, epoch);
+        assertEq(sortedKeys.length, 0);
     }
 
     function testUpkeepIncludingOperatorWithNoPowerViaPeformUpkeep() public {

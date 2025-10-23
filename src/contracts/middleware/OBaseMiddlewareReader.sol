@@ -768,10 +768,6 @@ contract OBaseMiddlewareReader is
         if ((Time.timestamp() - $.lastTimestamp) > $.interval) {
             // This will use the cached values, resulting in just a simple sorting operation. We can know a priori how much it cost since it's just an address with a uint256 power. Worst case we can split this too.
             bytes32[] memory sortedKeys = sortOperatorsByPower(epoch);
-            // If there are no operators with power, we don't need to send anything
-            if (sortedKeys.length == 0) {
-                return (false, hex"");
-            }
 
             if (sortedKeys.length > MAX_OPERATORS_TO_SEND) {
                 assembly ("memory-safe") {
