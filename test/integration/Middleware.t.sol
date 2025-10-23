@@ -93,6 +93,7 @@ import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStake
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
+import {TestUtils} from "test/utils/Utils.t.sol";
 
 contract MiddlewareTest is Test {
     using Subnetwork for address;
@@ -193,6 +194,7 @@ contract MiddlewareTest is Test {
     Token public rETH;
     Token public wBTC;
     VaultConfigurator public vaultConfigurator;
+    TestUtils public testUtils;
 
     uint256 ownerPrivateKey =
         vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
@@ -266,6 +268,8 @@ contract MiddlewareTest is Test {
         networkMetadataService = MetadataService(symbioticAddresses.networkMetadataService);
         networkMiddlewareService = NetworkMiddlewareService(symbioticAddresses.networkMiddlewareService);
         vaultConfigurator = VaultConfigurator(symbioticAddresses.vaultConfigurator);
+
+        testUtils = new TestUtils();
 
         vm.startPrank(tanssi);
         // Send initial collateral to the operators
@@ -1504,7 +1508,7 @@ contract MiddlewareTest is Test {
         uint16 count = uint16(middleware.MAX_OPERATORS_TO_PROCESS()) - 1;
         _addOperatorsToNetwork(count - 3); // 3 operators are already registered
 
-        uint256 totalBatches = _getTotalBatchesForCount(count);
+        uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, count);
         assertEq(totalBatches, 1);
 
         (bool upkeepNeeded,) = middleware.checkUpkeep(hex"");
@@ -1525,7 +1529,7 @@ contract MiddlewareTest is Test {
         uint16 count = uint16(middleware.MAX_OPERATORS_TO_PROCESS()) + 1;
         _addOperatorsToNetwork(count - 3); // 3 operators are already registered
 
-        uint256 totalBatches = _getTotalBatchesForCount(count);
+        uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, count);
         for (uint256 i = 0; i < totalBatches; i++) {
             (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
             assertEq(upkeepNeeded, true);
@@ -1612,7 +1616,7 @@ contract MiddlewareTest is Test {
         uint256 totalGasUsedForCheck = 0;
         uint256 totalGasUsedForPerform = 0;
         {
-            uint256 totalBatches = _getTotalBatchesForCount(count);
+            uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, count);
             for (uint256 i = 0; i < totalBatches; i++) {
                 uint256 gasBeforeCheck = gasleft();
                 (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
@@ -1691,7 +1695,7 @@ contract MiddlewareTest is Test {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         uint48 epoch = middleware.getCurrentEpoch();
 
-        uint256 totalBatches = _getTotalBatchesForCount(count);
+        uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, count);
         console2.log("Total batches: ", totalBatches);
         for (uint256 i = 0; i < totalBatches; i++) {
             (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
@@ -1733,7 +1737,7 @@ contract MiddlewareTest is Test {
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
-        uint256 totalBatches = _getTotalBatchesForCount(count);
+        uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, count);
         for (uint256 i = 0; i < totalBatches; i++) {
             (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
             assertEq(upkeepNeeded, true);
@@ -1793,7 +1797,7 @@ contract MiddlewareTest is Test {
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
-        uint256 totalBatches = _getTotalBatchesForCount(count);
+        uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, count);
         for (uint256 i = 0; i < totalBatches; i++) {
             (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
             assertEq(upkeepNeeded, true);
@@ -1823,7 +1827,7 @@ contract MiddlewareTest is Test {
         uint48 epoch = middleware.getCurrentEpoch();
         uint256 activeOperatorsLength = (OBaseMiddlewareReader(address(middleware)).activeOperators()).length;
         {
-            uint256 totalBatches = _getTotalBatchesForCount(count);
+            uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, count);
             for (uint256 i = 0; i < totalBatches; i++) {
                 (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
 
@@ -1951,17 +1955,6 @@ contract MiddlewareTest is Test {
             deployVault.createBaseVault(params);
 
         return testVaultAddresses;
-    }
-
-    function _getTotalBatchesForCount(
-        uint256 count
-    ) public returns (uint256) {
-        uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
-        uint256 totalBatches = count / max;
-        if (totalBatches * max < count) {
-            totalBatches++;
-        }
-        return totalBatches;
     }
 
     function _prepareSlashingTest()
