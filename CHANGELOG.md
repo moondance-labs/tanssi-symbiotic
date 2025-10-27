@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [1.3.0] - 2025-10-27
+
+### Added
+
+- On ODefaultStakerRewards: Adds `batchClaimRewardsAndRestake` method. This works only for the Tanssi and allows to restake a percentage of the rewards in a single transaction.
+- Uses Vetoed vault in the demo script.
+- Adds missing vaults in `contract-addresses/tanssi.json`.
+
+### Changed
+
+- Uses snowbridge instead of tanssi-bridge-relayer.
+- On ODefaultOperatorRewards: Transfers rewards to the operator only once when batch claiming rewards, for gas savings.
+- On ODefaultStakerRewards: Transfers rewards to the staker only once when batch claiming rewards, for gas savings.
+- On ODefaultStakerRewards: Admin fee is independent of the epoch. This changes the signature of the `claimAdminFee` and `claimableAdminFee` methods.
+- On ODefaultStakerRewards: Sets a max admin fee of 10%.
+- Makes fork tests mostly independent of the current state.
+
+### Fixed
+
+- Fixes bug in upkeep flow which caused it to stall when an operator was added between upkeep calls.
+
 ## [1.2.3] - 2025-10-17
 
 ### Changed
