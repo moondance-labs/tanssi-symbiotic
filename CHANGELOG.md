@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
-- On ODefaultStakerRewards: Adds `batchClaimRewardsAndRestake` method. This works only for the Tanssi and allows to restake a percentage of the rewards in a single transaction.
+- On ODefaultStakerRewards: Adds `batchClaimRewardsAndRestake` method. This works only for the Tanssi vault and allows to restake a percentage of the rewards in a single transaction.
 - Uses Vetoed vault in the demo script.
 - Adds missing vaults in `contract-addresses/tanssi.json`.
 
