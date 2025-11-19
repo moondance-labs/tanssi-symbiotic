@@ -40,7 +40,7 @@ coverage :; forge coverage --nmp "test/fork/*"
 
 coverage-fork-testnet :; forge coverage --mp "test/fork/*" --nmp "test/fork/mainnet/Full.t.sol" --fork-url ${SEPOLIA_RPC_URL} -vvv
 
-coverage-fork-mainnet :; forge coverage --mp "test/fork/mainnet/Full.t.sol" --fork-url ${ETH_RPC_URL} -vvv
+coverage-fork-mainnet :; forge coverage --mp "test/fork/mainnet/Full.t.sol" --fork-url 127.0.0.1:8545 -vv 
 
 dcoverage :; forge coverage --nmp "test/fork/*" --report debug > coverage.txt
 
@@ -96,6 +96,11 @@ deploy-middleware:
 	@echo "📡 Deploying Middleware Implementation..."
 	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem $(NETWORK_ARGS) --sig "deployOnlyMiddleware(bool)" $(SHOULD_DEPLOY_READER) --optimize true --optimizer-runs 800 -vv 
 	@echo "✅ Middleware Implementation deployment completed"
+
+deploy-middleware-reader-forwarder:
+	@echo "📡 Deploying Middleware Reader Forwarder..."
+	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem $(NETWORK_ARGS) --sig "deployMiddlewareReaderForwarder(address)" $(MIDDLEWARE_ADDRESS) --optimize true --optimizer-runs 800 -vv 
+	@echo "✅ Middleware Reader Forwarder deployment completed"
 
 deploy-staker-rewards:
 	@echo "📡 Deploying Staker Rewards Implementation..."
