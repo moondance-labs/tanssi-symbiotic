@@ -63,8 +63,7 @@ import {MockOGateway} from "@snowbridge/contracts/test/mocks/MockOGateway.sol";
 import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
 
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
-import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
-import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
+import {OBaseMiddlewareReaderForwarder} from "src/contracts/middleware/OBaseMiddlewareReaderForwarder.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {Token} from "test/mocks/Token.sol";
 import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
@@ -195,7 +194,7 @@ contract FullTest is Test {
     }
 
     Middleware public middleware;
-    OBaseMiddlewareReader public middlewareReader;
+    OBaseMiddlewareReaderForwarder public middlewareReaderForwarder;
     DelegatorFactory public delegatorFactory;
     SlasherFactory public slasherFactory;
     VaultFactory public vaultFactory;
@@ -286,7 +285,7 @@ contract FullTest is Test {
         stakerRewardsImpl = address(new ODefaultStakerRewards(address(networkMiddlewareService), tanssi));
 
         _deployMiddlewareWithProxy(operatorRewardsAddress, stakerRewardsFactoryAddress);
-        middlewareReader = OBaseMiddlewareReader(address(middleware));
+        middlewareReaderForwarder = new OBaseMiddlewareReaderForwarder(address(middleware));
 
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
         operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
@@ -832,7 +831,8 @@ contract FullTest is Test {
 
     function testOperatorPower() public {
         vm.warp(NETWORK_EPOCH_DURATION + 2);
-        Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+        Middleware.ValidatorData[] memory validators =
+            middlewareReaderForwarder.getValidatorSet(middleware.getCurrentEpoch());
 
         // On Vault 1: Operator 1 is the only staker.
         // On Vault 2: Operator 1 has 2 BTC Staked and it matches its limit.
@@ -894,7 +894,8 @@ contract FullTest is Test {
         _depositToVault(vaultsData.v1.vault, staker2, staker2Stake, STAR, true);
 
         vm.warp(NETWORK_EPOCH_DURATION + 2);
-        Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+        Middleware.ValidatorData[] memory validators =
+            middlewareReaderForwarder.getValidatorSet(middleware.getCurrentEpoch());
 
         // Vault 1 is Operator specific so all the power is taken into account for operator 1
         // Vault 2 is full restake so only the operator limit is taken into account
@@ -907,7 +908,8 @@ contract FullTest is Test {
 
     function testOperatorPowerUpdatesAfterNetworkEpochOnDeposit() public {
         vm.warp(NETWORK_EPOCH_DURATION + 2);
-        Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+        Middleware.ValidatorData[] memory validators =
+            middlewareReaderForwarder.getValidatorSet(middleware.getCurrentEpoch());
 
         uint256 expectedOperatorPower1 = OPERATOR1_STAKE_V1_STAR.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_STAR) // Normalized to 18 decimals
             + OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
@@ -918,24 +920,25 @@ contract FullTest is Test {
         _depositToVault(vaultsData.v1.vault, operator1, operator1_additional_stake, STAR, true);
 
         // Power should not change until the network epoch ends
-        validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+        validators = middlewareReaderForwarder.getValidatorSet(middleware.getCurrentEpoch());
         assertEq(validators[0].power, expectedOperatorPower1);
 
         // Power should not change until the network epoch ends
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION / 2);
-        validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+        validators = middlewareReaderForwarder.getValidatorSet(middleware.getCurrentEpoch());
         assertEq(validators[0].power, expectedOperatorPower1);
 
         // Power changes even before the vault epoch ends, only network epoch needs to
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION);
         expectedOperatorPower1 += operator1_additional_stake.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_STAR); // Normalized to 18 decimals
-        validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+        validators = middlewareReaderForwarder.getValidatorSet(middleware.getCurrentEpoch());
         assertEq(validators[0].power, expectedOperatorPower1);
     }
 
     function testOperatorPowerUpdatesAfterNetworkEpochOnWithdraw() public {
         vm.warp(NETWORK_EPOCH_DURATION + 2);
-        Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+        Middleware.ValidatorData[] memory validators =
+            middlewareReaderForwarder.getValidatorSet(middleware.getCurrentEpoch());
 
         uint256 expectedOperatorPower1 = OPERATOR1_STAKE_V1_STAR.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_STAR) // Normalized to 18 decimals
             + OPERATOR1_STAKE_V2_WBTC.mulDiv(uint256(ORACLE_CONVERSION_W_BTC), 10 ** ORACLE_DECIMALS_BTC);
@@ -946,18 +949,18 @@ contract FullTest is Test {
         _withdrawFromVault(vaultsData.v1.vault, operator1, operator1_withdraw_stake);
 
         // Power should not change until the network epoch ends
-        validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+        validators = middlewareReaderForwarder.getValidatorSet(middleware.getCurrentEpoch());
         assertEq(validators[0].power, expectedOperatorPower1);
 
         // Power should not change until the network epoch ends
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION / 2);
-        validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+        validators = middlewareReaderForwarder.getValidatorSet(middleware.getCurrentEpoch());
         assertEq(validators[0].power, expectedOperatorPower1);
 
         // Power changes even before the vault epoch ends, only network epoch needs to
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION);
         expectedOperatorPower1 -= operator1_withdraw_stake.mulDiv(10 ** 18, 10 ** TOKEN_DECIMALS_STAR); // Normalized to 18 decimals
-        validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+        validators = middlewareReaderForwarder.getValidatorSet(middleware.getCurrentEpoch());
         assertEq(validators[0].power, expectedOperatorPower1);
     }
 
@@ -1012,7 +1015,8 @@ contract FullTest is Test {
 
         vm.warp(vm.getBlockTimestamp() + VAULT_EPOCH_DURATION);
 
-        Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+        Middleware.ValidatorData[] memory validators =
+            middlewareReaderForwarder.getValidatorSet(middleware.getCurrentEpoch());
 
         // Check it is active and has expected power coming only from stakers
         uint256 len = validators.length;
@@ -1021,7 +1025,7 @@ contract FullTest is Test {
         assertEq(validators[len - 1].power, expectedPower);
 
         // Check it is the top one
-        bytes32[] memory sortedKeys = middlewareReader.sortOperatorsByPower(middleware.getCurrentEpoch());
+        bytes32[] memory sortedKeys = middlewareReaderForwarder.sortOperatorsByPower(middleware.getCurrentEpoch());
         assertEq(sortedKeys[0], OPERATOR8_KEY);
     }
 
@@ -2010,15 +2014,15 @@ contract FullTest is Test {
         vm.stopPrank();
 
         // The substrate key still points to initial evm address
-        address operatorFromKey = IOBaseMiddlewareReader(address(middleware)).operatorByKey(abi.encode(OPERATOR2_KEY));
+        address operatorFromKey = middlewareReaderForwarder.operatorByKey(abi.encode(OPERATOR2_KEY));
         assertEq(operatorFromKey, operator2);
 
         // The initial EVM address points to no key, link in this direction is removed when unregistering
-        bytes memory keyFromOperator = IOBaseMiddlewareReader(address(middleware)).operatorKey(operator2);
+        bytes memory keyFromOperator = middlewareReaderForwarder.operatorKey(operator2);
         assertEq(keyFromOperator, abi.encode(0));
 
         // The new EVM address points to no key since registration could not be completed.
-        keyFromOperator = IOBaseMiddlewareReader(address(middleware)).operatorKey(operator2New);
+        keyFromOperator = middlewareReaderForwarder.operatorKey(operator2New);
         assertEq(keyFromOperator, abi.encode(0));
 
         // Try to claim anyway, it will revert with already claimed
@@ -2067,11 +2071,11 @@ contract FullTest is Test {
         vm.stopPrank();
 
         // OPERATOR #2 KEY POINTS TO OPERATOR #1
-        address operatorFromKey = IOBaseMiddlewareReader(address(middleware)).operatorByKey(abi.encode(OPERATOR2_KEY));
+        address operatorFromKey = middlewareReaderForwarder.operatorByKey(abi.encode(OPERATOR2_KEY));
         assertEq(operatorFromKey, operator1);
 
         // OPERATOR #2 INACTIVE
-        bytes memory keyFromOperator = IOBaseMiddlewareReader(address(middleware)).operatorKey(operator2);
+        bytes memory keyFromOperator = middlewareReaderForwarder.operatorKey(operator2);
         assertEq(keyFromOperator, abi.encode(0));
 
         // TRY CLAIM
@@ -2635,7 +2639,8 @@ contract FullTest is Test {
             OPERATOR7_STAKE_V5_STETH - operator7Vault5SlashedStake - expectedActualWithdrawAmount
         ).mulDiv(uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS_ETH);
 
-        Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+        Middleware.ValidatorData[] memory validators =
+            middlewareReaderForwarder.getValidatorSet(middleware.getCurrentEpoch());
 
         uint48 currentVaultEpoch = uint48(vaultsData.v5.vault.currentEpoch());
         uint256 currentWithdrawals = vaultsData.v5.vault.withdrawalsOf(currentVaultEpoch + 1, operator7);
@@ -2748,7 +2753,8 @@ contract FullTest is Test {
             OPERATOR7_STAKE_V5_STETH + additionalStake - operator7Vault5SlashedStake - expectedActualWithdrawAmount
         ).mulDiv(uint256(ORACLE_CONVERSION_ST_ETH), 10 ** ORACLE_DECIMALS_ETH);
 
-        Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+        Middleware.ValidatorData[] memory validators =
+            middlewareReaderForwarder.getValidatorSet(middleware.getCurrentEpoch());
 
         uint48 currentVaultEpoch = uint48(vaultsData.v5.vault.currentEpoch());
         uint256 currentWithdrawals = vaultsData.v5.vault.withdrawalsOf(currentVaultEpoch + 1, operator7);
@@ -2758,7 +2764,8 @@ contract FullTest is Test {
     }
 
     function _checkStakesAfterIntantSlashing() private view {
-        Middleware.ValidatorData[] memory validators = middlewareReader.getValidatorSet(middleware.getCurrentEpoch());
+        Middleware.ValidatorData[] memory validators =
+            middlewareReaderForwarder.getValidatorSet(middleware.getCurrentEpoch());
 
         // ---------------------
         // Operator 1
@@ -2902,7 +2909,7 @@ contract FullTest is Test {
     function testCannotRegisterSharedOverTheLimit() public {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         uint256 maxVaults = middleware.MAX_ACTIVE_VAULTS();
-        uint256 activeSharedVaults = middlewareReader.sharedVaultsLength();
+        uint256 activeSharedVaults = middlewareReaderForwarder.sharedVaultsLength();
 
         vm.startPrank(tanssi);
         DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
@@ -2932,7 +2939,7 @@ contract FullTest is Test {
             middleware.registerSharedVault(address(vault), stakerRewardsParams);
         }
         vm.warp(vm.getBlockTimestamp() + VAULT_EPOCH_DURATION + 1);
-        activeSharedVaults = middlewareReader.sharedVaultsLength();
+        activeSharedVaults = middlewareReaderForwarder.sharedVaultsLength();
         assertLe(activeSharedVaults, maxVaults);
 
         (address vaultAfterLimit,,) = deployVault.createBaseVault(params);
@@ -2963,8 +2970,8 @@ contract FullTest is Test {
         assertTrue(operator1Found);
 
         uint256 maxVaults = middleware.MAX_ACTIVE_VAULTS();
-        uint256 activeSharedVaults = middlewareReader.sharedVaultsLength();
-        uint256 activeOperatorVaults = middlewareReader.operatorVaultsLength(operator1);
+        uint256 activeSharedVaults = middlewareReaderForwarder.sharedVaultsLength();
+        uint256 activeOperatorVaults = middlewareReaderForwarder.operatorVaultsLength(operator1);
         uint256 operatorSpecificVaultToCreate = 10 - activeOperatorVaults; // So in total this operator will have 10.
         uint256 sharedVaultsToCreate = maxVaults - activeSharedVaults - 5; // We go to up limit-5
         // Total vaults for the operator will be maxVaults + 5, but it is not detected on creation since operatorSpecific ones are created first.
@@ -3004,8 +3011,8 @@ contract FullTest is Test {
             middleware.registerSharedVault(address(vault), stakerRewardsParams);
         }
         vm.warp(vm.getBlockTimestamp() + VAULT_EPOCH_DURATION + 1);
-        activeSharedVaults = middlewareReader.sharedVaultsLength();
-        activeOperatorVaults = middlewareReader.operatorVaultsLength(operator1);
+        activeSharedVaults = middlewareReaderForwarder.sharedVaultsLength();
+        activeOperatorVaults = middlewareReaderForwarder.operatorVaultsLength(operator1);
 
         currentEpoch = middleware.getCurrentEpoch();
         assertEq(activeOperatorVaults, 10);
@@ -3026,7 +3033,7 @@ contract FullTest is Test {
         assertTrue(operator1Found);
 
         // The operator should be removed from the list of operators to send
-        bytes32[] memory sortedKeys = middlewareReader.sortOperatorsByPower(currentEpoch);
+        bytes32[] memory sortedKeys = middlewareReaderForwarder.sortOperatorsByPower(currentEpoch);
         operator1Found = false;
         for (uint256 i = 0; i < sortedKeys.length; i++) {
             if (sortedKeys[i] == OPERATOR1_KEY) {
