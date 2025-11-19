@@ -9,7 +9,7 @@
   "middleware": "0x1bbd37e4325d931aef5fedef1f87e8343835ace4",
   "middlewareImplementation": "0x98f6d7619e8a21280b9407c716d5779f68f400e0",
   "middlewareReader": "0xf8a0583dd6a87e6bedb18b1f3dec85e3de7dbe88",
-  "middlewareReaderForwarder": "",
+  "middlewareReaderForwarder": "0x8f521434b444d174f31ef547ef20582da4a6d733",
   "operatorRewards": "0xc4bd651bbc730c77459aa92500ad642fe4faa874",
   "operatorRewardsImplementation": "0x64bb7f40d744092a48cc1513275e09b6991a7ead",
   "stakerRewardsFactory": "0x7498227e40b764c32428baa5adb44c7a5bf28f5e",
