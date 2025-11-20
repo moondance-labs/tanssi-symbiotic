@@ -298,6 +298,7 @@ contract MiddlewareTest is Test {
         stakerRewardsImpl = address(new ODefaultStakerRewards(address(networkMiddlewareService), tanssi));
 
         middleware = _deployMiddlewareWithProxy(tanssi, owner, operatorRewardsAddress, stakerRewardsFactoryAddress);
+        readerForwarder = new OBaseMiddlewareReaderForwarder(address(middleware));
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
         operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
         operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware));
@@ -370,7 +371,7 @@ contract MiddlewareTest is Test {
 
         Middleware _middlewareImpl = new Middleware();
         _middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
-        readerForwarder = new OBaseMiddlewareReaderForwarder(address(_middleware));
+
         IMiddleware.InitParams memory params = IMiddleware.InitParams({
             network: _network,
             operatorRegistry: address(operatorRegistry),
@@ -904,14 +905,13 @@ contract MiddlewareTest is Test {
         assertEq(operator2VaultPairs.length, 1);
         assertEq(operator2VaultPairs[0].operator, operatorX);
         assertEq(operator2VaultPairs[0].vaults.length, 1);
+
         uint48 middlewareCurrentEpoch = middleware.getCurrentEpoch();
-        // TODO: Somehow this breaks with reader forwarder but not with the regular reader
         Middleware.OperatorVaultPair[] memory operatorVaultPairs =
             readerForwarder.getOperatorVaultPairs(middlewareCurrentEpoch);
-        // Middleware.OperatorVaultPair[] memory operatorVaultPairs =
-        //     OBaseMiddlewareReader(address(middleware)).getOperatorVaultPairs(middlewareCurrentEpoch);
+
         for (uint256 i = 0; i < operatorVaultPairs.length; i++) {
-            assert(operatorVaultPairs[i].operator != operatorX);
+            assertNotEq(operatorVaultPairs[i].operator, operatorX);
         }
     }
 

@@ -2111,17 +2111,18 @@ contract MiddlewareTest is Test {
         address _vault = makeAddr("vault");
         (,, int256 multiplier, uint8 oracleDecimals,) = _setVaultCollateral(_vault);
 
+        OBaseMiddlewareReaderForwarder readerForwarder = new OBaseMiddlewareReaderForwarder(address(middleware));
+        uint256 power = readerForwarder.stakeToPower(_vault, stake);
+
         // Need to do this otherwise it calls directly middleware stakeToPower and can't reach OBaseMiddlewareReader
         bytes memory baseCallData = abi.encodeWithSelector(OBaseMiddlewareReader.stakeToPower.selector, _vault, stake);
-
         bytes memory augmentedCallData = abi.encodePacked(baseCallData, address(middleware));
-
         (, bytes memory returnData) = address(readHelper).staticcall(augmentedCallData);
-
-        uint256 power = abi.decode(returnData, (uint256));
+        uint256 powerOnReader = abi.decode(returnData, (uint256));
 
         uint256 expectedPower = (stake * uint256(multiplier)) / (10 ** uint256(oracleDecimals));
         assertEq(power, expectedPower);
+        assertEq(powerOnReader, expectedPower);
     }
 
     function testStakeToPower() public {
@@ -2520,6 +2521,13 @@ contract MiddlewareTest is Test {
         vm.startPrank(forwarder);
         middleware.performUpkeep(performData);
         vm.stopPrank();
+
+        OBaseMiddlewareReaderForwarder readerForwarder = new OBaseMiddlewareReaderForwarder(address(middleware));
+        OBaseMiddlewareReader reader = OBaseMiddlewareReader(address(middleware));
+        assertEq(
+            readerForwarder.getPowerInUSD(address(vault), OPERATOR_STAKE),
+            reader.getPowerInUSD(address(vault), OPERATOR_STAKE)
+        );
     }
 
     function testUpkeepShouldRevertIfNotCalledByForwarder() public {
@@ -2673,18 +2681,10 @@ contract MiddlewareTest is Test {
             readerForwarder.keyWasActiveAt(0, abi.encode(OPERATOR_KEY)),
             reader.keyWasActiveAt(0, abi.encode(OPERATOR_KEY))
         );
-        console2.log("Collateral", address(collateral));
-        console2.log("Reader collateral", reader.collateralToOracle(address(collateral)));
-        console2.log("ReaderForwarder collateral", readerForwarder.collateralToOracle(address(collateral)));
         assertEq(
             readerForwarder.collateralToOracle(address(collateral)), reader.collateralToOracle(address(collateral))
         );
-        console2.log("Vault", address(vault));
-        console2.log("Reader vault to collateral", reader.vaultToCollateral(address(vault)));
-        console2.log("ReaderForwarder vault to collateral", readerForwarder.vaultToCollateral(address(vault)));
         assertEq(readerForwarder.vaultToCollateral(address(vault)), reader.vaultToCollateral(address(vault)));
-        console2.log("Vault to oracle", reader.vaultToOracle(address(vault)));
-        console2.log("ReaderForwarder vault to oracle", readerForwarder.vaultToOracle(address(vault)));
         assertEq(readerForwarder.vaultToOracle(address(vault)), reader.vaultToOracle(address(vault)));
         assertEq(readerForwarder.getEpochCacheIndex(0), reader.getEpochCacheIndex(0));
         assertEq(
@@ -2696,11 +2696,6 @@ contract MiddlewareTest is Test {
         assertEq(readerForwarder.getLastTimestamp(), reader.getLastTimestamp());
         assertEq(readerForwarder.getOperatorRewardsAddress(), reader.getOperatorRewardsAddress());
         assertEq(readerForwarder.getStakerRewardsFactoryAddress(), reader.getStakerRewardsFactoryAddress());
-
-        assertEq(
-            readerForwarder.stakeToPower(address(vault), OPERATOR_STAKE),
-            reader.stakeToPower(address(vault), OPERATOR_STAKE)
-        );
 
         address[] memory activeOperatorsForwarder = readerForwarder.getOperatorsByEpoch(1);
         address[] memory activeOperatorsReader = reader.getOperatorsByEpoch(1);
