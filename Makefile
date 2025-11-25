@@ -1,6 +1,6 @@
 -include .env
 
-#.PHONY: all test clean clean-all deploy install snapshot format anvil
+.PHONY: all test clean clean-all deploy install snapshot format anvil pre-deploy
 
 DEFAULT_ANVIL_KEY := 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
 
@@ -67,7 +67,6 @@ else
 endif
 NETWORK_ARGS := --rpc-url ${RPC_URL} --broadcast --verify --etherscan-api-key ${ETHERSCAN_API_KEY} ${ADDITIONAL_ARGS}
 
-.PHONY: pre-deploy
 pre-deploy:
 	@echo "🧹 Cleaning forge artifacts..."
 	@forge clean
