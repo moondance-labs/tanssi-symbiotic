@@ -7,10 +7,10 @@
   "gateway": "0x503b4d684074888eb7fe82d4c5ab25e57de0e85c",
   "gatewayImplementation": "0xb05b936fcbd7e2176e935cd93ea4fcc690e66ebd",
   "middleware": "0xdf94aaf9684b676db9664a4e9790cfbbbe64ef85",
-  "middlewareImplementation": "0x30A414f4a74820E733Acf9E41a2B37b3d541bE59",
-  "middlewareReader": "0x172022660a0077E770e171d204CdBCCdBB0cc0BE",
+  "middlewareImplementation": "0x6e1ab4ac682e4d267ce9f47832c25977fd1f6f61",
+  "middlewareReader": "0x9B3CA3f9FA5BF20793810635509e9f0716fDCA0F",
   "operatorRewards": "0x462af341b95212f7f5c4b51bb7941838961ab2b4",
-  "operatorRewardsImplementation": "0xe273B3588C57CFd2319e3E5cd5d646159E307D0F",
+  "operatorRewardsImplementation": "0xcc1c8e68047316a4b959b4c0ecb0d248dd962aeb",
   "stakerRewardsFactory": "0x9f11962b01a25e6861728f0168c752175d1b19f9",
   "rewardsHintsBuilder": "0xec9f7cb77a6be639d02aacc0378467608305d0ae",
 
@@ -46,7 +46,7 @@
       "slasher": "0x583f9a77af8f4d7aee735a2f7645bbd7a012af1b",
       "collateral": "0x3e3fe7dbc6b4c189e7128855dd526361c49b40af",
       "stakerRewards": "0x54c3fddfafa33e7a0ece37c61e0057bff3a9ef96",
-      "stakerRewardsImplementation": "0xA85089cCc9dc449bCE089628aD2752C82c6741da"
+      "stakerRewardsImplementation": "0xd74d8409c4d170e70cf3f316c998192dd301aad1"
     },
     {
       "name": "Tanssi",
@@ -55,7 +55,7 @@
       "slasher": "0xbeA63923197a6c79691F9a65Ca7E79C2a854CF5B",
       "collateral": "0x43609791BC5F1B42DF1747cddabab77af65a5fE3",
       "stakerRewards": "0x000c527D9263345B91F946e2579e76d4Ded0AbDC",
-      "stakerRewardsImplementation": "0xA85089cCc9dc449bCE089628aD2752C82c6741da"
+      "stakerRewardsImplementation": "0xd74d8409c4d170e70cf3f316c998192dd301aad1"
     }
   ]
 }
