@@ -7,11 +7,11 @@
   "gateway": "0x0e3dbc66840a36527d21560538907503f672677e",
   "gatewayImplementation": "0x5a7e4193ba91eb7538ff7e1e34e5df4d7ffd9144",
   "middleware": "0xdbc3804a9d3164a438ec222a222e8d8b2dffa0de",
-  "middlewareImplementation": "0xe9A8e0B86AfcaB173153Dd1b502857417416B92b",
-  "middlewareReader": "0x7280263836b146Eb94A2226BE68133Ac846FE807",
+  "middlewareImplementation": "0x92381309876f5d3837759543cbea48c82e22e760",
+  "middlewareReader": "0x352be52e4b1d6d207d633429e6a512c16ad5b9e7",
   "middlewareReaderForwarder": "0x8c1db841611361BC4d6C0691285D9C0B4d493f34",
   "operatorRewards": "0x5a1a8ce9f4d294aa1835252b5fe397d607d615c8",
-  "operatorRewardsImplementation": "0xf1a7da4d37e75d229066c9d69242d1789ed5763e",
+  "operatorRewardsImplementation": "0x9e1ec2e7b6a83c2aa01ada2a9c7e88c5cddb7352",
   "stakerRewardsFactory": "0xfe5221bb6ff8df14bc0b69b9e976e0b2bd3cf156",
   "rewardsHintsBuilder": "0x59364a4e7fdd15c236756fc24a517c3a6028b166",
 
@@ -46,7 +46,7 @@
       "slasher": "0xa2f02442fe12b42929ce9563a289a923f0631a9c",
       "collateral": "0x3e3fe7dbc6b4c189e7128855dd526361c49b40af",
       "stakerRewards": "0x14453f57a92881ba788d0caf29ad6cce1f9028f1",
-      "stakerRewardsImplementation": "0xddb7c3ad9d38c5bff6bcf2b063b8507302a3412a"
+      "stakerRewardsImplementation": "0x0c5d0bbbff5d168cf7d0f030561bb7539803c983"
     }
   ],
   "totalOperators": 1,

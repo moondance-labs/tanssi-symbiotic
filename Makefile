@@ -1,6 +1,6 @@
 -include .env
 
-.PHONY: all test clean clean-all deploy install snapshot format anvil
+.PHONY: all test clean clean-all deploy install snapshot format anvil pre-deploy
 
 DEFAULT_ANVIL_KEY := 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
 
@@ -67,67 +67,71 @@ else
 endif
 NETWORK_ARGS := --rpc-url ${RPC_URL} --broadcast --verify --etherscan-api-key ${ETHERSCAN_API_KEY} ${ADDITIONAL_ARGS}
 
-deploy-full-tanssi-eco-demo:
+pre-deploy:
+	@echo "🧹 Cleaning forge artifacts..."
+	@forge clean
+
+deploy-full-tanssi-eco-demo: pre-deploy
 	@echo "📡 Deploying Full Tanssi Ecosystem Locally for Demo..."
 	@forge script demos/DeployTanssiEcosystemDemo.s.sol --slow --skip-simulation ${NETWORK_ARGS}
 	@echo "✅ Full Tanssi Ecosystem Locally for Demo deployment completed"
 
-deploy-full-tanssi-eco:
+deploy-full-tanssi-eco: pre-deploy
 	@echo "📡 Deploying Full Tanssi Ecosystem..."
 	@forge script script/DeployProduction.s.sol:DeployProduction $(NETWORK_ARGS) --sig "deploy()" -vv
 	@echo "✅ Full Tanssi Ecosystem deployment completed"
 
-deploy-operator-rewards:
+deploy-operator-rewards: pre-deploy
 	@echo "📡 Deploying Operator Rewards..."
 	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "deployOperatorRewardsContract(address,address,uint48,address)" $(NETWORK) $(NETWORK_MIDDLEWARE_SERVICE) $(OPERATOR_SHARE) $(ADMIN_ADDRESS) -vv
 	@echo "✅ Operator Rewards deployment completed"
 
-deploy-staker-rewards-factory:
+deploy-staker-rewards-factory: pre-deploy
 	@echo "📡 Deploying Staker Rewards Factory..."
 	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "deployStakerRewardsFactoryContract(address,address,address,address,address)" $(VAULT_FACTORY_ADDRESS) $(NETWORK_MIDDLEWARE_SERVICE) $(OPERATOR_REWARDS_PROXY_ADDRESS) $(NETWORK) $(ADMIN_ADDRESS) -vv
 	@echo "✅ Staker Rewards Factory deployment completed"
 
-deploy-tanssi-vault:
+deploy-tanssi-vault: pre-deploy
 	@echo "📡 Deploying Tanssi Vault..."
 	@forge script script/DeployVault.s.sol:DeployVault $(NETWORK_ARGS) --sig "createTanssiVault(address,address,address)" $(VAULT_CONFIGURATOR_ADDRESS) $(ADMIN_ADDRESS) $(TOKEN_ADDRESS) -vv
 	@echo "✅ Tanssi Vault deployment completed"
 
-deploy-middleware:
+deploy-middleware: pre-deploy
 	@echo "📡 Deploying Middleware Implementation..."
-	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem $(NETWORK_ARGS) --sig "deployOnlyMiddleware(bool)" $(SHOULD_DEPLOY_READER) --optimize true --optimizer-runs 800 -vv 
+	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem $(NETWORK_ARGS) --sig "deployOnlyMiddleware(bool)" $(SHOULD_DEPLOY_READER) --optimize true --optimizer-runs 800 -vv
 	@echo "✅ Middleware Implementation deployment completed"
 
-deploy-middleware-reader-forwarder:
+deploy-middleware-reader-forwarder: pre-deploy
 	@echo "📡 Deploying Middleware Reader Forwarder..."
 	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem $(NETWORK_ARGS) --sig "deployMiddlewareReaderForwarder(address)" $(MIDDLEWARE_ADDRESS) --optimize true --optimizer-runs 800 -vv 
 	@echo "✅ Middleware Reader Forwarder deployment completed"
 
-deploy-staker-rewards:
+deploy-staker-rewards: pre-deploy
 	@echo "📡 Deploying Staker Rewards Implementation..."
 	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "deployStakerRewards(address,address)" $(NETWORK_MIDDLEWARE_SERVICE) $(NETWORK) -vv
 	@echo "✅ Staker Rewards Implementation deployment completed"
 
-upgrade-middleware:
+upgrade-middleware: pre-deploy
 	@echo "📡 Upgrading Middleware..."
 	@forge script script/DeployTanssiEcosystem.s.sol $(NETWORK_ARGS) --sig "upgradeMiddlewareBroadcast(address,uint256)" $(MIDDLEWARE_ADDRESS) $(CURRENT_MIDDLEWARE_VERSION) -vv
 	@echo "✅ Middleware upgrade completed"
 
-upgrade-operator-rewards:
+upgrade-operator-rewards: pre-deploy
 	@echo "📡 Upgrading Operator Rewards..."
 	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "upgradeOperatorRewards(address,address,address)" $(OPERATOR_REWARDS_PROXY_ADDRESS) $(NETWORK) $(NETWORK_MIDDLEWARE_SERVICE) -vv
 	@echo "✅ Operator Rewards upgrade completed"
 	
-deploy-dia-aggregator-oracle-proxy:
+deploy-dia-aggregator-oracle-proxy: pre-deploy
 	@echo "📡 Deploying DIA Aggregator Oracle Proxy..."
 	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem $(NETWORK_ARGS) --sig "deployDIAAggregatorOracleProxy(address,string)" $(DIA_ORACLE_ADDRESS) $(PAIR_SYMBOL) -vv
 	@echo "✅ DIA Aggregator Oracle Proxy deployment completed"
 
-deploy-reader:
+deploy-reader: pre-deploy
 	@echo "📡 Deploying Middleware Reader..."
 	@forge script script/DeployTanssiEcosystem.s.sol:DeployTanssiEcosystem $(NETWORK_ARGS) --sig "deployMiddlewareReader()" -vv
 	@echo "✅ Middleware Reader deployment completed"
 
-deploy-rewards-hints-builder:
+deploy-rewards-hints-builder: pre-deploy
 	@echo "📡 Deploying Rewards Hints Builder..."
 	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "deployRewardsHintsBuilder(address,address,address)" $(MIDDLEWARE_ADDRESS) $(OPERATOR_REWARDS_PROXY_ADDRESS) $(VAULT_HINTS_ADDRESS) -vv
 	@echo "✅ Rewards Hints Builder deployment completed"
