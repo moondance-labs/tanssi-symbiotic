@@ -489,10 +489,9 @@ contract Middleware is
         bytes calldata performData;
 
         assembly {
-            // 1. Load Execution Code (First 32 bytes)
             executionCode := calldataload(report.offset)
 
-            // 2. Create the 'performData' slice manually
+            // Create the 'performData' slice manually
             // The length of the inner bytes is stored at offset 64 (0x40)
             let len := calldataload(add(report.offset, 64))
 
