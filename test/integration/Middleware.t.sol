@@ -1421,7 +1421,8 @@ contract MiddlewareTest is Test {
             totalGasUsedForCheck += gasUsedForCheck;
             lastGasUsedForCheck = gasUsedForCheck;
             gasBefore_ = gasleft();
-            middleware.onReport(WORKFLOW_METADATA, performData);
+            bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+            middleware.onReport(WORKFLOW_METADATA, report);
             uint256 gasUsedForPerform = gasBefore_ - gasleft();
             // Assert gas usage is below 5M perform gas limit by chainlink
             assertLt(gasUsedForPerform, 5_000_000);
@@ -1473,7 +1474,8 @@ contract MiddlewareTest is Test {
         assertEq(upkeepNeeded, true);
 
         vm.startPrank(forwarder);
-        middleware.onReport(WORKFLOW_METADATA, performData);
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
         uint48 epoch = middleware.getCurrentEpoch();
 
         uint256 operator1Power = middleware.getOperatorToPowerCached(epoch, OPERATOR_KEY);
@@ -1503,7 +1505,8 @@ contract MiddlewareTest is Test {
         vm.startPrank(forwarder);
         vm.expectEmit(true, false, false, false);
         emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
-        middleware.onReport(WORKFLOW_METADATA, performData);
+        report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
 
         (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, false);
@@ -1543,14 +1546,18 @@ contract MiddlewareTest is Test {
 
         uint16 count = uint16(middleware.MAX_OPERATORS_TO_PROCESS()) + 1;
         _addOperatorsToNetwork(count - 3); // 3 operators are already registered
+        bytes memory performData;
+        bool upkeepNeeded;
 
         uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, count);
         for (uint256 i = 0; i < totalBatches; i++) {
-            (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+            (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
             assertEq(upkeepNeeded, true);
 
+            bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+
             vm.prank(forwarder);
-            middleware.onReport(WORKFLOW_METADATA, performData);
+            middleware.onReport(WORKFLOW_METADATA, report);
         }
 
         // After the loop, we should have all operators processed and cache filled
@@ -1558,7 +1565,7 @@ contract MiddlewareTest is Test {
         assertEq(cacheIndex, count);
 
         // List should be empty, but we still need to call performUpkeep to call the gateway
-        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
         (uint8 command, uint48 encodedEpoch, bytes32[] memory sortedKeys) =
             abi.decode(performData, (uint8, uint48, bytes32[]));
@@ -1579,7 +1586,8 @@ contract MiddlewareTest is Test {
         assertEq(upkeepNeeded, true);
 
         vm.startPrank(forwarder);
-        middleware.onReport(WORKFLOW_METADATA, performData);
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
         uint48 epoch = middleware.getCurrentEpoch();
 
         (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
@@ -1594,7 +1602,8 @@ contract MiddlewareTest is Test {
         vm.startPrank(forwarder);
         vm.expectEmit(true, false, false, false);
         emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
-        middleware.onReport(WORKFLOW_METADATA, performData);
+        report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
 
         (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, false);
@@ -1649,7 +1658,8 @@ contract MiddlewareTest is Test {
 
                 vm.startPrank(forwarder);
                 uint256 gasBeforePerform = gasleft();
-                middleware.onReport(WORKFLOW_METADATA, performData);
+                bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+                middleware.onReport(WORKFLOW_METADATA, report);
                 uint256 gasAfterPerform = gasleft();
                 uint256 gasUsedPerform = gasBeforePerform - gasAfterPerform;
                 totalGasUsedForPerform += gasUsedPerform;
@@ -1678,7 +1688,8 @@ contract MiddlewareTest is Test {
             vm.expectEmit(true, false, false, false);
             emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
             uint256 gasBeforeFinalPerform = gasleft();
-            middleware.onReport(WORKFLOW_METADATA, performData);
+            bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+            middleware.onReport(WORKFLOW_METADATA, report);
             uint256 gasAfterFinalPerform = gasleft();
             uint256 gasUsedFinalPerform = gasBeforeFinalPerform - gasAfterFinalPerform;
             totalGasUsedForPerform += gasUsedFinalPerform;
@@ -1711,7 +1722,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(offlineKeepers);
         bool upkeepNeeded;
         bytes memory performData;
-
+        bytes memory report;
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         uint48 epoch = middleware.getCurrentEpoch();
 
@@ -1724,7 +1735,8 @@ contract MiddlewareTest is Test {
             assertLe(performData.length, 2000);
 
             vm.startPrank(forwarder);
-            middleware.onReport(WORKFLOW_METADATA, performData);
+            report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+            middleware.onReport(WORKFLOW_METADATA, report);
         }
 
         (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
@@ -1740,7 +1752,8 @@ contract MiddlewareTest is Test {
         assertLe(performData.length, 2000);
 
         vm.startPrank(forwarder);
-        middleware.onReport(WORKFLOW_METADATA, performData);
+        report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
     }
 
     function testUpkeepShouldFailDueToWrongCacheCommand() public {
@@ -1754,7 +1767,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(offlineKeepers);
         bool upkeepNeeded;
         bytes memory performData;
-
+        bytes memory report;
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, count);
@@ -1763,13 +1776,15 @@ contract MiddlewareTest is Test {
             assertEq(upkeepNeeded, true);
 
             vm.startPrank(forwarder);
-            middleware.onReport(WORKFLOW_METADATA, performData);
+            report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+            middleware.onReport(WORKFLOW_METADATA, report);
         }
 
+        report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
         vm.expectRevert(
             abi.encodeWithSelector(IMiddleware.Middleware__InvalidCommand.selector, middleware.CACHE_DATA_COMMAND())
         );
-        middleware.onReport(WORKFLOW_METADATA, performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
     }
 
     function testUpkeepShouldFailDueToWrongSendCommand() public {
@@ -1797,10 +1812,11 @@ contract MiddlewareTest is Test {
         performData = abi.encode(middleware.SEND_DATA_COMMAND(), epoch, data);
 
         vm.startPrank(forwarder);
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
         vm.expectRevert(
             abi.encodeWithSelector(IMiddleware.Middleware__InvalidCommand.selector, middleware.SEND_DATA_COMMAND())
         );
-        middleware.onReport(WORKFLOW_METADATA, performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
     }
 
     function testUpkeepShouldFailToDecodeIfUsingValidatorsKeysInsteadOfValidatorsData() public {
@@ -1814,6 +1830,7 @@ contract MiddlewareTest is Test {
         vm.startPrank(offlineKeepers);
         bool upkeepNeeded;
         bytes memory performData;
+        bytes memory report;
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
@@ -1823,14 +1840,16 @@ contract MiddlewareTest is Test {
             assertEq(upkeepNeeded, true);
 
             vm.startPrank(forwarder);
-            middleware.onReport(WORKFLOW_METADATA, performData);
+            report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+            middleware.onReport(WORKFLOW_METADATA, report);
         }
 
         (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
+        report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
         vm.expectRevert();
-        middleware.onReport(WORKFLOW_METADATA, performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
     }
 
     function testUpkeepCacheIsAlwaysLessOrEqualThanActiveOperators() public {
@@ -1856,7 +1875,8 @@ contract MiddlewareTest is Test {
                 assertEq(upkeepNeeded, true);
 
                 vm.startPrank(forwarder);
-                middleware.onReport(WORKFLOW_METADATA, performData);
+                bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+                middleware.onReport(WORKFLOW_METADATA, report);
             }
         }
     }
@@ -1876,7 +1896,8 @@ contract MiddlewareTest is Test {
         assertEq(upkeepNeeded, true);
 
         vm.startPrank(forwarder);
-        middleware.onReport(WORKFLOW_METADATA, performData);
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
 
         uint256 operator1Power = middleware.getOperatorToPowerCached(epoch, OPERATOR_KEY);
         uint256 operator2Power = middleware.getOperatorToPowerCached(epoch, OPERATOR2_KEY);
@@ -1914,7 +1935,8 @@ contract MiddlewareTest is Test {
         vm.startPrank(forwarder);
         vm.expectEmit(true, false, false, false);
         emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
-        middleware.onReport(WORKFLOW_METADATA, performData);
+        report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
 
         (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, false);

@@ -18,6 +18,8 @@ import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {Script} from "forge-std/Script.sol";
 
 contract TestUtils is Script {
+    uint8 public constant EXECUTION_CODE_CACHE = 101;
+
     function getTotalBatchesForCount(Middleware middleware, uint256 count) public view returns (uint256) {
         uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
         uint256 totalBatches = count / max;
@@ -61,5 +63,12 @@ contract TestUtils is Script {
         }
 
         return hexString;
+    }
+
+    function encodePerformDataToReport(
+        uint8 executionCode,
+        bytes memory performData
+    ) public pure returns (bytes memory report) {
+        report = abi.encode(executionCode, performData);
     }
 }

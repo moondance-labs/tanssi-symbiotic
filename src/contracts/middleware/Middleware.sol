@@ -485,17 +485,29 @@ contract Middleware is
     function _processReport(
         bytes calldata report
     ) internal override {
-        // TODO fix issue while reading the bytes from report
-        // uint8 executionCode;
-        // assembly {
-        //     // Load 32 bytes starting at offset 32 (second 32-byte slot)
-        //     let executionData := calldataload(report.offset)
-        //     executionCode := executionData
-        // }
-        // (uint8 executionCode, bytes memory performData) = abi.decode(report, (uint8, bytes));
-        _cacheAndSendOperatorsFlow(report);
-        // if (executionCode == 101) {
-        // } else {}
+        uint8 executionCode;
+        bytes calldata performData;
+
+        assembly {
+            // 1. Load Execution Code (First 32 bytes)
+            executionCode := calldataload(report.offset)
+
+            // 2. Create the 'performData' slice manually
+            // The length of the inner bytes is stored at offset 64 (0x40)
+            let len := calldataload(add(report.offset, 64))
+
+            // The actual data starts at offset 96 (0x60)
+            // (32 bytes code + 32 bytes offset_ptr + 32 bytes length_prefix)
+            let ptr := add(report.offset, 96)
+
+            // Assign to the 'performData' stack variable
+            performData.offset := ptr
+            performData.length := len
+        }
+
+        if (executionCode == 101) {
+            _cacheAndSendOperatorsFlow(performData);
+        } else {}
     }
 
     function _cacheAndSendOperatorsFlow(
@@ -529,7 +541,7 @@ contract Middleware is
         uint256 operatorsLength = _operatorsLength();
         uint256 cacheIndex = cache.epochToCacheIndex[epoch];
         uint256 pendingOperatorsToCache = operatorsLength - cacheIndex;
-
+        console2.log("Pending operators to cache: ", pendingOperatorsToCache);
         if (pendingOperatorsToCache > 0) {
             (uint8 command,, ValidatorData[] memory validatorsData) =
                 abi.decode(performData, (uint8, uint48, ValidatorData[]));

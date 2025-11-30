@@ -464,6 +464,7 @@ contract FullTest is Test {
         vm.prank(offlineKeepers);
         uint256 processedOperators;
         TestUtils testUtils = new TestUtils();
+        bytes memory report;
         uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, totalActiveOperators);
         for (uint256 i = 0; i < totalBatches; i++) {
             beforeGas = gasleft();
@@ -481,7 +482,8 @@ contract FullTest is Test {
 
             vm.prank(forwarder);
             beforeGas = gasleft();
-            middleware.onReport(WORKFLOW_METADATA, performData);
+            report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+            middleware.onReport(WORKFLOW_METADATA, report);
             afterGas = gasleft();
             console2.log("Gas used for perform on caching: ", beforeGas - afterGas);
             assertLt(beforeGas - afterGas, MAX_CHAINLINK_PERFORMUPKEEP_GAS); // Check that gas is lower than 5M limit
@@ -507,7 +509,10 @@ contract FullTest is Test {
         beforeGas = gasleft();
         vm.expectEmit(true, false, false, false);
         emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
-        middleware.onReport(WORKFLOW_METADATA, performData);
+
+        report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
+
         afterGas = gasleft();
         console2.log("Gas used for final perform (sending): ", beforeGas - afterGas);
         assertLt(beforeGas - afterGas, MAX_CHAINLINK_PERFORMUPKEEP_GAS); // Check that gas is lower than 5M limit

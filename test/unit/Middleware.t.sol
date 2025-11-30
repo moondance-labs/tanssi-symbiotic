@@ -2543,9 +2543,11 @@ contract MiddlewareTest is Test {
 
         assertEq(performData.length, 0);
 
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+
         vm.prank(forwarder2);
         vm.expectRevert(IMiddleware.Middleware__NoPerformData.selector);
-        middleware.onReport(WORKFLOW_METADATA, performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
     }
 
     function testUpkeepWithMoreOperators() public {
@@ -2581,7 +2583,8 @@ contract MiddlewareTest is Test {
         assertEq(command, middleware.CACHE_DATA_COMMAND());
         assertEq(validatorsData.length, 2);
         vm.startPrank(forwarder);
-        middleware.onReport(WORKFLOW_METADATA, performData);
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
         vm.stopPrank();
     }
 
@@ -2596,12 +2599,14 @@ contract MiddlewareTest is Test {
         (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
 
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+
         vm.expectRevert(
             abi.encodeWithSelector(
                 IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), FORWARDER_ROLE
             )
         );
-        middleware.onReport(WORKFLOW_METADATA, performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
     }
 
     function testUpkeepShouldRevertIfGatewayNotSet() public {
@@ -2621,9 +2626,10 @@ contract MiddlewareTest is Test {
         (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
 
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
         vm.prank(forwarder);
         vm.expectRevert(IMiddleware.Middleware__GatewayNotSet.selector);
-        middleware.onReport(WORKFLOW_METADATA, performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
     }
 
     function testUpkeepShouldRevertIfAlreadyCached() public {
@@ -2644,9 +2650,10 @@ contract MiddlewareTest is Test {
         (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
 
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
         vm.prank(forwarder);
         vm.expectRevert(IMiddleware.Middleware__AlreadyCached.selector);
-        middleware.onReport(WORKFLOW_METADATA, performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
     }
 
     // ************************************************************************************************
@@ -2737,7 +2744,8 @@ contract MiddlewareTest is Test {
         bytes memory performData = abi.encode(uint8(1), uint48(0), new IMiddleware.ValidatorData[](0));
         // Whatever name is fine because it's completely ignored in the function logic since it was set as empty
         WORKFLOW_METADATA = abi.encodePacked(workflowId, emptyBytes, workflowOwner);
-        middleware.onReport(WORKFLOW_METADATA, performData);
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
     }
 
     function testSetExpectedWorkflowIdWithEmptyId() public {
@@ -2751,7 +2759,8 @@ contract MiddlewareTest is Test {
         bytes memory performData = abi.encode(uint8(1), uint48(0), new IMiddleware.ValidatorData[](0));
         // Whatever name is fine because it's completely ignored in the function logic since it was set as empty
         WORKFLOW_METADATA = abi.encodePacked(workflowId, workflowNameEncoded, workflowOwner);
-        middleware.onReport(WORKFLOW_METADATA, performData);
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
     }
 
     function testSetExpectedWorkflowIdWithEmptyAuthor() public {
@@ -2765,7 +2774,8 @@ contract MiddlewareTest is Test {
         bytes memory performData = abi.encode(uint8(1), uint48(0), new IMiddleware.ValidatorData[](0));
         // Whatever name is fine because it's completely ignored in the function logic since it was set as empty
         WORKFLOW_METADATA = abi.encodePacked(workflowId, workflowNameEncoded, workflowOwner);
-        middleware.onReport(WORKFLOW_METADATA, performData);
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
     }
 
     function testOnReportRevertWithInvalidWorkflowId() public {
@@ -2777,14 +2787,16 @@ contract MiddlewareTest is Test {
         vm.startPrank(forwarder);
         bytes32 workflowId2 = bytes32(uint256(2));
 
+        WORKFLOW_METADATA = abi.encodePacked(workflowId2, workflowNameEncoded, workflowOwner);
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+
         vm.expectRevert(
             abi.encodeWithSelector(
                 IReceiverTemplate.IReceiverTemplate__InvalidWorkflowId.selector, workflowId2, workflowId
             )
         );
 
-        WORKFLOW_METADATA = abi.encodePacked(workflowId2, workflowNameEncoded, workflowOwner);
-        middleware.onReport(WORKFLOW_METADATA, performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
     }
 
     function testOnReportRevertWithInvalidWorkflowAuthor() public {
@@ -2795,13 +2807,15 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(forwarder);
         address fakeOwner = makeAddr("fakeOwner");
+        WORKFLOW_METADATA = abi.encodePacked(workflowId, workflowNameEncoded, fakeOwner);
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+
         vm.expectRevert(
             abi.encodeWithSelector(
                 IReceiverTemplate.IReceiverTemplate__InvalidAuthor.selector, fakeOwner, workflowOwner
             )
         );
-        WORKFLOW_METADATA = abi.encodePacked(workflowId, workflowNameEncoded, fakeOwner);
-        middleware.onReport(WORKFLOW_METADATA, performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
     }
 
     function testOnReportRevertWithInvalidWorkflowName() public {
@@ -2812,6 +2826,10 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(forwarder);
         bytes10 fakeWorkflowNameEncoded = testUtils.encodeStringToBytes10("FakeNameEncoded");
+
+        WORKFLOW_METADATA = abi.encodePacked(workflowId, fakeWorkflowNameEncoded, workflowOwner);
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+
         vm.expectRevert(
             abi.encodeWithSelector(
                 IReceiverTemplate.IReceiverTemplate__InvalidWorkflowName.selector,
@@ -2820,8 +2838,7 @@ contract MiddlewareTest is Test {
             )
         );
 
-        WORKFLOW_METADATA = abi.encodePacked(workflowId, fakeWorkflowNameEncoded, workflowOwner);
-        middleware.onReport(WORKFLOW_METADATA, performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
     }
 
     function testOnReportSuccessWithNoChecksEnabled() public {
@@ -2837,7 +2854,8 @@ contract MiddlewareTest is Test {
         bytes memory randomMetadata = hex"DEADBEEF";
 
         vm.startPrank(forwarder);
-        middleware.onReport(randomMetadata, performData);
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
     }
 
     function testOnReportRevertUnauthorizedCaller() public {
@@ -2852,12 +2870,13 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(maliciousUser);
 
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
         vm.expectRevert(
             abi.encodeWithSelector(
                 IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(maliciousUser), FORWARDER_ROLE
             )
         );
-        middleware.onReport(metadata, performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
     }
 
     function testOnReportRevertWithShortMetadata() public {
@@ -2871,10 +2890,11 @@ contract MiddlewareTest is Test {
         bytes memory shortMetadata = abi.encodePacked(workflowId);
         bytes memory performData = hex"";
 
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+
         // There is no check so it defaults revert since it's reading out of the current bytes
         vm.expectRevert();
-
-        middleware.onReport(shortMetadata, performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
     }
 
     function testOnReportSuccessMixedChecks() public {
@@ -2891,7 +2911,8 @@ contract MiddlewareTest is Test {
         bytes memory performData = abi.encode(uint8(1), uint48(0), new IMiddleware.ValidatorData[](0));
 
         vm.startPrank(forwarder);
-        middleware.onReport(WORKFLOW_METADATA, performData);
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
     }
 
     function testOnReportRevertMixedChecksFailure() public {
@@ -2909,12 +2930,13 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(forwarder);
 
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
         vm.expectRevert(
             abi.encodeWithSelector(
                 IReceiverTemplate.IReceiverTemplate__InvalidAuthor.selector, wrongAuthor, workflowOwner
             )
         );
-        middleware.onReport(WORKFLOW_METADATA, performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
     }
 
     function testSupportsInterface() public {

@@ -249,6 +249,7 @@ contract FullTest is Test {
     ODefaultOperatorRewards operatorRewards;
     address stakerRewardsImpl;
     ODefaultStakerRewardsFactory stakerRewardsFactory;
+    TestUtils testUtils;
 
     // ************************************************************************************************
     // *                                        SETUP
@@ -310,7 +311,7 @@ contract FullTest is Test {
         middleware.setExpectedWorkflowName(workflowName);
         middleware.setExpectedWorkflowId(workflowId);
 
-        TestUtils testUtils = new TestUtils();
+        testUtils = new TestUtils();
         workflowNameEncoded = testUtils.encodeStringToBytes10(workflowName);
         WORKFLOW_METADATA = abi.encodePacked(workflowId, workflowNameEncoded, workflowOwner);
 
@@ -1384,7 +1385,8 @@ contract FullTest is Test {
 
             vm.startPrank(forwarder);
             gasBefore = gasleft();
-            middleware.onReport(WORKFLOW_METADATA, performData);
+            bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+            middleware.onReport(WORKFLOW_METADATA, report);
             console2.log("Gas used to performUpkeep:", gasBefore - gasleft());
         }
 
