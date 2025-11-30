@@ -67,6 +67,8 @@ import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareRea
 import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {Token} from "test/mocks/Token.sol";
+import {TestUtils} from "test/utils/Utils.t.sol";
+
 import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
 import {DeployVault} from "script/DeployVault.s.sol";
@@ -229,8 +231,15 @@ contract FullTest is Test {
     address public resolver2 = makeAddr("resolver2"); // For Vault 5
     address public forwarder = makeAddr("forwarder");
 
+    address public workflowOwner = makeAddr("workflowOwner");
+    string public workflowName = "workflow_tanssi";
+    bytes10 public workflowNameEncoded;
+    bytes32 public workflowId = bytes32(uint256(1));
+
     address tanssi;
     address gateway;
+
+    bytes public WORKFLOW_METADATA;
 
     VaultsData public vaultsData;
 
@@ -297,6 +306,14 @@ contract FullTest is Test {
         middleware.setCollateralToOracle(address(STAR), starOracle);
         middleware.setCollateralToOracle(address(wBTC), wBtcOracle);
         middleware.setCollateralToOracle(address(stETH), stEthOracle);
+        middleware.setExpectedAuthor(workflowOwner);
+        middleware.setExpectedWorkflowName(workflowName);
+        middleware.setExpectedWorkflowId(workflowId);
+
+        TestUtils testUtils = new TestUtils();
+        workflowNameEncoded = testUtils.encodeStringToBytes10(workflowName);
+        WORKFLOW_METADATA = abi.encodePacked(workflowId, workflowNameEncoded, workflowOwner);
+
         vm.stopPrank();
 
         vm.prank(owner);
@@ -1367,7 +1384,7 @@ contract FullTest is Test {
 
             vm.startPrank(forwarder);
             gasBefore = gasleft();
-            middleware.performUpkeep(performData);
+            middleware.onReport(WORKFLOW_METADATA, performData);
             console2.log("Gas used to performUpkeep:", gasBefore - gasleft());
         }
 

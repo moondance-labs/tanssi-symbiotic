@@ -54,6 +54,7 @@ import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3
 //**************************************************************************************************
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 //**************************************************************************************************
 //                                      SNOWBRIDGE
@@ -70,6 +71,8 @@ import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
+import {IReceiverTemplate} from "src/interfaces/middleware/IReceiverTemplate.sol";
+import {IReceiver} from "src/interfaces/middleware/IReceiver.sol";
 import {MiddlewareV2} from "./utils/MiddlewareV2.sol";
 import {MiddlewareV3} from "./utils/MiddlewareV3.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
@@ -84,6 +87,7 @@ import {RegistryMock} from "../mocks/symbiotic/RegistryMock.sol";
 import {VaultMock} from "../mocks/symbiotic/VaultMock.sol";
 import {SharedVaultMock} from "../mocks/symbiotic/SharedVaultMock.sol";
 import {Token} from "../mocks/Token.sol";
+import {TestUtils} from "test/utils/Utils.t.sol";
 
 contract MiddlewareTest is Test {
     using Subnetwork for address;
@@ -121,6 +125,13 @@ contract MiddlewareTest is Test {
     address forwarder = makeAddr("forwarder");
     address readHelper;
 
+    address public workflowOwner = makeAddr("workflowOwner");
+    string internal workflowName = "workflow_tanssi";
+    bytes10 public workflowNameEncoded;
+    bytes32 public workflowId = bytes32(uint256(1));
+
+    bytes public WORKFLOW_METADATA;
+
     NetworkMiddlewareService networkMiddlewareService;
     OptInServiceMock operatorNetworkOptInServiceMock;
     OptInServiceMock operatorVaultOptInServiceMock;
@@ -134,6 +145,7 @@ contract MiddlewareTest is Test {
     Slasher slasherWithBadType;
     Token collateral;
     MockV3Aggregator collateralOracle;
+    TestUtils testUtils;
 
     DeployRewards deployRewards;
     DeployCollateral deployCollateral;
@@ -221,6 +233,14 @@ contract MiddlewareTest is Test {
 
         middleware.setGateway(address(gateway));
         middleware.setCollateralToOracle(address(collateral), address(collateralOracle));
+
+        middleware.setExpectedAuthor(workflowOwner);
+        middleware.setExpectedWorkflowName(workflowName);
+        middleware.setExpectedWorkflowId(workflowId);
+
+        testUtils = new TestUtils();
+        workflowNameEncoded = testUtils.encodeStringToBytes10(workflowName);
+        WORKFLOW_METADATA = abi.encodePacked(workflowId, workflowNameEncoded, workflowOwner);
 
         stakerRewardsParams.implementation =
             address(new ODefaultStakerRewards(address(networkMiddlewareService), tanssi));
@@ -2525,7 +2545,7 @@ contract MiddlewareTest is Test {
 
         vm.prank(forwarder2);
         vm.expectRevert(IMiddleware.Middleware__NoPerformData.selector);
-        middleware.performUpkeep(performData);
+        middleware.onReport(WORKFLOW_METADATA, performData);
     }
 
     function testUpkeepWithMoreOperators() public {
@@ -2561,7 +2581,7 @@ contract MiddlewareTest is Test {
         assertEq(command, middleware.CACHE_DATA_COMMAND());
         assertEq(validatorsData.length, 2);
         vm.startPrank(forwarder);
-        middleware.performUpkeep(performData);
+        middleware.onReport(WORKFLOW_METADATA, performData);
         vm.stopPrank();
     }
 
@@ -2581,7 +2601,7 @@ contract MiddlewareTest is Test {
                 IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), FORWARDER_ROLE
             )
         );
-        middleware.performUpkeep(performData);
+        middleware.onReport(WORKFLOW_METADATA, performData);
     }
 
     function testUpkeepShouldRevertIfGatewayNotSet() public {
@@ -2603,7 +2623,7 @@ contract MiddlewareTest is Test {
 
         vm.prank(forwarder);
         vm.expectRevert(IMiddleware.Middleware__GatewayNotSet.selector);
-        middleware.performUpkeep(performData);
+        middleware.onReport(WORKFLOW_METADATA, performData);
     }
 
     function testUpkeepShouldRevertIfAlreadyCached() public {
@@ -2626,7 +2646,7 @@ contract MiddlewareTest is Test {
 
         vm.prank(forwarder);
         vm.expectRevert(IMiddleware.Middleware__AlreadyCached.selector);
-        middleware.performUpkeep(performData);
+        middleware.onReport(WORKFLOW_METADATA, performData);
     }
 
     // ************************************************************************************************
@@ -2702,6 +2722,214 @@ contract MiddlewareTest is Test {
         middleware.setCollateralToOracle(_collateral, address(0));
         vm.stopPrank();
         assertEq(middleware.collateralToOracle(_collateral), address(0));
+    }
+
+    function testSetExpectedWorkflowNameWithEmptyName() public {
+        string memory emptyString = "";
+
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+        middleware.setExpectedWorkflowName(emptyString);
+
+        bytes10 emptyBytes = testUtils.encodeStringToBytes10(emptyString);
+
+        vm.startPrank(forwarder);
+        bytes memory performData = abi.encode(uint8(1), uint48(0), new IMiddleware.ValidatorData[](0));
+        // Whatever name is fine because it's completely ignored in the function logic since it was set as empty
+        WORKFLOW_METADATA = abi.encodePacked(workflowId, emptyBytes, workflowOwner);
+        middleware.onReport(WORKFLOW_METADATA, performData);
+    }
+
+    function testSetExpectedWorkflowIdWithEmptyId() public {
+        bytes32 emptyWorkflowId = bytes32(0);
+
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+        middleware.setExpectedWorkflowId(emptyWorkflowId);
+
+        vm.startPrank(forwarder);
+        bytes memory performData = abi.encode(uint8(1), uint48(0), new IMiddleware.ValidatorData[](0));
+        // Whatever name is fine because it's completely ignored in the function logic since it was set as empty
+        WORKFLOW_METADATA = abi.encodePacked(workflowId, workflowNameEncoded, workflowOwner);
+        middleware.onReport(WORKFLOW_METADATA, performData);
+    }
+
+    function testSetExpectedWorkflowIdWithEmptyAuthor() public {
+        address noOwner = address(0);
+
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+        middleware.setExpectedAuthor(noOwner);
+
+        vm.startPrank(forwarder);
+        bytes memory performData = abi.encode(uint8(1), uint48(0), new IMiddleware.ValidatorData[](0));
+        // Whatever name is fine because it's completely ignored in the function logic since it was set as empty
+        WORKFLOW_METADATA = abi.encodePacked(workflowId, workflowNameEncoded, workflowOwner);
+        middleware.onReport(WORKFLOW_METADATA, performData);
+    }
+
+    function testOnReportRevertWithInvalidWorkflowId() public {
+        bytes memory performData = abi.encode(uint8(1), uint48(1), new IMiddleware.ValidatorData[](0));
+
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+
+        vm.startPrank(forwarder);
+        bytes32 workflowId2 = bytes32(uint256(2));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IReceiverTemplate.IReceiverTemplate__InvalidWorkflowId.selector, workflowId2, workflowId
+            )
+        );
+
+        WORKFLOW_METADATA = abi.encodePacked(workflowId2, workflowNameEncoded, workflowOwner);
+        middleware.onReport(WORKFLOW_METADATA, performData);
+    }
+
+    function testOnReportRevertWithInvalidWorkflowAuthor() public {
+        bytes memory performData = abi.encode(uint8(1), uint48(1), new IMiddleware.ValidatorData[](0));
+
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+
+        vm.startPrank(forwarder);
+        address fakeOwner = makeAddr("fakeOwner");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IReceiverTemplate.IReceiverTemplate__InvalidAuthor.selector, fakeOwner, workflowOwner
+            )
+        );
+        WORKFLOW_METADATA = abi.encodePacked(workflowId, workflowNameEncoded, fakeOwner);
+        middleware.onReport(WORKFLOW_METADATA, performData);
+    }
+
+    function testOnReportRevertWithInvalidWorkflowName() public {
+        bytes memory performData = abi.encode(uint8(1), uint48(1), new IMiddleware.ValidatorData[](0));
+
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+
+        vm.startPrank(forwarder);
+        bytes10 fakeWorkflowNameEncoded = testUtils.encodeStringToBytes10("FakeNameEncoded");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IReceiverTemplate.IReceiverTemplate__InvalidWorkflowName.selector,
+                fakeWorkflowNameEncoded,
+                workflowNameEncoded
+            )
+        );
+
+        WORKFLOW_METADATA = abi.encodePacked(workflowId, fakeWorkflowNameEncoded, workflowOwner);
+        middleware.onReport(WORKFLOW_METADATA, performData);
+    }
+
+    function testOnReportSuccessWithNoChecksEnabled() public {
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+
+        middleware.setExpectedWorkflowId(bytes32(0));
+        middleware.setExpectedWorkflowName("");
+        middleware.setExpectedAuthor(address(0));
+
+        // Prepare RANDOM data (Should pass because checks are off)
+        bytes memory performData = abi.encode(uint8(1), uint48(0), new IMiddleware.ValidatorData[](0));
+        bytes memory randomMetadata = hex"DEADBEEF";
+
+        vm.startPrank(forwarder);
+        middleware.onReport(randomMetadata, performData);
+    }
+
+    function testOnReportRevertUnauthorizedCaller() public {
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+        vm.stopPrank();
+
+        address maliciousUser = makeAddr("maliciousUser");
+
+        bytes memory performData = hex"";
+        bytes memory metadata = hex"";
+
+        vm.startPrank(maliciousUser);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(maliciousUser), FORWARDER_ROLE
+            )
+        );
+        middleware.onReport(metadata, performData);
+    }
+
+    function testOnReportRevertWithShortMetadata() public {
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+        middleware.setExpectedWorkflowId(workflowId);
+
+        vm.startPrank(forwarder);
+
+        // Create metadata that is too short 32 bytes only, instead of the required 62
+        bytes memory shortMetadata = abi.encodePacked(workflowId);
+        bytes memory performData = hex"";
+
+        // There is no check so it defaults revert since it's reading out of the current bytes
+        vm.expectRevert();
+
+        middleware.onReport(shortMetadata, performData);
+    }
+
+    function testOnReportSuccessMixedChecks() public {
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+        middleware.setExpectedWorkflowId(workflowId);
+        middleware.setExpectedWorkflowName(workflowName);
+        middleware.setExpectedAuthor(address(0));
+        vm.stopPrank();
+
+        // Data has Valid ID, Valid Name, but WRONG Author
+        address wrongAuthor = makeAddr("wrongAuthor");
+        WORKFLOW_METADATA = abi.encodePacked(workflowId, workflowNameEncoded, wrongAuthor);
+        bytes memory performData = abi.encode(uint8(1), uint48(0), new IMiddleware.ValidatorData[](0));
+
+        vm.startPrank(forwarder);
+        middleware.onReport(WORKFLOW_METADATA, performData);
+    }
+
+    function testOnReportRevertMixedChecksFailure() public {
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+        middleware.setExpectedWorkflowId(bytes32(0));
+        middleware.setExpectedWorkflowName("");
+        middleware.setExpectedAuthor(workflowOwner);
+        vm.stopPrank();
+
+        // Data has Random ID, Random Name, WRONG Author
+        address wrongAuthor = makeAddr("wrongAuthor");
+        WORKFLOW_METADATA = abi.encodePacked(bytes32("random"), bytes10("random"), wrongAuthor);
+        bytes memory performData = hex"";
+
+        vm.startPrank(forwarder);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IReceiverTemplate.IReceiverTemplate__InvalidAuthor.selector, wrongAuthor, workflowOwner
+            )
+        );
+        middleware.onReport(WORKFLOW_METADATA, performData);
+    }
+
+    function testSupportsInterface() public {
+        bytes4 iReceiverId = type(IReceiver).interfaceId;
+        assertTrue(middleware.supportsInterface(iReceiverId), "Should support IReceiver");
+
+        bytes4 iErc165Id = type(IERC165).interfaceId;
+        assertTrue(middleware.supportsInterface(iErc165Id), "Should support IERC165");
+
+        bytes4 invalidId = 0xffffffff;
+        assertFalse(middleware.supportsInterface(invalidId), "Should NOT support random interface");
+
+        // Just to be sure it's not returning true for everything
+        bytes4 erc20Id = 0x36372b07;
+        assertFalse(middleware.supportsInterface(erc20Id), "Should NOT support ERC20");
     }
 
     // ************************************************************************************************

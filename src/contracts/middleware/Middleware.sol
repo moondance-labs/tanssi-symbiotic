@@ -17,7 +17,7 @@ pragma solidity 0.8.25;
 //**************************************************************************************************
 //                                      CHAINLINK
 //**************************************************************************************************
-import {AutomationCompatibleInterface} from "@chainlink/automation/interfaces/AutomationCompatibleInterface.sol";
+import {IReceiverTemplate} from "src/interfaces/middleware/IReceiverTemplate.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN
@@ -66,8 +66,8 @@ contract Middleware is
     KeyManager256,
     OzAccessControl,
     EpochCapture,
-    AutomationCompatibleInterface,
     MiddlewareStorage,
+    IReceiverTemplate,
     IMiddleware
 {
     using Subnetwork for address;
@@ -124,7 +124,7 @@ contract Middleware is
         _grantRole(DEFAULT_ADMIN_ROLE, params.owner);
         _setSelectorRole(this.distributeRewards.selector, GATEWAY_ROLE);
         _setSelectorRole(this.slash.selector, GATEWAY_ROLE);
-        _setSelectorRole(this.performUpkeep.selector, FORWARDER_ROLE);
+        _setSelectorRole(this.onReport.selector, FORWARDER_ROLE);
     }
 
     /*
@@ -211,6 +211,8 @@ contract Middleware is
     function setForwarder(
         address forwarder
     ) external checkAccess notZeroAddress(forwarder) {
+        // !!! TO CHECK PROBABLY WE COULD TAKE OUT FROM STORAGE THE ADDRESS
+        // WE DIRECTLY CHECK THAT THE ADDRESS HAS THE ROLE. THERE IS NO POINT IN STORING IT
         StorageMiddleware storage $ = _getMiddlewareStorage();
         address currentForwarderAddress = $.forwarderAddress;
         if (forwarder == currentForwarderAddress) {
@@ -290,93 +292,14 @@ contract Middleware is
     }
 
     /**
-     * @inheritdoc AutomationCompatibleInterface
      * @dev Called by chainlink nodes off-chain to check if the upkeep is needed
      * @return upkeepNeeded boolean to indicate whether the keeper should call performUpkeep or not.
      * @return performData bytes of the sorted (by power) operators' keys and the epoch that will be used by the keeper when calling performUpkeep, if upkeep is needed.
      */
     function checkUpkeep(
         bytes calldata /* checkData */
-    ) external view override returns (bool upkeepNeeded, bytes memory performData) {
+    ) external view returns (bool upkeepNeeded, bytes memory performData) {
         (upkeepNeeded, performData) = IOBaseMiddlewareReader(address(this)).auxiliaryCheckUpkeep();
-    }
-
-    /**
-     * @inheritdoc AutomationCompatibleInterface
-     * @dev Called by chainlink nodes off-chain to perform the upkeep. It will send the sorted keys to the gateway
-     */
-    function performUpkeep(
-        bytes calldata performData
-    ) external override checkAccess {
-        if (performData.length == 0) {
-            revert Middleware__NoPerformData();
-        }
-
-        StorageMiddleware storage $ = _getMiddlewareStorage();
-        address gateway = $.gateway;
-        if (gateway == address(0)) {
-            revert Middleware__GatewayNotSet();
-        }
-
-        uint48 encodedEpoch;
-        assembly {
-            // Load 32 bytes starting at offset 32 (second 32-byte slot)
-            let epochData := calldataload(add(performData.offset, 32))
-            encodedEpoch := epochData
-        }
-
-        uint48 epoch = getCurrentEpoch();
-        if (encodedEpoch != epoch) {
-            revert Middleware__InvalidEpoch();
-        }
-
-        StorageMiddlewareCache storage cache = _getMiddlewareStorageCache();
-
-        uint256 operatorsLength = _operatorsLength();
-        uint256 cacheIndex = cache.epochToCacheIndex[epoch];
-        uint256 pendingOperatorsToCache = operatorsLength - cacheIndex;
-
-        if (pendingOperatorsToCache > 0) {
-            (uint8 command,, ValidatorData[] memory validatorsData) =
-                abi.decode(performData, (uint8, uint48, ValidatorData[]));
-
-            if (command != CACHE_DATA_COMMAND) {
-                revert Middleware__InvalidCommand(command);
-            }
-
-            uint256 validatorsDataLength = validatorsData.length;
-            for (uint256 i = 0; i < validatorsDataLength;) {
-                ValidatorData memory validatorData = validatorsData[i];
-                bytes32 validatorKey = validatorData.key;
-                // Update the cache with the operator power and the operator
-                if (cache.operatorKeyToPower[epoch][validatorKey] != 0) {
-                    revert Middleware__AlreadyCached();
-                }
-
-                cache.operatorKeyToPower[epoch][validatorKey] = validatorData.power;
-                unchecked {
-                    ++i;
-                }
-            }
-
-            unchecked {
-                cache.epochToCacheIndex[epoch] += validatorsDataLength;
-            }
-        } else {
-            uint48 currentTimestamp = Time.timestamp();
-            if ((currentTimestamp - $.lastTimestamp) > $.interval) {
-                $.lastTimestamp = currentTimestamp;
-
-                // Decode the sorted keys and the epoch from performData
-                (uint8 command,, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, uint48, bytes32[]));
-
-                if (command != SEND_DATA_COMMAND) {
-                    revert Middleware__InvalidCommand(command);
-                }
-
-                IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);
-            }
-        }
     }
 
     /**
@@ -442,9 +365,9 @@ contract Middleware is
         address reader
     ) external checkAccess notZeroAddress(reader) {
         // From BaseMiddleware.sol
-        bytes32 ReaderStorageLocation = 0xfd87879bc98f37af7578af722aecfbe5843e5ad354da2d1e70cb5157c4ec8800;
+        bytes32 ReaderStorageLocation_ = 0xfd87879bc98f37af7578af722aecfbe5843e5ad354da2d1e70cb5157c4ec8800;
         assembly {
-            sstore(ReaderStorageLocation, reader)
+            sstore(ReaderStorageLocation_, reader)
         }
     }
 
@@ -557,6 +480,97 @@ contract Middleware is
         address collateral = IVault(vault).collateral();
         _checkNotZeroAddress(collateral);
         $.vaultToCollateral[vault] = collateral;
+    }
+
+    function _processReport(
+        bytes calldata report
+    ) internal override {
+        // TODO fix issue while reading the bytes from report
+        // uint8 executionCode;
+        // assembly {
+        //     // Load 32 bytes starting at offset 32 (second 32-byte slot)
+        //     let executionData := calldataload(report.offset)
+        //     executionCode := executionData
+        // }
+        // (uint8 executionCode, bytes memory performData) = abi.decode(report, (uint8, bytes));
+        _cacheAndSendOperatorsFlow(report);
+        // if (executionCode == 101) {
+        // } else {}
+    }
+
+    function _cacheAndSendOperatorsFlow(
+        bytes calldata performData
+    ) private {
+        if (performData.length == 0) {
+            revert Middleware__NoPerformData();
+        }
+
+        StorageMiddleware storage $ = _getMiddlewareStorage();
+        address gateway = $.gateway;
+        if (gateway == address(0)) {
+            revert Middleware__GatewayNotSet();
+        }
+
+        uint48 encodedEpoch;
+        // Get out from the bytes of the encoded report the epochData.
+        assembly {
+            // Load 32 bytes starting at offset 32 (second 32-byte slot)
+            let epochData := calldataload(add(performData.offset, 32))
+            encodedEpoch := epochData
+        }
+
+        uint48 epoch = getCurrentEpoch();
+        if (encodedEpoch != epoch) {
+            revert Middleware__InvalidEpoch();
+        }
+
+        StorageMiddlewareCache storage cache = _getMiddlewareStorageCache();
+
+        uint256 operatorsLength = _operatorsLength();
+        uint256 cacheIndex = cache.epochToCacheIndex[epoch];
+        uint256 pendingOperatorsToCache = operatorsLength - cacheIndex;
+
+        if (pendingOperatorsToCache > 0) {
+            (uint8 command,, ValidatorData[] memory validatorsData) =
+                abi.decode(performData, (uint8, uint48, ValidatorData[]));
+
+            if (command != CACHE_DATA_COMMAND) {
+                revert Middleware__InvalidCommand(command);
+            }
+
+            uint256 validatorsDataLength = validatorsData.length;
+            for (uint256 i = 0; i < validatorsDataLength;) {
+                ValidatorData memory validatorData = validatorsData[i];
+                bytes32 validatorKey = validatorData.key;
+                // Update the cache with the operator power and the operator
+                if (cache.operatorKeyToPower[epoch][validatorKey] != 0) {
+                    revert Middleware__AlreadyCached();
+                }
+
+                cache.operatorKeyToPower[epoch][validatorKey] = validatorData.power;
+                unchecked {
+                    ++i;
+                }
+            }
+
+            unchecked {
+                cache.epochToCacheIndex[epoch] += validatorsDataLength;
+            }
+        } else {
+            uint48 currentTimestamp = Time.timestamp();
+            if ((currentTimestamp - $.lastTimestamp) > $.interval) {
+                $.lastTimestamp = currentTimestamp;
+
+                // Decode the sorted keys and the epoch from performData
+                (uint8 command,, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, uint48, bytes32[]));
+
+                if (command != SEND_DATA_COMMAND) {
+                    revert Middleware__InvalidCommand(command);
+                }
+
+                IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);
+            }
+        }
     }
 
     function _checkNotZeroAddress(

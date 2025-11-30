@@ -124,6 +124,14 @@ contract FullTest is Test {
 
     address public forwarder = makeAddr("forwarder");
 
+    // TODO fix for mainnet
+    address public workflowOwner = makeAddr("workflowOwner");
+    string internal workflowName = "workflow_tanssi";
+    bytes10 public workflowNameEncoded;
+    bytes32 public workflowId = bytes32(uint256(1));
+
+    bytes public WORKFLOW_METADATA;
+
     HelperConfig helperConfig;
     string public json;
 
@@ -186,6 +194,14 @@ contract FullTest is Test {
         totalActiveOperators = reader.getOperatorVaultPairs(middleware.getCurrentEpoch()).length;
 
         _cacheAllOperatorsVaults();
+
+        middleware.setExpectedAuthor(workflowOwner);
+        middleware.setExpectedWorkflowName(workflowName);
+        middleware.setExpectedWorkflowId(workflowId);
+
+        TestUtils testUtils = new TestUtils();
+        workflowNameEncoded = testUtils.encodeStringToBytes10(workflowName);
+        WORKFLOW_METADATA = abi.encodePacked(workflowId, workflowNameEncoded, workflowOwner);
     }
 
     function _getBaseInfrastructure() private {
@@ -465,7 +481,7 @@ contract FullTest is Test {
 
             vm.prank(forwarder);
             beforeGas = gasleft();
-            middleware.performUpkeep(performData);
+            middleware.onReport(WORKFLOW_METADATA, performData);
             afterGas = gasleft();
             console2.log("Gas used for perform on caching: ", beforeGas - afterGas);
             assertLt(beforeGas - afterGas, MAX_CHAINLINK_PERFORMUPKEEP_GAS); // Check that gas is lower than 5M limit
@@ -491,7 +507,7 @@ contract FullTest is Test {
         beforeGas = gasleft();
         vm.expectEmit(true, false, false, false);
         emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
-        middleware.performUpkeep(performData);
+        middleware.onReport(WORKFLOW_METADATA, performData);
         afterGas = gasleft();
         console2.log("Gas used for final perform (sending): ", beforeGas - afterGas);
         assertLt(beforeGas - afterGas, MAX_CHAINLINK_PERFORMUPKEEP_GAS); // Check that gas is lower than 5M limit

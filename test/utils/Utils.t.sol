@@ -26,4 +26,40 @@ contract TestUtils is Script {
         }
         return totalBatches;
     }
+
+    function encodeStringToBytes10(
+        string memory stringData
+    ) public view returns (bytes10 encodedString) {
+        if (bytes(stringData).length == 0) {
+            encodedString = bytes10(0);
+            return encodedString;
+        }
+
+        // Convert workflow name to bytes10:
+        // SHA256 hash → hex encode → take first 10 chars → hex encode those chars
+        bytes32 hashData = sha256(bytes(stringData));
+        bytes memory hexString = _bytesToHexString(abi.encodePacked(hashData));
+        bytes memory first10 = new bytes(10);
+        for (uint256 i = 0; i < 10; i++) {
+            first10[i] = hexString[i];
+        }
+        encodedString = bytes10(first10);
+    }
+
+    /// @notice Helper function to convert bytes to hex string
+    /// @param data The bytes to convert
+    /// @return The hex string representation
+    function _bytesToHexString(
+        bytes memory data
+    ) private pure returns (bytes memory) {
+        bytes memory hexChars = "0123456789abcdef";
+        bytes memory hexString = new bytes(data.length * 2);
+
+        for (uint256 i = 0; i < data.length; i++) {
+            hexString[i * 2] = hexChars[uint8(data[i] >> 4)];
+            hexString[i * 2 + 1] = hexChars[uint8(data[i] & 0x0f)];
+        }
+
+        return hexString;
+    }
 }
