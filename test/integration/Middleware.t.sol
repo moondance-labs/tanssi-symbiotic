@@ -1152,7 +1152,7 @@ contract MiddlewareTest is Test {
         uint256 _count
     ) public {
         vm.pauseGasMetering();
-        address[3] memory vaults = [address(vault), address(vaultSlashable), address(vaultVetoed)];
+        address[3] memory vaults_ = [address(vault), address(vaultSlashable), address(vaultVetoed)];
         Token[3] memory tokens = [stETH, rETH, wBTC];
         address[3] memory delegators = [
             address(vaultAddresses.delegator),
@@ -1175,8 +1175,8 @@ contract MiddlewareTest is Test {
             middleware.registerOperator(_operator, abi.encode(operatorKey), address(0));
 
             // Stake in each vault
-            for (uint256 j = 0; j < vaults.length; ++j) {
-                address _vault = vaults[j];
+            for (uint256 j = 0; j < vaults_.length; ++j) {
+                address _vault = vaults_[j];
                 address _delegator = delegators[j];
                 Token token = tokens[j];
                 vm.startPrank(_operator);
@@ -1528,9 +1528,11 @@ contract MiddlewareTest is Test {
         uint16 count = uint16(middleware.MAX_OPERATORS_TO_PROCESS()) + 1;
         _addOperatorsToNetwork(count - 3); // 3 operators are already registered
 
+        bool upkeepNeeded;
+        bytes memory performData;
         uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, count);
         for (uint256 i = 0; i < totalBatches; i++) {
-            (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+            (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
             assertEq(upkeepNeeded, true);
 
             vm.prank(forwarder);
@@ -1542,7 +1544,7 @@ contract MiddlewareTest is Test {
         assertEq(cacheIndex, count);
 
         // List should be empty, but we still need to call performUpkeep to call the gateway
-        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
         assertEq(upkeepNeeded, true);
         (uint8 command, uint48 encodedEpoch, bytes32[] memory sortedKeys) =
             abi.decode(performData, (uint8, uint48, bytes32[]));
