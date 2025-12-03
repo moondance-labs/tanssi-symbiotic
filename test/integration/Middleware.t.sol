@@ -82,6 +82,7 @@ import {AggregatorV3DIAProxy} from "src/contracts/oracle-proxy/AggregatorV3DIAPr
 import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
+import {OBaseMiddlewareReaderForwarder} from "src/contracts/middleware/OBaseMiddlewareReaderForwarder.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {Token} from "test/mocks/Token.sol";
 import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
@@ -179,6 +180,7 @@ contract MiddlewareTest is Test {
     }
 
     Middleware public middleware;
+    OBaseMiddlewareReaderForwarder public readerForwarder;
     DelegatorFactory public delegatorFactory;
     SlasherFactory public slasherFactory;
     VaultFactory public vaultFactory;
@@ -303,6 +305,7 @@ contract MiddlewareTest is Test {
         stakerRewardsImpl = address(new ODefaultStakerRewards(address(networkMiddlewareService), tanssi));
 
         middleware = _deployMiddlewareWithProxy(tanssi, owner, operatorRewardsAddress, stakerRewardsFactoryAddress);
+        readerForwarder = new OBaseMiddlewareReaderForwarder(address(middleware));
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
         operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
         operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware));
@@ -383,6 +386,7 @@ contract MiddlewareTest is Test {
 
         Middleware _middlewareImpl = new Middleware();
         _middleware = Middleware(address(new MiddlewareProxy(address(_middlewareImpl), "")));
+
         IMiddleware.InitParams memory params = IMiddleware.InitParams({
             network: _network,
             operatorRegistry: address(operatorRegistry),
@@ -535,19 +539,18 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function testInitialState() public view {
-        assertEq(OBaseMiddlewareReader(address(middleware)).NETWORK(), tanssi);
-        assertEq(OBaseMiddlewareReader(address(middleware)).OPERATOR_REGISTRY(), address(operatorRegistry));
-        assertEq(OBaseMiddlewareReader(address(middleware)).VAULT_REGISTRY(), address(vaultFactory));
+        assertEq(readerForwarder.NETWORK(), tanssi);
+        assertEq(readerForwarder.OPERATOR_REGISTRY(), address(operatorRegistry));
+        assertEq(readerForwarder.VAULT_REGISTRY(), address(vaultFactory));
         assertEq(EpochCapture(address(middleware)).getEpochDuration(), NETWORK_EPOCH_DURATION);
-        assertEq(OBaseMiddlewareReader(address(middleware)).SLASHING_WINDOW(), SLASHING_WINDOW);
-        assertEq(OBaseMiddlewareReader(address(middleware)).subnetworksLength(), 1);
+        assertEq(readerForwarder.SLASHING_WINDOW(), SLASHING_WINDOW);
+        assertEq(readerForwarder.subnetworksLength(), 1);
     }
 
     function testIfOperatorsAreRegisteredInVaults() public {
         vm.warp(NETWORK_EPOCH_DURATION + 2);
         uint48 currentEpoch = middleware.getCurrentEpoch();
-        Middleware.OperatorVaultPair[] memory operatorVaultPairs =
-            OBaseMiddlewareReader(address(middleware)).getOperatorVaultPairs(currentEpoch);
+        Middleware.OperatorVaultPair[] memory operatorVaultPairs = readerForwarder.getOperatorVaultPairs(currentEpoch);
         assertEq(operatorVaultPairs.length, 3);
         assertEq(operatorVaultPairs[0].operator, operator);
         assertEq(operatorVaultPairs[1].operator, operator2);
@@ -555,17 +558,21 @@ contract MiddlewareTest is Test {
         assertEq(operatorVaultPairs[0].vaults.length, 1);
         assertEq(operatorVaultPairs[1].vaults.length, 2);
         assertEq(operatorVaultPairs[2].vaults.length, 3);
+
+        address[] memory operatorsTanssiFoundation =
+            readerForwarder.getOperatorsForVault(currentEpoch, vaultAddresses.vaultVetoed);
+        assertEq(operatorsTanssiFoundation.length, 2);
+        assertEq(operatorsTanssiFoundation[0], operator2);
+        assertEq(operatorsTanssiFoundation[1], operator3);
     }
 
     function testOperatorsAreRegisteredAfterOneEpoch() public {
         vm.warp(NETWORK_EPOCH_DURATION + 2);
         uint48 currentEpoch = middleware.getCurrentEpoch();
-        Middleware.ValidatorData[] memory validators =
-            OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
+        Middleware.ValidatorData[] memory validators = readerForwarder.getValidatorSet(currentEpoch);
         assertEq(validators.length, 3);
 
-        Middleware.OperatorVaultPair[] memory operatorVaultPairs =
-            OBaseMiddlewareReader(address(middleware)).getOperatorVaultPairs(currentEpoch);
+        Middleware.OperatorVaultPair[] memory operatorVaultPairs = readerForwarder.getOperatorVaultPairs(currentEpoch);
         assertEq(operatorVaultPairs.length, 3);
         assertEq(operatorVaultPairs[0].operator, operator);
         assertEq(operatorVaultPairs[1].operator, operator2);
@@ -578,12 +585,10 @@ contract MiddlewareTest is Test {
     function testOperatorsStakeIsTheSamePerEpoch() public {
         vm.warp(NETWORK_EPOCH_DURATION + 2);
         uint48 previousEpoch = middleware.getCurrentEpoch();
-        Middleware.ValidatorData[] memory validatorsPreviousEpoch =
-            OBaseMiddlewareReader(address(middleware)).getValidatorSet(previousEpoch);
+        Middleware.ValidatorData[] memory validatorsPreviousEpoch = readerForwarder.getValidatorSet(previousEpoch);
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 2);
-        Middleware.ValidatorData[] memory validators =
-            OBaseMiddlewareReader(address(middleware)).getValidatorSet(previousEpoch);
+        Middleware.ValidatorData[] memory validators = readerForwarder.getValidatorSet(previousEpoch);
         assertEq(validators.length, validatorsPreviousEpoch.length);
         assertEq(validators[0].power, validatorsPreviousEpoch[0].power);
         assertEq(validators[1].power, validatorsPreviousEpoch[1].power);
@@ -599,7 +604,7 @@ contract MiddlewareTest is Test {
         uint48 previousEpochStartTs = middleware.getEpochStart(previousEpoch);
 
         vm.startPrank(owner);
-        address[] memory operatorVaults = OBaseMiddlewareReader(address(middleware)).activeVaults(operator2);
+        address[] memory operatorVaults = readerForwarder.activeVaults(operator2);
         assertEq(operatorVaults.length, 3);
 
         middleware.pauseOperator(operator2);
@@ -608,15 +613,12 @@ contract MiddlewareTest is Test {
 
         // Get validator set for current epoch
         uint48 currentEpoch = middleware.getCurrentEpoch();
-        Middleware.ValidatorData[] memory validators =
-            OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
+        Middleware.ValidatorData[] memory validators = readerForwarder.getValidatorSet(currentEpoch);
 
-        operatorVaults = OBaseMiddlewareReader(address(middleware)).activeVaults(operator2);
+        operatorVaults = readerForwarder.activeVaults(operator2);
 
-        uint256 operatorPower =
-            OBaseMiddlewareReader(address(middleware)).getOperatorPowerAt(previousEpochStartTs, operator2);
-        address[] memory previousActiveOperators =
-            OBaseMiddlewareReader(address(middleware)).activeOperatorsAt(previousEpochStartTs);
+        uint256 operatorPower = readerForwarder.getOperatorPowerAt(previousEpochStartTs, operator2);
+        address[] memory previousActiveOperators = readerForwarder.activeOperatorsAt(previousEpochStartTs);
         assertGt(operatorPower, 0);
 
         // Vaults history for the operators is kept intact
@@ -663,7 +665,7 @@ contract MiddlewareTest is Test {
         vetoSlasher.vetoSlash(0, hex"");
         vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
-        validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
+        validators = readerForwarder.getValidatorSet(newEpoch);
 
         (uint256 totalOperator2PowerAfter,) =
             _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
@@ -723,7 +725,7 @@ contract MiddlewareTest is Test {
 
         vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
-        validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
+        validators = readerForwarder.getValidatorSet(newEpoch);
 
         (uint256 totalOperator2PowerAfter,) =
             _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
@@ -749,7 +751,7 @@ contract MiddlewareTest is Test {
 
         vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
-        validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
+        validators = readerForwarder.getValidatorSet(newEpoch);
 
         (uint256 totalOperator2PowerAfter,) =
             _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
@@ -775,7 +777,7 @@ contract MiddlewareTest is Test {
 
         vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
-        validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
+        validators = readerForwarder.getValidatorSet(newEpoch);
 
         (uint256 totalOperator2PowerAfter,) =
             _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
@@ -799,7 +801,7 @@ contract MiddlewareTest is Test {
 
         vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
-        validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
+        validators = readerForwarder.getValidatorSet(newEpoch);
 
         (uint256 totalOperator2PowerAfter,) = _calculateOperatorPower(0, totalFullRestakePower, 0);
         (uint256 totalOperator3PowerAfter,) = _calculateOperatorPower(totalPowerVault, totalFullRestakePower, 0);
@@ -824,7 +826,7 @@ contract MiddlewareTest is Test {
 
         vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
-        validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
+        validators = readerForwarder.getValidatorSet(newEpoch);
 
         (uint256 totalOperator3PowerAfter,) =
             _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
@@ -855,7 +857,7 @@ contract MiddlewareTest is Test {
         vetoSlasher.vetoSlash(0, hex"");
         vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
-        validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(newEpoch);
+        validators = readerForwarder.getValidatorSet(newEpoch);
 
         (uint256 totalOperator2PowerAfter,) =
             _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, slashingPower);
@@ -918,11 +920,13 @@ contract MiddlewareTest is Test {
         assertEq(operator2VaultPairs.length, 1);
         assertEq(operator2VaultPairs[0].operator, operatorX);
         assertEq(operator2VaultPairs[0].vaults.length, 1);
+
         uint48 middlewareCurrentEpoch = middleware.getCurrentEpoch();
         Middleware.OperatorVaultPair[] memory operatorVaultPairs =
-            OBaseMiddlewareReader(address(middleware)).getOperatorVaultPairs(middlewareCurrentEpoch);
+            readerForwarder.getOperatorVaultPairs(middlewareCurrentEpoch);
+
         for (uint256 i = 0; i < operatorVaultPairs.length; i++) {
-            assert(operatorVaultPairs[i].operator != operatorX);
+            assertNotEq(operatorVaultPairs[i].operator, operatorX);
         }
     }
 
@@ -1238,7 +1242,7 @@ contract MiddlewareTest is Test {
     function _validatorSet(
         uint48 epoch
     ) public view returns (Middleware.ValidatorData[] memory) {
-        Middleware.ValidatorData[] memory validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(epoch);
+        Middleware.ValidatorData[] memory validators = readerForwarder.getValidatorSet(epoch);
         quickSort(validators, 0, int256(validators.length - 1));
         return validators;
     }
@@ -1271,8 +1275,7 @@ contract MiddlewareTest is Test {
         Middleware.ValidatorData[] memory validators = _validatorSet(currentEpoch);
 
         uint256 gasBefore = gasleft();
-        bytes32[] memory sortedValidators =
-            OBaseMiddlewareReader(address(middleware)).sortOperatorsByPower(currentEpoch);
+        bytes32[] memory sortedValidators = readerForwarder.sortOperatorsByPower(currentEpoch);
         uint256 gasAfter = gasleft();
 
         uint256 gasSorted = gasBefore - gasAfter;
@@ -1289,7 +1292,7 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 gasBefore = gasleft();
-        OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
+        readerForwarder.getValidatorSet(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasNotSorted = gasBefore - gasAfter;
         console2.log("Total gas used for non sorted: ", gasNotSorted);
@@ -1303,8 +1306,7 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 gasBefore = gasleft();
-        bytes32[] memory sortedValidators =
-            OBaseMiddlewareReader(address(middleware)).sortOperatorsByPower(currentEpoch);
+        bytes32[] memory sortedValidators = readerForwarder.sortOperatorsByPower(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasSorted = gasBefore - gasAfter;
         console2.log("Total gas used: ", gasSorted);
@@ -1321,7 +1323,7 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 gasBefore = gasleft();
-        OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
+        readerForwarder.getValidatorSet(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasNotSorted = gasBefore - gasAfter;
         console2.log("Total gas used for non sorted: ", gasNotSorted);
@@ -1335,8 +1337,7 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 gasBefore = gasleft();
-        bytes32[] memory sortedValidators =
-            OBaseMiddlewareReader(address(middleware)).sortOperatorsByPower(currentEpoch);
+        bytes32[] memory sortedValidators = readerForwarder.sortOperatorsByPower(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasSorted = gasBefore - gasAfter;
         console2.log("Total gas used: ", gasSorted);
@@ -1353,7 +1354,7 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 gasBefore = gasleft();
-        OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
+        readerForwarder.getValidatorSet(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasNotSorted = gasBefore - gasAfter;
         console2.log("Total gas used for non sorted: ", gasNotSorted);
@@ -1367,7 +1368,7 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 gasBefore = gasleft();
-        OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
+        readerForwarder.getValidatorSet(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasNotSorted = gasBefore - gasAfter;
         console2.log("Total gas used for non sorted: ", gasNotSorted);
@@ -1381,8 +1382,7 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         uint256 gasBefore = gasleft();
-        bytes32[] memory sortedValidators =
-            OBaseMiddlewareReader(address(middleware)).sortOperatorsByPower(currentEpoch);
+        bytes32[] memory sortedValidators = readerForwarder.sortOperatorsByPower(currentEpoch);
         uint256 gasAfter = gasleft();
         uint256 gasSorted = gasBefore - gasAfter;
         console2.log("Total gas used: ", gasSorted);
@@ -1444,8 +1444,7 @@ contract MiddlewareTest is Test {
         console2.log("Total gas used for perform (send): ", lastGasUsedForPerform);
 
         uint256 gasBefore = gasleft();
-        bytes32[] memory sortedValidators =
-            OBaseMiddlewareReader(address(middleware)).sortOperatorsByPower(currentEpoch);
+        bytes32[] memory sortedValidators = readerForwarder.sortOperatorsByPower(currentEpoch);
         uint256 gasAfter = gasleft();
         console2.log("Total gas use sorting cached: ", gasBefore - gasAfter);
 
@@ -1864,7 +1863,7 @@ contract MiddlewareTest is Test {
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         uint48 epoch = middleware.getCurrentEpoch();
-        uint256 activeOperatorsLength = (OBaseMiddlewareReader(address(middleware)).activeOperators()).length;
+        uint256 activeOperatorsLength = (readerForwarder.activeOperators()).length;
         {
             uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, count);
             for (uint256 i = 0; i < totalBatches; i++) {
@@ -1923,7 +1922,7 @@ contract MiddlewareTest is Test {
         (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
         assertEq(upkeepNeeded, true);
 
-        address[] memory activeOperators = OBaseMiddlewareReader(address(middleware)).activeOperators();
+        address[] memory activeOperators = readerForwarder.activeOperators();
         assertEq(activeOperators.length, 3);
 
         (uint8 command, uint48 encodedEpoch, bytes32[] memory sortedKeys) =
@@ -2013,7 +2012,7 @@ contract MiddlewareTest is Test {
         vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW - 1);
         currentEpoch = middleware.getCurrentEpoch();
 
-        validators = OBaseMiddlewareReader(address(middleware)).getValidatorSet(currentEpoch);
+        validators = readerForwarder.getValidatorSet(currentEpoch);
 
         (totalOperator2Power, powerFromSharesOperator2) =
             _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, 0);
