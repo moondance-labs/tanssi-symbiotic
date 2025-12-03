@@ -49,7 +49,7 @@ contract ODefaultStakerRewards is
 
     /// @custom:storage-location erc7201:tanssi.rewards.ODefaultStakerRewards.v1.1
     struct StakerRewardsStorage {
-        uint256 adminFee;
+        uint256 adminFee; // in basis points
         mapping(uint48 epoch => mapping(address tokenAddress => uint256 rewards_)) rewards;
         mapping(address account => mapping(uint48 epoch => mapping(address tokenAddress => uint256 claimed)))
             stakerClaimedRewardPerEpoch;
@@ -66,11 +66,6 @@ contract ODefaultStakerRewards is
      * @inheritdoc IODefaultStakerRewards
      */
     uint64 public constant VERSION = 1;
-
-    /**
-     * @inheritdoc IODefaultStakerRewards
-     */
-    uint256 public constant ADMIN_FEE_BASE = 10_000;
 
     /**
      * @inheritdoc IODefaultStakerRewards
@@ -196,9 +191,9 @@ contract ODefaultStakerRewards is
 
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
 
-        uint256 adminFee_ = $.adminFee;
+        uint256 adminFeeBps = $.adminFee;
         // If the admin fee is higher than the max allowed, revert
-        if (maxAdminFee < adminFee_) {
+        if (maxAdminFee < adminFeeBps) {
             revert ODefaultStakerRewards__HighAdminFee();
         }
 
@@ -207,7 +202,7 @@ contract ODefaultStakerRewards is
 
         _transferAndCheckAmount(tokenAddress, amount);
 
-        _updateAdminFeeAndRewards(amount, adminFee_, epoch, tokenAddress);
+        _updateAdminFeeAndRewards(amount, adminFeeBps, epoch, tokenAddress);
 
         emit DistributeRewards(i_network, tokenAddress, eraIndex, epoch, amount, data);
     }
@@ -242,9 +237,14 @@ contract ODefaultStakerRewards is
         }
     }
 
-    function _updateAdminFeeAndRewards(uint256 amount, uint256 adminFee_, uint48 epoch, address tokenAddress) private {
+    function _updateAdminFeeAndRewards(
+        uint256 amount,
+        uint256 adminFeeBps,
+        uint48 epoch,
+        address tokenAddress
+    ) private {
         // Take out the admin fee from the rewards
-        uint256 adminFeeAmount = amount.mulDiv(adminFee_, ADMIN_FEE_BASE);
+        uint256 adminFeeAmount = amount.mulDiv(adminFeeBps, 10_000);
         // And distribute the rest to the stakers
         uint256 distributeAmount = amount - adminFeeAmount;
 
@@ -312,7 +312,7 @@ contract ODefaultStakerRewards is
         address tokenAddress,
         bytes[] calldata activeSharesOfHints,
         uint48 restakePercentageBps
-    ) public {
+    ) public nonReentrant {
         uint256 totalAmount = _batchClaimRewards(recipient, epochs, tokenAddress, activeSharesOfHints);
 
         uint256 restakeAmount = totalAmount.mulDiv(restakePercentageBps, 10_000);
@@ -382,16 +382,16 @@ contract ODefaultStakerRewards is
      * @inheritdoc IODefaultStakerRewards
      */
     function setAdminFee(
-        uint256 adminFee_
+        uint256 adminFeeBps
     ) external onlyRole(ADMIN_FEE_SET_ROLE) {
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
-        if ($.adminFee == adminFee_) {
+        if ($.adminFee == adminFeeBps) {
             revert ODefaultStakerRewards__AlreadySet();
         }
 
-        _setAdminFee(adminFee_);
+        _setAdminFee(adminFeeBps);
 
-        emit SetAdminFee(adminFee_);
+        emit SetAdminFee(adminFeeBps);
     }
 
     /**
@@ -470,15 +470,15 @@ contract ODefaultStakerRewards is
     ) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
     function _setAdminFee(
-        uint256 adminFee_
+        uint256 adminFeeBps
     ) private {
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
 
-        if (adminFee_ > MAX_ADMIN_FEE) {
+        if (adminFeeBps > MAX_ADMIN_FEE) {
             revert ODefaultStakerRewards__InvalidAdminFee();
         }
 
-        $.adminFee = adminFee_;
+        $.adminFee = adminFeeBps;
     }
 
     function _getStakerRewardsStorage() private pure returns (StakerRewardsStorage storage $) {

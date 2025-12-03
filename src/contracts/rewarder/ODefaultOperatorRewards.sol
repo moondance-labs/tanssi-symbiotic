@@ -252,8 +252,7 @@ contract ODefaultOperatorRewards is
 
         uint256 stakerAmount;
 
-        (amount, operatorAmount, stakerAmount,) =
-            _calculateRewardsForOperatorAndStakers($, input, eraRoot_, middlewareAddress);
+        (amount, operatorAmount, stakerAmount) = _calculateRewardsForOperatorAndStakers($, input, eraRoot_);
 
         _distributeRewardsToStakers(
             eraRoot_.epoch, input.eraIndex, stakerAmount, operator, middlewareAddress, tokenAddress, input.data
@@ -290,9 +289,8 @@ contract ODefaultOperatorRewards is
     function _calculateRewardsForOperatorAndStakers(
         OperatorRewardsStorage storage $,
         ClaimRewardsInput calldata input,
-        EraRoot memory eraRoot_,
-        address middlewareAddress
-    ) private returns (uint256 amount, uint256 operatorAmount, uint256 stakerAmount, address recipient) {
+        EraRoot memory eraRoot_
+    ) private returns (uint256 amount, uint256 operatorAmount, uint256 stakerAmount) {
         // Calculate the total amount of tokens that can be claimed which is:
         // total amount of tokens = (total points claimable * total amount) / total points
         amount = uint256(input.totalPointsClaimable).mulDiv(eraRoot_.amount, eraRoot_.totalPoints);

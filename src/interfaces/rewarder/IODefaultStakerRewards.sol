@@ -86,7 +86,7 @@ interface IODefaultStakerRewards {
 
     /**
      * @notice Initial parameters needed for a staker rewards contract deployment.
-     * @param adminFee admin fee (up to ADMIN_FEE_BASE inclusively)
+     * @param adminFee admin fee in basis points (up to 10000)
      * @param defaultAdminRoleHolder address of the initial DEFAULT_ADMIN_ROLE holder
      * @param adminFeeClaimRoleHolder address of the initial ADMIN_FEE_CLAIM_ROLE holder
      * @param adminFeeSetRoleHolder address of the initial ADMIN_FEE_SET_ROLE holder
@@ -106,12 +106,6 @@ interface IODefaultStakerRewards {
      * @dev Must return 1 for this one.
      */
     function VERSION() external view returns (uint64);
-
-    /**
-     * @notice Represents 100% in the admin fee basis points.
-     * @return Admin fee base basis points.
-     */
-    function ADMIN_FEE_BASE() external view returns (uint256);
 
     /**
      * @notice Get the maximum admin fee (= 100%).
@@ -282,7 +276,7 @@ interface IODefaultStakerRewards {
 
     /**
      * @notice Set an admin fee.
-     * @param adminFee_ admin fee (up to ADMIN_FEE_BASE inclusively)
+     * @param adminFee_ admin fee in basis points (up to 10000)
      * @dev Only the ADMIN_FEE_SET_ROLE holder can call this function.
      */
     function setAdminFee(

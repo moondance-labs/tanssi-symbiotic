@@ -1008,7 +1008,7 @@ contract RewardsTest is Test {
 
     function testStakerRewardsConstructorWithInvalidAdminFee() public {
         IODefaultStakerRewards.InitParams memory params = IODefaultStakerRewards.InitParams({
-            adminFee: stakerRewards.ADMIN_FEE_BASE() + 1,
+            adminFee: stakerRewards.MAX_ADMIN_FEE() + 1,
             defaultAdminRoleHolder: address(middleware),
             adminFeeClaimRoleHolder: address(middleware),
             adminFeeSetRoleHolder: address(middleware),
@@ -1694,7 +1694,7 @@ contract RewardsTest is Test {
     }
 
     function testSetAdminFeeInvalidAdminFee() public {
-        uint256 newFee = stakerRewards.ADMIN_FEE_BASE() + 1;
+        uint256 newFee = stakerRewards.MAX_ADMIN_FEE() + 1;
         vm.startPrank(address(tanssi));
         vm.expectRevert(IODefaultStakerRewards.ODefaultStakerRewards__InvalidAdminFee.selector);
         stakerRewards.setAdminFee(newFee);
