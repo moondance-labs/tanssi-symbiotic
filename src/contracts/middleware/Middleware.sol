@@ -211,7 +211,7 @@ contract Middleware is
     function setForwarder(
         address forwarder
     ) external checkAccess notZeroAddress(forwarder) {
-        // !!! TO CHECK PROBABLY WE COULD TAKE OUT FROM STORAGE THE ADDRESS
+        //TODO !!! TO CHECK PROBABLY WE COULD TAKE OUT FROM STORAGE THE ADDRESS
         // WE DIRECTLY CHECK THAT THE ADDRESS HAS THE ROLE. THERE IS NO POINT IN STORING IT
         StorageMiddleware storage $ = _getMiddlewareStorage();
         address currentForwarderAddress = $.forwarderAddress;
@@ -292,14 +292,10 @@ contract Middleware is
     }
 
     /**
-     * @dev Called by chainlink nodes off-chain to check if the upkeep is needed
-     * @return upkeepNeeded boolean to indicate whether the keeper should call performUpkeep or not.
-     * @return performData bytes of the sorted (by power) operators' keys and the epoch that will be used by the keeper when calling performUpkeep, if upkeep is needed.
+     * @inheritdoc IMiddleware
      */
-    function checkUpkeep(
-        bytes calldata /* checkData */
-    ) external view returns (bool upkeepNeeded, bytes memory performData) {
-        (upkeepNeeded, performData) = IOBaseMiddlewareReader(address(this)).auxiliaryCheckUpkeep();
+    function prepareDataForSendingToGateway() external view returns (bool upkeepNeeded, bytes memory performData) {
+        (upkeepNeeded, performData) = IOBaseMiddlewareReader(address(this)).auxiliaryPrepareDataForSendingToGateway();
     }
 
     /**
@@ -540,7 +536,7 @@ contract Middleware is
         uint256 operatorsLength = _operatorsLength();
         uint256 cacheIndex = cache.epochToCacheIndex[epoch];
         uint256 pendingOperatorsToCache = operatorsLength - cacheIndex;
-        console2.log("Pending operators to cache: ", pendingOperatorsToCache);
+
         if (pendingOperatorsToCache > 0) {
             (uint8 command,, ValidatorData[] memory validatorsData) =
                 abi.decode(performData, (uint8, uint48, ValidatorData[]));

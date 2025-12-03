@@ -1376,7 +1376,7 @@ contract FullTest is Test {
             middleware.setForwarder(forwarder);
 
             uint256 gasBefore = gasleft();
-            (, bytes memory performData) = middleware.checkUpkeep(hex"");
+            (, bytes memory performData) = middleware.prepareDataForSendingToGateway();
             console2.log("Gas used to checkUpkeep:", gasBefore - gasleft());
             (uint8 command, uint48 encodedEpoch,) =
                 abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
@@ -2966,7 +2966,7 @@ contract FullTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         // Before everything happens, the operator 1 is already registered in a vault and has power. Once he is in too many vaults his power must become 0 even if no stake is removed.
-        (, bytes memory performData) = middleware.checkUpkeep(hex"");
+        (, bytes memory performData) = middleware.prepareDataForSendingToGateway();
         (uint8 command, uint48 epoch, IMiddleware.ValidatorData[] memory validatorsData) =
             abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
         assertEq(epoch, currentEpoch);
@@ -3030,7 +3030,7 @@ contract FullTest is Test {
         assertEq(activeOperatorVaults, 10);
         assertEq(activeSharedVaults + activeOperatorVaults, maxVaults + 5);
 
-        (, performData) = middleware.checkUpkeep(hex"");
+        (, performData) = middleware.prepareDataForSendingToGateway();
         (command, epoch, validatorsData) = abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
         assertEq(epoch, currentEpoch);
 

@@ -468,7 +468,7 @@ contract FullTest is Test {
         uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, totalActiveOperators);
         for (uint256 i = 0; i < totalBatches; i++) {
             beforeGas = gasleft();
-            (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+            (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
             afterGas = gasleft();
 
             assertEq(upkeepNeeded, true);
@@ -492,7 +492,7 @@ contract FullTest is Test {
         assertEq(processedOperators, totalOperators); // Due to the strategy, all operators should be processed
 
         beforeGas = gasleft();
-        (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
+        (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
         afterGas = gasleft();
 
         assertEq(upkeepNeeded, true);
@@ -517,7 +517,7 @@ contract FullTest is Test {
         console2.log("Gas used for final perform (sending): ", beforeGas - afterGas);
         assertLt(beforeGas - afterGas, MAX_CHAINLINK_PERFORMUPKEEP_GAS); // Check that gas is lower than 5M limit
 
-        (upkeepNeeded,) = middleware.checkUpkeep(hex"");
+        (upkeepNeeded,) = middleware.prepareDataForSendingToGateway();
         assertEq(upkeepNeeded, false);
     }
 

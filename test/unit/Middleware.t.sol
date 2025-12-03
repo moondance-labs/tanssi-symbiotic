@@ -2538,7 +2538,7 @@ contract MiddlewareTest is Test {
         // It's not needed, it's just for explaining and showing the flow
         address offlineKeepers = makeAddr("offlineKeepers");
         vm.prank(offlineKeepers);
-        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        (bool upkeepNeeded, bytes memory performData) = middleware.prepareDataForSendingToGateway();
         assertEq(upkeepNeeded, false);
 
         assertEq(performData.length, 0);
@@ -2574,7 +2574,7 @@ contract MiddlewareTest is Test {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         uint48 epoch = middleware.getCurrentEpoch();
 
-        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        (bool upkeepNeeded, bytes memory performData) = middleware.prepareDataForSendingToGateway();
         assertEq(upkeepNeeded, true);
 
         (uint8 command, uint48 encodedEpoch, IMiddleware.ValidatorData[] memory validatorsData) =
@@ -2596,7 +2596,7 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
-        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        (bool upkeepNeeded, bytes memory performData) = middleware.prepareDataForSendingToGateway();
         assertEq(upkeepNeeded, true);
 
         bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
@@ -2623,7 +2623,7 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
-        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        (bool upkeepNeeded, bytes memory performData) = middleware.prepareDataForSendingToGateway();
         assertEq(upkeepNeeded, true);
 
         bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
@@ -2647,7 +2647,7 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
-        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        (bool upkeepNeeded, bytes memory performData) = middleware.prepareDataForSendingToGateway();
         assertEq(upkeepNeeded, true);
 
         bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
