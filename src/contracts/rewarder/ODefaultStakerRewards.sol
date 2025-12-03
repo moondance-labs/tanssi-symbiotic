@@ -244,7 +244,7 @@ contract ODefaultStakerRewards is
         address tokenAddress
     ) private {
         // Take out the admin fee from the rewards
-        uint256 adminFeeAmount = amount.mulDiv(adminFeeBps, 10_000);
+        uint256 adminFeeAmount = amount.mulDiv(adminFeeBps, 10_000); // 10_000 is the basis points for 100%
         // And distribute the rest to the stakers
         uint256 distributeAmount = amount - adminFeeAmount;
 
