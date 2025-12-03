@@ -17,7 +17,7 @@ pragma solidity 0.8.25;
 //**************************************************************************************************
 //                                      CHAINLINK
 //**************************************************************************************************
-import {IReceiverTemplate} from "src/interfaces/middleware/IReceiverTemplate.sol";
+import {IReceiverTemplate} from "src/interfaces/extensions/cre/IReceiverTemplate.sol";
 
 //**************************************************************************************************
 //                                      OPENZEPPELIN
