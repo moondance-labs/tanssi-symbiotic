@@ -274,6 +274,12 @@ contract DeployTest is Test {
         assertNotEq(reader, ZERO_ADDRESS);
     }
 
+    function testDeployMiddlewareReaderForwarder() public {
+        address middleware = _deployMiddleware();
+        address reader = address(deployTanssiEcosystem.deployMiddlewareReaderForwarder(middleware));
+        assertNotEq(reader, ZERO_ADDRESS);
+    }
+
     //**************************************************************************************************
     //                                      DEPLOY VAULT
     //**************************************************************************************************

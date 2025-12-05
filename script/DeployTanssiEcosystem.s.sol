@@ -23,6 +23,7 @@ import {INetworkMiddlewareService} from "@symbiotic/interfaces/service/INetworkM
 import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
+import {OBaseMiddlewareReaderForwarder} from "src/contracts/middleware/OBaseMiddlewareReaderForwarder.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {AggregatorV3DIAProxy} from "src/contracts/oracle-proxy/AggregatorV3DIAProxy.sol";
 
@@ -103,6 +104,16 @@ contract DeployTanssiEcosystem is Script {
         vm.startBroadcast(broadcaster());
         reader = new OBaseMiddlewareReader();
         console2.log("New reader: ", address(reader));
+
+        vm.stopBroadcast();
+    }
+
+    function deployMiddlewareReaderForwarder(
+        address middleware
+    ) public returns (OBaseMiddlewareReaderForwarder reader) {
+        vm.startBroadcast(broadcaster());
+        reader = new OBaseMiddlewareReaderForwarder(middleware);
+        console2.log("New reader forwarder: ", address(reader));
 
         vm.stopBroadcast();
     }
