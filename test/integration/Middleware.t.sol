@@ -525,7 +525,6 @@ contract MiddlewareTest is Test {
         assertEq(OBaseMiddlewareReader(address(middleware)).VAULT_REGISTRY(), address(vaultFactory));
         assertEq(EpochCapture(address(middleware)).getEpochDuration(), NETWORK_EPOCH_DURATION);
         assertEq(OBaseMiddlewareReader(address(middleware)).SLASHING_WINDOW(), SLASHING_WINDOW);
-        assertEq(OBaseMiddlewareReader(address(middleware)).subnetworksLength(), 1);
     }
 
     function testIfOperatorsAreRegisteredInVaults() public {

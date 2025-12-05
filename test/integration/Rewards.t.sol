@@ -571,7 +571,6 @@ contract RewardsTest is Test {
         assertEq(OBaseMiddlewareReader(address(middleware)).VAULT_REGISTRY(), address(vaultFactory));
         assertEq(EpochCapture(address(middleware)).getEpochDuration(), NETWORK_EPOCH_DURATION);
         assertEq(OBaseMiddlewareReader(address(middleware)).SLASHING_WINDOW(), SLASHING_WINDOW);
-        assertEq(OBaseMiddlewareReader(address(middleware)).subnetworksLength(), 1);
     }
 
     function testSubmitRewards() public {
@@ -713,14 +712,13 @@ contract RewardsTest is Test {
         uint48 epochStartTs,
         uint256 expectedAmountStakers
     ) private view returns (uint256[] memory rewards) {
-        uint256 powerVault1 = IOBaseMiddlewareReader(address(middleware)).getOperatorPowerAt(
-            epochStartTs, operator_, address(vault), uint96(0)
-        );
+        uint256 powerVault1 =
+            IOBaseMiddlewareReader(address(middleware)).getOperatorPowerAt(epochStartTs, operator_, address(vault));
         uint256 powerVault2 = IOBaseMiddlewareReader(address(middleware)).getOperatorPowerAt(
-            epochStartTs, operator_, address(vaultSlashable), uint96(0)
+            epochStartTs, operator_, address(vaultSlashable)
         );
         uint256 powerVault3 = IOBaseMiddlewareReader(address(middleware)).getOperatorPowerAt(
-            epochStartTs, operator_, address(vaultVetoed), uint96(0)
+            epochStartTs, operator_, address(vaultVetoed)
         );
 
         uint256 totalPower = powerVault1 + powerVault2 + powerVault3;
