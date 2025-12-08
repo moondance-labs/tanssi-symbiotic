@@ -200,8 +200,24 @@ contract FullTest is Test {
         tanssi = entities.tanssi;
         gateway = GatewayProxy(payable(entities.gateway));
         middleware = Middleware(entities.middleware);
-        reader = OBaseMiddlewareReader(address(middleware));
+
         operatorRewards = ODefaultOperatorRewards(entities.operatorRewards);
+
+        // TODO remove once updated on mainnet
+        Middleware newMiddleware = new Middleware();
+        ODefaultOperatorRewards newOperatorRewards =
+            new ODefaultOperatorRewards(tanssi, networkConfig.networkMiddlewareService);
+        OBaseMiddlewareReader newReader = new OBaseMiddlewareReader();
+
+        vm.startPrank(admin);
+        middleware.upgradeToAndCall(address(newMiddleware), hex"");
+        operatorRewards.upgradeToAndCall(address(newOperatorRewards), hex"");
+        middleware.setReader(address(newReader));
+        vm.stopPrank();
+        // TODO END
+
+        reader = OBaseMiddlewareReader(address(middleware));
+
         rewardsToken = Token(entities.rewardsToken);
 
         // For now we need this as we can't use the one already deployed
