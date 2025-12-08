@@ -162,7 +162,10 @@ contract Middleware is
         }
     }
 
-    function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
+    function stakeToPower(
+        address vault,
+        uint256 stake
+    ) public view override returns (uint256 power) {
         return IOBaseMiddlewareReader(address(this)).getPowerInUSD(vault, stake);
     }
 
@@ -266,9 +269,8 @@ contract Middleware is
         StorageMiddleware storage $ = _getMiddlewareStorage();
         IERC20(tokenAddress).approve($.i_operatorRewards, tokenAmount);
 
-        IODefaultOperatorRewards($.i_operatorRewards).distributeRewards(
-            uint48(epoch), uint48(eraIndex), tokenAmount, totalPoints, rewardsRoot, tokenAddress
-        );
+        IODefaultOperatorRewards($.i_operatorRewards)
+            .distributeRewards(uint48(epoch), uint48(eraIndex), tokenAmount, totalPoints, rewardsRoot, tokenAddress);
     }
 
     /**
@@ -301,7 +303,11 @@ contract Middleware is
     /**
      * @inheritdoc IMiddleware
      */
-    function slash(uint48 epoch, bytes32 operatorKey, uint256 percentage) external checkAccess {
+    function slash(
+        uint48 epoch,
+        bytes32 operatorKey,
+        uint256 percentage
+    ) external checkAccess {
         uint48 epochStartTs = IOBaseMiddlewareReader(address(this)).getEpochStart(epoch);
         address operator = operatorByKey(abi.encode(operatorKey));
 
@@ -372,13 +378,15 @@ contract Middleware is
      * @param vault The vault address to calculate its stake
      * @param params Struct containing slashing parameters
      */
-    function _processVaultSlashing(address vault, SlashParams memory params) private {
+    function _processVaultSlashing(
+        address vault,
+        SlashParams memory params
+    ) private {
         // Tanssi will use only one subnetwork so we only check the first
         bytes32 subnetwork = _NETWORK().subnetwork(0);
 
-        uint256 vaultStake = IBaseDelegator(IVault(vault).delegator()).stakeAt(
-            subnetwork, params.operator, params.epochStartTs, new bytes(0)
-        );
+        uint256 vaultStake = IBaseDelegator(IVault(vault).delegator())
+            .stakeAt(subnetwork, params.operator, params.epochStartTs, new bytes(0));
         // Slash percentage is already in parts per billion
         // so we need to divide by a billion
         uint256 slashAmount = params.slashPercentage.mulDiv(vaultStake, PARTS_PER_BILLION);
@@ -443,7 +451,11 @@ contract Middleware is
     /**
      * @inheritdoc BaseOperators
      */
-    function _beforeRegisterOperatorVault(address, /* operator */ address vault) internal override {
+    function _beforeRegisterOperatorVault(
+        address,
+        /* operator */
+        address vault
+    ) internal override {
         _setVaultToCollateral(vault);
     }
 
@@ -500,7 +512,7 @@ contract Middleware is
             performData.length := len
         }
 
-        if (executionCode == 101) {
+        if (executionCode == CRE_CACHE_DATA_COMMAND) {
             _cacheAndSendOperatorsFlow(performData);
         } else {}
     }

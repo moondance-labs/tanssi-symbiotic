@@ -46,6 +46,7 @@ abstract contract MiddlewareStorage {
     uint8 public constant DEFAULT_DECIMALS = 18;
     uint8 public constant CACHE_DATA_COMMAND = 1;
     uint8 public constant SEND_DATA_COMMAND = 2;
+    uint8 public constant CRE_CACHE_DATA_COMMAND = 101;
     uint256 public constant VERSION = 1;
     uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
     uint256 public constant MIN_INTERVAL_TO_SEND_OPERATOR_KEYS = 50; // 50 blocks of ~12 seconds each ≈ 600 seconds ≈ 10 minutes
@@ -172,7 +173,10 @@ abstract contract MiddlewareStorage {
      * @param operatorKey The operator key
      * @return The power of the operator
      */
-    function getOperatorToPowerCached(uint48 epoch, bytes32 operatorKey) public view returns (uint256) {
+    function getOperatorToPowerCached(
+        uint48 epoch,
+        bytes32 operatorKey
+    ) public view returns (uint256) {
         StorageMiddlewareCache storage $ = _getMiddlewareStorageCache();
         return $.operatorKeyToPower[epoch][operatorKey];
     }
