@@ -356,7 +356,6 @@ contract MiddlewareTest is Test {
         assertEq(EpochCapture(address(middleware)).getEpochDuration(), NETWORK_EPOCH_DURATION);
         assertEq(readerForwarder.SLASHING_WINDOW(), SLASHING_WINDOW);
         assertEq(readerForwarder.OPERATOR_NET_OPTIN(), address(operatorNetworkOptInServiceMock));
-        assertEq(readerForwarder.subnetworksLength(), 1);
         assertEq(middleware.getGateway(), address(gateway));
         assertEq(middleware.getLastTimestamp(), 1); // Start time in tests is 1
         assertEq(middleware.getForwarderAddress(), address(0));
@@ -1677,66 +1676,6 @@ contract MiddlewareTest is Test {
     }
 
     // ************************************************************************************************
-    // *                                        SUBNETWORK WITH TIMES AT
-    // ************************************************************************************************
-
-    function testSubnetworkWithTimesAt() public {
-        _registerVaultAndOperator(address(0), false);
-        vm.warp(NETWORK_EPOCH_DURATION + 2);
-        (uint160 subnetworkAddress, uint48 startTime, uint48 endTime) = readerForwarder.subnetworkWithTimesAt(0);
-
-        assertEq(subnetworkAddress, 0);
-        assertEq(startTime, 1);
-        assertEq(endTime, 0);
-    }
-
-    // ************************************************************************************************
-    // *                                        ACTIVE SUBNETWORKS
-    // ************************************************************************************************
-
-    function testActiveSubnetwork() public {
-        _registerVaultAndOperator(address(0), false);
-        vm.stopPrank();
-        vm.warp(NETWORK_EPOCH_DURATION + 2);
-        uint160[] memory activeSubnetwork = readerForwarder.activeSubnetworks();
-
-        assertEq(activeSubnetwork.length, 1);
-        assertEq(activeSubnetwork[0], 0);
-    }
-
-    // ************************************************************************************************
-    // *                                        ACTIVE SUBNETWORKS AT
-    // ************************************************************************************************
-
-    function testActiveSubnetworkAt() public {
-        _registerVaultAndOperator(address(0), false);
-        vm.stopPrank();
-        vm.warp(NETWORK_EPOCH_DURATION + 2);
-        uint48 currentEpoch = middleware.getCurrentEpoch();
-        uint48 currentEpochStartTs = middleware.getEpochStart(currentEpoch);
-
-        uint160[] memory activeSubnetwork = readerForwarder.activeSubnetworksAt(currentEpochStartTs);
-
-        assertEq(activeSubnetwork.length, 1);
-        assertEq(activeSubnetwork[0], 0);
-    }
-
-    // ************************************************************************************************
-    // *                                        SUBNETWORK WAS ACTIVE AT
-    // ************************************************************************************************
-
-    function testSubnetworkWasActiveAt() public {
-        _registerVaultAndOperator(address(0), false);
-        vm.warp(NETWORK_EPOCH_DURATION + 2);
-        uint48 currentEpoch = middleware.getCurrentEpoch();
-        uint48 currentEpochStartTs = middleware.getEpochStart(currentEpoch);
-        bool isActive = readerForwarder.subnetworkWasActiveAt(currentEpochStartTs, 0);
-
-        assertEq(isActive, true);
-        vm.stopPrank();
-    }
-
-    // ************************************************************************************************
     // *                                        SHARED VAULTS LENGTH
     // ************************************************************************************************
 
@@ -2001,7 +1940,7 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
         _setVaultCollateral(address(vault));
 
-        uint256 power = readerForwarder.getOperatorPower(operator, address(vault), 0);
+        uint256 power = readerForwarder.getOperatorPower(operator, address(vault));
 
         assertEq(power, 0);
     }
@@ -2021,9 +1960,8 @@ contract MiddlewareTest is Test {
         _setVaultCollateral(address(vault));
         address[] memory vaults = new address[](1);
         vaults[0] = address(vault);
-        uint160[] memory subnetworks = new uint160[](1);
-        subnetworks[0] = uint160(tanssi);
-        uint256 power = readerForwarder.getOperatorPower(operator, vaults, subnetworks);
+
+        uint256 power = readerForwarder.getOperatorPower(operator, vaults);
 
         assertEq(power, 0);
     }
@@ -2038,7 +1976,7 @@ contract MiddlewareTest is Test {
         _setVaultCollateral(address(vault));
         uint48 epoch = middleware.getCurrentEpoch();
         uint48 epochTs = middleware.getEpochStart(epoch);
-        uint256 power = readerForwarder.getOperatorPowerAt(epochTs, operator, address(vault), 0);
+        uint256 power = readerForwarder.getOperatorPowerAt(epochTs, operator, address(vault));
 
         assertEq(power, 0);
     }
@@ -2052,9 +1990,8 @@ contract MiddlewareTest is Test {
         _setVaultCollateral(address(vault));
         address[] memory vaults = new address[](1);
         vaults[0] = address(vault);
-        uint160[] memory subnetworks = new uint160[](1);
-        subnetworks[0] = uint160(tanssi);
-        uint256 power = readerForwarder.getOperatorPowerAt(epochTs, operator, vaults, subnetworks);
+
+        uint256 power = readerForwarder.getOperatorPowerAt(epochTs, operator, vaults);
 
         assertEq(power, 0);
     }

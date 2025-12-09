@@ -200,8 +200,24 @@ contract FullTest is Test {
         tanssi = entities.tanssi;
         gateway = GatewayProxy(payable(entities.gateway));
         middleware = Middleware(entities.middleware);
-        reader = OBaseMiddlewareReader(address(middleware));
+
         operatorRewards = ODefaultOperatorRewards(entities.operatorRewards);
+
+        // TODO remove once updated on mainnet
+        Middleware newMiddleware = new Middleware();
+        ODefaultOperatorRewards newOperatorRewards =
+            new ODefaultOperatorRewards(tanssi, networkConfig.networkMiddlewareService);
+        OBaseMiddlewareReader newReader = new OBaseMiddlewareReader();
+
+        vm.startPrank(admin);
+        middleware.upgradeToAndCall(address(newMiddleware), hex"");
+        operatorRewards.upgradeToAndCall(address(newOperatorRewards), hex"");
+        middleware.setReader(address(newReader));
+        vm.stopPrank();
+        // TODO END
+
+        reader = OBaseMiddlewareReader(address(middleware));
+
         rewardsToken = Token(entities.rewardsToken);
 
         // For now we need this as we can't use the one already deployed
@@ -219,7 +235,6 @@ contract FullTest is Test {
     function _cacheAllOperatorsVaults() private {
         uint48 currentEpoch = middleware.getCurrentEpoch();
         Middleware.OperatorVaultPair[] memory operatorVaultPairs = reader.getOperatorVaultPairs(currentEpoch);
-        uint96 subnetworkIdentifier = tanssi.subnetwork(0).identifier();
         for (uint256 i = 0; i < operatorVaultPairs.length; i++) {
             address operatorAddress = operatorVaultPairs[i].operator;
             address[] memory operatorVaults = operatorVaultPairs[i].vaults;
@@ -230,9 +245,7 @@ contract FullTest is Test {
                     allVaults.push(vaultAddress);
                 }
                 vaultToOperators[vaultAddress].push(operatorAddress);
-                operatorToPowers[operatorAddress].push(
-                    reader.getOperatorPower(operatorAddress, vaultAddress, subnetworkIdentifier)
-                );
+                operatorToPowers[operatorAddress].push(reader.getOperatorPower(operatorAddress, vaultAddress));
             }
         }
     }
@@ -255,7 +268,6 @@ contract FullTest is Test {
         assertEq(reader.VAULT_REGISTRY(), vaultFactoryAddress);
         assertEq(EpochCapture(address(middleware)).getEpochDuration(), NETWORK_EPOCH_DURATION);
         assertEq(reader.SLASHING_WINDOW(), SLASHING_WINDOW);
-        assertEq(reader.subnetworksLength(), 1);
     }
 
     function testUpdateAndUnpause() public {
@@ -738,7 +750,7 @@ contract FullTest is Test {
         address operatorAddress,
         HelperConfig.CollateralData memory collateralData
     ) public view {
-        uint256 currentPower = reader.getOperatorPower(operatorAddress, vault, tanssi.subnetwork(0).identifier());
+        uint256 currentPower = reader.getOperatorPower(operatorAddress, vault);
         uint256 stake = IBaseDelegator(IVault(vault).delegator()).stake(tanssi.subnetwork(0), operatorAddress);
 
         (, int256 oraclePrice,,,) = AggregatorV3Interface(collateralData.oracle).latestRoundData();

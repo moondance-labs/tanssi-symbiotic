@@ -201,54 +201,6 @@ contract OBaseMiddlewareReader is
     }
 
     /**
-     * @notice Gets the number of subnetworks
-     * @return The number of subnetworks
-     */
-    function subnetworksLength() external view returns (uint256) {
-        return _subnetworksLength();
-    }
-
-    /**
-     * @notice Gets the subnetwork and its times at a specific position
-     * @param pos The position
-     * @return The subnetwork address, start time, and end time
-     */
-    function subnetworkWithTimesAt(
-        uint256 pos
-    ) external view returns (uint160, uint48, uint48) {
-        return _subnetworkWithTimesAt(pos);
-    }
-
-    /**
-     * @notice Gets the list of active subnetworks
-     * @return The list of active subnetworks
-     */
-    function activeSubnetworks() external view returns (uint160[] memory) {
-        return _activeSubnetworks();
-    }
-
-    /**
-     * @notice Gets the list of active subnetworks at a specific timestamp
-     * @param timestamp The timestamp
-     * @return The list of active subnetworks at the given timestamp
-     */
-    function activeSubnetworksAt(
-        uint48 timestamp
-    ) external view returns (uint160[] memory) {
-        return _activeSubnetworksAt(timestamp);
-    }
-
-    /**
-     * @notice Checks if a subnetwork was active at a specific timestamp
-     * @param timestamp The timestamp
-     * @param subnetwork The subnetwork address
-     * @return True if the subnetwork was active at the given timestamp, false otherwise
-     */
-    function subnetworkWasActiveAt(uint48 timestamp, uint96 subnetwork) external view returns (bool) {
-        return _subnetworkWasActiveAt(timestamp, subnetwork);
-    }
-
-    /**
      * @notice Gets the number of shared vaults
      * @return The number of shared vaults
      */
@@ -401,31 +353,24 @@ contract OBaseMiddlewareReader is
     }
 
     /**
-     * @notice Gets the power of an operator for a specific vault and subnetwork
+     * @notice Gets the power of an operator for a specific vault
      * @param operator The operator address
      * @param vault The vault address
-     * @param subnetwork The subnetwork address
-     * @return The power of the operator for the given vault and subnetwork
+     * @return The power of the operator for the given vault
      */
-    function getOperatorPower(address operator, address vault, uint96 subnetwork) external view returns (uint256) {
-        return _getOperatorPower(operator, vault, subnetwork);
+    function getOperatorPower(address operator, address vault) external view returns (uint256) {
+        return _getOperatorPower(operator, vault);
     }
 
     /**
-     * @notice Gets the power of an operator for a specific vault and subnetwork at a specific timestamp
+     * @notice Gets the power of an operator for a specific vault at a specific timestamp
      * @param timestamp The timestamp
      * @param operator The operator address
      * @param vault The vault address
-     * @param subnetwork The subnetwork address
-     * @return The power of the operator for the given vault and subnetwork at the given timestamp
+     * @return The power of the operator for the given vault at the given timestamp
      */
-    function getOperatorPowerAt(
-        uint48 timestamp,
-        address operator,
-        address vault,
-        uint96 subnetwork
-    ) external view returns (uint256) {
-        return _getOperatorPowerAt(timestamp, operator, vault, subnetwork);
+    function getOperatorPowerAt(uint48 timestamp, address operator, address vault) external view returns (uint256) {
+        return _getOperatorPowerAt(timestamp, operator, vault);
     }
 
     /**
@@ -453,15 +398,10 @@ contract OBaseMiddlewareReader is
      * @notice Gets the power of an operator for specific vaults and subnetworks
      * @param operator The operator address
      * @param vaults The list of vault addresses
-     * @param subnetworks The list of subnetwork addresses
      * @return The power of the operator for the given vaults and subnetworks
      */
-    function getOperatorPower(
-        address operator,
-        address[] memory vaults,
-        uint160[] memory subnetworks
-    ) external view returns (uint256) {
-        return _getOperatorPower(operator, vaults, subnetworks);
+    function getOperatorPower(address operator, address[] memory vaults) external view returns (uint256) {
+        return _getOperatorPower(operator, vaults);
     }
 
     /**
@@ -469,16 +409,14 @@ contract OBaseMiddlewareReader is
      * @param timestamp The timestamp
      * @param operator The operator address
      * @param vaults The list of vault addresses
-     * @param subnetworks The list of subnetwork addresses
      * @return The power of the operator for the given vaults and subnetworks at the given timestamp
      */
     function getOperatorPowerAt(
         uint48 timestamp,
         address operator,
-        address[] memory vaults,
-        uint160[] memory subnetworks
+        address[] memory vaults
     ) external view returns (uint256) {
-        return _getOperatorPowerAt(timestamp, operator, vaults, subnetworks);
+        return _getOperatorPowerAt(timestamp, operator, vaults);
     }
 
     /**
@@ -681,7 +619,6 @@ contract OBaseMiddlewareReader is
         uint256 len = 0;
         VaultManagerStorage storage $ = _getVaultManagerStorage();
         address[] memory sharedVaults = $._sharedVaults.getActive(epochStartTs);
-        uint96 subnetwork = _NETWORK().subnetwork(0).identifier();
         for (uint256 i; i < operatorsLength_;) {
             address operator = operators[i];
             bytes32 key = abi.decode(getOperatorKeyAt(operator, epochStartTs), (bytes32));
@@ -693,7 +630,7 @@ contract OBaseMiddlewareReader is
             if (key != bytes32(0)) {
                 uint256 power = getOperatorToPowerCached(epoch, key);
                 if (power == 0) {
-                    power = _optmizedGetOperatorPowerAt(epochStartTs, sharedVaults, subnetwork, operator);
+                    power = _optmizedGetOperatorPowerAt(epochStartTs, sharedVaults, operator);
                 }
 
                 if (power != 0) {
@@ -794,7 +731,6 @@ contract OBaseMiddlewareReader is
 
         VaultManagerStorage storage $ = _getVaultManagerStorage();
         address[] memory sharedVaults = $._sharedVaults.getActive(timestamp);
-        uint96 subnetwork = _NETWORK().subnetwork(0).identifier();
 
         for (uint256 i = cacheIndex; i < cacheIndex + maxNumOperatorsToCheck && i < operatorsLength_;) {
             (address operator, uint48 enabled, uint48 disabled) = operators.at(i);
@@ -803,7 +739,7 @@ contract OBaseMiddlewareReader is
             if (enabled < timestamp && (disabled == 0 || disabled >= timestamp)) {
                 // equivalent to operators.wasActiveAt(timestamp, operator) but slightly reduces gas
                 atLeastOneActive = true;
-                power = _optmizedGetOperatorPowerAt(timestamp, sharedVaults, subnetwork, operator);
+                power = _optmizedGetOperatorPowerAt(timestamp, sharedVaults, operator);
             }
 
             validatorsData[i - cacheIndex] =
@@ -822,7 +758,6 @@ contract OBaseMiddlewareReader is
     function _optmizedGetOperatorPowerAt(
         uint48 timestamp,
         address[] memory sharedVaults,
-        uint96 subnetwork,
         address operator
     ) private view returns (uint256 power) {
         VaultManagerStorage storage $ = _getVaultManagerStorage();
@@ -830,30 +765,8 @@ contract OBaseMiddlewareReader is
 
         // This check might seem innecesary since we check on vault registration, however if we register first operator vaults and then shared ones, the limit might be reached for an operator without triggering the revert on registration.
         if (sharedVaults.length + operatorVaults.length <= MAX_ACTIVE_VAULTS) {
-            power = _getOperatorPowerAt(timestamp, operator, sharedVaults, subnetwork)
-                + _getOperatorPowerAt(timestamp, operator, operatorVaults, subnetwork);
+            power = _getOperatorPowerAt(timestamp, operator, sharedVaults)
+                + _getOperatorPowerAt(timestamp, operator, operatorVaults);
         }
-    }
-
-    /**
-     * @notice Optimized version of _getOperatorPowerAt that only gets the power for a single subnetwork
-     * @param timestamp The timestamp to check
-     * @param operator The operator address
-     * @param vaults The list of vault addresses
-     * @param subnetwork The subnetwork identifier
-     * @return power The total power amount at the timestamp
-     */
-    function _getOperatorPowerAt(
-        uint48 timestamp,
-        address operator,
-        address[] memory vaults,
-        uint96 subnetwork
-    ) internal view returns (uint256 power) {
-        uint256 vaultsLength = vaults.length;
-        for (uint256 i; i < vaultsLength; ++i) {
-            power += _getOperatorPowerAt(timestamp, operator, vaults[i], subnetwork);
-        }
-
-        return power;
     }
 }
