@@ -435,7 +435,12 @@ contract MiddlewareTest is Test {
             deployVault.createVaultVetoed(params, 1 days);
     }
 
-    function _depositToVault(Vault _vault, address _operator, uint256 _amount, Token collateral) public {
+    function _depositToVault(
+        Vault _vault,
+        address _operator,
+        uint256 _amount,
+        Token collateral
+    ) public {
         collateral.approve(address(_vault), _amount * 10);
         _vault.deposit(_operator, _amount);
     }
@@ -460,7 +465,12 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
     }
 
-    function _registerOperatorAndOptIn(address _operator, address _network, address _vault, bool firstTime) public {
+    function _registerOperatorAndOptIn(
+        address _operator,
+        address _network,
+        address _vault,
+        bool firstTime
+    ) public {
         vm.startPrank(_operator);
         if (firstTime) {
             operatorRegistry.registerOperator();
@@ -475,19 +485,15 @@ contract MiddlewareTest is Test {
     ) public {
         vm.startPrank(_owner);
         //The total shares are 3 (TOTAL_NETWORK_SHARE), so each operator has 1 share (OPERATOR_SHARE)
-        INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator3, OPERATOR_SHARE
-        );
+        INetworkRestakeDelegator(vaultAddresses.delegator)
+            .setOperatorNetworkShares(tanssi.subnetwork(0), operator, OPERATOR_SHARE);
+        INetworkRestakeDelegator(vaultAddresses.delegator)
+            .setOperatorNetworkShares(tanssi.subnetwork(0), operator3, OPERATOR_SHARE);
 
-        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator2, OPERATOR_SHARE
-        );
-        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setOperatorNetworkShares(
-            tanssi.subnetwork(0), operator3, OPERATOR_SHARE
-        );
+        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable)
+            .setOperatorNetworkShares(tanssi.subnetwork(0), operator2, OPERATOR_SHARE);
+        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable)
+            .setOperatorNetworkShares(tanssi.subnetwork(0), operator3, OPERATOR_SHARE);
 
         vm.stopPrank();
     }
@@ -503,12 +509,10 @@ contract MiddlewareTest is Test {
         INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setNetworkLimit(tanssi.subnetwork(0), 1000 ether);
         INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setNetworkLimit(tanssi.subnetwork(0), 1000 ether);
 
-        IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
-            tanssi.subnetwork(0), operator2, OPERATOR_STAKE_BTC
-        );
-        IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
-            tanssi.subnetwork(0), operator3, OPERATOR_STAKE_BTC
-        );
+        IFullRestakeDelegator(vaultAddresses.delegatorVetoed)
+            .setOperatorNetworkLimit(tanssi.subnetwork(0), operator2, OPERATOR_STAKE_BTC);
+        IFullRestakeDelegator(vaultAddresses.delegatorVetoed)
+            .setOperatorNetworkLimit(tanssi.subnetwork(0), operator3, OPERATOR_STAKE_BTC);
         vm.stopPrank();
     }
 
@@ -882,9 +886,8 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(owner);
         stETH.transfer(operatorX, OPERATOR_INITIAL_BALANCE);
-        INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares(
-            network2.subnetwork(0), operatorX, OPERATOR_SHARE
-        );
+        INetworkRestakeDelegator(vaultAddresses.delegator)
+            .setOperatorNetworkShares(network2.subnetwork(0), operatorX, OPERATOR_SHARE);
         INetworkRestakeDelegator(vaultAddresses.delegator).setNetworkLimit(network2.subnetwork(0), 300 ether);
 
         // OperatorX registration and network configuration
@@ -1000,12 +1003,10 @@ contract MiddlewareTest is Test {
         INetworkRestakeDelegator(vaultDelegatorUsdc).setMaxNetworkLimit(0, 1000 * 10 ** USDC_ORACLE_DECIMALS);
         INetworkRestakeDelegator(vaultDelegatorUsdt).setMaxNetworkLimit(0, 1000 * 10 ** USDT_ORACLE_DECIMALS);
 
-        INetworkRestakeDelegator(vaultDelegatorUsdc).setNetworkLimit(
-            tanssi.subnetwork(0), 1000 * 10 ** USDC_ORACLE_DECIMALS
-        );
-        INetworkRestakeDelegator(vaultDelegatorUsdt).setNetworkLimit(
-            tanssi.subnetwork(0), 1000 * 10 ** USDT_ORACLE_DECIMALS
-        );
+        INetworkRestakeDelegator(vaultDelegatorUsdc)
+            .setNetworkLimit(tanssi.subnetwork(0), 1000 * 10 ** USDC_ORACLE_DECIMALS);
+        INetworkRestakeDelegator(vaultDelegatorUsdt)
+            .setNetworkLimit(tanssi.subnetwork(0), 1000 * 10 ** USDT_ORACLE_DECIMALS);
 
         vm.startPrank(operator4);
         _depositToVault(Vault(vaultUsdc), operator4, OPERATOR_4_STAKE_USDC, usdc);
@@ -1074,9 +1075,8 @@ contract MiddlewareTest is Test {
 
         INetworkRestakeDelegator(tanssiDelegatorAddress).setMaxNetworkLimit(0, 1000 * 10 ** TANSSI_TOKEN_DECIMALS);
 
-        INetworkRestakeDelegator(tanssiDelegatorAddress).setNetworkLimit(
-            tanssi.subnetwork(0), 1000 * 10 ** TANSSI_TOKEN_DECIMALS
-        );
+        INetworkRestakeDelegator(tanssiDelegatorAddress)
+            .setNetworkLimit(tanssi.subnetwork(0), 1000 * 10 ** TANSSI_TOKEN_DECIMALS);
 
         vm.startPrank(operator4);
         _depositToVault(Vault(tanssiVaultAddress), operator4, OPERATOR_4_STAKE_TANSSI, tanssiCollateral);
@@ -1089,7 +1089,8 @@ contract MiddlewareTest is Test {
         Middleware.ValidatorData[] memory validators = _validatorSet(currentEpoch);
 
         // Total deposit is 90 USD, it should be normalized to 18 decimals
-        uint256 totalPowerByShares = (OPERATOR_4_STAKE_TANSSI + OPERATOR_5_STAKE_TANSSI).mulDiv(
+        uint256 totalPowerByShares = (OPERATOR_4_STAKE_TANSSI + OPERATOR_5_STAKE_TANSSI)
+        .mulDiv(
             uint256(ORACLE_CONVERSION_TANSSI), 10 ** (TANSSI_ORACLE_DECIMALS + TANSSI_TOKEN_DECIMALS - DEFAULT_DECIMALS)
         );
         // Only 2 operators participate in the USD vaults, so each has half of the power.
@@ -1197,20 +1198,18 @@ contract MiddlewareTest is Test {
                 address _delegator = delegators[j];
                 Token token = tokens[j];
                 vm.startPrank(_operator);
-                uint256 depositAmount = 0.000001 ether * (i + 1);
+                uint256 depositAmount = 0.000_001 ether * (i + 1);
                 _depositToVault(Vault(_vault), _operator, depositAmount, token);
 
                 vm.startPrank(owner);
                 if (j == 2) {
                     // FULL_RESTAKE
-                    IFullRestakeDelegator(_delegator).setOperatorNetworkLimit(
-                        tanssi.subnetwork(0), _operator, OPERATOR_STAKE_BTC
-                    );
+                    IFullRestakeDelegator(_delegator)
+                        .setOperatorNetworkLimit(tanssi.subnetwork(0), _operator, OPERATOR_STAKE_BTC);
                 } else {
                     // NETWORK_RESTAKE
-                    INetworkRestakeDelegator(_delegator).setOperatorNetworkShares(
-                        tanssi.subnetwork(0), _operator, OPERATOR_SHARE
-                    );
+                    INetworkRestakeDelegator(_delegator)
+                        .setOperatorNetworkShares(tanssi.subnetwork(0), _operator, OPERATOR_SHARE);
                 }
             }
 
@@ -1219,7 +1218,11 @@ contract MiddlewareTest is Test {
         vm.resumeGasMetering();
     }
 
-    function quickSort(Middleware.ValidatorData[] memory arr, int256 left, int256 right) public pure {
+    function quickSort(
+        Middleware.ValidatorData[] memory arr,
+        int256 left,
+        int256 right
+    ) public pure {
         int256 i = left;
         int256 j = right;
         if (i == j) return;
@@ -2027,7 +2030,10 @@ contract MiddlewareTest is Test {
             _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, totalFullRestakePower, 0);
     }
 
-    function _deployOracle(uint8 decimals, int256 answer) public returns (address) {
+    function _deployOracle(
+        uint8 decimals,
+        int256 answer
+    ) public returns (address) {
         MockV3Aggregator oracle = new MockV3Aggregator(decimals, answer);
         return address(oracle);
     }
@@ -2052,9 +2058,8 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         // This doesn't remove operator3's stake, but turns his power to zero, so it is not only the top operator.
         // Withdrawing would not change the order since this vault is full restake giving both OP3 and OP2 the same power.
-        IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
-            tanssi.subnetwork(0), operator3, 0
-        );
+        IFullRestakeDelegator(vaultAddresses.delegatorVetoed)
+            .setOperatorNetworkLimit(tanssi.subnetwork(0), operator3, 0);
 
         vm.warp(vm.getBlockTimestamp() + VAULT_EPOCH_DURATION + 1);
         vm.roll(80 + 57_235); // 57_235 is ≈ the number of blocks in 1 week

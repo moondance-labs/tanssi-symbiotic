@@ -262,7 +262,12 @@ contract MiddlewareTest is Test {
         vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
     }
 
-    function _registerOperatorToNetwork(address _operator, address _vault, bool skipRegister, bool skipOptIn) public {
+    function _registerOperatorToNetwork(
+        address _operator,
+        address _vault,
+        bool skipRegister,
+        bool skipOptIn
+    ) public {
         vm.startPrank(_operator);
         if (!skipRegister) {
             registry.register();
@@ -358,7 +363,11 @@ contract MiddlewareTest is Test {
         assertEq(storedReader, newReader);
     }
 
-    function _registerVaultToNetwork(address _vault, bool skipRegister, uint256 slashingWindowReduction) public {
+    function _registerVaultToNetwork(
+        address _vault,
+        bool skipRegister,
+        uint256 slashingWindowReduction
+    ) public {
         bytes32 slotValue = vm.load(address(_vault), bytes32(uint256(1)));
         uint256 newValue = uint256(SLASHING_WINDOW - slashingWindowReduction) << (26 * 8);
         bytes32 mask = bytes32(~(uint256(type(uint48).max) << (26 * 8)));
@@ -2492,8 +2501,8 @@ contract MiddlewareTest is Test {
         reader = OBaseMiddlewareReader(address(middleware));
 
         assertEq(
-            readerForwarder.getPowerInUSD(address(vault), OPERATOR_STAKE),
-            reader.getPowerInUSD(address(vault), OPERATOR_STAKE)
+            readerForwarder_.getPowerInUSD(address(vault), OPERATOR_STAKE),
+            reader_.getPowerInUSD(address(vault), OPERATOR_STAKE)
         );
     }
 
@@ -2652,32 +2661,33 @@ contract MiddlewareTest is Test {
         readerForwarder = new OBaseMiddlewareReaderForwarder(address(middleware));
         reader = OBaseMiddlewareReader(address(middleware));
 
-        assertEq(readerForwarder.getCaptureTimestamp(), reader.getCaptureTimestamp());
-        assertEq(readerForwarder.getCurrentEpoch(), reader.getCurrentEpoch());
-        assertEq(readerForwarder.getEpochDuration(), reader.getEpochDuration());
-        assertEq(readerForwarder.getEpochStart(1), reader.getEpochStart(1));
+        assertEq(readerForwarder_.getCaptureTimestamp(), reader_.getCaptureTimestamp());
+        assertEq(readerForwarder_.getCurrentEpoch(), reader_.getCurrentEpoch());
+        assertEq(readerForwarder_.getEpochDuration(), reader_.getEpochDuration());
+        assertEq(readerForwarder_.getEpochStart(1), reader_.getEpochStart(1));
         assertEq(
-            readerForwarder.keyWasActiveAt(0, abi.encode(OPERATOR_KEY)),
-            reader.keyWasActiveAt(0, abi.encode(OPERATOR_KEY))
+            readerForwarder_.keyWasActiveAt(0, abi.encode(OPERATOR_KEY)),
+            reader_.keyWasActiveAt(0, abi.encode(OPERATOR_KEY))
         );
         assertEq(
-            readerForwarder.collateralToOracle(address(collateral)), reader.collateralToOracle(address(collateral))
+            readerForwarder_.collateralToOracle(address(collateral)), reader_.collateralToOracle(address(collateral))
         );
-        assertEq(readerForwarder.vaultToCollateral(address(vault)), reader.vaultToCollateral(address(vault)));
-        assertEq(readerForwarder.vaultToOracle(address(vault)), reader.vaultToOracle(address(vault)));
-        assertEq(readerForwarder.getEpochCacheIndex(0), reader.getEpochCacheIndex(0));
+        assertEq(readerForwarder_.vaultToCollateral(address(vault)), reader_.vaultToCollateral(address(vault)));
+        assertEq(readerForwarder_.vaultToOracle(address(vault)), reader_.vaultToOracle(address(vault)));
+        assertEq(readerForwarder_.getEpochCacheIndex(0), reader_.getEpochCacheIndex(0));
         assertEq(
-            readerForwarder.getOperatorToPowerCached(0, OPERATOR_KEY), reader.getOperatorToPowerCached(0, OPERATOR_KEY)
+            readerForwarder_.getOperatorToPowerCached(0, OPERATOR_KEY),
+            reader_.getOperatorToPowerCached(0, OPERATOR_KEY)
         );
-        assertEq(readerForwarder.getForwarderAddress(), reader.getForwarderAddress());
-        assertEq(readerForwarder.getGateway(), reader.getGateway());
-        assertEq(readerForwarder.getInterval(), reader.getInterval());
-        assertEq(readerForwarder.getLastTimestamp(), reader.getLastTimestamp());
-        assertEq(readerForwarder.getOperatorRewardsAddress(), reader.getOperatorRewardsAddress());
-        assertEq(readerForwarder.getStakerRewardsFactoryAddress(), reader.getStakerRewardsFactoryAddress());
+        assertEq(readerForwarder_.getForwarderAddress(), reader_.getForwarderAddress());
+        assertEq(readerForwarder_.getGateway(), reader_.getGateway());
+        assertEq(readerForwarder_.getInterval(), reader_.getInterval());
+        assertEq(readerForwarder_.getLastTimestamp(), reader_.getLastTimestamp());
+        assertEq(readerForwarder_.getOperatorRewardsAddress(), reader_.getOperatorRewardsAddress());
+        assertEq(readerForwarder_.getStakerRewardsFactoryAddress(), reader_.getStakerRewardsFactoryAddress());
 
-        address[] memory activeOperatorsForwarder = readerForwarder.getOperatorsByEpoch(1);
-        address[] memory activeOperatorsReader = reader.getOperatorsByEpoch(1);
+        address[] memory activeOperatorsForwarder = readerForwarder_.getOperatorsByEpoch(1);
+        address[] memory activeOperatorsReader = reader_.getOperatorsByEpoch(1);
         assertEq(activeOperatorsForwarder.length, activeOperatorsReader.length);
         for (uint256 i; i < activeOperatorsForwarder.length; i++) {
             assertEq(activeOperatorsForwarder[i], activeOperatorsReader[i]);
@@ -2953,7 +2963,10 @@ contract MiddlewareTest is Test {
     // *                                          INTERNAL
     // ************************************************************************************************
 
-    function _setVaultToCollateral(address vault_, address collateral_) internal {
+    function _setVaultToCollateral(
+        address vault_,
+        address collateral_
+    ) internal {
         bytes32 slot = bytes32(uint256(MIDDLEWARE_STORAGE_LOCATION) + uint256(5)); // 5 is mapping slot number for the vault to collateral
         // Get slot for mapping with vault_
         slot = keccak256(abi.encode(vault_, slot));
@@ -2962,7 +2975,10 @@ contract MiddlewareTest is Test {
         vm.store(address(middleware), slot, bytes32(uint256(uint160(collateral_))));
     }
 
-    function _registerVaultAndOperator(address slasher_, bool deposit) internal {
+    function _registerVaultAndOperator(
+        address slasher_,
+        bool deposit
+    ) internal {
         _registerOperatorToNetwork(operator, address(vault), false, false);
         _registerVaultToNetwork(address(vault), false, 0);
 
