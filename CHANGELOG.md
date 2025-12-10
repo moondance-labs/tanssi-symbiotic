@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [1.3.1] - 2025-12-10
+
+### Added
+
+- Adds `OBaseMiddlewareReaderForwarder` contract. This is a forwarder for the OBaseMiddlewareReader contract. It allows access to reader methods directly from etherscan.
+
+### Changed
+
+- On ODefaultStakerRewards: Adds `nonReentrant` modifier to `batchClaimRewardsAndRestake` method.
+- On ODefaultOperatorRewards: Removes unused return parameter on internal method.
+
+### Removed
+
+On ODefaultStakerRewards: Removed `ADMIN_FEE_BASE`.
+
 ## [1.3.0] - 2025-10-27
 
 ### Added

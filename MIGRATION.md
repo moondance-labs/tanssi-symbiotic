@@ -13,6 +13,17 @@ Steps to migrate:
 - <step n>
 ```
 
+## [1.3.1]
+
+## Steps to migrate:
+
+- Deploy new `ODefaultStakerRewards` contract implementation.
+- Upgrade each `ODefaultStakerRewards` to this new implementation via `upgradeToAndCall`
+- Set the new implementation in the `ODefaultStakerRewardsFactory` contract.
+- Deploy new `ODefaultOperatorRewards` contract implementation.
+- Upgrade the `ODefaultOperatorRewards` contract to the new version `upgradeToAndCall`.
+- Deploy new `OBaseMiddlewareReaderForwarder` contract.
+
 ## [1.3.0]
 
 ## Steps to migrate:
