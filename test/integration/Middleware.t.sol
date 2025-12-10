@@ -1530,8 +1530,6 @@ contract MiddlewareTest is Test {
         bool upkeepNeeded;
         bytes memory performData;
         uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, count);
-        bool upkeepNeeded;
-        bytes memory performData;
         for (uint256 i = 0; i < totalBatches; i++) {
             (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
             assertEq(upkeepNeeded, true);
