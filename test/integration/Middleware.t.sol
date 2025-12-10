@@ -544,7 +544,6 @@ contract MiddlewareTest is Test {
         assertEq(readerForwarder.VAULT_REGISTRY(), address(vaultFactory));
         assertEq(EpochCapture(address(middleware)).getEpochDuration(), NETWORK_EPOCH_DURATION);
         assertEq(readerForwarder.SLASHING_WINDOW(), SLASHING_WINDOW);
-        assertEq(readerForwarder.subnetworksLength(), 1);
     }
 
     function testIfOperatorsAreRegisteredInVaults() public {
@@ -1167,7 +1166,7 @@ contract MiddlewareTest is Test {
         uint256 _count
     ) public {
         vm.pauseGasMetering();
-        address[3] memory vaults = [address(vault), address(vaultSlashable), address(vaultVetoed)];
+        address[3] memory vaults_ = [address(vault), address(vaultSlashable), address(vaultVetoed)];
         Token[3] memory tokens = [stETH, rETH, wBTC];
         address[3] memory delegators = [
             address(vaultAddresses.delegator),
@@ -1190,8 +1189,8 @@ contract MiddlewareTest is Test {
             middleware.registerOperator(_operator, abi.encode(operatorKey), address(0));
 
             // Stake in each vault
-            for (uint256 j = 0; j < vaults.length; ++j) {
-                address _vault = vaults[j];
+            for (uint256 j = 0; j < vaults_.length; ++j) {
+                address _vault = vaults_[j];
                 address _delegator = delegators[j];
                 Token token = tokens[j];
                 vm.startPrank(_operator);
@@ -1549,6 +1548,8 @@ contract MiddlewareTest is Test {
         bool upkeepNeeded;
 
         uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, count);
+        bool upkeepNeeded;
+        bytes memory performData;
         for (uint256 i = 0; i < totalBatches; i++) {
             (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
             assertEq(upkeepNeeded, true);

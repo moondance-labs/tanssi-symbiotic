@@ -70,20 +70,6 @@ interface IMiddleware {
     }
 
     /**
-     * @notice Structure to store slashing parameters
-     * @param epochStartTs The epoch start timestamp
-     * @param vault The vault address
-     * @param operator The operator address
-     * @param slashAmount The amount to slash
-     */
-    struct SlashParams {
-        uint48 epochStartTs;
-        address vault;
-        address operator;
-        uint256 slashPercentage;
-    }
-
-    /**
      * @notice Structure to pair an operator with their associated vaults
      * @param operator The operator's address
      * @param vaults Array of vault addresses associated with the operator

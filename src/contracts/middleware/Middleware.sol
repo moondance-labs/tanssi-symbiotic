@@ -162,10 +162,7 @@ contract Middleware is
         }
     }
 
-    function stakeToPower(
-        address vault,
-        uint256 stake
-    ) public view override returns (uint256 power) {
+    function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
         return IOBaseMiddlewareReader(address(this)).getPowerInUSD(vault, stake);
     }
 
@@ -269,8 +266,9 @@ contract Middleware is
         StorageMiddleware storage $ = _getMiddlewareStorage();
         IERC20(tokenAddress).approve($.i_operatorRewards, tokenAmount);
 
-        IODefaultOperatorRewards($.i_operatorRewards)
-            .distributeRewards(uint48(epoch), uint48(eraIndex), tokenAmount, totalPoints, rewardsRoot, tokenAddress);
+        IODefaultOperatorRewards($.i_operatorRewards).distributeRewards(
+            uint48(epoch), uint48(eraIndex), tokenAmount, totalPoints, rewardsRoot, tokenAddress
+        );
     }
 
     /**
@@ -303,11 +301,7 @@ contract Middleware is
     /**
      * @inheritdoc IMiddleware
      */
-    function slash(
-        uint48 epoch,
-        bytes32 operatorKey,
-        uint256 percentage
-    ) external checkAccess {
+    function slash(uint48 epoch, bytes32 operatorKey, uint256 percentage) external checkAccess {
         uint48 epochStartTs = IOBaseMiddlewareReader(address(this)).getEpochStart(epoch);
         address operator = operatorByKey(abi.encode(operatorKey));
 
@@ -328,20 +322,8 @@ contract Middleware is
         if (percentage > PARTS_PER_BILLION) {
             revert Middleware__SlashPercentageTooBig(epoch, operator, percentage);
         }
-        SlashParams memory params;
-        params.epochStartTs = epochStartTs;
-        params.operator = operator;
-        params.slashPercentage = percentage;
 
-        address[] memory vaults = _activeVaultsAt(epochStartTs, operator);
-        // simple pro-rata slasher
-        uint256 vaultsLength = vaults.length;
-        for (uint256 i; i < vaultsLength;) {
-            _processVaultSlashing(vaults[i], params);
-            unchecked {
-                ++i;
-            }
-        }
+        _slash(epochStartTs, operator, percentage);
     }
 
     /**
@@ -370,61 +352,6 @@ contract Middleware is
         bytes32 ReaderStorageLocation_ = 0xfd87879bc98f37af7578af722aecfbe5843e5ad354da2d1e70cb5157c4ec8800;
         assembly {
             sstore(ReaderStorageLocation_, reader)
-        }
-    }
-
-    /**
-     * @dev Get vault stake and calculate slashing amount.
-     * @param vault The vault address to calculate its stake
-     * @param params Struct containing slashing parameters
-     */
-    function _processVaultSlashing(
-        address vault,
-        SlashParams memory params
-    ) private {
-        // Tanssi will use only one subnetwork so we only check the first
-        bytes32 subnetwork = _NETWORK().subnetwork(0);
-
-        uint256 vaultStake = IBaseDelegator(IVault(vault).delegator())
-            .stakeAt(subnetwork, params.operator, params.epochStartTs, new bytes(0));
-        // Slash percentage is already in parts per billion
-        // so we need to divide by a billion
-        uint256 slashAmount = params.slashPercentage.mulDiv(vaultStake, PARTS_PER_BILLION);
-
-        _slashVault(params.epochStartTs, vault, subnetwork, params.operator, slashAmount);
-    }
-
-    /**
-     * @dev Slashes a vault's stake for a specific operator. Middleware SDK already provides _slashVault function but  custom version is needed to avoid revert in specific scenarios for the gateway message passing.
-     * @param timestamp Time at which the epoch started
-     * @param vault Address of the vault to slash
-     * @param subnetwork Subnetwork identifier
-     * @param operator Address of the operator being slashed
-     * @param amount Amount to slash
-     */
-    function _slashVault(
-        uint48 timestamp,
-        address vault,
-        bytes32 subnetwork,
-        address operator,
-        uint256 amount
-    ) private {
-        address slasher = IVault(vault).slasher();
-
-        if (slasher == address(0) || amount == 0) {
-            return;
-        }
-        uint256 slasherType = IEntity(slasher).TYPE();
-
-        uint256 response;
-        if (slasherType == uint256(SlasherType.INSTANT)) {
-            response = ISlasher(slasher).slash(subnetwork, operator, amount, timestamp, new bytes(0));
-            emit VaultManager.InstantSlash(vault, subnetwork, response);
-        } else if (slasherType == uint256(SlasherType.VETO)) {
-            response = IVetoSlasher(slasher).requestSlash(subnetwork, operator, amount, timestamp, new bytes(0));
-            emit VaultManager.VetoSlash(vault, subnetwork, response);
-        } else {
-            revert VaultManager.UnknownSlasherType();
         }
     }
 

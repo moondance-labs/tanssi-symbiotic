@@ -9,7 +9,7 @@
 	url = https://github.com/openzeppelin/openzeppelin-contracts-upgradeable
 [submodule "lib/middleware-sdk"]
 	path = lib/middleware-sdk
-	url = https://github.com/symbioticfi/middleware-sdk
+	url = https://github.com/moondance-labs/middleware-sdk
 [submodule "lib/chainlink-brownie-contracts"]
 	path = lib/chainlink-brownie-contracts
 	url = https://github.com/smartcontractkit/chainlink-brownie-contracts

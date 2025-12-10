@@ -48,7 +48,6 @@ abstract contract MiddlewareStorage {
     uint8 public constant SEND_DATA_COMMAND = 2;
     uint8 public constant CRE_CACHE_DATA_COMMAND = 101;
     uint256 public constant VERSION = 1;
-    uint256 public constant PARTS_PER_BILLION = 1_000_000_000;
     uint256 public constant MIN_INTERVAL_TO_SEND_OPERATOR_KEYS = 50; // 50 blocks of ~12 seconds each ≈ 600 seconds ≈ 10 minutes
     uint256 public constant MAX_OPERATORS_TO_PROCESS = 10;
     uint256 public constant MAX_OPERATORS_TO_SEND = 58; // This will result in a performData size of 1984 bytes, just below the 2000 bytes limit for the performData: https://docs.chain.link/chainlink-automation/overview/supported-networks

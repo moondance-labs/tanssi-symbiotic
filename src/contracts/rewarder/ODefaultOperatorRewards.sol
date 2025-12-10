@@ -327,7 +327,7 @@ contract ODefaultOperatorRewards is
         uint256[] memory vaultPowers = new uint256[](totalVaults);
         uint256 totalPower;
         for (uint256 i; i < totalVaults;) {
-            vaultPowers[i] = reader.getOperatorPowerAt(epochStartTs, operator, operatorVaults[i], subnetwork);
+            vaultPowers[i] = reader.getOperatorPowerAt(epochStartTs, operator, operatorVaults[i]);
             unchecked {
                 totalPower += vaultPowers[i];
                 ++i;

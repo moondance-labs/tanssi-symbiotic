@@ -71,20 +71,6 @@ interface IOBaseMiddlewareReader {
         address operator
     ) external view returns (bool);
 
-    function subnetworksLength() external view returns (uint256);
-
-    function subnetworkWithTimesAt(
-        uint256 pos
-    ) external view returns (uint160, uint48, uint48);
-
-    function activeSubnetworks() external view returns (uint160[] memory);
-
-    function activeSubnetworksAt(
-        uint48 timestamp
-    ) external view returns (uint160[] memory);
-
-    function subnetworkWasActiveAt(uint48 timestamp, uint96 subnetwork) external view returns (bool);
-
     function sharedVaultsLength() external view returns (uint256);
 
     function sharedVaultWithTimesAt(
@@ -127,14 +113,9 @@ interface IOBaseMiddlewareReader {
 
     function operatorVaultWasActiveAt(uint48 timestamp, address operator, address vault) external view returns (bool);
 
-    function getOperatorPower(address operator, address vault, uint96 subnetwork) external view returns (uint256);
+    function getOperatorPower(address operator, address vault) external view returns (uint256);
 
-    function getOperatorPowerAt(
-        uint48 timestamp,
-        address operator,
-        address vault,
-        uint96 subnetwork
-    ) external view returns (uint256);
+    function getOperatorPowerAt(uint48 timestamp, address operator, address vault) external view returns (uint256);
 
     function getOperatorPower(
         address operator
@@ -142,17 +123,12 @@ interface IOBaseMiddlewareReader {
 
     function getOperatorPowerAt(uint48 timestamp, address operator) external view returns (uint256);
 
-    function getOperatorPower(
-        address operator,
-        address[] memory vaults,
-        uint160[] memory subnetworks
-    ) external view returns (uint256);
+    function getOperatorPower(address operator, address[] memory vaults) external view returns (uint256);
 
     function getOperatorPowerAt(
         uint48 timestamp,
         address operator,
-        address[] memory vaults,
-        uint160[] memory subnetworks
+        address[] memory vaults
     ) external view returns (uint256);
 
     function totalPower(
