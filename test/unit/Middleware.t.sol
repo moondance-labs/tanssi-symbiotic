@@ -257,7 +257,7 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(owner);
 
-        address reader = address(new OBaseMiddlewareReader());
+        address reader_ = address(new OBaseMiddlewareReader());
         Middleware _middleware = new Middleware();
         Middleware middlewareProxy = Middleware(address(new MiddlewareProxy(address(_middleware), "")));
         vm.expectRevert(IMiddleware.Middleware__SlashingWindowTooShort.selector);
@@ -269,7 +269,7 @@ contract MiddlewareTest is Test {
             owner: owner,
             epochDuration: EPOCH_DURATION_,
             slashingWindow: SHORT_SLASHING_WINDOW_,
-            reader: reader
+            reader: reader_
         });
         Middleware(address(middlewareProxy)).initialize(params);
 
@@ -2460,11 +2460,11 @@ contract MiddlewareTest is Test {
         middleware.performUpkeep(performData);
         vm.stopPrank();
 
-        OBaseMiddlewareReaderForwarder readerForwarder = new OBaseMiddlewareReaderForwarder(address(middleware));
-        OBaseMiddlewareReader reader = OBaseMiddlewareReader(address(middleware));
+        OBaseMiddlewareReaderForwarder readerForwarder_ = new OBaseMiddlewareReaderForwarder(address(middleware));
+        OBaseMiddlewareReader reader_ = OBaseMiddlewareReader(address(middleware));
         assertEq(
-            readerForwarder.getPowerInUSD(address(vault), OPERATOR_STAKE),
-            reader.getPowerInUSD(address(vault), OPERATOR_STAKE)
+            readerForwarder_.getPowerInUSD(address(vault), OPERATOR_STAKE),
+            reader_.getPowerInUSD(address(vault), OPERATOR_STAKE)
         );
     }
 
@@ -2608,42 +2608,43 @@ contract MiddlewareTest is Test {
     }
 
     function testReaderForwarder() public {
-        OBaseMiddlewareReaderForwarder readerForwarder = new OBaseMiddlewareReaderForwarder(address(middleware));
-        OBaseMiddlewareReader reader = OBaseMiddlewareReader(address(middleware));
+        OBaseMiddlewareReaderForwarder readerForwarder_ = new OBaseMiddlewareReaderForwarder(address(middleware));
+        OBaseMiddlewareReader reader_ = OBaseMiddlewareReader(address(middleware));
 
-        assertEq(readerForwarder.getCaptureTimestamp(), reader.getCaptureTimestamp());
-        assertEq(readerForwarder.getCurrentEpoch(), reader.getCurrentEpoch());
-        assertEq(readerForwarder.getEpochDuration(), reader.getEpochDuration());
-        assertEq(readerForwarder.getEpochStart(1), reader.getEpochStart(1));
+        assertEq(readerForwarder_.getCaptureTimestamp(), reader_.getCaptureTimestamp());
+        assertEq(readerForwarder_.getCurrentEpoch(), reader_.getCurrentEpoch());
+        assertEq(readerForwarder_.getEpochDuration(), reader_.getEpochDuration());
+        assertEq(readerForwarder_.getEpochStart(1), reader_.getEpochStart(1));
         assertEq(
-            readerForwarder.keyWasActiveAt(0, abi.encode(OPERATOR_KEY)),
-            reader.keyWasActiveAt(0, abi.encode(OPERATOR_KEY))
+            readerForwarder_.keyWasActiveAt(0, abi.encode(OPERATOR_KEY)),
+            reader_.keyWasActiveAt(0, abi.encode(OPERATOR_KEY))
         );
         assertEq(
-            readerForwarder.collateralToOracle(address(collateral)), reader.collateralToOracle(address(collateral))
+            readerForwarder_.collateralToOracle(address(collateral)), reader_.collateralToOracle(address(collateral))
         );
-        assertEq(readerForwarder.vaultToCollateral(address(vault)), reader.vaultToCollateral(address(vault)));
-        assertEq(readerForwarder.vaultToOracle(address(vault)), reader.vaultToOracle(address(vault)));
-        assertEq(readerForwarder.getEpochCacheIndex(0), reader.getEpochCacheIndex(0));
+        assertEq(readerForwarder_.vaultToCollateral(address(vault)), reader_.vaultToCollateral(address(vault)));
+        assertEq(readerForwarder_.vaultToOracle(address(vault)), reader_.vaultToOracle(address(vault)));
+        assertEq(readerForwarder_.getEpochCacheIndex(0), reader_.getEpochCacheIndex(0));
         assertEq(
-            readerForwarder.getOperatorToPowerCached(0, OPERATOR_KEY), reader.getOperatorToPowerCached(0, OPERATOR_KEY)
+            readerForwarder_.getOperatorToPowerCached(0, OPERATOR_KEY),
+            reader_.getOperatorToPowerCached(0, OPERATOR_KEY)
         );
-        assertEq(readerForwarder.getForwarderAddress(), reader.getForwarderAddress());
-        assertEq(readerForwarder.getGateway(), reader.getGateway());
-        assertEq(readerForwarder.getInterval(), reader.getInterval());
-        assertEq(readerForwarder.getLastTimestamp(), reader.getLastTimestamp());
-        assertEq(readerForwarder.getOperatorRewardsAddress(), reader.getOperatorRewardsAddress());
-        assertEq(readerForwarder.getStakerRewardsFactoryAddress(), reader.getStakerRewardsFactoryAddress());
+        assertEq(readerForwarder_.getForwarderAddress(), reader_.getForwarderAddress());
+        assertEq(readerForwarder_.getGateway(), reader_.getGateway());
+        assertEq(readerForwarder_.getInterval(), reader_.getInterval());
+        assertEq(readerForwarder_.getLastTimestamp(), reader_.getLastTimestamp());
+        assertEq(readerForwarder_.getOperatorRewardsAddress(), reader_.getOperatorRewardsAddress());
+        assertEq(readerForwarder_.getStakerRewardsFactoryAddress(), reader_.getStakerRewardsFactoryAddress());
 
-        address[] memory activeOperatorsForwarder = readerForwarder.getOperatorsByEpoch(1);
-        address[] memory activeOperatorsReader = reader.getOperatorsByEpoch(1);
+        address[] memory activeOperatorsForwarder = readerForwarder_.getOperatorsByEpoch(1);
+        address[] memory activeOperatorsReader = reader_.getOperatorsByEpoch(1);
         assertEq(activeOperatorsForwarder.length, activeOperatorsReader.length);
         for (uint256 i; i < activeOperatorsForwarder.length; i++) {
             assertEq(activeOperatorsForwarder[i], activeOperatorsReader[i]);
         }
 
-        (bool upkeepNeededForwarder, bytes memory performDataForwarder) = readerForwarder.auxiliaryCheckUpkeep();
-        (bool upkeepNeededReader, bytes memory performDataReader) = reader.auxiliaryCheckUpkeep();
+        (bool upkeepNeededForwarder, bytes memory performDataForwarder) = readerForwarder_.auxiliaryCheckUpkeep();
+        (bool upkeepNeededReader, bytes memory performDataReader) = reader_.auxiliaryCheckUpkeep();
 
         assertEq(upkeepNeededForwarder, upkeepNeededReader);
         assertEq(performDataForwarder, performDataReader);

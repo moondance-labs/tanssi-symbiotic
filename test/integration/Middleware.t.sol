@@ -1527,9 +1527,9 @@ contract MiddlewareTest is Test {
         uint16 count = uint16(middleware.MAX_OPERATORS_TO_PROCESS()) + 1;
         _addOperatorsToNetwork(count - 3); // 3 operators are already registered
 
-        uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, count);
         bool upkeepNeeded;
         bytes memory performData;
+        uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, count);
         for (uint256 i = 0; i < totalBatches; i++) {
             (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
             assertEq(upkeepNeeded, true);
