@@ -277,7 +277,7 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(owner);
 
-        address reader = address(new OBaseMiddlewareReader());
+        address readerAddress = address(new OBaseMiddlewareReader());
         Middleware _middleware = new Middleware();
         Middleware middlewareProxy = Middleware(address(new MiddlewareProxy(address(_middleware), "")));
         vm.expectRevert(IMiddleware.Middleware__SlashingWindowTooShort.selector);
@@ -289,7 +289,7 @@ contract MiddlewareTest is Test {
             owner: owner,
             epochDuration: EPOCH_DURATION_,
             slashingWindow: SHORT_SLASHING_WINDOW_,
-            reader: reader
+            reader: readerAddress
         });
         Middleware(address(middlewareProxy)).initialize(params);
 
@@ -2483,8 +2483,8 @@ contract MiddlewareTest is Test {
         middleware.onReport(WORKFLOW_METADATA, report);
         vm.stopPrank();
 
-        OBaseMiddlewareReaderForwarder readerForwarder = new OBaseMiddlewareReaderForwarder(address(middleware));
-        OBaseMiddlewareReader reader = OBaseMiddlewareReader(address(middleware));
+        readerForwarder = new OBaseMiddlewareReaderForwarder(address(middleware));
+        reader = OBaseMiddlewareReader(address(middleware));
         assertEq(
             readerForwarder.getPowerInUSD(address(vault), OPERATOR_STAKE),
             reader.getPowerInUSD(address(vault), OPERATOR_STAKE)
@@ -2635,8 +2635,8 @@ contract MiddlewareTest is Test {
     }
 
     function testReaderForwarder() public {
-        OBaseMiddlewareReaderForwarder readerForwarder = new OBaseMiddlewareReaderForwarder(address(middleware));
-        OBaseMiddlewareReader reader = OBaseMiddlewareReader(address(middleware));
+        readerForwarder = new OBaseMiddlewareReaderForwarder(address(middleware));
+        reader = OBaseMiddlewareReader(address(middleware));
 
         assertEq(readerForwarder.getCaptureTimestamp(), reader.getCaptureTimestamp());
         assertEq(readerForwarder.getCurrentEpoch(), reader.getCurrentEpoch());

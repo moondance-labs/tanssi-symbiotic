@@ -320,7 +320,7 @@ contract MiddlewareTest is Test {
         middleware.setExpectedWorkflowName(workflowName);
         middleware.setExpectedWorkflowId(workflowId);
 
-        TestUtils testUtils = new TestUtils();
+        testUtils = new TestUtils();
         workflowNameEncoded = testUtils.encodeStringToBytes10(workflowName);
         WORKFLOW_METADATA = abi.encodePacked(workflowId, workflowNameEncoded, workflowOwner);
 
@@ -1548,8 +1548,6 @@ contract MiddlewareTest is Test {
         bool upkeepNeeded;
 
         uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, count);
-        bool upkeepNeeded;
-        bytes memory performData;
         for (uint256 i = 0; i < totalBatches; i++) {
             (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
             assertEq(upkeepNeeded, true);
