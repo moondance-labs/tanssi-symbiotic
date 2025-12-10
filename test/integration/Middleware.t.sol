@@ -529,7 +529,6 @@ contract MiddlewareTest is Test {
         assertEq(readerForwarder.VAULT_REGISTRY(), address(vaultFactory));
         assertEq(EpochCapture(address(middleware)).getEpochDuration(), NETWORK_EPOCH_DURATION);
         assertEq(readerForwarder.SLASHING_WINDOW(), SLASHING_WINDOW);
-        assertEq(readerForwarder.subnetworksLength(), 1);
     }
 
     function testIfOperatorsAreRegisteredInVaults() public {
@@ -1531,6 +1530,8 @@ contract MiddlewareTest is Test {
         bool upkeepNeeded;
         bytes memory performData;
         uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, count);
+        bool upkeepNeeded;
+        bytes memory performData;
         for (uint256 i = 0; i < totalBatches; i++) {
             (upkeepNeeded, performData) = middleware.checkUpkeep(hex"");
             assertEq(upkeepNeeded, true);

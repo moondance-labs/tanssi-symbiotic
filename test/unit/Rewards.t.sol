@@ -586,12 +586,12 @@ contract RewardsTest is Test {
         );
 
         // The method has 3 implementations so we need to get the selector manually
-        bytes4 selector = bytes4(keccak256("getOperatorPowerAt(uint48,address,address,uint96)"));
+        bytes4 selector = bytes4(keccak256("getOperatorPowerAt(uint48,address,address)"));
         vm.mockCall(
-            address(middleware), abi.encodeWithSelector(selector, epochStartTs, alice, vaults[0], 0), abi.encode(40)
+            address(middleware), abi.encodeWithSelector(selector, epochStartTs, alice, vaults[0]), abi.encode(40)
         );
         vm.mockCall(
-            address(middleware), abi.encodeWithSelector(selector, epochStartTs, alice, vaults[1], 0), abi.encode(60)
+            address(middleware), abi.encodeWithSelector(selector, epochStartTs, alice, vaults[1]), abi.encode(60)
         );
 
         address stakerRewards2 = makeAddr("newStakerRewards");
