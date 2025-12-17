@@ -11,7 +11,7 @@
   "middlewareReader": "0x352be52e4b1d6d207d633429e6a512c16ad5b9e7",
   "middlewareReaderForwarder": "0x8c1db841611361BC4d6C0691285D9C0B4d493f34",
   "operatorRewards": "0x5a1a8ce9f4d294aa1835252b5fe397d607d615c8",
-  "operatorRewardsImplementation": "0x9e1ec2e7b6a83c2aa01ada2a9c7e88c5cddb7352",
+  "operatorRewardsImplementation": "0xdE1850DDd6b34fa261d5dfF0e35B25DfE59a2a09",
   "stakerRewardsFactory": "0xfe5221bb6ff8df14bc0b69b9e976e0b2bd3cf156",
   "rewardsHintsBuilder": "0x59364a4e7fdd15c236756fc24a517c3a6028b166",
 
@@ -46,7 +46,7 @@
       "slasher": "0xa2f02442fe12b42929ce9563a289a923f0631a9c",
       "collateral": "0x3e3fe7dbc6b4c189e7128855dd526361c49b40af",
       "stakerRewards": "0x14453f57a92881ba788d0caf29ad6cce1f9028f1",
-      "stakerRewardsImplementation": "0x0c5d0bbbff5d168cf7d0f030561bb7539803c983"
+      "stakerRewardsImplementation": "0xfA7783725333ba3D8bD7ADd1a6d1075093BCD290"
     }
   ],
   "totalOperators": 1,

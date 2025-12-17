@@ -2490,6 +2490,7 @@ contract MiddlewareTest is Test {
 
         readerForwarder = new OBaseMiddlewareReaderForwarder(address(middleware));
         reader = OBaseMiddlewareReader(address(middleware));
+
         assertEq(
             readerForwarder.getPowerInUSD(address(vault), OPERATOR_STAKE),
             reader.getPowerInUSD(address(vault), OPERATOR_STAKE)
