@@ -35,4 +35,8 @@ contract MiddlewareV3 is UUPSUpgradeable {
     ) internal pure override {
         revert MiddlewareV3__UpgradeNotAuthorized();
     }
+
+    function getVersion() public pure returns (uint256) {
+        return VERSION;
+    }
 }

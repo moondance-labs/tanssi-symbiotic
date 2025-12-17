@@ -80,6 +80,8 @@ import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
 import {Token} from "test/mocks/Token.sol";
 import {TestUtils} from "test/utils/Utils.t.sol";
+import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
+import {MiddlewareCRELogic} from "src/contracts/libraries/MiddlewareCRELogic.sol";
 
 contract FullTest is Test {
     using Subnetwork for address;
@@ -195,9 +197,11 @@ contract FullTest is Test {
 
         _cacheAllOperatorsVaults();
 
+        vm.startPrank(admin);
         middleware.setExpectedAuthor(workflowOwner);
         middleware.setExpectedWorkflowName(workflowName);
         middleware.setExpectedWorkflowId(workflowId);
+        vm.stopPrank();
 
         TestUtils testUtils = new TestUtils();
         workflowNameEncoded = testUtils.encodeStringToBytes10(workflowName);
@@ -229,6 +233,7 @@ contract FullTest is Test {
         middleware.upgradeToAndCall(address(newMiddleware), hex"");
         operatorRewards.upgradeToAndCall(address(newOperatorRewards), hex"");
         middleware.setReader(address(newReader));
+        middleware.reinitialize();
         vm.stopPrank();
         // TODO END
 
@@ -490,11 +495,11 @@ contract FullTest is Test {
             IMiddleware.ValidatorData[] memory validatorsData;
             (command, epoch, validatorsData) = abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
             assertEq(epoch, currentEpoch);
-            assertEq(command, middleware.CACHE_DATA_COMMAND());
+            assertEq(command, MiddlewareCRELogic.CACHE_DATA_COMMAND);
 
-            vm.prank(forwarder);
             beforeGas = gasleft();
             report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+            vm.prank(forwarder);
             middleware.onReport(WORKFLOW_METADATA, report);
             afterGas = gasleft();
             console2.log("Gas used for perform on caching: ", beforeGas - afterGas);
@@ -514,15 +519,15 @@ contract FullTest is Test {
         bytes32[] memory sortedKeys;
         (command, epoch, sortedKeys) = abi.decode(performData, (uint8, uint48, bytes32[]));
         assertEq(epoch, currentEpoch);
-        assertEq(command, middleware.SEND_DATA_COMMAND());
+        assertEq(command, MiddlewareCRELogic.SEND_DATA_COMMAND);
         assertEq(sortedKeys.length, totalActiveOperators); // On sorting, only operators with power > 0 are included
 
-        vm.prank(forwarder);
         beforeGas = gasleft();
         vm.expectEmit(true, false, false, false);
         emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
 
         report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+        vm.prank(forwarder);
         middleware.onReport(WORKFLOW_METADATA, report);
 
         afterGas = gasleft();
@@ -536,24 +541,25 @@ contract FullTest is Test {
     function testMiddlewareIsUpgradeable() public {
         Middleware middlewareImpl = new Middleware();
 
+        reader = OBaseMiddlewareReader(address(middleware));
         vm.startPrank(admin);
-        assertEq(middleware.VERSION(), 1);
+        assertEq(reader.getVersion(), 1);
 
         MiddlewareV2 middlewareImplV2 = new MiddlewareV2();
         bytes memory emptyBytes = hex"";
         middleware.upgradeToAndCall(address(middlewareImplV2), emptyBytes);
 
-        assertEq(middleware.VERSION(), 2);
+        assertEq(reader.getVersion(), 2);
 
         vm.expectRevert(); //Function doesn't exists
         middleware.setGateway(address(gateway));
 
         middleware.upgradeToAndCall(address(middlewareImpl), emptyBytes);
-        assertEq(middleware.VERSION(), 1);
+        assertEq(reader.getVersion(), 1);
 
         vm.expectRevert(IMiddleware.Middleware__AlreadySet.selector);
         middleware.setGateway(address(gateway));
-        assertEq(middleware.getGateway(), address(gateway));
+        assertEq(reader.getGateway(), address(gateway));
     }
 
     function testSlashingEachVault() public {
@@ -1012,7 +1018,7 @@ contract FullTest is Test {
         operatorStakesBeforeSlash = new uint256[](vaults.length);
         for (uint256 i; i < vaults.length; i++) {
             address vault = vaults[i];
-            address vaultCollateral = middleware.vaultToCollateral(vault);
+            address vaultCollateral = reader.vaultToCollateral(vault);
             vaultBalancesBeforeSlash[i] = IERC20(vaultCollateral).balanceOf(vault);
             operatorStakesBeforeSlash[i] = IBaseDelegator(IVault(vault).delegator()).stakeAt(
                 tanssi.subnetwork(0), operatorAddress, epochStartTs, new bytes(0)
@@ -1040,7 +1046,7 @@ contract FullTest is Test {
         // We need to execute the slashes for all the vaults of the operator
         for (uint256 i; i < vaults.length; i++) {
             address vault = vaults[i];
-            address vaultCollateral = middleware.vaultToCollateral(vault);
+            address vaultCollateral = reader.vaultToCollateral(vault);
             uint256 vaultBalanceBefore;
             uint256 expectedSlash;
 

@@ -31,7 +31,7 @@ library QuickSort {
         return arr;
     }
 
-    function _quickSort(IMiddleware.ValidatorData[] memory arr, int256 left, int256 right) public pure {
+    function _quickSort(IMiddleware.ValidatorData[] memory arr, int256 left, int256 right) private pure {
         int256 i = left;
         int256 j = right;
         if (i == j) return;

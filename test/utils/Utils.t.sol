@@ -16,12 +16,13 @@ pragma solidity 0.8.25;
 
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {Script} from "forge-std/Script.sol";
+import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
 
 contract TestUtils is Script {
     uint8 public constant EXECUTION_CODE_CACHE = 101;
 
-    function getTotalBatchesForCount(Middleware middleware, uint256 count) public view returns (uint256) {
-        uint256 max = middleware.MAX_OPERATORS_TO_PROCESS();
+    function getTotalBatchesForCount(Middleware middleware, uint256 count) public pure returns (uint256) {
+        uint256 max = MiddlewareStorage.MAX_OPERATORS_TO_PROCESS;
         uint256 totalBatches = count / max;
         if (totalBatches * max < count) {
             totalBatches++;
@@ -31,7 +32,7 @@ contract TestUtils is Script {
 
     function encodeStringToBytes10(
         string memory stringData
-    ) public view returns (bytes10 encodedString) {
+    ) public pure returns (bytes10 encodedString) {
         if (bytes(stringData).length == 0) {
             encodedString = bytes10(0);
             return encodedString;

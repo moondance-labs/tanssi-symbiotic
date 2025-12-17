@@ -93,8 +93,11 @@ import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRe
 import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
+import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {TestUtils} from "test/utils/Utils.t.sol";
+import {MiddlewareCRELogic} from "src/contracts/libraries/MiddlewareCRELogic.sol";
+import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
 
 contract MiddlewareTest is Test {
     using Subnetwork for address;
@@ -1458,7 +1461,7 @@ contract MiddlewareTest is Test {
     // *                                        UPKEEP
     // ************************************************************************************************
 
-    function testUpkeep() public {
+    function testUpkeepX() public {
         vm.prank(owner);
         middleware.setForwarder(forwarder);
         // It's not needed, it's just for explaining and showing the flow
@@ -1476,9 +1479,9 @@ contract MiddlewareTest is Test {
         middleware.onReport(WORKFLOW_METADATA, report);
         uint48 epoch = middleware.getCurrentEpoch();
 
-        uint256 operator1Power = middleware.getOperatorToPowerCached(epoch, OPERATOR_KEY);
-        uint256 operator2Power = middleware.getOperatorToPowerCached(epoch, OPERATOR2_KEY);
-        uint256 operator3Power = middleware.getOperatorToPowerCached(epoch, OPERATOR3_KEY);
+        uint256 operator1Power = readerForwarder.getOperatorToPowerCached(epoch, OPERATOR_KEY);
+        uint256 operator2Power = readerForwarder.getOperatorToPowerCached(epoch, OPERATOR2_KEY);
+        uint256 operator3Power = readerForwarder.getOperatorToPowerCached(epoch, OPERATOR3_KEY);
 
         (uint256 totalOperatorPowerAfter,) = _calculateOperatorPower(totalPowerVault, 0, 0);
         (uint256 totalOperator2PowerAfter,) =
@@ -1497,7 +1500,7 @@ contract MiddlewareTest is Test {
         (uint8 command, uint48 encodedEpoch, bytes32[] memory sortedKeys) =
             abi.decode(performData, (uint8, uint48, bytes32[]));
         assertEq(epoch, encodedEpoch);
-        assertEq(command, middleware.SEND_DATA_COMMAND());
+        assertEq(command, MiddlewareCRELogic.SEND_DATA_COMMAND);
         assertEq(sortedKeys.length, 3);
 
         vm.startPrank(forwarder);
@@ -1521,7 +1524,7 @@ contract MiddlewareTest is Test {
         middleware.setForwarder(forwarder);
         vm.stopPrank();
 
-        uint16 count = uint16(middleware.MAX_OPERATORS_TO_PROCESS()) - 1;
+        uint16 count = uint16(MiddlewareStorage.MAX_OPERATORS_TO_PROCESS) - 1;
         _addOperatorsToNetwork(count - 3); // 3 operators are already registered
 
         uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, count);
@@ -1542,7 +1545,7 @@ contract MiddlewareTest is Test {
         uint48 epoch = middleware.getCurrentEpoch();
         vm.stopPrank();
 
-        uint16 count = uint16(middleware.MAX_OPERATORS_TO_PROCESS()) + 1;
+        uint16 count = uint16(MiddlewareStorage.MAX_OPERATORS_TO_PROCESS) + 1;
         _addOperatorsToNetwork(count - 3); // 3 operators are already registered
         bytes memory performData;
         bool upkeepNeeded;
@@ -1558,8 +1561,9 @@ contract MiddlewareTest is Test {
             middleware.onReport(WORKFLOW_METADATA, report);
         }
 
+        IOBaseMiddlewareReader reader = IOBaseMiddlewareReader(address(middleware));
         // After the loop, we should have all operators processed and cache filled
-        uint256 cacheIndex = middleware.getEpochCacheIndex(epoch);
+        uint256 cacheIndex = reader.getEpochCacheIndex(epoch);
         assertEq(cacheIndex, count);
 
         // List should be empty, but we still need to call performUpkeep to call the gateway
@@ -1567,7 +1571,7 @@ contract MiddlewareTest is Test {
         assertEq(upkeepNeeded, true);
         (uint8 command, uint48 encodedEpoch, bytes32[] memory sortedKeys) =
             abi.decode(performData, (uint8, uint48, bytes32[]));
-        assertEq(command, middleware.SEND_DATA_COMMAND());
+        assertEq(command, MiddlewareCRELogic.SEND_DATA_COMMAND);
         assertEq(encodedEpoch, epoch);
         assertEq(sortedKeys.length, 0);
     }
@@ -1594,7 +1598,7 @@ contract MiddlewareTest is Test {
         (uint8 command, uint48 encodedEpoch, bytes32[] memory sortedKeys) =
             abi.decode(performData, (uint8, uint48, bytes32[]));
         assertEq(epoch, encodedEpoch);
-        assertEq(command, middleware.SEND_DATA_COMMAND());
+        assertEq(command, MiddlewareCRELogic.SEND_DATA_COMMAND);
         assertEq(sortedKeys.length, 2); // Only 2 operators will be sent, the one with power 0 will be ignored
 
         vm.startPrank(forwarder);
@@ -1639,7 +1643,7 @@ contract MiddlewareTest is Test {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         uint48 epoch = middleware.getCurrentEpoch();
 
-        // This will exhaust and fill the cache in n (count/max_operators_to_process) times
+        // This will exhaust and fill the cache in n (count/MiddlewareStorage.MAX_OPERATORS_TO_PROCESS) times
         uint256 totalGasUsedForCheck = 0;
         uint256 totalGasUsedForPerform = 0;
         {
@@ -1678,8 +1682,8 @@ contract MiddlewareTest is Test {
         (uint8 command, uint48 encodedEpoch, bytes32[] memory sortedKeys) =
             abi.decode(performData, (uint8, uint48, bytes32[]));
         assertEq(epoch, encodedEpoch);
-        assertEq(command, middleware.SEND_DATA_COMMAND());
-        assertEq(sortedKeys.length, Math.min(count, middleware.MAX_OPERATORS_TO_SEND()));
+        assertEq(command, MiddlewareCRELogic.SEND_DATA_COMMAND);
+        assertEq(sortedKeys.length, Math.min(count, MiddlewareStorage.MAX_OPERATORS_TO_SEND));
 
         {
             vm.startPrank(forwarder);
@@ -1745,7 +1749,7 @@ contract MiddlewareTest is Test {
         (uint8 command, uint48 encodedEpoch, bytes32[] memory sortedKeys) =
             abi.decode(performData, (uint8, uint48, bytes32[]));
         assertEq(epoch, encodedEpoch);
-        assertEq(command, middleware.SEND_DATA_COMMAND());
+        assertEq(command, MiddlewareCRELogic.SEND_DATA_COMMAND);
         assertEq(sortedKeys.length, count);
         assertLe(performData.length, 2000);
 
@@ -1780,7 +1784,9 @@ contract MiddlewareTest is Test {
 
         report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
         vm.expectRevert(
-            abi.encodeWithSelector(IMiddleware.Middleware__InvalidCommand.selector, middleware.CACHE_DATA_COMMAND())
+            abi.encodeWithSelector(
+                IMiddleware.Middleware__InvalidCommand.selector, MiddlewareCRELogic.CACHE_DATA_COMMAND
+            )
         );
         middleware.onReport(WORKFLOW_METADATA, report);
     }
@@ -1805,14 +1811,16 @@ contract MiddlewareTest is Test {
         (uint8 command, uint48 encodedEpoch, IMiddleware.ValidatorData[] memory data) =
             abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
         assertEq(epoch, encodedEpoch);
-        assertEq(command, middleware.CACHE_DATA_COMMAND());
+        assertEq(command, MiddlewareCRELogic.CACHE_DATA_COMMAND);
 
-        performData = abi.encode(middleware.SEND_DATA_COMMAND(), epoch, data);
+        performData = abi.encode(MiddlewareCRELogic.SEND_DATA_COMMAND, epoch, data);
 
         vm.startPrank(forwarder);
         bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
         vm.expectRevert(
-            abi.encodeWithSelector(IMiddleware.Middleware__InvalidCommand.selector, middleware.SEND_DATA_COMMAND())
+            abi.encodeWithSelector(
+                IMiddleware.Middleware__InvalidCommand.selector, MiddlewareCRELogic.SEND_DATA_COMMAND
+            )
         );
         middleware.onReport(WORKFLOW_METADATA, report);
     }
@@ -1868,7 +1876,7 @@ contract MiddlewareTest is Test {
             for (uint256 i = 0; i < totalBatches; i++) {
                 (bool upkeepNeeded, bytes memory performData) = middleware.prepareDataForSendingToGateway();
 
-                uint256 cacheIndex = middleware.getEpochCacheIndex(epoch);
+                uint256 cacheIndex = readerForwarder.getEpochCacheIndex(epoch);
                 assertGe(activeOperatorsLength, cacheIndex);
                 assertEq(upkeepNeeded, true);
 
@@ -1897,9 +1905,9 @@ contract MiddlewareTest is Test {
         bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
         middleware.onReport(WORKFLOW_METADATA, report);
 
-        uint256 operator1Power = middleware.getOperatorToPowerCached(epoch, OPERATOR_KEY);
-        uint256 operator2Power = middleware.getOperatorToPowerCached(epoch, OPERATOR2_KEY);
-        uint256 operator3Power = middleware.getOperatorToPowerCached(epoch, OPERATOR3_KEY);
+        uint256 operator1Power = readerForwarder.getOperatorToPowerCached(epoch, OPERATOR_KEY);
+        uint256 operator2Power = readerForwarder.getOperatorToPowerCached(epoch, OPERATOR2_KEY);
+        uint256 operator3Power = readerForwarder.getOperatorToPowerCached(epoch, OPERATOR3_KEY);
 
         (uint256 totalOperatorPowerAfter,) = _calculateOperatorPower(totalPowerVault, 0, 0);
         (uint256 totalOperator2PowerAfter,) =
@@ -1927,7 +1935,7 @@ contract MiddlewareTest is Test {
         (uint8 command, uint48 encodedEpoch, bytes32[] memory sortedKeys) =
             abi.decode(performData, (uint8, uint48, bytes32[]));
         assertEq(epoch, encodedEpoch);
-        assertEq(command, middleware.SEND_DATA_COMMAND());
+        assertEq(command, MiddlewareCRELogic.SEND_DATA_COMMAND);
         assertEq(sortedKeys.length, 3);
 
         vm.startPrank(forwarder);

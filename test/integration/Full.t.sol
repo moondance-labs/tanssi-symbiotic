@@ -79,6 +79,8 @@ import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperato
 import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {RewardsHintsBuilder} from "src/contracts/rewarder/RewardsHintsBuilder.sol";
+import {MiddlewareCRELogic} from "src/contracts/libraries/MiddlewareCRELogic.sol";
+import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
 
 contract FullTest is Test {
     using Subnetwork for address;
@@ -1385,7 +1387,7 @@ contract FullTest is Test {
             (uint8 command, uint48 encodedEpoch,) =
                 abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
             assertEq(encodedEpoch, epoch);
-            assertEq(command, middleware.CACHE_DATA_COMMAND());
+            assertEq(command, MiddlewareCRELogic.CACHE_DATA_COMMAND);
 
             vm.startPrank(forwarder);
             gasBefore = gasleft();
@@ -2927,7 +2929,7 @@ contract FullTest is Test {
 
     function testCannotRegisterSharedOverTheLimit() public {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
-        uint256 maxVaults = middleware.MAX_ACTIVE_VAULTS();
+        uint256 maxVaults = MiddlewareStorage.MAX_ACTIVE_VAULTS;
         uint256 activeSharedVaults = middlewareReaderForwarder.sharedVaultsLength();
 
         vm.startPrank(tanssi);
@@ -2988,7 +2990,7 @@ contract FullTest is Test {
         }
         assertTrue(operator1Found);
 
-        uint256 maxVaults = middleware.MAX_ACTIVE_VAULTS();
+        uint256 maxVaults = MiddlewareStorage.MAX_ACTIVE_VAULTS;
         uint256 activeSharedVaults = middlewareReaderForwarder.sharedVaultsLength();
         uint256 activeOperatorVaults = middlewareReaderForwarder.operatorVaultsLength(operator1);
         uint256 operatorSpecificVaultToCreate = 10 - activeOperatorVaults; // So in total this operator will have 10.
@@ -3073,7 +3075,7 @@ contract FullTest is Test {
         // Distribute rewards
         address operator8 = makeAddr("operator8");
         address operator9 = makeAddr("operator9");
-        uint256 numberOfVaults = middleware.MAX_ACTIVE_VAULTS() - 5; // The setup registers 3.
+        uint256 numberOfVaults = MiddlewareStorage.MAX_ACTIVE_VAULTS - 5; // The setup registers 3.
 
         _prepareOperatorsInMultipleVaults(operator8, operator9, numberOfVaults);
 
@@ -3096,7 +3098,7 @@ contract FullTest is Test {
         // Distribute rewards
         address operator8 = makeAddr("operator8");
         address operator9 = makeAddr("operator9");
-        uint256 numberOfVaults = middleware.MAX_ACTIVE_VAULTS() - 5; // The setup registers 3.
+        uint256 numberOfVaults = MiddlewareStorage.MAX_ACTIVE_VAULTS - 5; // The setup registers 3.
 
         _prepareOperatorsInMultipleVaults(operator8, operator9, numberOfVaults);
 

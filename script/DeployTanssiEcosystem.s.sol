@@ -72,12 +72,12 @@ contract DeployTanssiEcosystem is Script {
             vm.startPrank(contractOwner);
         }
         Middleware newImplementation = new Middleware();
-        Middleware proxy = Middleware(proxyAddress);
-        uint256 currentVersion = proxy.VERSION();
+        OBaseMiddlewareReader proxy = OBaseMiddlewareReader(proxyAddress);
+        uint256 currentVersion = proxy.getVersion();
         if (currentVersion != expectedCurrentVersion) {
             revert("Middleware version is not expected, cannot upgrade");
         }
-        proxy.upgradeToAndCall(address(newImplementation), hex"");
+        Middleware(address(proxy)).upgradeToAndCall(address(newImplementation), hex"");
         console2.log("New implementation: ", address(newImplementation));
         if (!isTest) {
             vm.stopBroadcast();

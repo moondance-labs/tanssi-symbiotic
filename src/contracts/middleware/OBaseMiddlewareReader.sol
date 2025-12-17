@@ -46,6 +46,7 @@ import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddleware
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {QuickSort} from "src/contracts/libraries/QuickSort.sol";
 import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
+import {MiddlewareCRELogic} from "src/contracts/libraries/MiddlewareCRELogic.sol";
 
 /**
  * @title OBaseMiddlewareReader
@@ -55,7 +56,6 @@ import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol"
  */
 contract OBaseMiddlewareReader is
     // IOBaseMiddlewareReader, not included since multiple methods collide with other inherited contracts
-    MiddlewareStorage,
     EpochCapture,
     VaultManager,
     OperatorManager,
@@ -85,8 +85,8 @@ contract OBaseMiddlewareReader is
             return 0;
         }
 
-        address collateral = vaultToCollateral(vault);
-        address oracle = collateralToOracle(collateral);
+        address collateral = MiddlewareStorage.vaultToCollateral(vault);
+        address oracle = MiddlewareStorage.collateralToOracle(collateral);
 
         if (oracle == address(0)) {
             revert IOBaseMiddlewareReader.OBaseMiddlewareReader__NotSupportedCollateral(collateral);
@@ -96,8 +96,8 @@ contract OBaseMiddlewareReader is
         power = stake.mulDiv(uint256(price), 10 ** priceDecimals);
         // Normalize power to 18 decimals
         uint8 collateralDecimals = IERC20Metadata(collateral).decimals();
-        if (collateralDecimals != DEFAULT_DECIMALS) {
-            power = power.mulDiv(10 ** DEFAULT_DECIMALS, 10 ** collateralDecimals);
+        if (collateralDecimals != MiddlewareStorage.DEFAULT_DECIMALS) {
+            power = power.mulDiv(10 ** MiddlewareStorage.DEFAULT_DECIMALS, 10 ** collateralDecimals);
         }
     }
 
@@ -565,6 +565,116 @@ contract OBaseMiddlewareReader is
     }
 
     /**
+     * @notice Get the oracle address for a collateral
+     * @param collateral The collateral address
+     * @return The oracle address
+     */
+    function collateralToOracle(
+        address collateral
+    ) external view returns (address) {
+        return MiddlewareStorage.collateralToOracle(collateral);
+    }
+
+    /**
+     * @notice Get the collateral address for a vault
+     * @param vault The vault address
+     * @return The collateral address
+     */
+    function vaultToCollateral(
+        address vault
+    ) external view returns (address) {
+        return MiddlewareStorage.vaultToCollateral(vault);
+    }
+
+    /**
+     * @notice Get the oracle address for a vault
+     * @param vault The vault address
+     * @return The oracle address
+     */
+    function vaultToOracle(
+        address vault
+    ) external view returns (address) {
+        return MiddlewareStorage.vaultToOracle(vault);
+    }
+
+    /**
+     * @notice Get epoch operators cache index
+     * @param epoch The epoch number
+     * @return The index of the cache for the epoch or how many operators have had their powers cached
+     */
+    function getEpochCacheIndex(
+        uint48 epoch
+    ) external view returns (uint256) {
+        return MiddlewareStorage.getEpochCacheIndex(epoch);
+    }
+
+    /**
+     * @notice Get the power of an operator from cache
+     * @param epoch The epoch number
+     * @param operatorKey_ The operator key
+     * @return The power of the operator
+     */
+    function getOperatorToPowerCached(uint48 epoch, bytes32 operatorKey_) external view returns (uint256) {
+        return MiddlewareStorage.getOperatorToPowerCached(epoch, operatorKey_);
+    }
+
+    /**
+     * @notice Get the forwarder address
+     * @return The forwarder address
+     */
+    function getForwarderAddress() external view returns (address) {
+        return MiddlewareStorage.getForwarderAddress();
+    }
+
+    /**
+     * @notice Get the gateway contract
+     * @return The gateway contract address
+     */
+    function getGateway() external view returns (address) {
+        return MiddlewareStorage.getGateway();
+    }
+
+    /**
+     * @notice Get the interval
+     * @return The interval
+     */
+    function getInterval() external view returns (uint256) {
+        return MiddlewareStorage.getInterval();
+    }
+
+    /**
+     * @notice Get the last timestamp
+     * @return The last timestamp
+     */
+    function getLastTimestamp() external view returns (uint256) {
+        return MiddlewareStorage.getLastTimestamp();
+    }
+
+    /**
+     * @notice Get the operator rewards contract address
+     * @return The operator rewards contract address
+     */
+    function getOperatorRewardsAddress() external view returns (address) {
+        return MiddlewareStorage.getOperatorRewardsAddress();
+    }
+
+    /**
+     * @notice Get the staker rewards factory contract address
+     * @return The staker rewards factory contract address
+     */
+    function getStakerRewardsFactoryAddress() external view returns (address) {
+        return MiddlewareStorage.getStakerRewardsFactoryAddress();
+    }
+
+    /**
+     * @notice Get the middleware version
+     * @return The middleware version
+     */
+    function getVersion() external pure returns (uint256) {
+        return MiddlewareStorage.VERSION;
+    }
+
+    /**
      * @notice Gets total stake for an epoch
      * @param epoch The epoch number
      * @return totalStake Total stake amount
@@ -628,7 +738,7 @@ contract OBaseMiddlewareReader is
             }
 
             if (key != bytes32(0)) {
-                uint256 power = getOperatorToPowerCached(epoch, key);
+                uint256 power = MiddlewareStorage.getOperatorToPowerCached(epoch, key);
                 if (power == 0) {
                     power = _optmizedGetOperatorPowerAt(epochStartTs, sharedVaults, operator);
                 }
@@ -674,8 +784,8 @@ contract OBaseMiddlewareReader is
         uint48 epoch = getCurrentEpoch();
         uint48 currentEpochStartTs = getEpochStart(epoch);
 
-        StorageMiddleware storage $ = _getMiddlewareStorage();
-        StorageMiddlewareCache storage cache = _getMiddlewareStorageCache();
+        MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
+        MiddlewareStorage.StorageMiddlewareCache storage cache = MiddlewareStorage.getMiddlewareStorageCache();
 
         OperatorManagerStorage storage $o = _getOperatorManagerStorage();
         PauseableEnumerableSet.AddressSet storage operators = $o._operators;
@@ -691,18 +801,20 @@ contract OBaseMiddlewareReader is
 
         // Check if cache is still not filled with the current epoch validators
         if (pendingOperatorsToCache > 0) {
-            uint256 maxNumOperatorsToCheck = Math.min(pendingOperatorsToCache, MAX_OPERATORS_TO_PROCESS);
+            uint256 maxNumOperatorsToCheck =
+                Math.min(pendingOperatorsToCache, MiddlewareStorage.MAX_OPERATORS_TO_PROCESS);
             (IMiddleware.ValidatorData[] memory validatorsData, bool atLeastOneActive) = _getValidatorDataForOperators(
                 maxNumOperatorsToCheck, cacheIndex, currentEpochStartTs, operators, operatorsLength_
             );
 
-            // This is the first batch (cacheIndex == 0) and all of the operators are being processed in this batch (operatorsLength_ <= MAX_OPERATORS_TO_PROCESS) and they are all inactive, so we don't need to send anything
-            if (cacheIndex == 0 && operatorsLength_ <= MAX_OPERATORS_TO_PROCESS && !atLeastOneActive) {
+            // This is the first batch (cacheIndex == 0) and all of the operators are being processed in this batch (operatorsLength_ <= MiddlewareStorage.MAX_OPERATORS_TO_PROCESS) and they are all inactive, so we don't need to send anything
+            if (cacheIndex == 0 && operatorsLength_ <= MiddlewareStorage.MAX_OPERATORS_TO_PROCESS && !atLeastOneActive)
+            {
                 return (false, hex"");
             }
 
             // encode values to be used in performUpkeep
-            return (true, abi.encode(CACHE_DATA_COMMAND, epoch, validatorsData));
+            return (true, abi.encode(MiddlewareCRELogic.CACHE_DATA_COMMAND, epoch, validatorsData));
         }
 
         //Should be at least once per epoch, but not more than once per interval
@@ -710,12 +822,13 @@ contract OBaseMiddlewareReader is
             // This will use the cached values, resulting in just a simple sorting operation. We can know a priori how much it cost since it's just an address with a uint256 power. Worst case we can split this too.
             bytes32[] memory sortedKeys = sortOperatorsByPower(epoch);
 
-            if (sortedKeys.length > MAX_OPERATORS_TO_SEND) {
+            uint256 maxOperatorsToSend = MiddlewareStorage.MAX_OPERATORS_TO_SEND;
+            if (sortedKeys.length > maxOperatorsToSend) {
                 assembly ("memory-safe") {
-                    mstore(sortedKeys, MAX_OPERATORS_TO_SEND)
+                    mstore(sortedKeys, maxOperatorsToSend)
                 }
             }
-            performData = abi.encode(SEND_DATA_COMMAND, epoch, sortedKeys);
+            performData = abi.encode(MiddlewareCRELogic.SEND_DATA_COMMAND, epoch, sortedKeys);
             return (true, performData);
         }
 
@@ -768,7 +881,7 @@ contract OBaseMiddlewareReader is
         address[] memory operatorVaults = $._operatorVaults[operator].getActive(timestamp);
 
         // This check might seem innecesary since we check on vault registration, however if we register first operator vaults and then shared ones, the limit might be reached for an operator without triggering the revert on registration.
-        if (sharedVaults.length + operatorVaults.length <= MAX_ACTIVE_VAULTS) {
+        if (sharedVaults.length + operatorVaults.length <= MiddlewareStorage.MAX_ACTIVE_VAULTS) {
             power = _getOperatorPowerAt(timestamp, operator, sharedVaults)
                 + _getOperatorPowerAt(timestamp, operator, operatorVaults);
         }

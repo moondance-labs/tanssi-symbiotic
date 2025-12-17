@@ -31,7 +31,6 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 //                                      SYMBIOTIC
 //**************************************************************************************************
 import {IEntity} from "@symbiotic/interfaces/common/IEntity.sol";
-import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 import {IBaseDelegator} from "@symbiotic/interfaces/delegator/IBaseDelegator.sol";
 import {ISlasher} from "@symbiotic/interfaces/slasher/ISlasher.sol";
 import {IVetoSlasher} from "@symbiotic/interfaces/slasher/IVetoSlasher.sol";
@@ -58,6 +57,7 @@ import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {OSharedVaults} from "src/contracts/extensions/OSharedVaults.sol";
 import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
 import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
+import {MiddlewareCRELogic} from "src/contracts/libraries/MiddlewareCRELogic.sol";
 
 contract Middleware is
     UUPSUpgradeable,
@@ -66,7 +66,6 @@ contract Middleware is
     KeyManager256,
     OzAccessControl,
     EpochCapture,
-    MiddlewareStorage,
     IReceiverTemplate,
     IMiddleware
 {
@@ -104,7 +103,7 @@ contract Middleware is
         _validateInitParams(params);
 
         {
-            StorageMiddleware storage $ = _getMiddlewareStorage();
+            MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
             $.lastTimestamp = Time.timestamp();
             $.interval = params.epochDuration;
         }
@@ -122,9 +121,9 @@ contract Middleware is
         __UUPSUpgradeable_init();
 
         _grantRole(DEFAULT_ADMIN_ROLE, params.owner);
-        _setSelectorRole(this.distributeRewards.selector, GATEWAY_ROLE);
-        _setSelectorRole(this.slash.selector, GATEWAY_ROLE);
-        _setSelectorRole(this.onReport.selector, FORWARDER_ROLE);
+        _setSelectorRole(this.distributeRewards.selector, MiddlewareStorage.GATEWAY_ROLE);
+        _setSelectorRole(this.slash.selector, MiddlewareStorage.GATEWAY_ROLE);
+        _setSelectorRole(this.onReport.selector, MiddlewareStorage.FORWARDER_ROLE);
     }
 
     /*
@@ -136,9 +135,16 @@ contract Middleware is
         address operatorRewards,
         address stakerRewardsFactory
     ) external reinitializer(3) notZeroAddress(operatorRewards) notZeroAddress(stakerRewardsFactory) {
-        StorageMiddleware storage $ = _getMiddlewareStorage();
+        MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
         $.i_operatorRewards = operatorRewards;
         $.i_stakerRewardsFactory = stakerRewardsFactory;
+    }
+
+    /*
+     * @notice Reinitialize to set the onReport selector role
+     */
+    function reinitialize() external reinitializer(4) {
+        _setSelectorRole(this.onReport.selector, MiddlewareStorage.FORWARDER_ROLE);
     }
 
     function _validateInitParams(
@@ -172,7 +178,7 @@ contract Middleware is
     function setGateway(
         address newGateway
     ) external checkAccess notZeroAddress(newGateway) {
-        StorageMiddleware storage $ = _getMiddlewareStorage();
+        MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
         address oldGateway = $.gateway;
 
         if (newGateway == oldGateway) {
@@ -180,8 +186,8 @@ contract Middleware is
         }
 
         $.gateway = newGateway;
-        _revokeRole(GATEWAY_ROLE, oldGateway);
-        _grantRole(GATEWAY_ROLE, newGateway);
+        _revokeRole(MiddlewareStorage.GATEWAY_ROLE, oldGateway);
+        _grantRole(MiddlewareStorage.GATEWAY_ROLE, newGateway);
 
         emit GatewaySet(newGateway);
     }
@@ -195,7 +201,7 @@ contract Middleware is
         if (interval == 0) {
             revert Middleware__InvalidInterval();
         }
-        StorageMiddleware storage $ = _getMiddlewareStorage();
+        MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
 
         if (interval == $.interval) {
             revert Middleware__AlreadySet();
@@ -213,15 +219,15 @@ contract Middleware is
     ) external checkAccess notZeroAddress(forwarder) {
         //TODO !!! TO CHECK PROBABLY WE COULD TAKE OUT FROM STORAGE THE ADDRESS
         // WE DIRECTLY CHECK THAT THE ADDRESS HAS THE ROLE. THERE IS NO POINT IN STORING IT
-        StorageMiddleware storage $ = _getMiddlewareStorage();
+        MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
         address currentForwarderAddress = $.forwarderAddress;
         if (forwarder == currentForwarderAddress) {
             revert Middleware__AlreadySet();
         }
 
         $.forwarderAddress = forwarder;
-        _revokeRole(FORWARDER_ROLE, currentForwarderAddress);
-        _grantRole(FORWARDER_ROLE, forwarder);
+        _revokeRole(MiddlewareStorage.FORWARDER_ROLE, currentForwarderAddress);
+        _grantRole(MiddlewareStorage.FORWARDER_ROLE, forwarder);
 
         emit ForwarderSet(forwarder);
     }
@@ -230,7 +236,7 @@ contract Middleware is
         address collateral,
         address oracle
     ) external checkAccess notZeroAddress(collateral) {
-        StorageMiddleware storage $ = _getMiddlewareStorage();
+        MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
 
         // Oracle is not checked against zero so this can be used to remove the oracle from a collateral
 
@@ -244,7 +250,7 @@ contract Middleware is
     function setOperatorShareOnOperatorRewards(
         uint48 operatorShare
     ) external checkAccess {
-        StorageMiddleware storage $ = _getMiddlewareStorage();
+        MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
         IODefaultOperatorRewards($.i_operatorRewards).setOperatorShare(operatorShare);
     }
 
@@ -263,7 +269,7 @@ contract Middleware is
             revert Middleware__InsufficientBalance();
         }
 
-        StorageMiddleware storage $ = _getMiddlewareStorage();
+        MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
         IERC20(tokenAddress).approve($.i_operatorRewards, tokenAmount);
 
         IODefaultOperatorRewards($.i_operatorRewards).distributeRewards(
@@ -275,20 +281,8 @@ contract Middleware is
      * @inheritdoc IMiddleware
      */
     function sendCurrentOperatorsKeys() external returns (bytes32[] memory sortedKeys) {
-        StorageMiddleware storage $ = _getMiddlewareStorage();
-        if (block.number < $.lastExecutionBlock + MIN_INTERVAL_TO_SEND_OPERATOR_KEYS) {
-            return sortedKeys;
-        }
-
-        address gateway = getGateway();
-        if (gateway == address(0)) {
-            revert Middleware__GatewayNotSet();
-        }
-
-        $.lastExecutionBlock = block.number;
         uint48 epoch = getCurrentEpoch();
-        sortedKeys = IOBaseMiddlewareReader(address(this)).sortOperatorsByPower(epoch);
-        IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);
+        sortedKeys = MiddlewareStorage.sendCurrentOperatorsKeys(epoch);
     }
 
     /**
@@ -362,17 +356,17 @@ contract Middleware is
         address sharedVault,
         IODefaultStakerRewards.InitParams memory stakerRewardsParams
     ) internal override {
-        if (_sharedVaultsLength() >= MAX_ACTIVE_VAULTS) {
+        if (_sharedVaultsLength() >= MiddlewareStorage.MAX_ACTIVE_VAULTS) {
             revert Middleware__TooManyActiveVaults();
         }
 
-        StorageMiddleware storage $ = _getMiddlewareStorage();
+        MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
         address stakerRewards =
             IODefaultStakerRewardsFactory($.i_stakerRewardsFactory).create(sharedVault, stakerRewardsParams);
 
         IODefaultOperatorRewards($.i_operatorRewards).setStakerRewardContract(stakerRewards, sharedVault);
 
-        _setVaultToCollateral(sharedVault);
+        MiddlewareStorage.setVaultToCollateral(sharedVault);
     }
 
     /**
@@ -383,7 +377,7 @@ contract Middleware is
         /* operator */
         address vault
     ) internal override {
-        _setVaultToCollateral(vault);
+        MiddlewareStorage.setVaultToCollateral(vault);
     }
 
     /**
@@ -408,15 +402,6 @@ contract Middleware is
         _updateKey(operator, abi.encode(bytes32(0)));
     }
 
-    function _setVaultToCollateral(
-        address vault
-    ) private {
-        StorageMiddleware storage $ = _getMiddlewareStorage();
-        address collateral = IVault(vault).collateral();
-        _checkNotZeroAddress(collateral);
-        $.vaultToCollateral[vault] = collateral;
-    }
-
     function _processReport(
         bytes calldata report
     ) internal override {
@@ -439,84 +424,9 @@ contract Middleware is
             performData.length := len
         }
 
-        if (executionCode == CRE_CACHE_DATA_COMMAND) {
-            _cacheAndSendOperatorsFlow(performData);
+        if (executionCode == MiddlewareCRELogic.CRE_CACHE_DATA_COMMAND) {
+            MiddlewareCRELogic.cacheAndSendOperatorsFlow(performData, getCurrentEpoch(), _operatorsLength());
         } else {}
-    }
-
-    function _cacheAndSendOperatorsFlow(
-        bytes calldata performData
-    ) private {
-        if (performData.length == 0) {
-            revert Middleware__NoPerformData();
-        }
-
-        StorageMiddleware storage $ = _getMiddlewareStorage();
-        address gateway = $.gateway;
-        if (gateway == address(0)) {
-            revert Middleware__GatewayNotSet();
-        }
-
-        uint48 encodedEpoch;
-        // Get out from the bytes of the encoded report the epochData.
-        assembly {
-            // Load 32 bytes starting at offset 32 (second 32-byte slot)
-            let epochData := calldataload(add(performData.offset, 32))
-            encodedEpoch := epochData
-        }
-
-        uint48 epoch = getCurrentEpoch();
-        if (encodedEpoch != epoch) {
-            revert Middleware__InvalidEpoch();
-        }
-
-        StorageMiddlewareCache storage cache = _getMiddlewareStorageCache();
-
-        uint256 operatorsLength = _operatorsLength();
-        uint256 cacheIndex = cache.epochToCacheIndex[epoch];
-        uint256 pendingOperatorsToCache = operatorsLength - cacheIndex;
-
-        if (pendingOperatorsToCache > 0) {
-            (uint8 command,, ValidatorData[] memory validatorsData) =
-                abi.decode(performData, (uint8, uint48, ValidatorData[]));
-
-            if (command != CACHE_DATA_COMMAND) {
-                revert Middleware__InvalidCommand(command);
-            }
-
-            uint256 validatorsDataLength = validatorsData.length;
-            for (uint256 i = 0; i < validatorsDataLength;) {
-                ValidatorData memory validatorData = validatorsData[i];
-                bytes32 validatorKey = validatorData.key;
-                // Update the cache with the operator power and the operator
-                if (cache.operatorKeyToPower[epoch][validatorKey] != 0) {
-                    revert Middleware__AlreadyCached();
-                }
-
-                cache.operatorKeyToPower[epoch][validatorKey] = validatorData.power;
-                unchecked {
-                    ++i;
-                }
-            }
-
-            unchecked {
-                cache.epochToCacheIndex[epoch] += validatorsDataLength;
-            }
-        } else {
-            uint48 currentTimestamp = Time.timestamp();
-            if ((currentTimestamp - $.lastTimestamp) > $.interval) {
-                $.lastTimestamp = currentTimestamp;
-
-                // Decode the sorted keys and the epoch from performData
-                (uint8 command,, bytes32[] memory sortedKeys) = abi.decode(performData, (uint8, uint48, bytes32[]));
-
-                if (command != SEND_DATA_COMMAND) {
-                    revert Middleware__InvalidCommand(command);
-                }
-
-                IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);
-            }
-        }
     }
 
     function _checkNotZeroAddress(
