@@ -163,7 +163,10 @@ interface IODefaultStakerRewards {
      * @param tokenAddress The address of the token for the specified reward.
      * @return amount The amount of tokens for the specified reward.
      */
-    function rewards(uint48 epoch, address tokenAddress) external view returns (uint256 amount);
+    function rewards(
+        uint48 epoch,
+        address tokenAddress
+    ) external view returns (uint256 amount);
 
     /**
      * @notice Get the amount already claimed by the staker
@@ -194,7 +197,11 @@ interface IODefaultStakerRewards {
      * @param tokenAddress address of the reward token
      * @return amount of claimable tokens
      */
-    function claimable(uint48 epoch, address account, address tokenAddress) external view returns (uint256);
+    function claimable(
+        uint48 epoch,
+        address account,
+        address tokenAddress
+    ) external view returns (uint256);
 
     /**
      * @notice Distribute rewards for a particular epoch
@@ -234,7 +241,11 @@ interface IODefaultStakerRewards {
      * @param tokenAddress address of the reward token
      * @param data additional bytes containing epoch and hints
      */
-    function claimRewards(address recipient, address tokenAddress, bytes calldata data) external;
+    function claimRewards(
+        address recipient,
+        address tokenAddress,
+        bytes calldata data
+    ) external;
 
     /**
      * @notice Helper function to claim rewards for multiple epochs in a single transaction and restake a percentage of the rewards.
@@ -272,7 +283,10 @@ interface IODefaultStakerRewards {
      * @param tokenAddress address of the token for the admin fee
      * @dev Only the vault owner can call this function.
      */
-    function claimAdminFee(address recipient, address tokenAddress) external;
+    function claimAdminFee(
+        address recipient,
+        address tokenAddress
+    ) external;
 
     /**
      * @notice Set an admin fee.

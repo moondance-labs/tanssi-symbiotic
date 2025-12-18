@@ -8,11 +8,19 @@ contract DIAOracleMock {
 
     mapping(string => Price) private prices;
 
-    constructor(string memory pairSymbol, uint128 latestPrice, uint128 timestampOfLatestPrice) {
+    constructor(
+        string memory pairSymbol,
+        uint128 latestPrice,
+        uint128 timestampOfLatestPrice
+    ) {
         prices[pairSymbol] = Price(latestPrice, timestampOfLatestPrice);
     }
 
-    function setValue(uint128 latestPrice, uint128 timestampOfLatestPrice, string memory pairSymbol) external {
+    function setValue(
+        uint128 latestPrice,
+        uint128 timestampOfLatestPrice,
+        string memory pairSymbol
+    ) external {
         prices[pairSymbol] = Price(latestPrice, timestampOfLatestPrice);
     }
 

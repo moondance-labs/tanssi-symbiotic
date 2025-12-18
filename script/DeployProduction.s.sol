@@ -87,19 +87,13 @@ contract DeployProduction is Script {
 
     function _deploy(
         bool isTest
-    )
-        private
-        returns (address middlewareAddress, address operatorRewardsAddress, address stakerRewardsFactoryAddress)
-    {
+    ) private returns (address middlewareAddress, address operatorRewardsAddress, address stakerRewardsFactoryAddress) {
         (
             ,
-            address operatorRegistryAddress,
-            ,
+            address operatorRegistryAddress,,
             address vaultRegistryAddress,
-            address operatorNetworkOptInServiceAddress,
-            ,
-            address networkMiddlewareServiceAddress,
-            ,
+            address operatorNetworkOptInServiceAddress,,
+            address networkMiddlewareServiceAddress,,
         ) = helperConfig.activeNetworkConfig();
 
         // Deploy rewards takes care of starting and ending broadcast

@@ -219,7 +219,10 @@ contract HelperConfig is Script {
         }
     }
 
-    function _loadCollateral(string memory json, string memory path) private pure returns (CollateralData memory) {
+    function _loadCollateral(
+        string memory json,
+        string memory path
+    ) private pure returns (CollateralData memory) {
         // Trying to decode the full dictionary as a struct won't work, even if docs suggest it. I suspect it's due to dictionary keys not guaranteed to be in order.
         string memory name = abi.decode(vm.parseJson(json, string.concat(path, ".name")), (string));
         string memory symbol = abi.decode(vm.parseJson(json, string.concat(path, ".symbol")), (string));
@@ -228,7 +231,10 @@ contract HelperConfig is Script {
         return CollateralData({name: name, symbol: symbol, collateral: collateral, oracle: oracle});
     }
 
-    function _loadVault(string memory json, string memory path) private pure returns (VaultData memory) {
+    function _loadVault(
+        string memory json,
+        string memory path
+    ) private pure returns (VaultData memory) {
         string memory name = abi.decode(vm.parseJson(json, string.concat(path, ".name")), (string));
         address vault = abi.decode(vm.parseJson(json, string.concat(path, ".vault")), (address));
         address delegator = abi.decode(vm.parseJson(json, string.concat(path, ".delegator")), (address));
@@ -258,7 +264,10 @@ contract HelperConfig is Script {
         operator.operatorKey = operatorKey;
     }
 
-    function _assignCollateral(CollateralData memory collateral, TokensConfig memory tokenConfig) private pure {
+    function _assignCollateral(
+        CollateralData memory collateral,
+        TokensConfig memory tokenConfig
+    ) private pure {
         if (_sameString(collateral.symbol, "rETH")) {
             tokenConfig.rETH = collateral;
         } else if (_sameString(collateral.symbol, "swETH")) {
@@ -324,7 +333,10 @@ contract HelperConfig is Script {
         }
     }
 
-    function _assignOperator(OperatorData memory operator, OperatorConfig memory operatorConfig) private pure {
+    function _assignOperator(
+        OperatorData memory operator,
+        OperatorConfig memory operatorConfig
+    ) private pure {
         if (_sameString(operator.name, "Pier Two")) {
             operatorConfig.operator1PierTwo = operator;
         } else if (_sameString(operator.name, "Nodeinfra")) {
@@ -342,7 +354,10 @@ contract HelperConfig is Script {
         }
     }
 
-    function _sameString(string memory a, string memory b) private pure returns (bool) {
+    function _sameString(
+        string memory a,
+        string memory b
+    ) private pure returns (bool) {
         return keccak256(bytes(a)) == keccak256(bytes(b));
     }
 

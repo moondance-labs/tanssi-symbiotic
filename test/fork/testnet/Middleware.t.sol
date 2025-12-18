@@ -119,21 +119,26 @@ contract MiddlewareTest is Test {
         vaultShares = vault.activeShares();
     }
 
-    function _depositToVault(IVault _vault, address _operator, uint256 _amount, IERC20 collateral) public {
+    function _depositToVault(
+        IVault _vault,
+        address _operator,
+        uint256 _amount,
+        IERC20 collateral
+    ) public {
         collateral.approve(address(_vault), _amount * 10);
         _vault.deposit(_operator, _amount);
     }
 
-    function _registerOperator(address _operator, address _network, address _vault) public {
+    function _registerOperator(
+        address _operator,
+        address _network,
+        address _vault
+    ) public {
         (
             ,
-            address operatorRegistryAddress,
-            ,
-            ,
+            address operatorRegistryAddress,,,
             address operatorNetworkOptInServiceAddress,
-            address operatorVaultOptInServiceAddress,
-            ,
-            ,
+            address operatorVaultOptInServiceAddress,,,
         ) = helperConfig.activeNetworkConfig();
 
         IOperatorRegistry operatorRegistry = IOperatorRegistry(operatorRegistryAddress);
@@ -156,9 +161,8 @@ contract MiddlewareTest is Test {
         uint256 operatorStake_,
         uint256 amountSlashed
     ) public view returns (uint256 totalOperatorPower) {
-        totalOperatorPower = operatorShares.mulDiv(operatorStake_ - amountSlashed, vaultShares).mulDiv(
-            uint256(ORACLE_CONVERSION_TOKEN), 10 ** ORACLE_DECIMALS
-        );
+        totalOperatorPower = operatorShares.mulDiv(operatorStake_ - amountSlashed, vaultShares)
+            .mulDiv(uint256(ORACLE_CONVERSION_TOKEN), 10 ** ORACLE_DECIMALS);
     }
 
     // ************************************************************************************************

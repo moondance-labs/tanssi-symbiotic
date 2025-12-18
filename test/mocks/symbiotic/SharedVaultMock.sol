@@ -22,7 +22,10 @@ import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRew
 contract SharedVaultMock is OSharedVaults, KeyManager256, EpochCapture {
     function _checkAccess() internal override {}
 
-    function stakeToPower(address, uint256) public pure override returns (uint256 power) {}
+    function stakeToPower(
+        address,
+        uint256
+    ) public pure override returns (uint256 power) {}
 
     function callAfterRegisterHook(
         address sharedVault,

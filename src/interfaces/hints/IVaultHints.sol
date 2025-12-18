@@ -3,9 +3,15 @@
 pragma solidity 0.8.25;
 
 interface IVaultHints {
-    function activeStakeHint(address vault, uint48 timestamp) external view returns (bytes memory);
+    function activeStakeHint(
+        address vault,
+        uint48 timestamp
+    ) external view returns (bytes memory);
 
-    function activeSharesHint(address vault, uint48 timestamp) external view returns (bytes memory);
+    function activeSharesHint(
+        address vault,
+        uint48 timestamp
+    ) external view returns (bytes memory);
 
     function activeSharesOfHint(
         address vault,

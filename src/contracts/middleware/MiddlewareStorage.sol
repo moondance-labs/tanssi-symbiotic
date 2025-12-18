@@ -206,7 +206,10 @@ library MiddlewareStorage {
      * @param operatorKey The operator key
      * @return The power of the operator
      */
-    function getOperatorToPowerCached(uint48 epoch, bytes32 operatorKey) public view returns (uint256) {
+    function getOperatorToPowerCached(
+        uint48 epoch,
+        bytes32 operatorKey
+    ) public view returns (uint256) {
         StorageMiddlewareCache storage $ = getMiddlewareStorageCache();
         return $.operatorKeyToPower[epoch][operatorKey];
     }

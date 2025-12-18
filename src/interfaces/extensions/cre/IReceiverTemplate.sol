@@ -31,7 +31,10 @@ abstract contract IReceiverTemplate is IReceiver, OzAccessControl {
 
     /// @inheritdoc IReceiver
     /// @dev Performs optional validation checks based on which permission fields are set
-    function onReport(bytes calldata metadata, bytes calldata report) external override checkAccess {
+    function onReport(
+        bytes calldata metadata,
+        bytes calldata report
+    ) external override checkAccess {
         ReceiverStorage storage rs = _getReceiverStorage();
 
         // Delegate validation to external library

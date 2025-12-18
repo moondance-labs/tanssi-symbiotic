@@ -109,7 +109,11 @@ contract DeployRewards is Script {
         vm.stopBroadcast();
     }
 
-    function upgradeStakerRewards(address proxyAddress, address networkMiddlewareService, address network) external {
+    function upgradeStakerRewards(
+        address proxyAddress,
+        address networkMiddlewareService,
+        address network
+    ) external {
         if (!isTest) {
             vm.startBroadcast(broadcaster());
         } else {
@@ -130,7 +134,11 @@ contract DeployRewards is Script {
         }
     }
 
-    function upgradeOperatorRewards(address proxyAddress, address network, address networkMiddlewareService) external {
+    function upgradeOperatorRewards(
+        address proxyAddress,
+        address network,
+        address networkMiddlewareService
+    ) external {
         if (!isTest) {
             vm.startBroadcast(broadcaster());
         } else {

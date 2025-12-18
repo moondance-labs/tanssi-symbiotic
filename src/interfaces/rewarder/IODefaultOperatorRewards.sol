@@ -155,7 +155,10 @@ interface IODefaultOperatorRewards {
      * @param index in the array of era indexes
      * @return eraIndex era index of Starlight's rewards distribution
      */
-    function eraIndexesPerEpoch(uint48 epoch, uint256 index) external view returns (uint48 eraIndex);
+    function eraIndexesPerEpoch(
+        uint48 epoch,
+        uint256 index
+    ) external view returns (uint48 eraIndex);
 
     /**
      * @notice Get a claimed amount of rewards for a particular account and epoch
@@ -163,7 +166,10 @@ interface IODefaultOperatorRewards {
      * @param account operator key of the rewards' recipient
      * @return amount claimed amount of tokens
      */
-    function claimed(uint48 eraIndex, bytes32 account) external view returns (uint256 amount);
+    function claimed(
+        uint48 eraIndex,
+        bytes32 account
+    ) external view returns (uint256 amount);
 
     /**
      * @notice Get the staker rewards contract's address for a particular vault
@@ -232,7 +238,10 @@ interface IODefaultOperatorRewards {
      * @param stakerRewards The address of the staker rewards contract
      * @param vault The address of the vault
      */
-    function setStakerRewardContract(address stakerRewards, address vault) external;
+    function setStakerRewardContract(
+        address stakerRewards,
+        address vault
+    ) external;
 
     /**
      * @notice Set the operator share of the rewards.

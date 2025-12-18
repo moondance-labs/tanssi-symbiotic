@@ -66,10 +66,7 @@ contract DeployVault is Script {
         CreateVaultBaseParams memory params
     ) public returns (address, address, address) {
         return _createVault({
-            params: params,
-            withSlasher: false,
-            slasherIndex: VaultManager.SlasherType.INSTANT,
-            vetoDuration: 0
+            params: params, withSlasher: false, slasherIndex: VaultManager.SlasherType.INSTANT, vetoDuration: 0
         });
     }
 
@@ -77,10 +74,7 @@ contract DeployVault is Script {
         CreateVaultBaseParams memory params
     ) public returns (address, address, address) {
         return _createVault({
-            params: params,
-            withSlasher: true,
-            slasherIndex: VaultManager.SlasherType.INSTANT,
-            vetoDuration: 0
+            params: params, withSlasher: true, slasherIndex: VaultManager.SlasherType.INSTANT, vetoDuration: 0
         });
     }
 
@@ -89,10 +83,7 @@ contract DeployVault is Script {
         uint48 vetoDuration
     ) public returns (address, address, address) {
         return _createVault({
-            params: params,
-            withSlasher: true,
-            slasherIndex: VaultManager.SlasherType.VETO,
-            vetoDuration: vetoDuration
+            params: params, withSlasher: true, slasherIndex: VaultManager.SlasherType.VETO, vetoDuration: vetoDuration
         });
     }
 
@@ -186,9 +177,7 @@ contract DeployVault is Script {
             delegatorParams = abi.encode(
                 INetworkRestakeDelegator.InitParams({
                     baseParams: IBaseDelegator.BaseParams({
-                        defaultAdminRoleHolder: params.owner,
-                        hook: address(0),
-                        hookSetRoleHolder: params.owner
+                        defaultAdminRoleHolder: params.owner, hook: address(0), hookSetRoleHolder: params.owner
                     }),
                     networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                     operatorNetworkSharesSetRoleHolders: operatorNetworkSharesSetRoleHolders
@@ -198,9 +187,7 @@ contract DeployVault is Script {
             delegatorParams = abi.encode(
                 IFullRestakeDelegator.InitParams({
                     baseParams: IBaseDelegator.BaseParams({
-                        defaultAdminRoleHolder: params.owner,
-                        hook: address(0),
-                        hookSetRoleHolder: params.owner
+                        defaultAdminRoleHolder: params.owner, hook: address(0), hookSetRoleHolder: params.owner
                     }),
                     networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                     operatorNetworkLimitSetRoleHolders: operatorNetworkLimitSetRoleHolders
@@ -210,9 +197,7 @@ contract DeployVault is Script {
             delegatorParams = abi.encode(
                 IOperatorSpecificDelegator.InitParams({
                     baseParams: IBaseDelegator.BaseParams({
-                        defaultAdminRoleHolder: params.owner,
-                        hook: address(0),
-                        hookSetRoleHolder: params.owner
+                        defaultAdminRoleHolder: params.owner, hook: address(0), hookSetRoleHolder: params.owner
                     }),
                     networkLimitSetRoleHolders: networkLimitSetRoleHolders,
                     operator: params.operator
@@ -222,9 +207,7 @@ contract DeployVault is Script {
             delegatorParams = abi.encode(
                 IOperatorNetworkSpecificDelegator.InitParams({
                     baseParams: IBaseDelegator.BaseParams({
-                        defaultAdminRoleHolder: params.owner,
-                        hook: address(0),
-                        hookSetRoleHolder: params.owner
+                        defaultAdminRoleHolder: params.owner, hook: address(0), hookSetRoleHolder: params.owner
                     }),
                     network: params.network,
                     operator: params.operator
@@ -246,18 +229,19 @@ contract DeployVault is Script {
             );
         }
 
-        (vault_, delegator_, slasher_) = IVaultConfigurator(params.vaultConfigurator).create(
-            IVaultConfigurator.InitParams({
-                version: 1,
-                owner: params.owner,
-                vaultParams: vaultParams,
-                delegatorIndex: uint64(params.delegatorIndex),
-                delegatorParams: delegatorParams,
-                withSlasher: params.withSlasher,
-                slasherIndex: uint64(params.slasherIndex),
-                slasherParams: slasherParams
-            })
-        );
+        (vault_, delegator_, slasher_) = IVaultConfigurator(params.vaultConfigurator)
+            .create(
+                IVaultConfigurator.InitParams({
+                    version: 1,
+                    owner: params.owner,
+                    vaultParams: vaultParams,
+                    delegatorIndex: uint64(params.delegatorIndex),
+                    delegatorParams: delegatorParams,
+                    withSlasher: params.withSlasher,
+                    slasherIndex: uint64(params.slasherIndex),
+                    slasherParams: slasherParams
+                })
+            );
     }
 
     function deployTestVaults(

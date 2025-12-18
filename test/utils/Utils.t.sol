@@ -21,7 +21,10 @@ import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol"
 contract TestUtils is Script {
     uint8 public constant EXECUTION_CODE_CACHE = 101;
 
-    function getTotalBatchesForCount(Middleware middleware, uint256 count) public pure returns (uint256) {
+    function getTotalBatchesForCount(
+        Middleware middleware,
+        uint256 count
+    ) public pure returns (uint256) {
         uint256 max = MiddlewareStorage.MAX_OPERATORS_TO_PROCESS;
         uint256 totalBatches = count / max;
         if (totalBatches * max < count) {

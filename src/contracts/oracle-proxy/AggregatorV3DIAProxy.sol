@@ -13,7 +13,10 @@ contract AggregatorV3DIAProxy is AggregatorV3Interface {
 
     error AggregatorV3DIAProxy__InvalidData();
 
-    constructor(address _aggregator, string memory _pairSymbol) {
+    constructor(
+        address _aggregator,
+        string memory _pairSymbol
+    ) {
         if (_aggregator == address(0) || bytes(_pairSymbol).length == 0) {
             revert AggregatorV3DIAProxy__InvalidData();
         }
