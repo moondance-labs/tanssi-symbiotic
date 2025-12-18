@@ -1461,7 +1461,7 @@ contract MiddlewareTest is Test {
     // *                                        UPKEEP
     // ************************************************************************************************
 
-    function testUpkeepX() public {
+    function testUpkeep() public {
         vm.prank(owner);
         middleware.setForwarder(forwarder);
         // It's not needed, it's just for explaining and showing the flow
