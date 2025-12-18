@@ -21,20 +21,11 @@ interface IOBaseMiddlewareReader {
 
     function getCaptureTimestamp() external view returns (uint48 timestamp);
 
-    function stakeToPower(
-        address vault,
-        uint256 stake
-    ) external view returns (uint256 power);
+    function stakeToPower(address vault, uint256 stake) external view returns (uint256 power);
 
-    function getPowerInUSD(
-        address vault,
-        uint256 stake
-    ) external view returns (uint256 power);
+    function getPowerInUSD(address vault, uint256 stake) external view returns (uint256 power);
 
-    function keyWasActiveAt(
-        uint48 timestamp,
-        bytes memory key
-    ) external view returns (bool);
+    function keyWasActiveAt(uint48 timestamp, bytes memory key) external view returns (bool);
 
     function operatorKey(
         address operator
@@ -74,10 +65,7 @@ interface IOBaseMiddlewareReader {
         uint48 timestamp
     ) external view returns (address[] memory);
 
-    function operatorWasActiveAt(
-        uint48 timestamp,
-        address operator
-    ) external view returns (bool);
+    function operatorWasActiveAt(uint48 timestamp, address operator) external view returns (bool);
 
     function isOperatorRegistered(
         address operator
@@ -99,19 +87,13 @@ interface IOBaseMiddlewareReader {
         address operator
     ) external view returns (uint256);
 
-    function operatorVaultWithTimesAt(
-        address operator,
-        uint256 pos
-    ) external view returns (address, uint48, uint48);
+    function operatorVaultWithTimesAt(address operator, uint256 pos) external view returns (address, uint48, uint48);
 
     function activeOperatorVaults(
         address operator
     ) external view returns (address[] memory);
 
-    function activeOperatorVaultsAt(
-        uint48 timestamp,
-        address operator
-    ) external view returns (address[] memory);
+    function activeOperatorVaultsAt(uint48 timestamp, address operator) external view returns (address[] memory);
 
     function activeVaults() external view returns (address[] memory);
 
@@ -123,52 +105,25 @@ interface IOBaseMiddlewareReader {
         address operator
     ) external view returns (address[] memory);
 
-    function activeVaultsAt(
-        uint48 timestamp,
-        address operator
-    ) external view returns (address[] memory);
+    function activeVaultsAt(uint48 timestamp, address operator) external view returns (address[] memory);
 
-    function vaultWasActiveAt(
-        uint48 timestamp,
-        address operator,
-        address vault
-    ) external view returns (bool);
+    function vaultWasActiveAt(uint48 timestamp, address operator, address vault) external view returns (bool);
 
-    function sharedVaultWasActiveAt(
-        uint48 timestamp,
-        address vault
-    ) external view returns (bool);
+    function sharedVaultWasActiveAt(uint48 timestamp, address vault) external view returns (bool);
 
-    function operatorVaultWasActiveAt(
-        uint48 timestamp,
-        address operator,
-        address vault
-    ) external view returns (bool);
+    function operatorVaultWasActiveAt(uint48 timestamp, address operator, address vault) external view returns (bool);
 
-    function getOperatorPower(
-        address operator,
-        address vault
-    ) external view returns (uint256);
+    function getOperatorPower(address operator, address vault) external view returns (uint256);
 
-    function getOperatorPowerAt(
-        uint48 timestamp,
-        address operator,
-        address vault
-    ) external view returns (uint256);
+    function getOperatorPowerAt(uint48 timestamp, address operator, address vault) external view returns (uint256);
 
     function getOperatorPower(
         address operator
     ) external view returns (uint256);
 
-    function getOperatorPowerAt(
-        uint48 timestamp,
-        address operator
-    ) external view returns (uint256);
+    function getOperatorPowerAt(uint48 timestamp, address operator) external view returns (uint256);
 
-    function getOperatorPower(
-        address operator,
-        address[] memory vaults
-    ) external view returns (uint256);
+    function getOperatorPower(address operator, address[] memory vaults) external view returns (uint256);
 
     function getOperatorPowerAt(
         uint48 timestamp,
@@ -221,10 +176,7 @@ interface IOBaseMiddlewareReader {
         uint48 epoch
     ) external view returns (uint256);
 
-    function getOperatorToPowerCached(
-        uint48 epoch,
-        bytes32 operatorKey_
-    ) external view returns (uint256);
+    function getOperatorToPowerCached(uint48 epoch, bytes32 operatorKey_) external view returns (uint256);
 
     function getForwarderAddress() external view returns (address);
 
@@ -244,10 +196,7 @@ interface IOBaseMiddlewareReader {
         uint48 epoch
     ) external view returns (uint256);
 
-    function getOperatorKeyAt(
-        address operator,
-        uint48 timestamp
-    ) external view returns (bytes memory);
+    function getOperatorKeyAt(address operator, uint48 timestamp) external view returns (bytes memory);
 
     function getValidatorSet(
         uint48 epoch

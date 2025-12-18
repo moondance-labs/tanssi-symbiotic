@@ -26,11 +26,7 @@ contract RewardsHintsBuilder {
     IODefaultOperatorRewards public immutable i_operatorRewards;
     IVaultHints public immutable i_vaultHints;
 
-    constructor(
-        address middleware,
-        address operatorRewards,
-        address vaultHints
-    ) {
+    constructor(address middleware, address operatorRewards, address vaultHints) {
         i_middlewareReader = IOBaseMiddlewareReader(middleware);
         i_operatorRewards = IODefaultOperatorRewards(operatorRewards);
         i_vaultHints = IVaultHints(vaultHints);
@@ -81,7 +77,9 @@ contract RewardsHintsBuilder {
             bytes memory activeStakeHint = i_vaultHints.activeStakeHint(vault, epochStartTs);
 
             hints[i] = IODefaultOperatorRewards.VaultHints({
-                vault: vault, activeSharesHint: activeSharesHint, activeStakeHint: activeStakeHint
+                vault: vault,
+                activeSharesHint: activeSharesHint,
+                activeStakeHint: activeStakeHint
             });
 
             unchecked {

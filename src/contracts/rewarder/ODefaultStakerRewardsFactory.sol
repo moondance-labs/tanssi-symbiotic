@@ -88,10 +88,7 @@ contract ODefaultStakerRewardsFactory is Ownable2Step, Registry, IODefaultStaker
     /**
      * @inheritdoc IODefaultStakerRewardsFactory
      */
-    function create(
-        address vault,
-        ODefaultStakerRewards.InitParams calldata params
-    ) external returns (address) {
+    function create(address vault, ODefaultStakerRewards.InitParams calldata params) external returns (address) {
         if (vault == address(0) || !Registry(i_vaultFactory).isEntity(vault)) {
             revert ODefaultStakerRewardsFactory__NotVault();
         }

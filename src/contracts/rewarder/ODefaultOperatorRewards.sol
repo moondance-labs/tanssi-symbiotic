@@ -103,10 +103,7 @@ contract ODefaultOperatorRewards is
      * @param operatorShare_ The share of the operator.
      * @param owner The address of the owner.
      */
-    function initialize(
-        uint48 operatorShare_,
-        address owner
-    ) external initializer notZeroAddress(owner) {
+    function initialize(uint48 operatorShare_, address owner) external initializer notZeroAddress(owner) {
         if (operatorShare_ >= MAX_PERCENTAGE) {
             revert ODefaultOperatorRewards__InvalidOperatorShare();
         }
@@ -243,11 +240,13 @@ contract ODefaultOperatorRewards is
         }
 
         // Check that the leaf composed by operatorKey and totalPointsClaimable is part of the proof
-        if (!MerkleProof.verifyCalldata(
+        if (
+            !MerkleProof.verifyCalldata(
                 input.proof,
                 eraRoot_.root,
                 keccak256(abi.encodePacked(input.operatorKey, ScaleCodec.encodeU32(input.totalPointsClaimable)))
-            )) {
+            )
+        ) {
             revert ODefaultOperatorRewards__InvalidProof();
         }
 
@@ -435,10 +434,7 @@ contract ODefaultOperatorRewards is
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
-    function eraIndexesPerEpoch(
-        uint48 epoch,
-        uint256 index
-    ) external view returns (uint48 eraIndex) {
+    function eraIndexesPerEpoch(uint48 epoch, uint256 index) external view returns (uint48 eraIndex) {
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         eraIndex = $.eraIndexesPerEpoch[epoch][index];
     }
@@ -446,10 +442,7 @@ contract ODefaultOperatorRewards is
     /**
      * @inheritdoc IODefaultOperatorRewards
      */
-    function claimed(
-        uint48 eraIndex,
-        bytes32 account
-    ) external view returns (uint256 amount) {
+    function claimed(uint48 eraIndex, bytes32 account) external view returns (uint256 amount) {
         OperatorRewardsStorage storage $ = _getOperatorRewardsStorage();
         amount = $.claimed[eraIndex][account];
     }
@@ -493,8 +486,9 @@ contract ODefaultOperatorRewards is
                 }
                 bytes memory stakerRewardsHints = _getStakerRewardsHints(vault, vaultHint, maxAdminFee);
                 IERC20(tokenAddress).approve(stakerRewardsForVault, amount);
-                IODefaultStakerRewards(stakerRewardsForVault)
-                    .distributeRewards(epoch, eraIndex, amount, tokenAddress, stakerRewardsHints);
+                IODefaultStakerRewards(stakerRewardsForVault).distributeRewards(
+                    epoch, eraIndex, amount, tokenAddress, stakerRewardsHints
+                );
             }
         }
     }

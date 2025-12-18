@@ -322,10 +322,7 @@ contract DeployTest is Test {
         }
     }
 
-    function _deployVault(
-        address token,
-        address vaultConfigurator
-    ) private returns (address vault) {
+    function _deployVault(address token, address vaultConfigurator) private returns (address vault) {
         DeployVault.VaultDeployParams memory deployParams = DeployVault.VaultDeployParams({
             vaultConfigurator: vaultConfigurator,
             owner: tanssi,

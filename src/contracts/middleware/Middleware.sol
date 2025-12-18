@@ -168,10 +168,7 @@ contract Middleware is
         }
     }
 
-    function stakeToPower(
-        address vault,
-        uint256 stake
-    ) public view override returns (uint256 power) {
+    function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
         return IOBaseMiddlewareReader(address(this)).getPowerInUSD(vault, stake);
     }
 
@@ -275,8 +272,9 @@ contract Middleware is
         MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
         IERC20(tokenAddress).approve($.i_operatorRewards, tokenAmount);
 
-        IODefaultOperatorRewards($.i_operatorRewards)
-            .distributeRewards(uint48(epoch), uint48(eraIndex), tokenAmount, totalPoints, rewardsRoot, tokenAddress);
+        IODefaultOperatorRewards($.i_operatorRewards).distributeRewards(
+            uint48(epoch), uint48(eraIndex), tokenAmount, totalPoints, rewardsRoot, tokenAddress
+        );
     }
 
     /**
@@ -297,11 +295,7 @@ contract Middleware is
     /**
      * @inheritdoc IMiddleware
      */
-    function slash(
-        uint48 epoch,
-        bytes32 operatorKey,
-        uint256 percentage
-    ) external checkAccess {
+    function slash(uint48 epoch, bytes32 operatorKey, uint256 percentage) external checkAccess {
         uint48 epochStartTs = IOBaseMiddlewareReader(address(this)).getEpochStart(epoch);
         address operator = operatorByKey(abi.encode(operatorKey));
 

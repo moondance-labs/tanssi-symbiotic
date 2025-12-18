@@ -31,11 +31,7 @@ contract OptInServiceMock is EIP712, IOptInService {
 
     mapping(address who => mapping(address where => Checkpoints.Trace208 value)) internal _isOptedIn;
 
-    constructor(
-        address whoRegistry,
-        address whereRegistry,
-        string memory name
-    ) EIP712(name, "1") {
+    constructor(address whoRegistry, address whereRegistry, string memory name) EIP712(name, "1") {
         WHO_REGISTRY = whoRegistry;
         WHERE_REGISTRY = whereRegistry;
     }
@@ -51,10 +47,7 @@ contract OptInServiceMock is EIP712, IOptInService {
         return _isOptedIn[who][where].upperLookupRecent(timestamp, hint) == 1;
     }
 
-    function isOptedIn(
-        address who,
-        address where
-    ) public view returns (bool) {
+    function isOptedIn(address who, address where) public view returns (bool) {
         return _isOptedIn[who][where].latest() == 1;
     }
 
@@ -96,10 +89,7 @@ contract OptInServiceMock is EIP712, IOptInService {
         _increaseNonce(msg.sender, where);
     }
 
-    function _optIn(
-        address who,
-        address where
-    ) internal {
+    function _optIn(address who, address where) internal {
         _isOptedIn[who][where].push(Time.timestamp(), 1);
 
         _increaseNonce(who, where);
@@ -107,10 +97,7 @@ contract OptInServiceMock is EIP712, IOptInService {
         emit OptIn(who, where);
     }
 
-    function _optOut(
-        address who,
-        address where
-    ) internal {
+    function _optOut(address who, address where) internal {
         _isOptedIn[who][where].push(Time.timestamp(), 0);
 
         _increaseNonce(who, where);
@@ -118,10 +105,7 @@ contract OptInServiceMock is EIP712, IOptInService {
         emit OptOut(who, where);
     }
 
-    function _increaseNonce(
-        address who,
-        address where
-    ) internal {
+    function _increaseNonce(address who, address where) internal {
         unchecked {
             ++nonces[who][where];
         }

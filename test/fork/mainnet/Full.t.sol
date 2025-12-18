@@ -271,12 +271,7 @@ contract FullTest is Test {
         }
     }
 
-    function _depositToVault(
-        IVault vault,
-        address operator,
-        uint256 amount,
-        IERC20 collateral
-    ) public {
+    function _depositToVault(IVault vault, address operator, uint256 amount, IERC20 collateral) public {
         deal(address(collateral), operator, amount);
         collateral.approve(address(vault), amount);
         vault.deposit(operator, amount);
@@ -679,8 +674,8 @@ contract FullTest is Test {
             totalPoints,
             proofAndPointsByOperator.operator1PierTwo.points + proofAndPointsByOperator.operator2Nodeinfra.points
                 + proofAndPointsByOperator.operator3CP0XStakrspace.points
-                + proofAndPointsByOperator.operator4HashkeyCloud.points
-                + proofAndPointsByOperator.operator5Alchemy.points + proofAndPointsByOperator.operator6Opslayer.points
+                + proofAndPointsByOperator.operator4HashkeyCloud.points + proofAndPointsByOperator.operator5Alchemy.points
+                + proofAndPointsByOperator.operator6Opslayer.points
                 + proofAndPointsByOperator.operator7TanssiFoundation.points
         );
 
@@ -1025,8 +1020,9 @@ contract FullTest is Test {
             address vault = vaults[i];
             address vaultCollateral = reader.vaultToCollateral(vault);
             vaultBalancesBeforeSlash[i] = IERC20(vaultCollateral).balanceOf(vault);
-            operatorStakesBeforeSlash[i] = IBaseDelegator(IVault(vault).delegator())
-                .stakeAt(tanssi.subnetwork(0), operatorAddress, epochStartTs, new bytes(0));
+            operatorStakesBeforeSlash[i] = IBaseDelegator(IVault(vault).delegator()).stakeAt(
+                tanssi.subnetwork(0), operatorAddress, epochStartTs, new bytes(0)
+            );
         }
 
         // We need to track by stake and not by power since power uses live oracle which cannot be mocked
@@ -1058,8 +1054,9 @@ contract FullTest is Test {
             uint64 slasherType = IEntity(slasher).TYPE();
             if (slasherType == uint64(VaultManager.SlasherType.VETO)) {
                 vaultBalanceBefore = IERC20(vaultCollateral).balanceOf(vault);
-                uint256 operatorStakeBefore = IBaseDelegator(IVault(vault).delegator())
-                    .stakeAt(tanssi.subnetwork(0), operatorAddress, epochStartTs, new bytes(0));
+                uint256 operatorStakeBefore = IBaseDelegator(IVault(vault).delegator()).stakeAt(
+                    tanssi.subnetwork(0), operatorAddress, epochStartTs, new bytes(0)
+                );
                 if (operatorStakeBefore == 0) {
                     continue;
                 }

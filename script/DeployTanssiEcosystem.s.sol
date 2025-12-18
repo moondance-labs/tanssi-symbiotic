@@ -60,19 +60,12 @@ contract DeployTanssiEcosystem is Script {
         vm.stopBroadcast();
     }
 
-    function upgradeMiddlewareBroadcast(
-        address proxyAddress,
-        uint256 expectedCurrentVersion
-    ) external {
+    function upgradeMiddlewareBroadcast(address proxyAddress, uint256 expectedCurrentVersion) external {
         isTest = false;
         upgradeMiddleware(proxyAddress, expectedCurrentVersion, address(0));
     }
 
-    function upgradeMiddleware(
-        address proxyAddress,
-        uint256 expectedCurrentVersion,
-        address contractOwner
-    ) public {
+    function upgradeMiddleware(address proxyAddress, uint256 expectedCurrentVersion, address contractOwner) public {
         if (!isTest) {
             vm.startBroadcast(broadcaster());
         } else {

@@ -55,7 +55,6 @@ import {MiddlewareCRELogic} from "src/contracts/libraries/MiddlewareCRELogic.sol
  * management capabilities that can be extended with additional functionality.
  */
 contract OBaseMiddlewareReader is
-
     // IOBaseMiddlewareReader, not included since multiple methods collide with other inherited contracts
     EpochCapture,
     VaultManager,
@@ -71,10 +70,7 @@ contract OBaseMiddlewareReader is
 
     // ** OLD BASE MIDDLEWARE READER LOGIC **
 
-    function stakeToPower(
-        address vault,
-        uint256 stake
-    ) public view override returns (uint256 power) {
+    function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
         return BaseMiddleware(_getMiddleware()).stakeToPower(vault, stake);
     }
 
@@ -84,10 +80,7 @@ contract OBaseMiddlewareReader is
      * @param stake The stake amount
      * @return power The calculated voting power (equal to stake)
      */
-    function getPowerInUSD(
-        address vault,
-        uint256 stake
-    ) public view returns (uint256 power) {
+    function getPowerInUSD(address vault, uint256 stake) public view returns (uint256 power) {
         if (stake == 0) {
             return 0;
         }
@@ -192,10 +185,7 @@ contract OBaseMiddlewareReader is
      * @param operator The operator address
      * @return True if the operator was active at the given timestamp, false otherwise
      */
-    function operatorWasActiveAt(
-        uint48 timestamp,
-        address operator
-    ) external view returns (bool) {
+    function operatorWasActiveAt(uint48 timestamp, address operator) external view returns (bool) {
         return _operatorWasActiveAt(timestamp, operator);
     }
 
@@ -265,10 +255,7 @@ contract OBaseMiddlewareReader is
      * @param pos The position
      * @return The operator vault address, start time, and end time
      */
-    function operatorVaultWithTimesAt(
-        address operator,
-        uint256 pos
-    ) external view returns (address, uint48, uint48) {
+    function operatorVaultWithTimesAt(address operator, uint256 pos) external view returns (address, uint48, uint48) {
         return _operatorVaultWithTimesAt(operator, pos);
     }
 
@@ -289,10 +276,7 @@ contract OBaseMiddlewareReader is
      * @param operator The operator address
      * @return The list of active vaults for the given operator at the given timestamp
      */
-    function activeOperatorVaultsAt(
-        uint48 timestamp,
-        address operator
-    ) external view returns (address[] memory) {
+    function activeOperatorVaultsAt(uint48 timestamp, address operator) external view returns (address[] memory) {
         return _activeOperatorVaultsAt(timestamp, operator);
     }
 
@@ -332,10 +316,7 @@ contract OBaseMiddlewareReader is
      * @param operator The operator address
      * @return The list of active vaults for the given operator at the given timestamp
      */
-    function activeVaultsAt(
-        uint48 timestamp,
-        address operator
-    ) external view returns (address[] memory) {
+    function activeVaultsAt(uint48 timestamp, address operator) external view returns (address[] memory) {
         return _activeVaultsAt(timestamp, operator);
     }
 
@@ -346,11 +327,7 @@ contract OBaseMiddlewareReader is
      * @param vault The vault address
      * @return True if the vault was active at the given timestamp for the given operator, false otherwise
      */
-    function vaultWasActiveAt(
-        uint48 timestamp,
-        address operator,
-        address vault
-    ) external view returns (bool) {
+    function vaultWasActiveAt(uint48 timestamp, address operator, address vault) external view returns (bool) {
         return _vaultWasActiveAt(timestamp, operator, vault);
     }
 
@@ -360,10 +337,7 @@ contract OBaseMiddlewareReader is
      * @param vault The shared vault address
      * @return True if the shared vault was active at the given timestamp, false otherwise
      */
-    function sharedVaultWasActiveAt(
-        uint48 timestamp,
-        address vault
-    ) external view returns (bool) {
+    function sharedVaultWasActiveAt(uint48 timestamp, address vault) external view returns (bool) {
         return _sharedVaultWasActiveAt(timestamp, vault);
     }
 
@@ -374,11 +348,7 @@ contract OBaseMiddlewareReader is
      * @param vault The vault address
      * @return True if the operator vault was active at the given timestamp for the given operator, false otherwise
      */
-    function operatorVaultWasActiveAt(
-        uint48 timestamp,
-        address operator,
-        address vault
-    ) external view returns (bool) {
+    function operatorVaultWasActiveAt(uint48 timestamp, address operator, address vault) external view returns (bool) {
         return _operatorVaultWasActiveAt(timestamp, operator, vault);
     }
 
@@ -388,10 +358,7 @@ contract OBaseMiddlewareReader is
      * @param vault The vault address
      * @return The power of the operator for the given vault
      */
-    function getOperatorPower(
-        address operator,
-        address vault
-    ) external view returns (uint256) {
+    function getOperatorPower(address operator, address vault) external view returns (uint256) {
         return _getOperatorPower(operator, vault);
     }
 
@@ -402,11 +369,7 @@ contract OBaseMiddlewareReader is
      * @param vault The vault address
      * @return The power of the operator for the given vault at the given timestamp
      */
-    function getOperatorPowerAt(
-        uint48 timestamp,
-        address operator,
-        address vault
-    ) external view returns (uint256) {
+    function getOperatorPowerAt(uint48 timestamp, address operator, address vault) external view returns (uint256) {
         return _getOperatorPowerAt(timestamp, operator, vault);
     }
 
@@ -427,10 +390,7 @@ contract OBaseMiddlewareReader is
      * @param operator The operator address
      * @return The power of the operator at the given timestamp
      */
-    function getOperatorPowerAt(
-        uint48 timestamp,
-        address operator
-    ) external view returns (uint256) {
+    function getOperatorPowerAt(uint48 timestamp, address operator) external view returns (uint256) {
         return _getOperatorPowerAt(timestamp, operator);
     }
 
@@ -440,10 +400,7 @@ contract OBaseMiddlewareReader is
      * @param vaults The list of vault addresses
      * @return The power of the operator for the given vaults and subnetworks
      */
-    function getOperatorPower(
-        address operator,
-        address[] memory vaults
-    ) external view returns (uint256) {
+    function getOperatorPower(address operator, address[] memory vaults) external view returns (uint256) {
         return _getOperatorPower(operator, vaults);
     }
 
@@ -657,10 +614,7 @@ contract OBaseMiddlewareReader is
      * @param operatorKey_ The operator key
      * @return The power of the operator
      */
-    function getOperatorToPowerCached(
-        uint48 epoch,
-        bytes32 operatorKey_
-    ) external view returns (uint256) {
+    function getOperatorToPowerCached(uint48 epoch, bytes32 operatorKey_) external view returns (uint256) {
         return MiddlewareStorage.getOperatorToPowerCached(epoch, operatorKey_);
     }
 
@@ -746,10 +700,7 @@ contract OBaseMiddlewareReader is
      * @param operator The operator address to lookup
      * @return The operator's active key encoded as bytes, or encoded zero bytes if none
      */
-    function getOperatorKeyAt(
-        address operator,
-        uint48 timestamp
-    ) public view returns (bytes memory) {
+    function getOperatorKeyAt(address operator, uint48 timestamp) public view returns (bytes memory) {
         KeyManager256Storage storage $ = _getKeyManager256Storage();
         bytes32 key = $._key[operator];
         if (key != bytes32(0) && $._keyData[key].status.wasActiveAt(timestamp)) {

@@ -27,10 +27,7 @@ contract DeployCollateral is Script {
         return address(token);
     }
 
-    function deployCollateral(
-        string memory tokenName,
-        uint8 decimals
-    ) public returns (address) {
+    function deployCollateral(string memory tokenName, uint8 decimals) public returns (address) {
         Token token = new Token(tokenName, decimals);
 
         return address(token);

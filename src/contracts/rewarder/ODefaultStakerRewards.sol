@@ -101,10 +101,7 @@ contract ODefaultStakerRewards is
      */
     address public i_vault;
 
-    constructor(
-        address networkMiddlewareService,
-        address network
-    ) {
+    constructor(address networkMiddlewareService, address network) {
         _disableInitializers();
 
         if (network == address(0) || networkMiddlewareService == address(0)) {
@@ -114,11 +111,7 @@ contract ODefaultStakerRewards is
         i_network = network;
     }
 
-    function initialize(
-        address operatorRewards,
-        address vault_,
-        InitParams calldata params
-    ) external initializer {
+    function initialize(address operatorRewards, address vault_, InitParams calldata params) external initializer {
         if (operatorRewards == address(0) || vault_ == address(0)) {
             revert ODefaultStakerRewards__InvalidAddress();
         }
@@ -165,8 +158,9 @@ contract ODefaultStakerRewards is
         uint48 epochTs = EpochCapture(INetworkMiddlewareService(i_networkMiddlewareService).middleware(i_network))
             .getEpochStart(epoch);
 
-        amount = IVault(i_vault).activeSharesOfAt(account, epochTs, new bytes(0))
-            .mulDiv(rewardsPerEpoch, $.activeSharesCache[epoch]);
+        amount = IVault(i_vault).activeSharesOfAt(account, epochTs, new bytes(0)).mulDiv(
+            rewardsPerEpoch, $.activeSharesCache[epoch]
+        );
 
         // Get the amount that is still unclaimed
         amount -= claimedPerEpoch;
@@ -213,10 +207,7 @@ contract ODefaultStakerRewards is
         emit DistributeRewards(i_network, tokenAddress, eraIndex, epoch, amount, data);
     }
 
-    function _transferAndCheckAmount(
-        address tokenAddress,
-        uint256 amount
-    ) private {
+    function _transferAndCheckAmount(address tokenAddress, uint256 amount) private {
         uint256 balanceBefore = IERC20(tokenAddress).balanceOf(address(this));
         IERC20(tokenAddress).safeTransferFrom(msg.sender, address(this), amount);
         uint256 finalAmount = IERC20(tokenAddress).balanceOf(address(this)) - balanceBefore;
@@ -292,11 +283,7 @@ contract ODefaultStakerRewards is
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    function claimRewards(
-        address recipient,
-        address tokenAddress,
-        bytes calldata data
-    ) external {
+    function claimRewards(address recipient, address tokenAddress, bytes calldata data) external {
         uint48 epoch;
         assembly {
             epoch := calldataload(data.offset)
@@ -418,10 +405,7 @@ contract ODefaultStakerRewards is
     /**
      * @inheritdoc IODefaultStakerRewards
      */
-    function rewards(
-        uint48 epoch,
-        address tokenAddress
-    ) external view returns (uint256) {
+    function rewards(uint48 epoch, address tokenAddress) external view returns (uint256) {
         StakerRewardsStorage storage $ = _getStakerRewardsStorage();
         return $.rewards[epoch][tokenAddress];
     }
@@ -466,8 +450,9 @@ contract ODefaultStakerRewards is
         if (rewardsPerEpoch == 0 || activeSharesCache_ == 0) {
             revert ODefaultStakerRewards__NoRewardsToClaim();
         }
-        amount = IVault(i_vault).activeSharesOfAt(recipient, epochTs, activeSharesOfHints)
-            .mulDiv(rewardsPerEpoch, activeSharesCache_);
+        amount = IVault(i_vault).activeSharesOfAt(recipient, epochTs, activeSharesOfHints).mulDiv(
+            rewardsPerEpoch, activeSharesCache_
+        );
 
         // Get the amount that is still unclaimed
         amount -= claimedPerEpoch;

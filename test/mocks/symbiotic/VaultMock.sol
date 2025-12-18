@@ -59,10 +59,7 @@ contract VaultMock is VaultStorage, MigratableEntity, IVault {
         return operatorStake[account];
     }
 
-    function withdrawalsOf(
-        uint256 epoch,
-        address account
-    ) external view returns (uint256) {}
+    function withdrawalsOf(uint256 epoch, address account) external view returns (uint256) {}
 
     function slashableBalanceOf(
         address account
@@ -79,30 +76,15 @@ contract VaultMock is VaultStorage, MigratableEntity, IVault {
         mintedShares = amount;
     }
 
-    function withdraw(
-        address claimer,
-        uint256 amount
-    ) external returns (uint256 burnedShares, uint256 mintedShares) {}
+    function withdraw(address claimer, uint256 amount) external returns (uint256 burnedShares, uint256 mintedShares) {}
 
-    function redeem(
-        address claimer,
-        uint256 shares
-    ) external returns (uint256 withdrawnAssets, uint256 mintedShares) {}
+    function redeem(address claimer, uint256 shares) external returns (uint256 withdrawnAssets, uint256 mintedShares) {}
 
-    function claim(
-        address recipient,
-        uint256 epoch
-    ) external returns (uint256 amount) {}
+    function claim(address recipient, uint256 epoch) external returns (uint256 amount) {}
 
-    function claimBatch(
-        address recipient,
-        uint256[] calldata epochs
-    ) external returns (uint256 amount) {}
+    function claimBatch(address recipient, uint256[] calldata epochs) external returns (uint256 amount) {}
 
-    function onSlash(
-        uint256 amount,
-        uint48 /*captureTimestamp */
-    ) external returns (uint256 slashedAmount) {
+    function onSlash(uint256 amount, uint48 /*captureTimestamp */ ) external returns (uint256 slashedAmount) {
         totalAtStake -= amount;
         slashedAmount = amount;
         for (uint256 i = 0; i < operators.length; i++) {
@@ -117,10 +99,7 @@ contract VaultMock is VaultStorage, MigratableEntity, IVault {
         bool status
     ) external {}
 
-    function setDepositorWhitelistStatus(
-        address account,
-        bool status
-    ) external {}
+    function setDepositorWhitelistStatus(address account, bool status) external {}
 
     function setIsDepositLimit(
         bool status

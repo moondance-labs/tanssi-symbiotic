@@ -406,12 +406,7 @@ contract RewardsTest is Test {
             deployVault.createVaultVetoed(params, 1 days);
     }
 
-    function _depositToVault(
-        Vault _vault,
-        address _operator,
-        uint256 _amount,
-        Token collateral
-    ) public {
+    function _depositToVault(Vault _vault, address _operator, uint256 _amount, Token collateral) public {
         collateral.approve(address(_vault), _amount);
         _vault.deposit(_operator, _amount);
     }
@@ -436,11 +431,7 @@ contract RewardsTest is Test {
         vm.stopPrank();
     }
 
-    function _registerOperator(
-        address _operator,
-        address _network,
-        address _vault
-    ) public {
+    function _registerOperator(address _operator, address _network, address _vault) public {
         vm.startPrank(_operator);
         operatorRegistry.registerOperator();
         operatorVaultOptInService.optIn(address(_vault));
@@ -453,19 +444,25 @@ contract RewardsTest is Test {
     ) public {
         vm.startPrank(_owner);
         //The total shares are 3 (TOTAL_NETWORK_SHARE), so each operator has 1 share (OPERATOR_SHARE)
-        INetworkRestakeDelegator(vaultAddresses.delegator)
-            .setOperatorNetworkShares(tanssi.subnetwork(0), operator, OPERATOR_SHARE);
-        INetworkRestakeDelegator(vaultAddresses.delegator)
-            .setOperatorNetworkShares(tanssi.subnetwork(0), operator2, OPERATOR_SHARE);
-        INetworkRestakeDelegator(vaultAddresses.delegator)
-            .setOperatorNetworkShares(tanssi.subnetwork(0), operator3, OPERATOR_SHARE);
+        INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares(
+            tanssi.subnetwork(0), operator, OPERATOR_SHARE
+        );
+        INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares(
+            tanssi.subnetwork(0), operator2, OPERATOR_SHARE
+        );
+        INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares(
+            tanssi.subnetwork(0), operator3, OPERATOR_SHARE
+        );
 
-        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable)
-            .setOperatorNetworkShares(tanssi.subnetwork(0), operator, OPERATOR_SHARE);
-        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable)
-            .setOperatorNetworkShares(tanssi.subnetwork(0), operator2, OPERATOR_SHARE);
-        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable)
-            .setOperatorNetworkShares(tanssi.subnetwork(0), operator3, OPERATOR_SHARE);
+        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setOperatorNetworkShares(
+            tanssi.subnetwork(0), operator, OPERATOR_SHARE
+        );
+        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setOperatorNetworkShares(
+            tanssi.subnetwork(0), operator2, OPERATOR_SHARE
+        );
+        INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setOperatorNetworkShares(
+            tanssi.subnetwork(0), operator3, OPERATOR_SHARE
+        );
         vm.stopPrank();
     }
 
@@ -481,12 +478,15 @@ contract RewardsTest is Test {
         INetworkRestakeDelegator(vaultAddresses.delegatorSlashable).setNetworkLimit(tanssi.subnetwork(0), 1000 ether);
         INetworkRestakeDelegator(vaultAddresses.delegatorVetoed).setNetworkLimit(tanssi.subnetwork(0), 1000 ether);
 
-        IFullRestakeDelegator(vaultAddresses.delegatorVetoed)
-            .setOperatorNetworkLimit(tanssi.subnetwork(0), operator, 300 ether);
-        IFullRestakeDelegator(vaultAddresses.delegatorVetoed)
-            .setOperatorNetworkLimit(tanssi.subnetwork(0), operator2, 300 ether);
-        IFullRestakeDelegator(vaultAddresses.delegatorVetoed)
-            .setOperatorNetworkLimit(tanssi.subnetwork(0), operator3, 300 ether);
+        IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
+            tanssi.subnetwork(0), operator, 300 ether
+        );
+        IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
+            tanssi.subnetwork(0), operator2, 300 ether
+        );
+        IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
+            tanssi.subnetwork(0), operator3, 300 ether
+        );
         vm.stopPrank();
     }
 
@@ -594,12 +594,11 @@ contract RewardsTest is Test {
         emit IGateway.InboundMessageDispatched(assetHubParaID.into(), 1, messageID, true);
 
         hoax(relayer, 1 ether);
-        IGateway(address(gateway))
-            .submitV1(
-                InboundMessage(assetHubParaID.into(), 1, command, params, maxDispatchGas, maxRefund, reward, messageID),
-                proof,
-                makeMockProof()
-            );
+        IGateway(address(gateway)).submitV1(
+            InboundMessage(assetHubParaID.into(), 1, command, params, maxDispatchGas, maxRefund, reward, messageID),
+            proof,
+            makeMockProof()
+        );
 
         assert(Token(tokenAddress).balanceOf(address(operatorRewards)) == amount);
     }
@@ -612,7 +611,8 @@ contract RewardsTest is Test {
 
         // Expect the gateway to emit error event.
         vm.expectEmit(true, true, true, false);
-        emit IOGateway.UnableToProcessRewardsMessageB(abi.encodeWithSelector(
+        emit IOGateway.UnableToProcessRewardsMessageB(
+            abi.encodeWithSelector(
                 Gateway.EUnableToProcessRewardsB.selector,
                 ONE_DAY * 3,
                 0,
@@ -621,7 +621,8 @@ contract RewardsTest is Test {
                 amount,
                 bytes32(uint256(1)),
                 abi.encodeWithSelector(Errors.InsufficientBalance.selector, 0, amount)
-            ));
+            )
+        );
 
         // Expect the gateway to emit `InboundMessageDispatched`
         vm.expectEmit(true, true, true, true);
@@ -631,12 +632,11 @@ contract RewardsTest is Test {
         vm.mockCall(tokenAddress, abi.encodeWithSelector(Token.mint.selector), abi.encode());
 
         hoax(relayer, 1 ether);
-        IGateway(address(gateway))
-            .submitV1(
-                InboundMessage(assetHubParaID.into(), 1, command, params, maxDispatchGas, maxRefund, reward, messageID),
-                proof,
-                makeMockProof()
-            );
+        IGateway(address(gateway)).submitV1(
+            InboundMessage(assetHubParaID.into(), 1, command, params, maxDispatchGas, maxRefund, reward, messageID),
+            proof,
+            makeMockProof()
+        );
     }
 
     function testClaimRewardsWithMultipleVaults() public {
@@ -714,10 +714,12 @@ contract RewardsTest is Test {
     ) private view returns (uint256[] memory rewards) {
         uint256 powerVault1 =
             IOBaseMiddlewareReader(address(middleware)).getOperatorPowerAt(epochStartTs, operator_, address(vault));
-        uint256 powerVault2 = IOBaseMiddlewareReader(address(middleware))
-            .getOperatorPowerAt(epochStartTs, operator_, address(vaultSlashable));
-        uint256 powerVault3 = IOBaseMiddlewareReader(address(middleware))
-            .getOperatorPowerAt(epochStartTs, operator_, address(vaultVetoed));
+        uint256 powerVault2 = IOBaseMiddlewareReader(address(middleware)).getOperatorPowerAt(
+            epochStartTs, operator_, address(vaultSlashable)
+        );
+        uint256 powerVault3 = IOBaseMiddlewareReader(address(middleware)).getOperatorPowerAt(
+            epochStartTs, operator_, address(vaultVetoed)
+        );
 
         uint256 totalPower = powerVault1 + powerVault2 + powerVault3;
         rewards = new uint256[](3);
@@ -727,20 +729,13 @@ contract RewardsTest is Test {
         rewards[2] = expectedAmountStakers - rewards[0] - rewards[1];
     }
 
-    function _checkStakerRewardsBalanceForVault(
-        Token token,
-        address vault_,
-        uint256 expectedAmount
-    ) private view {
+    function _checkStakerRewardsBalanceForVault(Token token, address vault_, uint256 expectedAmount) private view {
         address stakerRewards = operatorRewards.vaultToStakerRewardsContract(vault_);
         uint256 stakerRewardsVault1Balance = token.balanceOf(stakerRewards);
         assertEq(stakerRewardsVault1Balance, expectedAmount);
     }
 
-    function _deployOracle(
-        uint8 decimals,
-        int256 answer
-    ) public returns (address) {
+    function _deployOracle(uint8 decimals, int256 answer) public returns (address) {
         MockV3Aggregator oracle = new MockV3Aggregator(decimals, answer);
         return address(oracle);
     }

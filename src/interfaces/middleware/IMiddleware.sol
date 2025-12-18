@@ -168,11 +168,7 @@ interface IMiddleware {
      * @param operatorKey The operator key to slash
      * @param percentage Percentage to slash, represented as parts per billion.
      */
-    function slash(
-        uint48 epoch,
-        bytes32 operatorKey,
-        uint256 percentage
-    ) external;
+    function slash(uint48 epoch, bytes32 operatorKey, uint256 percentage) external;
 
     /**
      * @dev Called by chainlink nodes off-chain to check if the upkeep is needed

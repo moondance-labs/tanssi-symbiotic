@@ -265,12 +265,7 @@ contract RewardsTest is Test {
         assertEq(stakerRewards.adminFee(), ADMIN_FEE);
     }
 
-    function _distributeRewards(
-        uint48 epoch,
-        uint48 eraIndex,
-        uint256 amount,
-        address _token
-    ) public {
+    function _distributeRewards(uint48 epoch, uint48 eraIndex, uint256 amount, address _token) public {
         vm.startPrank(address(middleware));
         operatorRewards.distributeRewards(epoch, eraIndex, amount, amount, REWARDS_ROOT, address(_token));
         vm.stopPrank();
@@ -283,12 +278,7 @@ contract RewardsTest is Test {
         return proof;
     }
 
-    function _mockVaultActiveSharesStakeAt(
-        address vault_,
-        uint48 epoch,
-        bool mockShares,
-        bool mockStake
-    ) private {
+    function _mockVaultActiveSharesStakeAt(address vault_, uint48 epoch, bool mockShares, bool mockStake) private {
         uint48 epochTs = middleware.getEpochStart(epoch);
         (, bytes memory activeSharesHint, bytes memory activeStakeHint) =
             abi.decode(REWARDS_ADDITIONAL_DATA, (uint256, bytes, bytes));
@@ -323,10 +313,7 @@ contract RewardsTest is Test {
         );
     }
 
-    function _setVaultToCollateral(
-        address vault_,
-        address collateral_
-    ) internal {
+    function _setVaultToCollateral(address vault_, address collateral_) internal {
         bytes32 slot = bytes32(uint256(MIDDLEWARE_STORAGE_LOCATION) + uint256(5)); // 5 is mapping slot number for the vault to collateral
         // Get slot for mapping with vault_
         slot = keccak256(abi.encode(vault_, slot));
@@ -360,23 +347,14 @@ contract RewardsTest is Test {
         }
     }
 
-    function _setActiveSharesCache(
-        uint48 epoch,
-        address _stakerRewards,
-        bytes32 location,
-        uint256 amount
-    ) private {
+    function _setActiveSharesCache(uint48 epoch, address _stakerRewards, bytes32 location, uint256 amount) private {
         // For StakerRewardsStorage.activeSharesCache[epoch] = AMOUNT_TO_DISTRIBUTE / 10
         bytes32 slot = bytes32(uint256(location) + uint256(4)); // 4 is mapping slot number for the variable activeSharesCache
         slot = keccak256(abi.encode(epoch, slot));
         vm.store(address(_stakerRewards), slot, bytes32(amount));
     }
 
-    function _setClaimableAdminFee(
-        address _token,
-        bytes32 location,
-        uint256 amount
-    ) private {
+    function _setClaimableAdminFee(address _token, bytes32 location, uint256 amount) private {
         // For StakerRewardsStorage.claimableAdminFee[epoch][tokenAddress] = 10 ether
         bytes32 slot = bytes32(uint256(location) + uint256(5)); // 5 is slot number for the variable claimableAdminFee
         slot = keccak256(abi.encode(_token, slot));
