@@ -66,6 +66,8 @@ import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {OBaseMiddlewareReaderForwarder} from "src/contracts/middleware/OBaseMiddlewareReaderForwarder.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {Token} from "test/mocks/Token.sol";
+import {TestUtils} from "test/utils/Utils.t.sol";
+
 import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
 import {DeployVault} from "script/DeployVault.s.sol";
@@ -77,6 +79,8 @@ import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperato
 import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {RewardsHintsBuilder} from "src/contracts/rewarder/RewardsHintsBuilder.sol";
+import {MiddlewareCRELogic} from "src/contracts/libraries/MiddlewareCRELogic.sol";
+import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
 
 contract FullTest is Test {
     using Subnetwork for address;
@@ -228,8 +232,15 @@ contract FullTest is Test {
     address public resolver2 = makeAddr("resolver2"); // For Vault 5
     address public forwarder = makeAddr("forwarder");
 
+    address public workflowOwner = makeAddr("workflowOwner");
+    string public workflowName = "workflow_tanssi";
+    bytes10 public workflowNameEncoded;
+    bytes32 public workflowId = bytes32(uint256(1));
+
     address tanssi;
     address gateway;
+
+    bytes public WORKFLOW_METADATA;
 
     VaultsData public vaultsData;
 
@@ -239,6 +250,7 @@ contract FullTest is Test {
     ODefaultOperatorRewards operatorRewards;
     address stakerRewardsImpl;
     ODefaultStakerRewardsFactory stakerRewardsFactory;
+    TestUtils testUtils;
 
     // ************************************************************************************************
     // *                                        SETUP
@@ -296,6 +308,14 @@ contract FullTest is Test {
         middleware.setCollateralToOracle(address(STAR), starOracle);
         middleware.setCollateralToOracle(address(wBTC), wBtcOracle);
         middleware.setCollateralToOracle(address(stETH), stEthOracle);
+        middleware.setExpectedAuthor(workflowOwner);
+        middleware.setExpectedWorkflowName(workflowName);
+        middleware.setExpectedWorkflowId(workflowId);
+
+        testUtils = new TestUtils();
+        workflowNameEncoded = testUtils.encodeStringToBytes10(workflowName);
+        WORKFLOW_METADATA = abi.encodePacked(workflowId, workflowNameEncoded, workflowOwner);
+
         vm.stopPrank();
 
         vm.prank(owner);
@@ -1362,16 +1382,17 @@ contract FullTest is Test {
             middleware.setForwarder(forwarder);
 
             uint256 gasBefore = gasleft();
-            (, bytes memory performData) = middleware.checkUpkeep(hex"");
+            (, bytes memory performData) = middleware.prepareDataForSendingToGateway();
             console2.log("Gas used to checkUpkeep:", gasBefore - gasleft());
             (uint8 command, uint48 encodedEpoch,) =
                 abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
             assertEq(encodedEpoch, epoch);
-            assertEq(command, middleware.CACHE_DATA_COMMAND());
+            assertEq(command, MiddlewareCRELogic.CACHE_DATA_COMMAND);
 
             vm.startPrank(forwarder);
             gasBefore = gasleft();
-            middleware.performUpkeep(performData);
+            bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+            middleware.onReport(WORKFLOW_METADATA, report);
             console2.log("Gas used to performUpkeep:", gasBefore - gasleft());
         }
 
@@ -2908,7 +2929,7 @@ contract FullTest is Test {
 
     function testCannotRegisterSharedOverTheLimit() public {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
-        uint256 maxVaults = middleware.MAX_ACTIVE_VAULTS();
+        uint256 maxVaults = MiddlewareStorage.MAX_ACTIVE_VAULTS;
         uint256 activeSharedVaults = middlewareReaderForwarder.sharedVaultsLength();
 
         vm.startPrank(tanssi);
@@ -2954,7 +2975,7 @@ contract FullTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
 
         // Before everything happens, the operator 1 is already registered in a vault and has power. Once he is in too many vaults his power must become 0 even if no stake is removed.
-        (, bytes memory performData) = middleware.checkUpkeep(hex"");
+        (, bytes memory performData) = middleware.prepareDataForSendingToGateway();
         (uint8 command, uint48 epoch, IMiddleware.ValidatorData[] memory validatorsData) =
             abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
         assertEq(epoch, currentEpoch);
@@ -2969,7 +2990,7 @@ contract FullTest is Test {
         }
         assertTrue(operator1Found);
 
-        uint256 maxVaults = middleware.MAX_ACTIVE_VAULTS();
+        uint256 maxVaults = MiddlewareStorage.MAX_ACTIVE_VAULTS;
         uint256 activeSharedVaults = middlewareReaderForwarder.sharedVaultsLength();
         uint256 activeOperatorVaults = middlewareReaderForwarder.operatorVaultsLength(operator1);
         uint256 operatorSpecificVaultToCreate = 10 - activeOperatorVaults; // So in total this operator will have 10.
@@ -3018,7 +3039,7 @@ contract FullTest is Test {
         assertEq(activeOperatorVaults, 10);
         assertEq(activeSharedVaults + activeOperatorVaults, maxVaults + 5);
 
-        (, performData) = middleware.checkUpkeep(hex"");
+        (, performData) = middleware.prepareDataForSendingToGateway();
         (command, epoch, validatorsData) = abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
         assertEq(epoch, currentEpoch);
 
@@ -3054,7 +3075,7 @@ contract FullTest is Test {
         // Distribute rewards
         address operator8 = makeAddr("operator8");
         address operator9 = makeAddr("operator9");
-        uint256 numberOfVaults = middleware.MAX_ACTIVE_VAULTS() - 5; // The setup registers 3.
+        uint256 numberOfVaults = MiddlewareStorage.MAX_ACTIVE_VAULTS - 5; // The setup registers 3.
 
         _prepareOperatorsInMultipleVaults(operator8, operator9, numberOfVaults);
 
@@ -3077,7 +3098,7 @@ contract FullTest is Test {
         // Distribute rewards
         address operator8 = makeAddr("operator8");
         address operator9 = makeAddr("operator9");
-        uint256 numberOfVaults = middleware.MAX_ACTIVE_VAULTS() - 5; // The setup registers 3.
+        uint256 numberOfVaults = MiddlewareStorage.MAX_ACTIVE_VAULTS - 5; // The setup registers 3.
 
         _prepareOperatorsInMultipleVaults(operator8, operator9, numberOfVaults);
 

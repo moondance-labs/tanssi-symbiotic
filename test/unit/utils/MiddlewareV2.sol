@@ -29,4 +29,8 @@ contract MiddlewareV2 is UUPSUpgradeable {
     function _authorizeUpgrade(
         address newImplementation
     ) internal override {}
+
+    function getVersion() public pure returns (uint256) {
+        return VERSION;
+    }
 }

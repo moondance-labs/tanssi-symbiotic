@@ -169,4 +169,11 @@ interface IMiddleware {
      * @param percentage Percentage to slash, represented as parts per billion.
      */
     function slash(uint48 epoch, bytes32 operatorKey, uint256 percentage) external;
+
+    /**
+     * @dev Called by chainlink nodes off-chain to check if the upkeep is needed
+     * @return upkeepNeeded boolean to indicate whether the keeper should call performUpkeep or not.
+     * @return performData bytes of the sorted (by power) operators' keys and the epoch that will be used by the keeper when calling performUpkeep, if upkeep is needed.
+     */
+    function prepareDataForSendingToGateway() external view returns (bool upkeepNeeded, bytes memory performData);
 }

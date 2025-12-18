@@ -54,6 +54,7 @@ import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3
 //**************************************************************************************************
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 //**************************************************************************************************
 //                                      SNOWBRIDGE
@@ -71,6 +72,8 @@ import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
 import {OBaseMiddlewareReaderForwarder} from "src/contracts/middleware/OBaseMiddlewareReaderForwarder.sol";
+import {IReceiverTemplate} from "src/interfaces/extensions/cre/IReceiverTemplate.sol";
+import {IReceiver} from "src/interfaces/extensions/cre/IReceiver.sol";
 import {MiddlewareV2} from "./utils/MiddlewareV2.sol";
 import {MiddlewareV3} from "./utils/MiddlewareV3.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
@@ -85,6 +88,10 @@ import {RegistryMock} from "../mocks/symbiotic/RegistryMock.sol";
 import {VaultMock} from "../mocks/symbiotic/VaultMock.sol";
 import {SharedVaultMock} from "../mocks/symbiotic/SharedVaultMock.sol";
 import {Token} from "../mocks/Token.sol";
+import {TestUtils} from "test/utils/Utils.t.sol";
+import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
+import {MiddlewareCRELogic} from "src/contracts/libraries/MiddlewareCRELogic.sol";
+import {ReceiverLogic} from "src/contracts/libraries/ReceiverLogic.sol";
 
 contract MiddlewareTest is Test {
     using Subnetwork for address;
@@ -123,6 +130,13 @@ contract MiddlewareTest is Test {
     OBaseMiddlewareReader reader;
     OBaseMiddlewareReaderForwarder readerForwarder;
 
+    address public workflowOwner = makeAddr("workflowOwner");
+    string internal workflowName = "workflow_tanssi";
+    bytes10 public workflowNameEncoded;
+    bytes32 public workflowId = bytes32(uint256(1));
+
+    bytes public WORKFLOW_METADATA;
+
     NetworkMiddlewareService networkMiddlewareService;
     OptInServiceMock operatorNetworkOptInServiceMock;
     OptInServiceMock operatorVaultOptInServiceMock;
@@ -136,6 +150,7 @@ contract MiddlewareTest is Test {
     Slasher slasherWithBadType;
     Token collateral;
     MockV3Aggregator collateralOracle;
+    TestUtils testUtils;
 
     DeployRewards deployRewards;
     DeployCollateral deployCollateral;
@@ -224,6 +239,14 @@ contract MiddlewareTest is Test {
         middleware.setGateway(address(gateway));
         middleware.setCollateralToOracle(address(collateral), address(collateralOracle));
 
+        middleware.setExpectedAuthor(workflowOwner);
+        middleware.setExpectedWorkflowName(workflowName);
+        middleware.setExpectedWorkflowId(workflowId);
+
+        testUtils = new TestUtils();
+        workflowNameEncoded = testUtils.encodeStringToBytes10(workflowName);
+        WORKFLOW_METADATA = abi.encodePacked(workflowId, workflowNameEncoded, workflowOwner);
+
         stakerRewardsParams.implementation =
             address(new ODefaultStakerRewards(address(networkMiddlewareService), tanssi));
 
@@ -257,7 +280,7 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(owner);
 
-        address reader = address(new OBaseMiddlewareReader());
+        address readerAddress = address(new OBaseMiddlewareReader());
         Middleware _middleware = new Middleware();
         Middleware middlewareProxy = Middleware(address(new MiddlewareProxy(address(_middleware), "")));
         vm.expectRevert(IMiddleware.Middleware__SlashingWindowTooShort.selector);
@@ -269,7 +292,7 @@ contract MiddlewareTest is Test {
             owner: owner,
             epochDuration: EPOCH_DURATION_,
             slashingWindow: SHORT_SLASHING_WINDOW_,
-            reader: reader
+            reader: readerAddress
         });
         Middleware(address(middlewareProxy)).initialize(params);
 
@@ -356,10 +379,10 @@ contract MiddlewareTest is Test {
         assertEq(EpochCapture(address(middleware)).getEpochDuration(), NETWORK_EPOCH_DURATION);
         assertEq(readerForwarder.SLASHING_WINDOW(), SLASHING_WINDOW);
         assertEq(readerForwarder.OPERATOR_NET_OPTIN(), address(operatorNetworkOptInServiceMock));
-        assertEq(middleware.getGateway(), address(gateway));
-        assertEq(middleware.getLastTimestamp(), 1); // Start time in tests is 1
-        assertEq(middleware.getForwarderAddress(), address(0));
-        assertEq(middleware.getInterval(), NETWORK_EPOCH_DURATION);
+        assertEq(readerForwarder.getGateway(), address(gateway));
+        assertEq(readerForwarder.getLastTimestamp(), 1); // Start time in tests is 1
+        assertEq(readerForwarder.getForwarderAddress(), address(0));
+        assertEq(readerForwarder.getInterval(), NETWORK_EPOCH_DURATION);
     }
 
     // ************************************************************************************************
@@ -1543,15 +1566,15 @@ contract MiddlewareTest is Test {
 
         vm.prank(owner);
 
-        assertEq(middleware.VERSION(), 1);
-        assertEq(middleware.getOperatorRewardsAddress(), address(operatorRewards));
+        assertEq(readerForwarder.getVersion(), 1);
+        assertEq(readerForwarder.getOperatorRewardsAddress(), address(operatorRewards));
 
         MiddlewareV2 middlewareImplV2 = new MiddlewareV2();
         bytes memory emptyBytes = hex"";
         vm.prank(owner);
         middleware.upgradeToAndCall(address(middlewareImplV2), emptyBytes);
 
-        assertEq(middleware.VERSION(), 2);
+        assertEq(readerForwarder.getVersion(), 2);
 
         address gatewayAddress = makeAddr("gatewayAddress");
 
@@ -1560,7 +1583,7 @@ contract MiddlewareTest is Test {
         middleware.setGateway(gatewayAddress);
 
         middleware.upgradeToAndCall(address(middlewareImpl), emptyBytes);
-        assertEq(middleware.VERSION(), 1);
+        assertEq(readerForwarder.getVersion(), 1);
 
         vm.prank(owner);
         middleware.setGateway(gatewayAddress);
@@ -1571,15 +1594,15 @@ contract MiddlewareTest is Test {
         vm.prank(owner);
 
         middleware.setGateway(newGateway);
-        assertEq(middleware.VERSION(), 1);
-        assertEq(address(middleware.getGateway()), newGateway);
+        assertEq(readerForwarder.getVersion(), 1);
+        assertEq(address(readerForwarder.getGateway()), newGateway);
 
         MiddlewareV3 middlewareImplV3 = new MiddlewareV3(address(operatorRewards));
         bytes memory emptyBytes = hex"";
         vm.prank(owner);
         middleware.upgradeToAndCall(address(middlewareImplV3), emptyBytes);
 
-        assertEq(middleware.VERSION(), 3);
+        assertEq(readerForwarder.getVersion(), 3);
 
         vm.expectRevert(); //Doesn't exists
         middleware.setGateway(address(0));
@@ -2306,7 +2329,7 @@ contract MiddlewareTest is Test {
         address gateway2 = makeAddr("gateway2");
         vm.prank(owner);
         middleware.setGateway(gateway2);
-        assertEq(middleware.getGateway(), gateway2);
+        assertEq(readerForwarder.getGateway(), gateway2);
     }
 
     function testSetGatewayUnauthorizedAccount() public {
@@ -2340,7 +2363,7 @@ contract MiddlewareTest is Test {
         address forwarder2 = makeAddr("forwarder2");
         vm.prank(owner);
         middleware.setForwarder(forwarder2);
-        assertEq(middleware.getForwarderAddress(), forwarder2);
+        assertEq(readerForwarder.getForwarderAddress(), forwarder2);
     }
 
     function testSetForwarderUnauthorizedAccount() public {
@@ -2375,8 +2398,10 @@ contract MiddlewareTest is Test {
     function testSetInterval() public {
         uint256 interval = 3 days;
         vm.prank(owner);
+        uint256 gasBefore = gasleft();
         middleware.setInterval(interval);
-        assertEq(middleware.getInterval(), interval);
+        console2.log("Total gas used: ", gasBefore - gasleft());
+        assertEq(readerForwarder.getInterval(), interval);
     }
 
     function testSetIntervalUnauthorizedAccount() public {
@@ -2414,14 +2439,16 @@ contract MiddlewareTest is Test {
         // It's not needed, it's just for explaining and showing the flow
         address offlineKeepers = makeAddr("offlineKeepers");
         vm.prank(offlineKeepers);
-        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        (bool upkeepNeeded, bytes memory performData) = middleware.prepareDataForSendingToGateway();
         assertEq(upkeepNeeded, false);
 
         assertEq(performData.length, 0);
 
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+
         vm.prank(forwarder2);
         vm.expectRevert(IMiddleware.Middleware__NoPerformData.selector);
-        middleware.performUpkeep(performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
     }
 
     function testUpkeepWithMoreOperators() public {
@@ -2448,20 +2475,22 @@ contract MiddlewareTest is Test {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
         uint48 epoch = middleware.getCurrentEpoch();
 
-        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        (bool upkeepNeeded, bytes memory performData) = middleware.prepareDataForSendingToGateway();
         assertEq(upkeepNeeded, true);
 
         (uint8 command, uint48 encodedEpoch, IMiddleware.ValidatorData[] memory validatorsData) =
             abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
         assertEq(epoch, encodedEpoch);
-        assertEq(command, middleware.CACHE_DATA_COMMAND());
+        assertEq(command, MiddlewareCRELogic.CACHE_DATA_COMMAND);
         assertEq(validatorsData.length, 2);
         vm.startPrank(forwarder);
-        middleware.performUpkeep(performData);
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
         vm.stopPrank();
 
-        OBaseMiddlewareReaderForwarder readerForwarder = new OBaseMiddlewareReaderForwarder(address(middleware));
-        OBaseMiddlewareReader reader = OBaseMiddlewareReader(address(middleware));
+        readerForwarder = new OBaseMiddlewareReaderForwarder(address(middleware));
+        reader = OBaseMiddlewareReader(address(middleware));
+
         assertEq(
             readerForwarder.getPowerInUSD(address(vault), OPERATOR_STAKE),
             reader.getPowerInUSD(address(vault), OPERATOR_STAKE)
@@ -2476,15 +2505,17 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
-        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        (bool upkeepNeeded, bytes memory performData) = middleware.prepareDataForSendingToGateway();
         assertEq(upkeepNeeded, true);
+
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
 
         vm.expectRevert(
             abi.encodeWithSelector(
                 IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), FORWARDER_ROLE
             )
         );
-        middleware.performUpkeep(performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
     }
 
     function testUpkeepShouldRevertIfGatewayNotSet() public {
@@ -2501,12 +2532,20 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
-        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        (bool upkeepNeeded, bytes memory performData) = middleware.prepareDataForSendingToGateway();
         assertEq(upkeepNeeded, true);
 
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+        vm.prank(forwarder);
+        middleware.onReport(WORKFLOW_METADATA, report);
+
+        (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
+        assertEq(upkeepNeeded, true);
+
+        report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
         vm.prank(forwarder);
         vm.expectRevert(IMiddleware.Middleware__GatewayNotSet.selector);
-        middleware.performUpkeep(performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
     }
 
     function testUpkeepShouldRevertIfAlreadyCached() public {
@@ -2524,12 +2563,13 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
-        (bool upkeepNeeded, bytes memory performData) = middleware.checkUpkeep(hex"");
+        (bool upkeepNeeded, bytes memory performData) = middleware.prepareDataForSendingToGateway();
         assertEq(upkeepNeeded, true);
 
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
         vm.prank(forwarder);
         vm.expectRevert(IMiddleware.Middleware__AlreadyCached.selector);
-        middleware.performUpkeep(performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
     }
 
     // ************************************************************************************************
@@ -2543,8 +2583,8 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         middleware.registerSharedVault(address(vault), stakerRewardsParams);
         vm.stopPrank();
-
-        address currentCollateral = middleware.vaultToCollateral(address(vault));
+        reader = OBaseMiddlewareReader(address(middleware));
+        address currentCollateral = reader.vaultToCollateral(address(vault));
         assertEq(currentCollateral, address(collateral));
     }
 
@@ -2568,7 +2608,7 @@ contract MiddlewareTest is Test {
         middleware.registerSharedVault(address(vault), stakerRewardsParams);
         vm.stopPrank();
 
-        address currentOracle = middleware.vaultToOracle(address(vault));
+        address currentOracle = readerForwarder.vaultToOracle(address(vault));
         assertEq(currentOracle, address(collateralOracle));
     }
 
@@ -2583,7 +2623,8 @@ contract MiddlewareTest is Test {
         vm.startPrank(owner);
         middleware.setCollateralToOracle(_collateral, _oracle);
         vm.stopPrank();
-        assertEq(middleware.collateralToOracle(_collateral), _oracle);
+        reader = OBaseMiddlewareReader(address(middleware));
+        assertEq(reader.collateralToOracle(_collateral), _oracle);
     }
 
     function testSetCollateralToOracleNoCollateral() public {
@@ -2604,12 +2645,12 @@ contract MiddlewareTest is Test {
         middleware.setCollateralToOracle(_collateral, _oracle);
         middleware.setCollateralToOracle(_collateral, address(0));
         vm.stopPrank();
-        assertEq(middleware.collateralToOracle(_collateral), address(0));
+        assertEq(MiddlewareStorage.collateralToOracle(_collateral), address(0));
     }
 
     function testReaderForwarder() public {
-        OBaseMiddlewareReaderForwarder readerForwarder = new OBaseMiddlewareReaderForwarder(address(middleware));
-        OBaseMiddlewareReader reader = OBaseMiddlewareReader(address(middleware));
+        readerForwarder = new OBaseMiddlewareReaderForwarder(address(middleware));
+        reader = OBaseMiddlewareReader(address(middleware));
 
         assertEq(readerForwarder.getCaptureTimestamp(), reader.getCaptureTimestamp());
         assertEq(readerForwarder.getCurrentEpoch(), reader.getCurrentEpoch());
@@ -2642,11 +2683,270 @@ contract MiddlewareTest is Test {
             assertEq(activeOperatorsForwarder[i], activeOperatorsReader[i]);
         }
 
-        (bool upkeepNeededForwarder, bytes memory performDataForwarder) = readerForwarder.auxiliaryCheckUpkeep();
-        (bool upkeepNeededReader, bytes memory performDataReader) = reader.auxiliaryCheckUpkeep();
+        (bool upkeepNeededForwarder, bytes memory performDataForwarder) =
+            readerForwarder.auxiliaryPrepareDataForSendingToGateway();
+        (bool upkeepNeededReader, bytes memory performDataReader) = reader.auxiliaryPrepareDataForSendingToGateway();
 
         assertEq(upkeepNeededForwarder, upkeepNeededReader);
         assertEq(performDataForwarder, performDataReader);
+    }
+
+    function testSetExpectedWorkflowNameWithEmptyName() public {
+        string memory emptyString = "";
+
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+        middleware.setExpectedWorkflowName(emptyString);
+
+        bytes10 emptyBytes = testUtils.encodeStringToBytes10(emptyString);
+
+        vm.startPrank(forwarder);
+        bytes memory performData = abi.encode(uint8(1), uint48(0), new IMiddleware.ValidatorData[](0));
+        // Whatever name is fine because it's completely ignored in the function logic since it was set as empty
+        WORKFLOW_METADATA = abi.encodePacked(workflowId, emptyBytes, workflowOwner);
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
+    }
+
+    function testSetExpectedWorkflowIdWithEmptyId() public {
+        bytes32 emptyWorkflowId = bytes32(0);
+
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+        middleware.setExpectedWorkflowId(emptyWorkflowId);
+
+        vm.startPrank(forwarder);
+        bytes memory performData = abi.encode(uint8(1), uint48(0), new IMiddleware.ValidatorData[](0));
+        // Whatever name is fine because it's completely ignored in the function logic since it was set as empty
+        WORKFLOW_METADATA = abi.encodePacked(workflowId, workflowNameEncoded, workflowOwner);
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
+    }
+
+    function testSetExpectedWorkflowIdWithEmptyAuthor() public {
+        address noOwner = address(0);
+
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+        middleware.setExpectedAuthor(noOwner);
+
+        vm.startPrank(forwarder);
+        bytes memory performData = abi.encode(uint8(1), uint48(0), new IMiddleware.ValidatorData[](0));
+        // Whatever name is fine because it's completely ignored in the function logic since it was set as empty
+        WORKFLOW_METADATA = abi.encodePacked(workflowId, workflowNameEncoded, workflowOwner);
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
+    }
+
+    function testOnReportRevertWithInvalidWorkflowId() public {
+        bytes memory performData = abi.encode(uint8(1), uint48(1), new IMiddleware.ValidatorData[](0));
+
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+
+        vm.startPrank(forwarder);
+        bytes32 workflowId2 = bytes32(uint256(2));
+
+        WORKFLOW_METADATA = abi.encodePacked(workflowId2, workflowNameEncoded, workflowOwner);
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(ReceiverLogic.ReceiverLogic__InvalidWorkflowId.selector, workflowId2, workflowId)
+        );
+
+        middleware.onReport(WORKFLOW_METADATA, report);
+    }
+
+    function testOnReportRevertWithInvalidWorkflowAuthor() public {
+        bytes memory performData = abi.encode(uint8(1), uint48(1), new IMiddleware.ValidatorData[](0));
+
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+
+        vm.startPrank(forwarder);
+        address fakeOwner = makeAddr("fakeOwner");
+        WORKFLOW_METADATA = abi.encodePacked(workflowId, workflowNameEncoded, fakeOwner);
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(ReceiverLogic.ReceiverLogic__InvalidAuthor.selector, fakeOwner, workflowOwner)
+        );
+        middleware.onReport(WORKFLOW_METADATA, report);
+    }
+
+    function testOnReportRevertWithInvalidWorkflowName() public {
+        bytes memory performData = abi.encode(uint8(1), uint48(1), new IMiddleware.ValidatorData[](0));
+
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+
+        vm.startPrank(forwarder);
+        bytes10 fakeWorkflowNameEncoded = testUtils.encodeStringToBytes10("FakeNameEncoded");
+
+        WORKFLOW_METADATA = abi.encodePacked(workflowId, fakeWorkflowNameEncoded, workflowOwner);
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ReceiverLogic.ReceiverLogic__InvalidWorkflowName.selector, fakeWorkflowNameEncoded, workflowNameEncoded
+            )
+        );
+
+        middleware.onReport(WORKFLOW_METADATA, report);
+    }
+
+    function testOnReportSuccessWithNoChecksEnabled() public {
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+
+        middleware.setExpectedWorkflowId(bytes32(0));
+        middleware.setExpectedWorkflowName("");
+        middleware.setExpectedAuthor(address(0));
+
+        // Prepare RANDOM data (Should pass because checks are off)
+        bytes memory performData = abi.encode(uint8(1), uint48(0), new IMiddleware.ValidatorData[](0));
+        bytes memory randomMetadata = hex"DEADBEEF";
+
+        vm.startPrank(forwarder);
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
+    }
+
+    function testOnReportRevertUnauthorizedCaller() public {
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+        vm.stopPrank();
+
+        address maliciousUser = makeAddr("maliciousUser");
+
+        bytes memory performData = hex"";
+        bytes memory metadata = hex"";
+
+        vm.startPrank(maliciousUser);
+
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(maliciousUser), FORWARDER_ROLE
+            )
+        );
+        middleware.onReport(WORKFLOW_METADATA, report);
+    }
+
+    function testOnReportRevertWithShortMetadata() public {
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+        middleware.setExpectedWorkflowId(workflowId);
+
+        vm.startPrank(forwarder);
+
+        // Create metadata that is too short 32 bytes only, instead of the required 62
+        bytes memory shortMetadata = abi.encodePacked(workflowId);
+        bytes memory performData = hex"";
+
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+
+        // There is no check so it defaults revert since it's reading out of the current bytes
+        vm.expectRevert();
+        middleware.onReport(WORKFLOW_METADATA, report);
+    }
+
+    function testOnReportSuccessMixedChecks() public {
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+        middleware.setExpectedWorkflowId(workflowId);
+        middleware.setExpectedWorkflowName(workflowName);
+        middleware.setExpectedAuthor(address(0));
+        vm.stopPrank();
+
+        // Data has Valid ID, Valid Name, but WRONG Author
+        address wrongAuthor = makeAddr("wrongAuthor");
+        WORKFLOW_METADATA = abi.encodePacked(workflowId, workflowNameEncoded, wrongAuthor);
+        bytes memory performData = abi.encode(uint8(1), uint48(0), new IMiddleware.ValidatorData[](0));
+
+        vm.startPrank(forwarder);
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+        middleware.onReport(WORKFLOW_METADATA, report);
+    }
+
+    function testOnReportRevertMixedChecksFailure() public {
+        vm.startPrank(owner);
+        middleware.setForwarder(forwarder);
+        middleware.setExpectedWorkflowId(bytes32(0));
+        middleware.setExpectedWorkflowName("");
+        middleware.setExpectedAuthor(workflowOwner);
+        vm.stopPrank();
+
+        // Data has Random ID, Random Name, WRONG Author
+        address wrongAuthor = makeAddr("wrongAuthor");
+        WORKFLOW_METADATA = abi.encodePacked(bytes32("random"), bytes10("random"), wrongAuthor);
+        bytes memory performData = hex"";
+
+        vm.startPrank(forwarder);
+
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+        vm.expectRevert(
+            abi.encodeWithSelector(ReceiverLogic.ReceiverLogic__InvalidAuthor.selector, wrongAuthor, workflowOwner)
+        );
+        middleware.onReport(WORKFLOW_METADATA, report);
+    }
+
+    function testSupportsInterface() public view {
+        bytes4 iReceiverId = type(IReceiver).interfaceId;
+        assertTrue(middleware.supportsInterface(iReceiverId), "Should support IReceiver");
+
+        bytes4 iErc165Id = type(IERC165).interfaceId;
+        assertTrue(middleware.supportsInterface(iErc165Id), "Should support IERC165");
+
+        bytes4 invalidId = 0xffffffff;
+        assertFalse(middleware.supportsInterface(invalidId), "Should NOT support random interface");
+
+        // Just to be sure it's not returning true for everything
+        bytes4 erc20Id = 0x36372b07;
+        assertFalse(middleware.supportsInterface(erc20Id), "Should NOT support ERC20");
+    }
+
+    function testReinitialize() public {
+        _registerOperatorToNetwork(operator, address(vault), false, false);
+
+        bytes4 selectorToUnset = middleware.onReport.selector;
+
+        // 3. Calculate the Slot
+        // The Base Location defined in your contract
+        bytes32 STORAGE_LOCATION = 0xbe09a78a256419d2b885312b60a13e8082d8ab3c36c463fff4fbb086f1e96f00;
+
+        // The mapping `_selectorRoles` is the second element in the struct, so we add 1 to the base
+        uint256 mapSlot = uint256(STORAGE_LOCATION) + 1;
+
+        // Calculate the final slot for this specific selector key
+        bytes32 finalSlot = keccak256(abi.encode(selectorToUnset, mapSlot));
+
+        // 4. Wipe it (Set to 0x0)
+        vm.store(address(middleware), finalSlot, bytes32(0));
+
+        vm.startPrank(owner);
+        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+        vm.stopPrank();
+
+        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+
+        (bool upkeepNeeded, bytes memory performData) = middleware.prepareDataForSendingToGateway();
+        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+
+        vm.prank(owner);
+        middleware.setForwarder(forwarder);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, forwarder, middleware.DEFAULT_ADMIN_ROLE()
+            )
+        );
+        vm.prank(forwarder);
+        middleware.onReport(WORKFLOW_METADATA, report);
+        middleware.reinitialize();
+
+        vm.prank(forwarder);
+        middleware.onReport(WORKFLOW_METADATA, report);
     }
 
     // ************************************************************************************************

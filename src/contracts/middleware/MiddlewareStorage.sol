@@ -14,9 +14,16 @@
 // along with Tanssi.  If not, see <http://www.gnu.org/licenses/>
 pragma solidity 0.8.25;
 
-import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
+import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
+//**************************************************************************************************
+//                                      SNOWBRIDGE
+//**************************************************************************************************
+import {IOGateway} from "@snowbridge/contracts/src/interfaces/IOGateway.sol";
 
-abstract contract MiddlewareStorage {
+import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
+import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
+
+library MiddlewareStorage {
     /// @custom:storage-location erc7201:tanssi.middleware.MiddlewareStorage.v1.1
     struct StorageMiddleware {
         address gateway;
@@ -44,8 +51,7 @@ abstract contract MiddlewareStorage {
         0x93540b1a1dc30969947272428a8d0331ac0b23f753e3edd38c70f80cf0835100;
 
     uint8 public constant DEFAULT_DECIMALS = 18;
-    uint8 public constant CACHE_DATA_COMMAND = 1;
-    uint8 public constant SEND_DATA_COMMAND = 2;
+
     uint256 public constant VERSION = 1;
     uint256 public constant MIN_INTERVAL_TO_SEND_OPERATOR_KEYS = 50; // 50 blocks of ~12 seconds each ≈ 600 seconds ≈ 10 minutes
     uint256 public constant MAX_OPERATORS_TO_PROCESS = 10;
@@ -54,12 +60,41 @@ abstract contract MiddlewareStorage {
     bytes32 internal constant FORWARDER_ROLE = keccak256("FORWARDER_ROLE");
     uint256 public constant MAX_ACTIVE_VAULTS = 80;
 
+    function setVaultToCollateral(
+        address vault
+    ) external {
+        StorageMiddleware storage $ = getMiddlewareStorage();
+        address collateral = IVault(vault).collateral();
+        if (collateral == address(0)) {
+            revert IMiddleware.Middleware__InvalidAddress();
+        }
+        $.vaultToCollateral[vault] = collateral;
+    }
+
+    function sendCurrentOperatorsKeys(
+        uint48 epoch
+    ) external returns (bytes32[] memory sortedKeys) {
+        StorageMiddleware storage $ = getMiddlewareStorage();
+        if (block.number < $.lastExecutionBlock + MIN_INTERVAL_TO_SEND_OPERATOR_KEYS) {
+            return sortedKeys;
+        }
+
+        address gateway = $.gateway;
+        if (gateway == address(0)) {
+            revert IMiddleware.Middleware__GatewayNotSet();
+        }
+
+        $.lastExecutionBlock = block.number;
+        sortedKeys = IOBaseMiddlewareReader(address(this)).sortOperatorsByPower(epoch);
+        IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);
+    }
+
     /**
      * @notice Get the operator rewards contract address
      * @return operator rewards contract address
      */
     function getOperatorRewardsAddress() public view returns (address) {
-        StorageMiddleware storage $ = _getMiddlewareStorage();
+        StorageMiddleware storage $ = getMiddlewareStorage();
         return $.i_operatorRewards;
     }
 
@@ -68,17 +103,17 @@ abstract contract MiddlewareStorage {
      * @return staker rewards factory contract address
      */
     function getStakerRewardsFactoryAddress() public view returns (address) {
-        StorageMiddleware storage $ = _getMiddlewareStorage();
+        StorageMiddleware storage $ = getMiddlewareStorage();
         return $.i_stakerRewardsFactory;
     }
 
-    function _getMiddlewareStorage() internal pure returns (StorageMiddleware storage $v1) {
+    function getMiddlewareStorage() public pure returns (StorageMiddleware storage $v1) {
         assembly {
             $v1.slot := MIDDLEWARE_STORAGE_LOCATION
         }
     }
 
-    function _getMiddlewareStorageCache() internal pure returns (StorageMiddlewareCache storage $v1) {
+    function getMiddlewareStorageCache() public pure returns (StorageMiddlewareCache storage $v1) {
         assembly {
             $v1.slot := MIDDLEWARE_STORAGE_CACHE_LOCATION
         }
@@ -89,7 +124,7 @@ abstract contract MiddlewareStorage {
      * @return gateway contract
      */
     function getGateway() public view returns (address) {
-        StorageMiddleware storage $ = _getMiddlewareStorage();
+        StorageMiddleware storage $ = getMiddlewareStorage();
         return $.gateway;
     }
 
@@ -98,7 +133,7 @@ abstract contract MiddlewareStorage {
      * @return last timestamp
      */
     function getLastTimestamp() public view returns (uint256) {
-        StorageMiddleware storage $ = _getMiddlewareStorage();
+        StorageMiddleware storage $ = getMiddlewareStorage();
         return $.lastTimestamp;
     }
 
@@ -107,7 +142,7 @@ abstract contract MiddlewareStorage {
      * @return forwarder address
      */
     function getForwarderAddress() public view returns (address) {
-        StorageMiddleware storage $ = _getMiddlewareStorage();
+        StorageMiddleware storage $ = getMiddlewareStorage();
         return $.forwarderAddress;
     }
 
@@ -116,7 +151,7 @@ abstract contract MiddlewareStorage {
      * @return interval
      */
     function getInterval() public view returns (uint256) {
-        StorageMiddleware storage $ = _getMiddlewareStorage();
+        StorageMiddleware storage $ = getMiddlewareStorage();
         return $.interval;
     }
 
@@ -127,7 +162,7 @@ abstract contract MiddlewareStorage {
     function collateralToOracle(
         address collateral
     ) public view returns (address) {
-        StorageMiddleware storage $ = _getMiddlewareStorage();
+        StorageMiddleware storage $ = getMiddlewareStorage();
         return $.collateralToOracle[collateral];
     }
 
@@ -138,7 +173,7 @@ abstract contract MiddlewareStorage {
     function vaultToCollateral(
         address vault
     ) public view returns (address) {
-        StorageMiddleware storage $ = _getMiddlewareStorage();
+        StorageMiddleware storage $ = getMiddlewareStorage();
         return $.vaultToCollateral[vault];
     }
 
@@ -149,7 +184,7 @@ abstract contract MiddlewareStorage {
     function vaultToOracle(
         address vault
     ) public view returns (address) {
-        StorageMiddleware storage $ = _getMiddlewareStorage();
+        StorageMiddleware storage $ = getMiddlewareStorage();
         return $.collateralToOracle[$.vaultToCollateral[vault]];
     }
 
@@ -161,7 +196,7 @@ abstract contract MiddlewareStorage {
     function getEpochCacheIndex(
         uint48 epoch
     ) public view returns (uint256) {
-        StorageMiddlewareCache storage $ = _getMiddlewareStorageCache();
+        StorageMiddlewareCache storage $ = getMiddlewareStorageCache();
         return $.epochToCacheIndex[epoch];
     }
 
@@ -172,7 +207,7 @@ abstract contract MiddlewareStorage {
      * @return The power of the operator
      */
     function getOperatorToPowerCached(uint48 epoch, bytes32 operatorKey) public view returns (uint256) {
-        StorageMiddlewareCache storage $ = _getMiddlewareStorageCache();
+        StorageMiddlewareCache storage $ = getMiddlewareStorageCache();
         return $.operatorKeyToPower[epoch][operatorKey];
     }
 }

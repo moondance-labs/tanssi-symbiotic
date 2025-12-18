@@ -160,6 +160,38 @@ interface IOBaseMiddlewareReader {
         uint48 epochStartTs
     ) external view returns (uint256 vaultIdx, address[] memory _vaults);
 
+    function collateralToOracle(
+        address collateral
+    ) external view returns (address);
+
+    function vaultToCollateral(
+        address vault
+    ) external view returns (address);
+
+    function vaultToOracle(
+        address vault
+    ) external view returns (address);
+
+    function getEpochCacheIndex(
+        uint48 epoch
+    ) external view returns (uint256);
+
+    function getOperatorToPowerCached(uint48 epoch, bytes32 operatorKey_) external view returns (uint256);
+
+    function getForwarderAddress() external view returns (address);
+
+    function getGateway() external view returns (address);
+
+    function getInterval() external view returns (uint256);
+
+    function getLastTimestamp() external view returns (uint256);
+
+    function getOperatorRewardsAddress() external view returns (address);
+
+    function getStakerRewardsFactoryAddress() external view returns (address);
+
+    function getVersion() external pure returns (uint256);
+
     function getTotalStake(
         uint48 epoch
     ) external view returns (uint256);
@@ -174,5 +206,8 @@ interface IOBaseMiddlewareReader {
         uint48 timestamp
     ) external view returns (uint48 epoch);
 
-    function auxiliaryCheckUpkeep() external view returns (bool upkeepNeeded, bytes memory performData);
+    function auxiliaryPrepareDataForSendingToGateway()
+        external
+        view
+        returns (bool upkeepNeeded, bytes memory performData);
 }

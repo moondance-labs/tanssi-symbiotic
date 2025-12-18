@@ -49,6 +49,7 @@ import {DeployRewards} from "script/DeployRewards.s.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
 import {DeployTanssiEcosystemDemo} from "demos/DeployTanssiEcosystemDemo.s.sol";
 import {AggregatorV3DIAProxy} from "src/contracts/oracle-proxy/AggregatorV3DIAProxy.sol";
+import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
 
 contract DeployTest is Test {
     using Subnetwork for address;
@@ -219,29 +220,29 @@ contract DeployTest is Test {
 
     function testUpgradeMiddleware() public {
         address middleware = _deployMiddleware();
-        address previousOperatorRewards = Middleware(middleware).getOperatorRewardsAddress();
-        address previousStakerRewardsFactory = Middleware(middleware).getStakerRewardsFactoryAddress();
+        address previousOperatorRewards = OBaseMiddlewareReader(middleware).getOperatorRewardsAddress();
+        address previousStakerRewardsFactory = OBaseMiddlewareReader(middleware).getStakerRewardsFactoryAddress();
 
         deployTanssiEcosystem.upgradeMiddleware(middleware, 1, tanssi);
-        assertEq(Middleware(middleware).getOperatorRewardsAddress(), previousOperatorRewards);
-        assertEq(Middleware(middleware).getStakerRewardsFactoryAddress(), previousStakerRewardsFactory);
+        assertEq(OBaseMiddlewareReader(middleware).getOperatorRewardsAddress(), previousOperatorRewards);
+        assertEq(OBaseMiddlewareReader(middleware).getStakerRewardsFactoryAddress(), previousStakerRewardsFactory);
     }
 
     function testUpgradeMiddlewareWithBroadcast() public {
         address middleware = _deployMiddleware();
 
-        address previousOperatorRewards = Middleware(middleware).getOperatorRewardsAddress();
-        address previousStakerRewardsFactory = Middleware(middleware).getStakerRewardsFactoryAddress();
+        address previousOperatorRewards = OBaseMiddlewareReader(middleware).getOperatorRewardsAddress();
+        address previousStakerRewardsFactory = OBaseMiddlewareReader(middleware).getStakerRewardsFactoryAddress();
         deployTanssiEcosystem.upgradeMiddlewareBroadcast(middleware, 1);
-        assertEq(Middleware(middleware).getOperatorRewardsAddress(), previousOperatorRewards);
-        assertEq(Middleware(middleware).getStakerRewardsFactoryAddress(), previousStakerRewardsFactory);
+        assertEq(OBaseMiddlewareReader(middleware).getOperatorRewardsAddress(), previousOperatorRewards);
+        assertEq(OBaseMiddlewareReader(middleware).getStakerRewardsFactoryAddress(), previousStakerRewardsFactory);
     }
 
     function testDeployOnlyMiddlewareWithReader() public {
         (Middleware middleware, OBaseMiddlewareReader reader) = deployTanssiEcosystem.deployOnlyMiddleware(true);
         assertTrue(address(middleware) != ZERO_ADDRESS);
         // We query something random just to make sure the middleware is deployed
-        assertGt(middleware.MIN_INTERVAL_TO_SEND_OPERATOR_KEYS(), 0);
+        assertGt(MiddlewareStorage.MIN_INTERVAL_TO_SEND_OPERATOR_KEYS, 0);
         assertTrue(address(reader) != ZERO_ADDRESS);
     }
 
@@ -249,7 +250,7 @@ contract DeployTest is Test {
         (Middleware middleware, OBaseMiddlewareReader reader) = deployTanssiEcosystem.deployOnlyMiddleware(false);
         assertTrue(address(middleware) != ZERO_ADDRESS);
         // We query something random just to make sure the middleware is deployed
-        assertGt(middleware.MIN_INTERVAL_TO_SEND_OPERATOR_KEYS(), 0);
+        assertGt(MiddlewareStorage.MIN_INTERVAL_TO_SEND_OPERATOR_KEYS, 0);
         assertEq(address(reader), ZERO_ADDRESS);
     }
 
@@ -258,7 +259,7 @@ contract DeployTest is Test {
         (Middleware middleware, OBaseMiddlewareReader reader) = deployTanssiEcosystem.deployOnlyMiddleware(false);
         assertTrue(address(middleware) != ZERO_ADDRESS);
         // We query something random just to make sure the middleware is deployed
-        assertGt(middleware.MIN_INTERVAL_TO_SEND_OPERATOR_KEYS(), 0);
+        assertGt(MiddlewareStorage.MIN_INTERVAL_TO_SEND_OPERATOR_KEYS, 0);
         assertEq(address(reader), ZERO_ADDRESS);
     }
 

@@ -120,6 +120,11 @@ upgrade-operator-rewards: pre-deploy
 	@echo "📡 Upgrading Operator Rewards..."
 	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "upgradeOperatorRewards(address,address,address)" $(OPERATOR_REWARDS_PROXY_ADDRESS) $(NETWORK) $(NETWORK_MIDDLEWARE_SERVICE) -vv
 	@echo "✅ Operator Rewards upgrade completed"
+
+upgrade-staker-rewards: pre-deploy
+	@echo "📡 Upgrading Staker Rewards..."
+	@forge script script/DeployRewards.s.sol:DeployRewards $(NETWORK_ARGS) --sig "upgradeStakerRewards(address,address,address)" $(STAKER_REWARDS_PROXY_ADDRESS) $(NETWORK_MIDDLEWARE_SERVICE) $(NETWORK) -vv
+	@echo "✅ Staker Rewards upgrade completed"
 	
 deploy-dia-aggregator-oracle-proxy: pre-deploy
 	@echo "📡 Deploying DIA Aggregator Oracle Proxy..."
