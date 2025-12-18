@@ -84,7 +84,7 @@ contract UpgradesTest is Test {
 
     function testUpgradeMiddlewareFailsIfUnexpectedVersion() public {
         vm.expectRevert("Middleware version is not expected, cannot upgrade");
-        deployTanssiEcosystem.upgradeMiddleware(address(middleware), 2, address(0));
+        deployTanssiEcosystem.upgradeMiddleware(address(middleware), 2, tanssi);
     }
 
     function testUpgradeRewardsOperatorWithBroadcast() public {
