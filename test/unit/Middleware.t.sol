@@ -262,12 +262,7 @@ contract MiddlewareTest is Test {
         vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
     }
 
-    function _registerOperatorToNetwork(
-        address _operator,
-        address _vault,
-        bool skipRegister,
-        bool skipOptIn
-    ) public {
+    function _registerOperatorToNetwork(address _operator, address _vault, bool skipRegister, bool skipOptIn) public {
         vm.startPrank(_operator);
         if (!skipRegister) {
             registry.register();
@@ -363,11 +358,7 @@ contract MiddlewareTest is Test {
         assertEq(storedReader, newReader);
     }
 
-    function _registerVaultToNetwork(
-        address _vault,
-        bool skipRegister,
-        uint256 slashingWindowReduction
-    ) public {
+    function _registerVaultToNetwork(address _vault, bool skipRegister, uint256 slashingWindowReduction) public {
         bytes32 slotValue = vm.load(address(_vault), bytes32(uint256(1)));
         uint256 newValue = uint256(SLASHING_WINDOW - slashingWindowReduction) << (26 * 8);
         bytes32 mask = bytes32(~(uint256(type(uint48).max) << (26 * 8)));
@@ -2501,8 +2492,8 @@ contract MiddlewareTest is Test {
         reader = OBaseMiddlewareReader(address(middleware));
 
         assertEq(
-            readerForwarder_.getPowerInUSD(address(vault), OPERATOR_STAKE),
-            reader_.getPowerInUSD(address(vault), OPERATOR_STAKE)
+            readerForwarder.getPowerInUSD(address(vault), OPERATOR_STAKE),
+            reader.getPowerInUSD(address(vault), OPERATOR_STAKE)
         );
     }
 
@@ -2658,8 +2649,8 @@ contract MiddlewareTest is Test {
     }
 
     function testReaderForwarder() public {
-        readerForwarder = new OBaseMiddlewareReaderForwarder(address(middleware));
-        reader = OBaseMiddlewareReader(address(middleware));
+        OBaseMiddlewareReaderForwarder readerForwarder_ = new OBaseMiddlewareReaderForwarder(address(middleware));
+        OBaseMiddlewareReader reader_ = OBaseMiddlewareReader(address(middleware));
 
         assertEq(readerForwarder_.getCaptureTimestamp(), reader_.getCaptureTimestamp());
         assertEq(readerForwarder_.getCurrentEpoch(), reader_.getCurrentEpoch());
@@ -2694,8 +2685,8 @@ contract MiddlewareTest is Test {
         }
 
         (bool upkeepNeededForwarder, bytes memory performDataForwarder) =
-            readerForwarder.auxiliaryPrepareDataForSendingToGateway();
-        (bool upkeepNeededReader, bytes memory performDataReader) = reader.auxiliaryPrepareDataForSendingToGateway();
+            readerForwarder_.auxiliaryPrepareDataForSendingToGateway();
+        (bool upkeepNeededReader, bytes memory performDataReader) = reader_.auxiliaryPrepareDataForSendingToGateway();
 
         assertEq(upkeepNeededForwarder, upkeepNeededReader);
         assertEq(performDataForwarder, performDataReader);
@@ -2963,10 +2954,7 @@ contract MiddlewareTest is Test {
     // *                                          INTERNAL
     // ************************************************************************************************
 
-    function _setVaultToCollateral(
-        address vault_,
-        address collateral_
-    ) internal {
+    function _setVaultToCollateral(address vault_, address collateral_) internal {
         bytes32 slot = bytes32(uint256(MIDDLEWARE_STORAGE_LOCATION) + uint256(5)); // 5 is mapping slot number for the vault to collateral
         // Get slot for mapping with vault_
         slot = keccak256(abi.encode(vault_, slot));
@@ -2975,10 +2963,7 @@ contract MiddlewareTest is Test {
         vm.store(address(middleware), slot, bytes32(uint256(uint160(collateral_))));
     }
 
-    function _registerVaultAndOperator(
-        address slasher_,
-        bool deposit
-    ) internal {
+    function _registerVaultAndOperator(address slasher_, bool deposit) internal {
         _registerOperatorToNetwork(operator, address(vault), false, false);
         _registerVaultToNetwork(address(vault), false, 0);
 
