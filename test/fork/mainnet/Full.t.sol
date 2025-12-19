@@ -38,25 +38,17 @@ import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-ti
 import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3Interface.sol";
 
 //**************************************************************************************************
-//                                      SNOWBRIDGE
-//**************************************************************************************************
-import {OperatingMode, ParaID} from "@snowbridge/contracts/src/Types.sol";
-import {MockGateway} from "@snowbridge/contracts/test/mocks/MockGateway.sol";
-import {GatewayProxy} from "@snowbridge/contracts/src/GatewayProxy.sol";
-import {AgentExecutor} from "@snowbridge/contracts/src/AgentExecutor.sol";
-import {SetOperatingModeParams} from "@snowbridge/contracts/src/Params.sol";
-import {IOGateway} from "@snowbridge/contracts/src/interfaces/IOGateway.sol";
-import {Gateway} from "@snowbridge/contracts/src/Gateway.sol";
-
-import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
-
-//**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
+
+//**************************************************************************************************
+//                                      TANSSI META MIDDLEWARE
+//**************************************************************************************************
+import {TanssiMetaMiddleware} from "lib/tanssi-meta-middleware/src/contracts/TanssiMetaMiddleware.sol";
 
 //**************************************************************************************************
 //                                      TANSSI
@@ -81,7 +73,6 @@ import {HelperConfig} from "script/HelperConfig.s.sol";
 import {Token} from "test/mocks/Token.sol";
 import {TestUtils} from "test/utils/Utils.t.sol";
 import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
-import {MiddlewareCRELogic} from "src/contracts/libraries/MiddlewareCRELogic.sol";
 
 contract FullTest is Test {
     using Subnetwork for address;
@@ -143,7 +134,7 @@ contract FullTest is Test {
     uint256 totalOperators;
     uint256 totalActiveOperators;
 
-    GatewayProxy gateway;
+    TanssiMetaMiddleware metaMiddleware;
     Middleware middleware;
     OBaseMiddlewareReader reader;
     ODefaultOperatorRewards operatorRewards;
@@ -218,7 +209,7 @@ contract FullTest is Test {
 
         admin = entities.admin;
         tanssi = entities.tanssi;
-        gateway = GatewayProxy(payable(entities.gateway));
+        metaMiddleware = TanssiMetaMiddleware(entities.metaMiddleware);
         middleware = Middleware(entities.middleware);
 
         operatorRewards = ODefaultOperatorRewards(entities.operatorRewards);
@@ -462,82 +453,6 @@ contract FullTest is Test {
         assertEq(validators.length, totalOperatorsBefore);
     }
 
-    function testUpkeep() public {
-        vm.prank(admin);
-        middleware.setForwarder(forwarder);
-
-        // It's not needed (anyone can call it), it's just for explaining and showing the flow
-        address offlineKeepers = makeAddr("offlineKeepers");
-
-        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
-        uint48 currentEpoch = middleware.getCurrentEpoch();
-        bool upkeepNeeded;
-        bytes memory performData;
-        uint256 beforeGas;
-        uint256 afterGas;
-        uint8 command;
-        uint48 epoch;
-
-        vm.prank(offlineKeepers);
-        uint256 processedOperators;
-        TestUtils testUtils = new TestUtils();
-        bytes memory report;
-        uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, totalActiveOperators);
-        for (uint256 i = 0; i < totalBatches; i++) {
-            beforeGas = gasleft();
-            (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
-            afterGas = gasleft();
-
-            assertEq(upkeepNeeded, true);
-            console2.log("Gas used for check on caching: ", beforeGas - afterGas);
-            assertLt(beforeGas - afterGas, MAX_CHAINLINK_CHECKUPKEEP_GAS); // Check that gas is lower than 10M limit
-
-            IMiddleware.ValidatorData[] memory validatorsData;
-            (command, epoch, validatorsData) = abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
-            assertEq(epoch, currentEpoch);
-            assertEq(command, MiddlewareCRELogic.CACHE_DATA_COMMAND);
-
-            beforeGas = gasleft();
-            report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-            vm.prank(forwarder);
-            middleware.onReport(WORKFLOW_METADATA, report);
-            afterGas = gasleft();
-            console2.log("Gas used for perform on caching: ", beforeGas - afterGas);
-            assertLt(beforeGas - afterGas, MAX_CHAINLINK_PERFORMUPKEEP_GAS); // Check that gas is lower than 5M limit
-            processedOperators += validatorsData.length;
-        }
-        assertEq(processedOperators, totalOperators); // Due to the strategy, all operators should be processed
-
-        beforeGas = gasleft();
-        (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
-        afterGas = gasleft();
-
-        assertEq(upkeepNeeded, true);
-        console2.log("Gas used for final check (sorting): ", beforeGas - afterGas);
-        assertLt(beforeGas - afterGas, MAX_CHAINLINK_CHECKUPKEEP_GAS); // Check that gas is lower than 10M limit
-
-        bytes32[] memory sortedKeys;
-        (command, epoch, sortedKeys) = abi.decode(performData, (uint8, uint48, bytes32[]));
-        assertEq(epoch, currentEpoch);
-        assertEq(command, MiddlewareCRELogic.SEND_DATA_COMMAND);
-        assertEq(sortedKeys.length, totalActiveOperators); // On sorting, only operators with power > 0 are included
-
-        beforeGas = gasleft();
-        vm.expectEmit(true, false, false, false);
-        emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
-
-        report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-        vm.prank(forwarder);
-        middleware.onReport(WORKFLOW_METADATA, report);
-
-        afterGas = gasleft();
-        console2.log("Gas used for final perform (sending): ", beforeGas - afterGas);
-        assertLt(beforeGas - afterGas, MAX_CHAINLINK_PERFORMUPKEEP_GAS); // Check that gas is lower than 5M limit
-
-        (upkeepNeeded,) = middleware.prepareDataForSendingToGateway();
-        assertEq(upkeepNeeded, false);
-    }
-
     function testMiddlewareIsUpgradeable() public {
         Middleware middlewareImpl = new Middleware();
 
@@ -552,14 +467,14 @@ contract FullTest is Test {
         assertEq(reader.getVersion(), 2);
 
         vm.expectRevert(); //Function doesn't exists
-        middleware.setGateway(address(gateway));
+        middleware.setMetaMiddleware(address(metaMiddleware));
 
         middleware.upgradeToAndCall(address(middlewareImpl), emptyBytes);
         assertEq(reader.getVersion(), 1);
 
         vm.expectRevert(IMiddleware.Middleware__AlreadySet.selector);
-        middleware.setGateway(address(gateway));
-        assertEq(reader.getGateway(), address(gateway));
+        middleware.setMetaMiddleware(address(metaMiddleware));
+        assertEq(reader.getMetaMiddleware(), address(metaMiddleware));
     }
 
     function testSlashingEachVault() public {
@@ -584,7 +499,7 @@ contract FullTest is Test {
         }
         assertGe(operatorPowerBefore, 0);
 
-        vm.prank(address(gateway));
+        vm.prank(address(metaMiddleware));
         middleware.slash(currentEpoch, testOperatorKey, SLASHING_FRACTION);
 
         // We need to veto the slashes for all the vaults of the operator
@@ -987,7 +902,7 @@ contract FullTest is Test {
         uint48 epochStartTs = middleware.getEpochStart(epoch);
         vm.warp(epochStartTs + 1);
 
-        vm.startPrank(address(gateway));
+        vm.startPrank(address(metaMiddleware));
 
         rewardsToken.mint(address(middleware), TOKEN_REWARDS_PER_ERA_INDEX);
 
@@ -1027,7 +942,7 @@ contract FullTest is Test {
 
         // We need to track by stake and not by power since power uses live oracle which cannot be mocked
         bytes32 operatorKey = abi.decode(middleware.operatorKey(operatorAddress), (bytes32));
-        vm.prank(address(gateway));
+        vm.prank(address(metaMiddleware));
         middleware.slash(initialEpoch, operatorKey, SLASHING_FRACTION);
     }
 

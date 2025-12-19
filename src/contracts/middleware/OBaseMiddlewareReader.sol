@@ -46,7 +46,6 @@ import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddleware
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {QuickSort} from "src/contracts/libraries/QuickSort.sol";
 import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
-import {MiddlewareCRELogic} from "src/contracts/libraries/MiddlewareCRELogic.sol";
 
 /**
  * @title OBaseMiddlewareReader
@@ -627,11 +626,11 @@ contract OBaseMiddlewareReader is
     }
 
     /**
-     * @notice Get the gateway contract
-     * @return The gateway contract address
+     * @notice Get the meta middleware contract
+     * @return The meta middleware contract address
      */
-    function getGateway() external view returns (address) {
-        return MiddlewareStorage.getGateway();
+    function getMetaMiddleware() external view returns (address) {
+        return MiddlewareStorage.getMetaMiddlewareAddress();
     }
 
     /**
@@ -768,71 +767,6 @@ contract OBaseMiddlewareReader is
     ) external view returns (uint48 epoch) {
         EpochCaptureStorage storage $ = _getEpochCaptureStorage();
         return (timestamp - $.startTimestamp - 1) / $.epochDuration;
-    }
-
-    /**
-     * @dev Called by the middleware, as an auxiliary view function to check if the upkeep is needed
-     * @dev The function is in this contract to reduce Middleware size
-     * @return upkeepNeeded boolean to indicate whether the keeper should call performUpkeep or not.
-     * @return performData bytes of the sorted (by power) operators' keys and the epoch that will be used by the keeper when calling performUpkeep, if upkeep is needed.
-     */
-    function auxiliaryPrepareDataForSendingToGateway()
-        external
-        view
-        returns (bool upkeepNeeded, bytes memory performData)
-    {
-        uint48 epoch = getCurrentEpoch();
-        uint48 currentEpochStartTs = getEpochStart(epoch);
-
-        MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
-        MiddlewareStorage.StorageMiddlewareCache storage cache = MiddlewareStorage.getMiddlewareStorageCache();
-
-        OperatorManagerStorage storage $o = _getOperatorManagerStorage();
-        PauseableEnumerableSet.AddressSet storage operators = $o._operators;
-
-        uint256 operatorsLength_ = operators.length();
-        if (operatorsLength_ == 0) {
-            // No active operators, no upkeep needed
-            return (false, hex"");
-        }
-
-        uint256 cacheIndex = cache.epochToCacheIndex[epoch];
-        uint256 pendingOperatorsToCache = operatorsLength_ - cacheIndex;
-
-        // Check if cache is still not filled with the current epoch validators
-        if (pendingOperatorsToCache > 0) {
-            uint256 maxNumOperatorsToCheck =
-                Math.min(pendingOperatorsToCache, MiddlewareStorage.MAX_OPERATORS_TO_PROCESS);
-            (IMiddleware.ValidatorData[] memory validatorsData, bool atLeastOneActive) = _getValidatorDataForOperators(
-                maxNumOperatorsToCheck, cacheIndex, currentEpochStartTs, operators, operatorsLength_
-            );
-
-            // This is the first batch (cacheIndex == 0) and all of the operators are being processed in this batch (operatorsLength_ <= MiddlewareStorage.MAX_OPERATORS_TO_PROCESS) and they are all inactive, so we don't need to send anything
-            if (cacheIndex == 0 && operatorsLength_ <= MiddlewareStorage.MAX_OPERATORS_TO_PROCESS && !atLeastOneActive)
-            {
-                return (false, hex"");
-            }
-
-            // encode values to be used in performUpkeep
-            return (true, abi.encode(MiddlewareCRELogic.CACHE_DATA_COMMAND, epoch, validatorsData));
-        }
-
-        //Should be at least once per epoch, but not more than once per interval
-        if ((Time.timestamp() - $.lastTimestamp) > $.interval) {
-            // This will use the cached values, resulting in just a simple sorting operation. We can know a priori how much it cost since it's just an address with a uint256 power. Worst case we can split this too.
-            bytes32[] memory sortedKeys = sortOperatorsByPower(epoch);
-
-            uint256 maxOperatorsToSend = MiddlewareStorage.MAX_OPERATORS_TO_SEND;
-            if (sortedKeys.length > maxOperatorsToSend) {
-                assembly ("memory-safe") {
-                    mstore(sortedKeys, maxOperatorsToSend)
-                }
-            }
-            performData = abi.encode(MiddlewareCRELogic.SEND_DATA_COMMAND, epoch, sortedKeys);
-            return (true, performData);
-        }
-
-        return (false, hex"");
     }
 
     function _getValidatorDataForOperators(

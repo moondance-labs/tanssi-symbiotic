@@ -15,6 +15,7 @@ cache_path = "forge-cache"
 remappings = [
     '@openzeppelin/contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/',
     '@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/',
+    '@tanssi-meta-middleware/=lib/tanssi-meta-middleware/src/',
     '@symbiotic-middleware/=lib/middleware-sdk/src/',
     '@symbiotic/=lib/middleware-sdk/lib/core/src/',
     '@snowbridge/=lib/snowbridge/',

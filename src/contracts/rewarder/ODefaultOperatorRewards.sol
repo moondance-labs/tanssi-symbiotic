@@ -33,11 +33,6 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 //**************************************************************************************************
-//                                      SNOWBRIDGE
-//**************************************************************************************************
-import {ScaleCodec} from "@snowbridge/contracts/src/utils/ScaleCodec.sol";
-
-//**************************************************************************************************
 //                                      TANSSI
 //**************************************************************************************************
 import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
@@ -244,7 +239,7 @@ contract ODefaultOperatorRewards is
             !MerkleProof.verifyCalldata(
                 input.proof,
                 eraRoot_.root,
-                keccak256(abi.encodePacked(input.operatorKey, ScaleCodec.encodeU32(input.totalPointsClaimable)))
+                keccak256(abi.encodePacked(input.operatorKey, _encodeU32(input.totalPointsClaimable)))
             )
         ) {
             revert ODefaultOperatorRewards__InvalidProof();
@@ -515,5 +510,19 @@ contract ODefaultOperatorRewards is
         if (address_ == address(0)) {
             revert ODefaultOperatorRewards__InvalidAddress();
         }
+    }
+
+    function _encodeU32(
+        uint32 input
+    ) private pure returns (bytes4) {
+        uint32 v = input;
+
+        // swap bytes
+        v = ((v & 0xFF00FF00) >> 8) | ((v & 0x00FF00FF) << 8);
+
+        // swap 2-byte long pairs
+        v = (v >> 16) | (v << 16);
+
+        bytes4(v);
     }
 }

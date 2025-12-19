@@ -49,18 +49,11 @@ import {MockV3Aggregator} from "@chainlink/tests/MockV3Aggregator.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 //**************************************************************************************************
-//                                      SNOWBRIDGE
-//**************************************************************************************************
-import {OperatingMode, ParaID} from "@snowbridge/contracts/src/Types.sol";
-import {MockGateway} from "@snowbridge/contracts/test/mocks/MockGateway.sol";
-import {GatewayProxy} from "@snowbridge/contracts/src/GatewayProxy.sol";
-import {AgentExecutor} from "@snowbridge/contracts/src/AgentExecutor.sol";
-import {SetOperatingModeParams} from "@snowbridge/contracts/src/Params.sol";
-import {IOGateway} from "@snowbridge/contracts/src/interfaces/IOGateway.sol";
-import {Gateway} from "@snowbridge/contracts/src/Gateway.sol";
-import {MockOGateway} from "@snowbridge/contracts/test/mocks/MockOGateway.sol";
 
-import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
+//**************************************************************************************************
+//                                      TANSSI META MIDDLEWARE
+//**************************************************************************************************
+import {TanssiMetaMiddleware} from "lib/tanssi-meta-middleware/src/contracts/TanssiMetaMiddleware.sol";
 
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {OBaseMiddlewareReaderForwarder} from "src/contracts/middleware/OBaseMiddlewareReaderForwarder.sol";
@@ -79,7 +72,6 @@ import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperato
 import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {RewardsHintsBuilder} from "src/contracts/rewarder/RewardsHintsBuilder.sol";
-import {MiddlewareCRELogic} from "src/contracts/libraries/MiddlewareCRELogic.sol";
 import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
 
 contract FullTest is Test {
@@ -183,22 +175,9 @@ contract FullTest is Test {
         address slasher;
     }
 
-    struct GatewayParams {
-        OperatingMode operatingMode;
-        ParaID assetHubParaID;
-        bytes32 assetHubAgentID;
-        uint128 outboundFee;
-        uint128 registerTokenFee;
-        uint128 sendTokenFee;
-        uint128 createTokenFee;
-        uint128 maxDestinationFee;
-        uint8 foreignTokenDecimals;
-        UD60x18 exchangeRate;
-        UD60x18 multiplier;
-    }
-
     Middleware public middleware;
     OBaseMiddlewareReaderForwarder public middlewareReaderForwarder;
+    TanssiMetaMiddleware public metaMiddleware;
     DelegatorFactory public delegatorFactory;
     SlasherFactory public slasherFactory;
     VaultFactory public vaultFactory;
@@ -302,7 +281,7 @@ contract FullTest is Test {
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
         operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
         operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware));
-        _deployGateway();
+        _deployMetaMiddleware();
 
         middleware.setGateway(address(gateway));
         middleware.setCollateralToOracle(address(STAR), starOracle);
@@ -445,55 +424,8 @@ contract FullTest is Test {
         return address(oracle);
     }
 
-    function _deployGateway() private returns (address) {
-        ParaID bridgeHubParaID = ParaID.wrap(1013);
-        bytes32 bridgeHubAgentID = 0x03170a2e7597b7b7e3d84c05391d139a62b157e78786d8c082f29dcf4c111314;
-
-        ParaID assetHubParaID = ParaID.wrap(1000);
-        bytes32 assetHubAgentID = 0x81c5ab2571199e3188135178f3c2c8e2d268be1313d029b30f534fa579b69b79;
-
-        GatewayParams memory params = GatewayParams({
-            operatingMode: OperatingMode.Normal,
-            outboundFee: 1e10,
-            registerTokenFee: 0,
-            sendTokenFee: 1e10,
-            createTokenFee: 1e10,
-            maxDestinationFee: 1e11,
-            foreignTokenDecimals: 10,
-            exchangeRate: ud60x18(0.0025e18),
-            multiplier: ud60x18(1e18),
-            assetHubParaID: assetHubParaID,
-            assetHubAgentID: assetHubAgentID
-        });
-
-        AgentExecutor executor = new AgentExecutor();
-        MockOGateway gatewayLogic = new MockOGateway(
-            address(0),
-            address(executor),
-            bridgeHubParaID,
-            bridgeHubAgentID,
-            params.foreignTokenDecimals,
-            params.maxDestinationFee
-        );
-        Gateway.Config memory config = Gateway.Config({
-            mode: OperatingMode.Normal,
-            deliveryCost: params.outboundFee,
-            registerTokenFee: params.registerTokenFee,
-            assetHubParaID: params.assetHubParaID,
-            assetHubAgentID: params.assetHubAgentID,
-            assetHubCreateAssetFee: params.createTokenFee,
-            assetHubReserveTransferFee: params.sendTokenFee,
-            exchangeRate: params.exchangeRate,
-            multiplier: params.multiplier,
-            rescueOperator: 0x4B8a782D4F03ffcB7CE1e95C5cfe5BFCb2C8e967
-        });
-        gateway = address(new GatewayProxy(address(gatewayLogic), abi.encode(config)));
-        MockGateway(address(gateway)).setCommitmentsAreVerified(true);
-
-        SetOperatingModeParams memory operatingModeParams = SetOperatingModeParams({mode: OperatingMode.Normal});
-        MockGateway(address(gateway)).setOperatingModePublic(abi.encode(operatingModeParams));
-        IOGateway(address(gateway)).setMiddleware(address(middleware));
-        return address(gateway);
+    function _deployMetaMiddleware() private {
+        // TODO migration: implement
     }
 
     function _registerEntitiesToMiddleware(
@@ -1377,24 +1309,25 @@ contract FullTest is Test {
         uint256 expectedRewardsForStakersFromOperator2;
         uint256 expectedRewardsForStakersFromOperator3;
 
-        {
-            vm.prank(owner);
-            middleware.setForwarder(forwarder);
+        // TODO migration: Adapt this test to the new meta middleware
+        // {
+        //     vm.prank(owner);
+        //     middleware.setForwarder(forwarder);
 
-            uint256 gasBefore = gasleft();
-            (, bytes memory performData) = middleware.prepareDataForSendingToGateway();
-            console2.log("Gas used to checkUpkeep:", gasBefore - gasleft());
-            (uint8 command, uint48 encodedEpoch,) =
-                abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
-            assertEq(encodedEpoch, epoch);
-            assertEq(command, MiddlewareCRELogic.CACHE_DATA_COMMAND);
+        //     uint256 gasBefore = gasleft();
+        //     (, bytes memory performData) = middleware.prepareDataForSendingToGateway();
+        //     console2.log("Gas used to checkUpkeep:", gasBefore - gasleft());
+        //     (uint8 command, uint48 encodedEpoch,) =
+        //         abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
+        //     assertEq(encodedEpoch, epoch);
+        //     assertEq(command, MiddlewareCRELogic.CACHE_DATA_COMMAND);
 
-            vm.startPrank(forwarder);
-            gasBefore = gasleft();
-            bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-            middleware.onReport(WORKFLOW_METADATA, report);
-            console2.log("Gas used to performUpkeep:", gasBefore - gasleft());
-        }
+        //     vm.startPrank(forwarder);
+        //     gasBefore = gasleft();
+        //     bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+        //     middleware.onReport(WORKFLOW_METADATA, report);
+        //     console2.log("Gas used to performUpkeep:", gasBefore - gasleft());
+        // }
 
         // Operator 1
         {

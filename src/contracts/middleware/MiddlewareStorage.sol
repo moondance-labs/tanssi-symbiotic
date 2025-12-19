@@ -18,15 +18,14 @@ import {IVault} from "@symbiotic/interfaces/vault/IVault.sol";
 //**************************************************************************************************
 //                                      SNOWBRIDGE
 //**************************************************************************************************
-import {IOGateway} from "@snowbridge/contracts/src/interfaces/IOGateway.sol";
-
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
+import {ITanssiMetaMiddleware} from "@tanssi-meta-middleware/interfaces/ITanssiMetaMiddleware.sol";
 
 library MiddlewareStorage {
     /// @custom:storage-location erc7201:tanssi.middleware.MiddlewareStorage.v1.1
     struct StorageMiddleware {
-        address gateway;
+        address _legacyGateway;
         uint256 lastTimestamp;
         uint256 interval;
         address forwarderAddress;
@@ -35,6 +34,7 @@ library MiddlewareStorage {
         uint256 lastExecutionBlock;
         address i_operatorRewards;
         address i_stakerRewardsFactory;
+        ITanssiMetaMiddleware i_metaMiddleware;
     }
 
     struct StorageMiddlewareCache {
@@ -56,7 +56,7 @@ library MiddlewareStorage {
     uint256 public constant MIN_INTERVAL_TO_SEND_OPERATOR_KEYS = 50; // 50 blocks of ~12 seconds each ≈ 600 seconds ≈ 10 minutes
     uint256 public constant MAX_OPERATORS_TO_PROCESS = 10;
     uint256 public constant MAX_OPERATORS_TO_SEND = 58; // This will result in a performData size of 1984 bytes, just below the 2000 bytes limit for the performData: https://docs.chain.link/chainlink-automation/overview/supported-networks
-    bytes32 internal constant GATEWAY_ROLE = keccak256("GATEWAY_ROLE");
+    bytes32 internal constant META_MIDDLEWARE_ROLE = keccak256("META_MIDDLEWARE_ROLE");
     bytes32 internal constant FORWARDER_ROLE = keccak256("FORWARDER_ROLE");
     uint256 public constant MAX_ACTIVE_VAULTS = 80;
 
@@ -69,24 +69,6 @@ library MiddlewareStorage {
             revert IMiddleware.Middleware__InvalidAddress();
         }
         $.vaultToCollateral[vault] = collateral;
-    }
-
-    function sendCurrentOperatorsKeys(
-        uint48 epoch
-    ) external returns (bytes32[] memory sortedKeys) {
-        StorageMiddleware storage $ = getMiddlewareStorage();
-        if (block.number < $.lastExecutionBlock + MIN_INTERVAL_TO_SEND_OPERATOR_KEYS) {
-            return sortedKeys;
-        }
-
-        address gateway = $.gateway;
-        if (gateway == address(0)) {
-            revert IMiddleware.Middleware__GatewayNotSet();
-        }
-
-        $.lastExecutionBlock = block.number;
-        sortedKeys = IOBaseMiddlewareReader(address(this)).sortOperatorsByPower(epoch);
-        IOGateway(gateway).sendOperatorsData(sortedKeys, epoch);
     }
 
     /**
@@ -120,15 +102,6 @@ library MiddlewareStorage {
     }
 
     /**
-     * @notice Get the gateway contract
-     * @return gateway contract
-     */
-    function getGateway() public view returns (address) {
-        StorageMiddleware storage $ = getMiddlewareStorage();
-        return $.gateway;
-    }
-
-    /**
      * @notice Get the last timestamp
      * @return last timestamp
      */
@@ -144,6 +117,15 @@ library MiddlewareStorage {
     function getForwarderAddress() public view returns (address) {
         StorageMiddleware storage $ = getMiddlewareStorage();
         return $.forwarderAddress;
+    }
+
+    /**
+     * @notice Get the meta middleware contract
+     * @return meta middleware contract
+     */
+    function getMetaMiddlewareAddress() public view returns (address) {
+        StorageMiddleware storage $ = getMiddlewareStorage();
+        return address($.i_metaMiddleware);
     }
 
     /**

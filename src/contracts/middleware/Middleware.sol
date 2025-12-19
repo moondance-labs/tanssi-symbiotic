@@ -15,11 +15,6 @@
 pragma solidity 0.8.25;
 
 //**************************************************************************************************
-//                                      CHAINLINK
-//**************************************************************************************************
-import {IReceiverTemplate} from "src/interfaces/extensions/cre/IReceiverTemplate.sol";
-
-//**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -43,9 +38,10 @@ import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-ti
 import {VaultManager} from "@symbiotic-middleware/managers/VaultManager.sol";
 
 //**************************************************************************************************
-//                                      SNOWBRIDGE
+//                                      TANSSI META MIDDLEWARE
 //**************************************************************************************************
-import {IOGateway} from "@snowbridge/contracts/src/interfaces/IOGateway.sol";
+import {ITanssiCommonMiddleware} from "@tanssi-meta-middleware/interfaces/ITanssiCommonMiddleware.sol";
+import {ITanssiMetaMiddleware} from "@tanssi-meta-middleware/interfaces/ITanssiMetaMiddleware.sol";
 
 //**************************************************************************************************
 //                                      TANSSI
@@ -57,7 +53,6 @@ import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {OSharedVaults} from "src/contracts/extensions/OSharedVaults.sol";
 import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
 import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
-import {MiddlewareCRELogic} from "src/contracts/libraries/MiddlewareCRELogic.sol";
 
 contract Middleware is
     UUPSUpgradeable,
@@ -66,8 +61,8 @@ contract Middleware is
     KeyManager256,
     OzAccessControl,
     EpochCapture,
-    IReceiverTemplate,
-    IMiddleware
+    IMiddleware,
+    ITanssiCommonMiddleware
 {
     using Subnetwork for address;
     using Math for uint256;
@@ -121,9 +116,6 @@ contract Middleware is
         __UUPSUpgradeable_init();
 
         _grantRole(DEFAULT_ADMIN_ROLE, params.owner);
-        _setSelectorRole(this.distributeRewards.selector, MiddlewareStorage.GATEWAY_ROLE);
-        _setSelectorRole(this.slash.selector, MiddlewareStorage.GATEWAY_ROLE);
-        _setSelectorRole(this.onReport.selector, MiddlewareStorage.FORWARDER_ROLE);
     }
 
     /*
@@ -144,7 +136,8 @@ contract Middleware is
      * @notice Reinitialize to set the onReport selector role
      */
     function reinitialize() external reinitializer(4) {
-        _setSelectorRole(this.onReport.selector, MiddlewareStorage.FORWARDER_ROLE);
+        _setSelectorRole(this.distributeRewards.selector, MiddlewareStorage.META_MIDDLEWARE_ROLE);
+        _setSelectorRole(this.slash.selector, MiddlewareStorage.META_MIDDLEWARE_ROLE);
     }
 
     function _validateInitParams(
@@ -175,21 +168,21 @@ contract Middleware is
     /**
      * @inheritdoc IMiddleware
      */
-    function setGateway(
-        address newGateway
-    ) external checkAccess notZeroAddress(newGateway) {
+    function setMetaMiddleware(
+        address metaMiddleware
+    ) external checkAccess notZeroAddress(metaMiddleware) {
         MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
-        address oldGateway = $.gateway;
+        address oldMetaMiddleware = address($.i_metaMiddleware);
 
-        if (newGateway == oldGateway) {
+        if (metaMiddleware == oldMetaMiddleware) {
             revert Middleware__AlreadySet();
         }
 
-        $.gateway = newGateway;
-        _revokeRole(MiddlewareStorage.GATEWAY_ROLE, oldGateway);
-        _grantRole(MiddlewareStorage.GATEWAY_ROLE, newGateway);
+        $.i_metaMiddleware = ITanssiMetaMiddleware(metaMiddleware);
+        _revokeRole(MiddlewareStorage.META_MIDDLEWARE_ROLE, oldMetaMiddleware);
+        _grantRole(MiddlewareStorage.META_MIDDLEWARE_ROLE, metaMiddleware);
 
-        emit GatewaySet(newGateway);
+        emit MetaMiddlewareSet(address(metaMiddleware));
     }
 
     /**
@@ -257,47 +250,15 @@ contract Middleware is
     /**
      * @inheritdoc IMiddleware
      */
-    function distributeRewards(
-        uint256 epoch,
-        uint256 eraIndex,
-        uint256 totalPoints,
-        uint256 tokenAmount,
-        bytes32 rewardsRoot,
-        address tokenAddress
-    ) external checkAccess {
-        if (IERC20(tokenAddress).balanceOf(address(this)) < tokenAmount) {
-            revert Middleware__InsufficientBalance();
-        }
-
-        MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
-        IERC20(tokenAddress).approve($.i_operatorRewards, tokenAmount);
-
-        IODefaultOperatorRewards($.i_operatorRewards).distributeRewards(
-            uint48(epoch), uint48(eraIndex), tokenAmount, totalPoints, rewardsRoot, tokenAddress
-        );
-    }
-
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function sendCurrentOperatorsKeys() external returns (bytes32[] memory sortedKeys) {
-        uint48 epoch = getCurrentEpoch();
-        sortedKeys = MiddlewareStorage.sendCurrentOperatorsKeys(epoch);
-    }
-
-    /**
-     * @inheritdoc IMiddleware
-     */
     function prepareDataForSendingToGateway() external view returns (bool upkeepNeeded, bytes memory performData) {
         (upkeepNeeded, performData) = IOBaseMiddlewareReader(address(this)).auxiliaryPrepareDataForSendingToGateway();
     }
 
     /**
-     * @inheritdoc IMiddleware
+     * @inheritdoc ITanssiCommonMiddleware
      */
-    function slash(uint48 epoch, bytes32 operatorKey, uint256 percentage) external checkAccess {
+    function slash(uint48 epoch, address operator, uint256 percentage) external checkAccess {
         uint48 epochStartTs = IOBaseMiddlewareReader(address(this)).getEpochStart(epoch);
-        address operator = operatorByKey(abi.encode(operatorKey));
 
         if (epochStartTs + _SLASHING_WINDOW() < Time.timestamp()) {
             revert Middleware__TooOldEpoch();
@@ -305,11 +266,6 @@ contract Middleware is
 
         if (epochStartTs > Time.timestamp()) {
             revert Middleware__InvalidEpoch();
-        }
-
-        // If address is 0, then we should return
-        if (operator == address(0)) {
-            revert Middleware__OperatorNotFound(operatorKey, epoch);
         }
 
         // Sanitization: check percentage is below 100% (or 1 billion in other words)
@@ -347,6 +303,75 @@ contract Middleware is
         assembly {
             sstore(ReaderStorageLocation_, reader)
         }
+    }
+
+    /**
+     * @inheritdoc ITanssiCommonMiddleware
+     */
+    function prepareRewardsDistributionData(
+        uint48 eraIndex,
+        address rewardsToken
+    ) external view returns (bytes memory rewardsDistributionData) {
+        rewardsDistributionData = new bytes(0);
+    }
+
+    /**
+     * @inheritdoc ITanssiCommonMiddleware
+     */
+    function prepareRewardsDistributionDataFromOperatorRewards(
+        uint48 eraIndex,
+        address rewardsToken,
+        ITanssiMetaMiddleware.OperatorReward[] memory operatorRewards
+    ) external view returns (bytes memory rewardsDistributionData) {
+        rewardsDistributionData = new bytes(0);
+    }
+
+    /**
+     * @inheritdoc ITanssiCommonMiddleware
+     */
+    function distributeRewards(
+        uint48 eraIndex,
+        address tokenAddress,
+        bytes memory rewardsDistributionData
+    ) external returns (bool distributionComplete) {
+        MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
+        ITanssiMetaMiddleware.EraRoot memory eraRoot = $.i_metaMiddleware.getEraRoot(eraIndex);
+
+        uint256 tokenAmount = eraRoot.totalAmount;
+
+        if (IERC20(tokenAddress).balanceOf(address(this)) < tokenAmount) {
+            revert Middleware__InsufficientBalance();
+        }
+
+        IERC20(tokenAddress).approve($.i_operatorRewards, tokenAmount);
+
+        IODefaultOperatorRewards($.i_operatorRewards).distributeRewards(
+            eraRoot.epoch, eraIndex, tokenAmount, eraRoot.totalPoints, eraRoot.root, tokenAddress
+        );
+
+        distributionComplete = true;
+    }
+
+    function activeOperatorsAtEpoch(
+        uint48 epoch
+    ) external view returns (address[] memory) {
+        uint48 epochStartTs = getEpochStart(epoch);
+        return _activeOperatorsAt(epochStartTs);
+    }
+
+    function getMetaMiddleware() external view returns (address) {
+        MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
+        return address($.i_metaMiddleware);
+    }
+
+    function transferRewards(uint48 eraIndex, address tokenAddress, uint256 totalRewards) external {
+        // TODO migration: Implement this
+        // MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
+        // if ($.rewardsPerEra[eraIndex][tokenAddress] != 0) {
+        //     revert Middleware__RewardsAlreadyTransferredForEra();
+        // }
+        // $.rewardsPerEra[eraIndex][tokenAddress] = totalRewards;
+        // IERC20(tokenAddress).safeTransferFrom(msg.sender, address(this), totalRewards);
     }
 
     /**
@@ -400,33 +425,6 @@ contract Middleware is
         address operator
     ) internal override {
         _updateKey(operator, abi.encode(bytes32(0)));
-    }
-
-    function _processReport(
-        bytes calldata report
-    ) internal override {
-        uint8 executionCode;
-        bytes calldata performData;
-
-        assembly {
-            executionCode := calldataload(report.offset)
-
-            // Create the 'performData' slice manually
-            // The length of the inner bytes is stored at offset 64 (0x40)
-            let len := calldataload(add(report.offset, 64))
-
-            // The actual data starts at offset 96 (0x60)
-            // (32 bytes code + 32 bytes offset_ptr + 32 bytes length_prefix)
-            let ptr := add(report.offset, 96)
-
-            // Assign to the 'performData' stack variable
-            performData.offset := ptr
-            performData.length := len
-        }
-
-        if (executionCode == MiddlewareCRELogic.CRE_CACHE_DATA_COMMAND) {
-            MiddlewareCRELogic.cacheAndSendOperatorsFlow(performData, getCurrentEpoch(), _operatorsLength());
-        } else {}
     }
 
     function _checkNotZeroAddress(

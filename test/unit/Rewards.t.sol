@@ -42,11 +42,6 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 //**************************************************************************************************
-//                                      SNOWBRIDGE
-//**************************************************************************************************
-import {ScaleCodec} from "@snowbridge/contracts/src/utils/ScaleCodec.sol";
-
-//**************************************************************************************************
 //                                      TANSSI
 //**************************************************************************************************
 

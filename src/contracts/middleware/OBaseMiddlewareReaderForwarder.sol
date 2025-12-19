@@ -635,11 +635,11 @@ contract OBaseMiddlewareReaderForwarder {
     }
 
     /**
-     * @notice Get the gateway contract
-     * @return The gateway contract address
+     * @notice Get the meta middleware contract
+     * @return The meta middleware contract address
      */
-    function getGateway() external view returns (address) {
-        return OBaseMiddlewareReader(address(middleware)).getGateway();
+    function getMetaMiddleware() external view returns (address) {
+        return OBaseMiddlewareReader(address(middleware)).getMetaMiddleware();
     }
 
     /**

@@ -63,19 +63,13 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 //**************************************************************************************************
-//                                      SNOWBRIDGE
+//                                      TANSSI META MIDDLEWARE
 //**************************************************************************************************
-import {CreateAgentParams, CreateChannelParams} from "@snowbridge/contracts/src/Params.sol";
-import {OperatingMode, ParaID} from "@snowbridge/contracts/src/Types.sol";
-import {MockGateway} from "@snowbridge/contracts/test/mocks/MockGateway.sol";
-import {GatewayProxy} from "@snowbridge/contracts/src/GatewayProxy.sol";
-import {AgentExecutor} from "@snowbridge/contracts/src/AgentExecutor.sol";
-import {SetOperatingModeParams} from "@snowbridge/contracts/src/Params.sol";
-import {IOGateway} from "@snowbridge/contracts/src/interfaces/IOGateway.sol";
-import {Gateway} from "@snowbridge/contracts/src/Gateway.sol";
-import {MockOGateway} from "@snowbridge/contracts/test/mocks/MockOGateway.sol";
+import {TanssiMetaMiddleware} from "lib/tanssi-meta-middleware/src/contracts/TanssiMetaMiddleware.sol";
 
-import {UD60x18, ud60x18} from "prb/math/src/UD60x18.sol";
+//**************************************************************************************************
+//                                      TANSSI
+//**************************************************************************************************
 
 import {DIAOracleMock} from "test/mocks/DIAOracleMock.sol";
 import {AggregatorV3DIAProxy} from "src/contracts/oracle-proxy/AggregatorV3DIAProxy.sol";
@@ -96,7 +90,6 @@ import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperato
 import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {TestUtils} from "test/utils/Utils.t.sol";
-import {MiddlewareCRELogic} from "src/contracts/libraries/MiddlewareCRELogic.sol";
 import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
 
 contract MiddlewareTest is Test {
@@ -168,20 +161,6 @@ contract MiddlewareTest is Test {
         address slasherVetoed;
     }
 
-    struct GatewayParams {
-        OperatingMode operatingMode;
-        ParaID assetHubParaID;
-        bytes32 assetHubAgentID;
-        uint128 outboundFee;
-        uint128 registerTokenFee;
-        uint128 sendTokenFee;
-        uint128 createTokenFee;
-        uint128 maxDestinationFee;
-        uint8 foreignTokenDecimals;
-        UD60x18 exchangeRate;
-        UD60x18 multiplier;
-    }
-
     Middleware public middleware;
     OBaseMiddlewareReaderForwarder public readerForwarder;
     DelegatorFactory public delegatorFactory;
@@ -224,7 +203,7 @@ contract MiddlewareTest is Test {
 
     address tanssi;
     address otherNetwork;
-    address gateway;
+    TanssiMetaMiddleware metaMiddleware;
 
     VaultAddresses public vaultAddresses;
     Vault vault;
@@ -313,8 +292,8 @@ contract MiddlewareTest is Test {
         operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
         operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware));
 
-        _createGateway();
-        middleware.setGateway(address(gateway));
+        _deployMetaMiddleware();
+        middleware.setMetaMiddleware(address(metaMiddleware));
         middleware.setCollateralToOracle(address(stETH), stEthOracle);
         middleware.setCollateralToOracle(address(rETH), rEthOracle);
         middleware.setCollateralToOracle(address(wBTC), wBtcOracle);
@@ -537,6 +516,10 @@ contract MiddlewareTest is Test {
         return sharesCount.mulDiv(stake, totalShares);
     }
 
+    function _deployMetaMiddleware() private {
+        // TODO migration: implement
+    }
+
     // ************************************************************************************************
     // *                                        BASE TESTS
     // ************************************************************************************************
@@ -660,7 +643,7 @@ contract MiddlewareTest is Test {
 
         uint256 slashingPower = (SLASHING_FRACTION * powerFromSharesOperator2) / PARTS_PER_BILLION;
 
-        vm.prank(gateway);
+        vm.prank(address(metaMiddleware));
         middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
         vm.prank(resolver1);
@@ -686,7 +669,7 @@ contract MiddlewareTest is Test {
         // We go directly to epochStart as it 100% ensure that the epoch is started and thus the slashing is invalid
         vm.warp(epochStartTs);
 
-        vm.prank(gateway);
+        vm.prank(address(metaMiddleware));
         vm.expectRevert(IVetoSlasher.InvalidCaptureTimestamp.selector);
         middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
         vm.stopPrank();
@@ -703,7 +686,7 @@ contract MiddlewareTest is Test {
         // 150%
         uint256 slashingFraction = (3 * PARTS_PER_BILLION) / 2;
 
-        vm.prank(gateway);
+        vm.prank(address(metaMiddleware));
         vm.expectRevert(
             abi.encodeWithSelector(
                 IMiddleware.Middleware__SlashPercentageTooBig.selector, currentEpoch, operator2, slashingFraction
@@ -719,7 +702,7 @@ contract MiddlewareTest is Test {
         // We calculate the amount slashable for only the operator2 since it's the only one that should be slashed. As a side effect operator3 will be slashed too since it's taking part in a NetworkRestake delegator based vault
         uint256 slashingPower = (SLASHING_FRACTION * powerFromSharesOperator2) / PARTS_PER_BILLION;
 
-        vm.prank(gateway);
+        vm.prank(address(metaMiddleware));
         middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
         vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
@@ -745,7 +728,7 @@ contract MiddlewareTest is Test {
         // We only take half of the operator3 shares, since only its participation on vaultSlashable will be slashed, regular vault isn't affected
         uint256 slashingPower = (SLASHING_FRACTION * (powerFromSharesOperator3 / 2)) / PARTS_PER_BILLION;
 
-        vm.prank(gateway);
+        vm.prank(address(metaMiddleware));
         middleware.slash(currentEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
 
         vm.prank(resolver1);
@@ -771,7 +754,7 @@ contract MiddlewareTest is Test {
         // We only take half of the operator3 shares, since only its participation on vaultSlashable will be slashed, regular vault isn't affected
         uint256 slashingPower = (SLASHING_FRACTION * powerFromSharesOperator3 / 2) / PARTS_PER_BILLION;
 
-        vm.prank(gateway);
+        vm.prank(address(metaMiddleware));
         middleware.slash(currentEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
 
         vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
@@ -798,7 +781,7 @@ contract MiddlewareTest is Test {
         vm.prank(owner);
         middleware.pauseSharedVault(vaultAddresses.vaultSlashable);
 
-        vm.prank(gateway);
+        vm.prank(address(metaMiddleware));
         middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
         vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
@@ -822,7 +805,7 @@ contract MiddlewareTest is Test {
         // We calculate the amount slashable for only the operator2 since it's the only one that should be slashed. As a side effect operator3 will be slashed too since it's taking part in a NetworkRestake delegator based vault
         uint256 slashingPower = (SLASHING_FRACTION * powerFromSharesOperator2) / PARTS_PER_BILLION;
 
-        vm.prank(gateway);
+        vm.prank(address(metaMiddleware));
         //! Why this slash should anyway go through if operator was paused? Shouldn't it revert?
         middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
@@ -852,7 +835,7 @@ contract MiddlewareTest is Test {
         bytes32 differentOperatorKey = bytes32(uint256(10));
         middleware.updateOperatorKey(operator2, abi.encode(differentOperatorKey));
 
-        vm.startPrank(gateway);
+        vm.startPrank(address(metaMiddleware));
         middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
 
         vm.startPrank(resolver1);
@@ -1099,71 +1082,7 @@ contract MiddlewareTest is Test {
         assertEq(validators[4].power, totalPowerOperator);
     }
 
-    function _createGateway() internal returns (address) {
-        ParaID bridgeHubParaID = ParaID.wrap(1013);
-        bytes32 bridgeHubAgentID = 0x03170a2e7597b7b7e3d84c05391d139a62b157e78786d8c082f29dcf4c111314;
-
-        ParaID assetHubParaID = ParaID.wrap(1000);
-        bytes32 assetHubAgentID = 0x81c5ab2571199e3188135178f3c2c8e2d268be1313d029b30f534fa579b69b79;
-
-        GatewayParams memory params = GatewayParams({
-            operatingMode: OperatingMode.Normal,
-            outboundFee: 1e10,
-            registerTokenFee: 0,
-            sendTokenFee: 1e10,
-            createTokenFee: 1e10,
-            maxDestinationFee: 1e11,
-            foreignTokenDecimals: 10,
-            exchangeRate: ud60x18(0.0025e18),
-            multiplier: ud60x18(1e18),
-            assetHubParaID: assetHubParaID,
-            assetHubAgentID: assetHubAgentID
-        });
-
-        AgentExecutor executor = new AgentExecutor();
-        MockOGateway gatewayLogic = new MockOGateway(
-            address(0),
-            address(executor),
-            bridgeHubParaID,
-            bridgeHubAgentID,
-            params.foreignTokenDecimals,
-            params.maxDestinationFee
-        );
-        Gateway.Config memory config = Gateway.Config({
-            mode: OperatingMode.Normal,
-            deliveryCost: params.outboundFee,
-            registerTokenFee: params.registerTokenFee,
-            assetHubParaID: params.assetHubParaID,
-            assetHubAgentID: params.assetHubAgentID,
-            assetHubCreateAssetFee: params.createTokenFee,
-            assetHubReserveTransferFee: params.sendTokenFee,
-            exchangeRate: params.exchangeRate,
-            multiplier: params.multiplier,
-            rescueOperator: 0x4B8a782D4F03ffcB7CE1e95C5cfe5BFCb2C8e967
-        });
-        gateway = address(new GatewayProxy(address(gatewayLogic), abi.encode(config)));
-        MockGateway(address(gateway)).setCommitmentsAreVerified(true);
-
-        SetOperatingModeParams memory operatingModeParams = SetOperatingModeParams({mode: OperatingMode.Normal});
-        MockGateway(address(gateway)).setOperatingModePublic(abi.encode(operatingModeParams));
-        IOGateway(address(gateway)).setMiddleware(address(middleware));
-        return address(gateway);
-    }
-
-    function _createParaIDAndAgent(
-        IOGateway _gateway
-    ) public returns (ParaID) {
-        ParaID paraID = ParaID.wrap(1);
-        bytes32 agentID = keccak256("1");
-
-        MockGateway(address(_gateway)).createAgentPublic(abi.encode(CreateAgentParams({agentID: agentID})));
-
-        CreateChannelParams memory params =
-            CreateChannelParams({channelID: paraID.into(), agentID: agentID, mode: OperatingMode.Normal});
-
-        MockGateway(address(_gateway)).createChannelPublic(abi.encode(params));
-        return paraID;
-    }
+    function _createGateway() internal returns (address) {}
 
     function _addOperatorsToNetwork(
         uint256 _count
@@ -1457,498 +1376,6 @@ contract MiddlewareTest is Test {
         _assertDataIsValidAndSorted(validators, sortedValidators, count);
     }
 
-    // ************************************************************************************************
-    // *                                        UPKEEP
-    // ************************************************************************************************
-
-    function testUpkeep() public {
-        vm.prank(owner);
-        middleware.setForwarder(forwarder);
-        // It's not needed, it's just for explaining and showing the flow
-        address offlineKeepers = makeAddr("offlineKeepers");
-        vm.startPrank(offlineKeepers);
-        (bool upkeepNeeded, bytes memory performData) = middleware.prepareDataForSendingToGateway();
-        assertEq(upkeepNeeded, false);
-
-        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
-        (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
-        assertEq(upkeepNeeded, true);
-
-        vm.startPrank(forwarder);
-        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-        middleware.onReport(WORKFLOW_METADATA, report);
-        uint48 epoch = middleware.getCurrentEpoch();
-
-        uint256 operator1Power = readerForwarder.getOperatorToPowerCached(epoch, OPERATOR_KEY);
-        uint256 operator2Power = readerForwarder.getOperatorToPowerCached(epoch, OPERATOR2_KEY);
-        uint256 operator3Power = readerForwarder.getOperatorToPowerCached(epoch, OPERATOR3_KEY);
-
-        (uint256 totalOperatorPowerAfter,) = _calculateOperatorPower(totalPowerVault, 0, 0);
-        (uint256 totalOperator2PowerAfter,) =
-            _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, 0);
-        (uint256 totalOperator3PowerAfter,) =
-            _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, totalFullRestakePower, 0);
-
-        assertEq(operator1Power, totalOperatorPowerAfter);
-        assertEq(operator2Power, totalOperator2PowerAfter);
-        assertEq(operator3Power, totalOperator3PowerAfter);
-
-        vm.startPrank(offlineKeepers);
-        (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
-        assertEq(upkeepNeeded, true);
-
-        (uint8 command, uint48 encodedEpoch, bytes32[] memory sortedKeys) =
-            abi.decode(performData, (uint8, uint48, bytes32[]));
-        assertEq(epoch, encodedEpoch);
-        assertEq(command, MiddlewareCRELogic.SEND_DATA_COMMAND);
-        assertEq(sortedKeys.length, 3);
-
-        vm.startPrank(forwarder);
-        vm.expectEmit(true, false, false, false);
-        emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
-        report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-        middleware.onReport(WORKFLOW_METADATA, report);
-
-        (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
-        assertEq(upkeepNeeded, false);
-        assertEq(performData.length, 0);
-    }
-
-    function testUpkeepFlowReturnsEarlyIfAllAreInactiveAndFitInOneBatch() public {
-        vm.startPrank(owner);
-        middleware.pauseOperator(operator);
-        middleware.pauseOperator(operator2);
-        middleware.pauseOperator(operator3);
-
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
-        middleware.setForwarder(forwarder);
-        vm.stopPrank();
-
-        uint16 count = uint16(MiddlewareStorage.MAX_OPERATORS_TO_PROCESS) - 1;
-        _addOperatorsToNetwork(count - 3); // 3 operators are already registered
-
-        uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, count);
-        assertEq(totalBatches, 1);
-
-        (bool upkeepNeeded,) = middleware.prepareDataForSendingToGateway();
-        assertEq(upkeepNeeded, false);
-    }
-
-    function testUpkeepFlowCachesInactiveOperatorsIfTheyDontFitInOneBatchEvenIfAllInactive() public {
-        vm.startPrank(owner);
-        middleware.pauseOperator(operator);
-        middleware.pauseOperator(operator2);
-        middleware.pauseOperator(operator3);
-
-        vm.warp(block.timestamp + NETWORK_EPOCH_DURATION + 1);
-        middleware.setForwarder(forwarder);
-        uint48 epoch = middleware.getCurrentEpoch();
-        vm.stopPrank();
-
-        uint16 count = uint16(MiddlewareStorage.MAX_OPERATORS_TO_PROCESS) + 1;
-        _addOperatorsToNetwork(count - 3); // 3 operators are already registered
-        bytes memory performData;
-        bool upkeepNeeded;
-
-        uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, count);
-        for (uint256 i = 0; i < totalBatches; i++) {
-            (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
-            assertEq(upkeepNeeded, true);
-
-            bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-
-            vm.prank(forwarder);
-            middleware.onReport(WORKFLOW_METADATA, report);
-        }
-
-        IOBaseMiddlewareReader reader = IOBaseMiddlewareReader(address(middleware));
-        // After the loop, we should have all operators processed and cache filled
-        uint256 cacheIndex = reader.getEpochCacheIndex(epoch);
-        assertEq(cacheIndex, count);
-
-        // List should be empty, but we still need to call performUpkeep to call the gateway
-        (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
-        assertEq(upkeepNeeded, true);
-        (uint8 command, uint48 encodedEpoch, bytes32[] memory sortedKeys) =
-            abi.decode(performData, (uint8, uint48, bytes32[]));
-        assertEq(command, MiddlewareCRELogic.SEND_DATA_COMMAND);
-        assertEq(encodedEpoch, epoch);
-        assertEq(sortedKeys.length, 0);
-    }
-
-    function testUpkeepIncludingOperatorWithNoPowerViaPeformUpkeep() public {
-        vm.startPrank(owner);
-        middleware.setForwarder(forwarder);
-
-        // Effectively sets power to zero for this operator
-        INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares(tanssi.subnetwork(0), operator, 0);
-
-        vm.warp(block.timestamp + VAULT_EPOCH_DURATION + 1);
-        (bool upkeepNeeded, bytes memory performData) = middleware.prepareDataForSendingToGateway();
-        assertEq(upkeepNeeded, true);
-
-        vm.startPrank(forwarder);
-        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-        middleware.onReport(WORKFLOW_METADATA, report);
-        uint48 epoch = middleware.getCurrentEpoch();
-
-        (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
-        assertEq(upkeepNeeded, true);
-
-        (uint8 command, uint48 encodedEpoch, bytes32[] memory sortedKeys) =
-            abi.decode(performData, (uint8, uint48, bytes32[]));
-        assertEq(epoch, encodedEpoch);
-        assertEq(command, MiddlewareCRELogic.SEND_DATA_COMMAND);
-        assertEq(sortedKeys.length, 2); // Only 2 operators will be sent, the one with power 0 will be ignored
-
-        vm.startPrank(forwarder);
-        vm.expectEmit(true, false, false, false);
-        emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
-        report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-        middleware.onReport(WORKFLOW_METADATA, report);
-
-        (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
-        assertEq(upkeepNeeded, false);
-        assertEq(performData.length, 0);
-    }
-
-    function testUpkeepIncludingOperatorWithNoPowerViaSendCurrentOperatorsKeys() public {
-        vm.startPrank(owner);
-        middleware.setForwarder(forwarder);
-
-        // Effectively sets power to zero for this operator
-        INetworkRestakeDelegator(vaultAddresses.delegator).setOperatorNetworkShares(tanssi.subnetwork(0), operator, 0);
-        vm.stopPrank();
-
-        vm.warp(block.timestamp + VAULT_EPOCH_DURATION + 1);
-        vm.roll(block.number + 50); // Needed so we are not before MIN_INTERVAL_TO_SEND_OPERATOR_KEYS and gateway is actually called
-        vm.expectEmit(true, false, false, false);
-        emit IOGateway.OperatorsDataCreated(2, hex""); // Only 2 operators will be sent, the one with power 0 will be ignored
-        middleware.sendCurrentOperatorsKeys();
-    }
-
-    function testUpkeepFor100OperatorsIn3VaultsSorted() public {
-        uint16 count = 100;
-        _addOperatorsToNetwork(count);
-        count += 3; // 3 operators are already registered
-        vm.prank(owner);
-        middleware.setForwarder(forwarder);
-
-        address offlineKeepers = makeAddr("offlineKeepers");
-
-        vm.startPrank(offlineKeepers);
-        bool upkeepNeeded;
-        bytes memory performData;
-
-        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
-        uint48 epoch = middleware.getCurrentEpoch();
-
-        // This will exhaust and fill the cache in n (count/MiddlewareStorage.MAX_OPERATORS_TO_PROCESS) times
-        uint256 totalGasUsedForCheck = 0;
-        uint256 totalGasUsedForPerform = 0;
-        {
-            uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, count);
-            for (uint256 i = 0; i < totalBatches; i++) {
-                uint256 gasBeforeCheck = gasleft();
-                (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
-                uint256 gasAfterCheck = gasleft();
-                uint256 gasUsedCheck = gasBeforeCheck - gasAfterCheck;
-                totalGasUsedForCheck += gasUsedCheck;
-
-                console2.log("Gas used for check: ", gasUsedCheck);
-                assertEq(upkeepNeeded, true);
-
-                vm.startPrank(forwarder);
-                uint256 gasBeforePerform = gasleft();
-                bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-                middleware.onReport(WORKFLOW_METADATA, report);
-                uint256 gasAfterPerform = gasleft();
-                uint256 gasUsedPerform = gasBeforePerform - gasAfterPerform;
-                totalGasUsedForPerform += gasUsedPerform;
-                console2.log("Gas used for perform: ", gasUsedPerform);
-            }
-        }
-
-        // After the loop, we should have all operators processed and cache filled
-        // Now the keepers will call performUpkeep with the cache and sending the operators keys to the gateway
-        uint256 gasBeforeFinalCheck = gasleft();
-        (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
-        uint256 gasAfterFinalCheck = gasleft();
-        uint256 gasUsedFinalCheck = gasBeforeFinalCheck - gasAfterFinalCheck;
-        totalGasUsedForCheck += gasUsedFinalCheck;
-        console2.log("Gas used for final check: ", gasUsedFinalCheck);
-        assertEq(upkeepNeeded, true);
-
-        (uint8 command, uint48 encodedEpoch, bytes32[] memory sortedKeys) =
-            abi.decode(performData, (uint8, uint48, bytes32[]));
-        assertEq(epoch, encodedEpoch);
-        assertEq(command, MiddlewareCRELogic.SEND_DATA_COMMAND);
-        assertEq(sortedKeys.length, Math.min(count, MiddlewareStorage.MAX_OPERATORS_TO_SEND));
-
-        {
-            vm.startPrank(forwarder);
-            vm.expectEmit(true, false, false, false);
-            emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
-            uint256 gasBeforeFinalPerform = gasleft();
-            bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-            middleware.onReport(WORKFLOW_METADATA, report);
-            uint256 gasAfterFinalPerform = gasleft();
-            uint256 gasUsedFinalPerform = gasBeforeFinalPerform - gasAfterFinalPerform;
-            totalGasUsedForPerform += gasUsedFinalPerform;
-            console2.log("Gas used for final perform: ", gasUsedFinalPerform);
-        }
-
-        console2.log("Total gas used for check: ", totalGasUsedForCheck);
-        console2.log("Total gas used for perform: ", totalGasUsedForPerform);
-        console2.log("Total gas used for upkeep: ", totalGasUsedForCheck + totalGasUsedForPerform);
-        (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
-        assertEq(upkeepNeeded, false);
-
-        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
-        vm.roll(50);
-        uint256 gasBefore = gasleft();
-        middleware.sendCurrentOperatorsKeys();
-        uint256 gasAfter = gasleft();
-        uint256 gasSorted = gasBefore - gasAfter;
-        console2.log("Total gas used for sorting manually: ", gasSorted);
-    }
-
-    function testUpkeepPerformDataShouldBeBelow2000Bytes() public {
-        uint16 count = 37;
-        _addOperatorsToNetwork(count);
-        count += 3; // 3 operators are already registered
-        vm.prank(owner);
-        middleware.setForwarder(forwarder);
-
-        address offlineKeepers = makeAddr("offlineKeepers");
-        vm.startPrank(offlineKeepers);
-        bool upkeepNeeded;
-        bytes memory performData;
-        bytes memory report;
-        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
-        uint48 epoch = middleware.getCurrentEpoch();
-
-        uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, count);
-        console2.log("Total batches: ", totalBatches);
-        for (uint256 i = 0; i < totalBatches; i++) {
-            (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
-            assertEq(upkeepNeeded, true);
-            console2.log("Perform Data length while caching: ", performData.length);
-            assertLe(performData.length, 2000);
-
-            vm.startPrank(forwarder);
-            report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-            middleware.onReport(WORKFLOW_METADATA, report);
-        }
-
-        (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
-        assertEq(upkeepNeeded, true);
-        console2.log("Perform Data length while sending: ", performData.length);
-        assertLe(performData.length, 2000);
-
-        (uint8 command, uint48 encodedEpoch, bytes32[] memory sortedKeys) =
-            abi.decode(performData, (uint8, uint48, bytes32[]));
-        assertEq(epoch, encodedEpoch);
-        assertEq(command, MiddlewareCRELogic.SEND_DATA_COMMAND);
-        assertEq(sortedKeys.length, count);
-        assertLe(performData.length, 2000);
-
-        vm.startPrank(forwarder);
-        report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-        middleware.onReport(WORKFLOW_METADATA, report);
-    }
-
-    function testUpkeepShouldFailDueToWrongCacheCommand() public {
-        uint16 count = 37;
-        _addOperatorsToNetwork(count);
-        count += 3; // 3 operators are already registered
-        vm.prank(owner);
-        middleware.setForwarder(forwarder);
-
-        address offlineKeepers = makeAddr("offlineKeepers");
-        vm.startPrank(offlineKeepers);
-        bool upkeepNeeded;
-        bytes memory performData;
-        bytes memory report;
-        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
-
-        uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, count);
-        for (uint256 i = 0; i < totalBatches; i++) {
-            (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
-            assertEq(upkeepNeeded, true);
-
-            vm.startPrank(forwarder);
-            report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-            middleware.onReport(WORKFLOW_METADATA, report);
-        }
-
-        report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IMiddleware.Middleware__InvalidCommand.selector, MiddlewareCRELogic.CACHE_DATA_COMMAND
-            )
-        );
-        middleware.onReport(WORKFLOW_METADATA, report);
-    }
-
-    function testUpkeepShouldFailDueToWrongSendCommand() public {
-        uint16 count = 37;
-        _addOperatorsToNetwork(count);
-        count += 3; // 3 operators are already registered
-        vm.prank(owner);
-        middleware.setForwarder(forwarder);
-
-        address offlineKeepers = makeAddr("offlineKeepers");
-        vm.startPrank(offlineKeepers);
-        bool upkeepNeeded;
-        bytes memory performData;
-
-        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
-        uint48 epoch = middleware.getCurrentEpoch();
-        (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
-        assertEq(upkeepNeeded, true);
-
-        (uint8 command, uint48 encodedEpoch, IMiddleware.ValidatorData[] memory data) =
-            abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
-        assertEq(epoch, encodedEpoch);
-        assertEq(command, MiddlewareCRELogic.CACHE_DATA_COMMAND);
-
-        performData = abi.encode(MiddlewareCRELogic.SEND_DATA_COMMAND, epoch, data);
-
-        vm.startPrank(forwarder);
-        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IMiddleware.Middleware__InvalidCommand.selector, MiddlewareCRELogic.SEND_DATA_COMMAND
-            )
-        );
-        middleware.onReport(WORKFLOW_METADATA, report);
-    }
-
-    function testUpkeepShouldFailToDecodeIfUsingValidatorsKeysInsteadOfValidatorsData() public {
-        uint16 count = 37;
-        _addOperatorsToNetwork(count);
-        count += 3; // 3 operators are already registered
-        vm.prank(owner);
-        middleware.setForwarder(forwarder);
-
-        address offlineKeepers = makeAddr("offlineKeepers");
-        vm.startPrank(offlineKeepers);
-        bool upkeepNeeded;
-        bytes memory performData;
-        bytes memory report;
-
-        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
-
-        uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, count);
-        for (uint256 i = 0; i < totalBatches; i++) {
-            (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
-            assertEq(upkeepNeeded, true);
-
-            vm.startPrank(forwarder);
-            report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-            middleware.onReport(WORKFLOW_METADATA, report);
-        }
-
-        (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
-        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
-
-        report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-        vm.expectRevert();
-        middleware.onReport(WORKFLOW_METADATA, report);
-    }
-
-    function testUpkeepCacheIsAlwaysLessOrEqualThanActiveOperators() public {
-        uint16 count = 100;
-        _addOperatorsToNetwork(count);
-        count += 3; // 3 operators are already registered
-        vm.prank(owner);
-        middleware.setForwarder(forwarder);
-
-        address offlineKeepers = makeAddr("offlineKeepers");
-        vm.startPrank(offlineKeepers);
-
-        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
-        uint48 epoch = middleware.getCurrentEpoch();
-        uint256 activeOperatorsLength = (readerForwarder.activeOperators()).length;
-        {
-            uint256 totalBatches = testUtils.getTotalBatchesForCount(middleware, count);
-            for (uint256 i = 0; i < totalBatches; i++) {
-                (bool upkeepNeeded, bytes memory performData) = middleware.prepareDataForSendingToGateway();
-
-                uint256 cacheIndex = readerForwarder.getEpochCacheIndex(epoch);
-                assertGe(activeOperatorsLength, cacheIndex);
-                assertEq(upkeepNeeded, true);
-
-                vm.startPrank(forwarder);
-                bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-                middleware.onReport(WORKFLOW_METADATA, report);
-            }
-        }
-    }
-
-    function testUpkeepShouldHaveSameOperatorsEvenIfPaused() public {
-        vm.prank(owner);
-        middleware.setForwarder(forwarder);
-        // It's not needed, it's just for explaining and showing the flow
-        address offlineKeepers = makeAddr("offlineKeepers");
-        vm.startPrank(offlineKeepers);
-        (bool upkeepNeeded, bytes memory performData) = middleware.prepareDataForSendingToGateway();
-        assertEq(upkeepNeeded, false);
-
-        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
-        uint48 epoch = middleware.getCurrentEpoch();
-        (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
-        assertEq(upkeepNeeded, true);
-
-        vm.startPrank(forwarder);
-        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-        middleware.onReport(WORKFLOW_METADATA, report);
-
-        uint256 operator1Power = readerForwarder.getOperatorToPowerCached(epoch, OPERATOR_KEY);
-        uint256 operator2Power = readerForwarder.getOperatorToPowerCached(epoch, OPERATOR2_KEY);
-        uint256 operator3Power = readerForwarder.getOperatorToPowerCached(epoch, OPERATOR3_KEY);
-
-        (uint256 totalOperatorPowerAfter,) = _calculateOperatorPower(totalPowerVault, 0, 0);
-        (uint256 totalOperator2PowerAfter,) =
-            _calculateOperatorPower(totalPowerVaultSlashable, totalFullRestakePower, 0);
-        (uint256 totalOperator3PowerAfter,) =
-            _calculateOperatorPower(totalPowerVault + totalPowerVaultSlashable, totalFullRestakePower, 0);
-
-        assertEq(operator1Power, totalOperatorPowerAfter);
-        assertEq(operator2Power, totalOperator2PowerAfter);
-        assertEq(operator3Power, totalOperator3PowerAfter);
-
-        vm.startPrank(owner);
-        middleware.pauseOperator(operator);
-        vm.expectRevert(PauseableEnumerableSet.ImmutablePeriodNotPassed.selector);
-        middleware.unregisterOperator(operator);
-
-        vm.warp(vm.getBlockTimestamp() + 50);
-        vm.startPrank(offlineKeepers);
-        (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
-        assertEq(upkeepNeeded, true);
-
-        address[] memory activeOperators = readerForwarder.activeOperators();
-        assertEq(activeOperators.length, 3);
-
-        (uint8 command, uint48 encodedEpoch, bytes32[] memory sortedKeys) =
-            abi.decode(performData, (uint8, uint48, bytes32[]));
-        assertEq(epoch, encodedEpoch);
-        assertEq(command, MiddlewareCRELogic.SEND_DATA_COMMAND);
-        assertEq(sortedKeys.length, 3);
-
-        vm.startPrank(forwarder);
-        vm.expectEmit(true, false, false, false);
-        emit IOGateway.OperatorsDataCreated(sortedKeys.length, hex"");
-        report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-        middleware.onReport(WORKFLOW_METADATA, report);
-
-        (upkeepNeeded, performData) = middleware.prepareDataForSendingToGateway();
-        assertEq(upkeepNeeded, false);
-        assertEq(performData.length, 0);
-    }
-
     function testWhenRegisteringVaultThenStakerRewardsAreDeployed() public {
         vm.startPrank(owner);
         uint256 totalEntities = stakerRewardsFactory.totalEntities();
@@ -2030,40 +1457,5 @@ contract MiddlewareTest is Test {
     function _deployOracle(uint8 decimals, int256 answer) public returns (address) {
         MockV3Aggregator oracle = new MockV3Aggregator(decimals, answer);
         return address(oracle);
-    }
-
-    // ************************************************************************************************
-    // *                                  SEND CURRENT OPERATORS KEYS
-    // ************************************************************************************************
-
-    function testSendCurrentOperatorKeysOrderChangesIfPowerChanges() public {
-        vm.mockCall(address(gateway), abi.encodeWithSelector(IOGateway.sendOperatorsData.selector), new bytes(0));
-
-        vm.warp(NETWORK_EPOCH_DURATION + 2);
-        vm.roll(80);
-        bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
-        assertEq(keys.length, 3);
-
-        // OP3 > OP2 > OP1 (In terms of power)
-        assertEq(keys[0], OPERATOR3_KEY);
-        assertEq(keys[1], OPERATOR2_KEY);
-        assertEq(keys[2], OPERATOR_KEY);
-
-        vm.startPrank(owner);
-        // This doesn't remove operator3's stake, but turns his power to zero, so it is not only the top operator.
-        // Withdrawing would not change the order since this vault is full restake giving both OP3 and OP2 the same power.
-        IFullRestakeDelegator(vaultAddresses.delegatorVetoed).setOperatorNetworkLimit(
-            tanssi.subnetwork(0), operator3, 0
-        );
-
-        vm.warp(vm.getBlockTimestamp() + VAULT_EPOCH_DURATION + 1);
-        vm.roll(80 + 57_235); // 57_235 is ≈ the number of blocks in 1 week
-        keys = middleware.sendCurrentOperatorsKeys();
-        assertEq(keys.length, 3);
-
-        // Now OP2 > OP3 > OP1 (In terms of power)
-        assertEq(keys[0], OPERATOR2_KEY);
-        assertEq(keys[1], OPERATOR3_KEY);
-        assertEq(keys[2], OPERATOR_KEY);
     }
 }

@@ -36,10 +36,10 @@ interface IMiddleware {
     event ForwarderSet(address indexed forwarder);
 
     /**
-     * @notice Emitted when a new gateway address is set.
-     * @param gateway The new gateway address
+     * @notice Emitted when a new meta middleware address is set.
+     * @param metaMiddleware The new meta middleware address
      */
-    event GatewaySet(address indexed gateway);
+    event MetaMiddlewareSet(address indexed metaMiddleware);
 
     // Errors
     error Middleware__GatewayNotSet();
@@ -55,7 +55,6 @@ interface IMiddleware {
     error Middleware__NoPerformData();
     error Middleware__InsufficientBalance();
     error Middleware__SlashingWindowTooShort();
-    error Middleware__OperatorNotFound(bytes32 operatorKey, uint48 epoch);
     error Middleware__SlashPercentageTooBig(uint48 epoch, address operator, uint256 percentage);
     error Middleware__TooManyActiveVaults();
 
@@ -101,12 +100,12 @@ interface IMiddleware {
     }
 
     /**
-     * @notice Sets the gateway contract
+     * @notice Sets the meta middleware contract
      * @dev Only the owner can call this function
-     * @param gateway The gateway contract address
+     * @param metaMiddleware The meta middleware contract address
      */
-    function setGateway(
-        address gateway
+    function setMetaMiddleware(
+        address metaMiddleware
     ) external;
 
     /**
@@ -133,42 +132,6 @@ interface IMiddleware {
     function setOperatorShareOnOperatorRewards(
         uint48 operatorShare
     ) external;
-
-    /**
-     * @notice Distribute rewards for a specific era contained in an epoch by providing a Merkle root, total points, total amount of tokens and the token address of the rewards.
-     * @param epoch network epoch of the middleware
-     * @param eraIndex era index of Starlight's rewards distribution
-     * @param totalPoints total amount of points for the reward distribution
-     * @param tokenAmount amount of tokens to distribute
-     * @param rewardsRoot Merkle root of the reward distribution
-     * @param tokenAddress The token address of the rewards
-     * @dev This function is called by the gateway only
-     * @dev Emit DistributeRewards event.
-     */
-    function distributeRewards(
-        uint256 epoch,
-        uint256 eraIndex,
-        uint256 totalPoints,
-        uint256 tokenAmount,
-        bytes32 rewardsRoot,
-        address tokenAddress
-    ) external;
-
-    /**
-     * @notice Gets the operators' keys for latest epoch
-     * @return keys Array of operator keys
-     */
-    function sendCurrentOperatorsKeys() external returns (bytes32[] memory keys);
-
-    /**
-     * @notice Slashes an operator's stake
-     * @dev Only the owner can call this function
-     * @dev This function first updates the stake cache for the target epoch
-     * @param epoch The epoch number
-     * @param operatorKey The operator key to slash
-     * @param percentage Percentage to slash, represented as parts per billion.
-     */
-    function slash(uint48 epoch, bytes32 operatorKey, uint256 percentage) external;
 
     /**
      * @dev Called by chainlink nodes off-chain to check if the upkeep is needed

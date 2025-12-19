@@ -180,7 +180,7 @@ interface IOBaseMiddlewareReader {
 
     function getForwarderAddress() external view returns (address);
 
-    function getGateway() external view returns (address);
+    function getMetaMiddleware() external view returns (address);
 
     function getInterval() external view returns (uint256);
 
