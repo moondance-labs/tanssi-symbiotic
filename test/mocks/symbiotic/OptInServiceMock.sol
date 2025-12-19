@@ -57,7 +57,13 @@ contract OptInServiceMock is EIP712, IOptInService {
         _optIn(msg.sender, where);
     }
 
-    function optIn(address who, address where, uint48, /*deadline*/ bytes calldata /*signature*/ ) external {
+    function optIn(
+        address who,
+        address where,
+        uint48,
+        /*deadline*/
+        bytes calldata /*signature*/
+    ) external {
         _optIn(who, where);
     }
 
@@ -67,7 +73,13 @@ contract OptInServiceMock is EIP712, IOptInService {
         _optOut(msg.sender, where);
     }
 
-    function optOut(address who, address where, uint48, /*deadline*/ bytes calldata /* signature*/ ) external {
+    function optOut(
+        address who,
+        address where,
+        uint48,
+        /*deadline*/
+        bytes calldata /* signature*/
+    ) external {
         _optOut(who, where);
     }
 

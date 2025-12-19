@@ -71,6 +71,13 @@ contract DeployTest is Test {
     address stakerRewardsFactoryAddress;
 
     function setUp() public {
+        // Ensure deployer has enough ETH for deployments. This somehow prevents CreateCollision issues
+        uint256 ownerPrivateKey =
+            vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
+        address deployer = vm.addr(ownerPrivateKey);
+        console2.log("Deployer: ", deployer);
+        vm.deal(deployer, 1000 ether);
+
         deployCollateral = new DeployCollateral();
         deploySymbiotic = new DeploySymbiotic();
         deployTanssiEcosystem = new DeployTanssiEcosystem();
