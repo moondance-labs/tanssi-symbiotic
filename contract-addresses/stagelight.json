@@ -6,6 +6,8 @@
   "forwarder": "0x1327a541989a49AbA8230400b5377C52439Db52b",
   "gateway": "0x0e3dbc66840a36527d21560538907503f672677e",
   "gatewayImplementation": "0x5a7e4193ba91eb7538ff7e1e34e5df4d7ffd9144",
+  "metaMiddleware": "0x0000000000000000000000000000000000000000",
+  "metaMiddlewareImplementation": "0x0000000000000000000000000000000000000000",
   "middleware": "0xdbc3804a9d3164a438ec222a222e8d8b2dffa0de",
   "middlewareImplementation": "0x92381309876f5d3837759543cbea48c82e22e760",
   "middlewareReader": "0x352be52e4b1d6d207d633429e6a512c16ad5b9e7",

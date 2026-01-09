@@ -193,17 +193,16 @@ contract DeployTest is Test {
         IMiddleware.OperatorVaultPair[] memory operatorVaultPairs =
             OBaseMiddlewareReader(address(middleware)).getOperatorVaultPairs(epoch);
 
-        address gateway = makeAddr("gateway");
+        address metaMiddleware = makeAddr("metaMiddleware");
         address tanssi_ = deployTanssiEcosystemDemo.tanssi();
         vm.prank(tanssi_);
-        middleware.setGateway(gateway);
+        middleware.setMetaMiddleware(metaMiddleware);
 
         address operator = operatorVaultPairs[1].operator;
         address vault = operatorVaultPairs[1].vaults[1];
-        bytes memory operatorKey = middleware.operatorKey(operator);
 
-        vm.startPrank(gateway);
-        middleware.slash(epoch, abi.decode(operatorKey, (bytes32)), 1000);
+        vm.startPrank(metaMiddleware);
+        middleware.slash(epoch, operator, 1000);
 
         IBaseSlasher slasher = IBaseSlasher(IVault(vault).slasher());
         assertEq(slasher.TYPE(), uint8(VaultManager.SlasherType.INSTANT));

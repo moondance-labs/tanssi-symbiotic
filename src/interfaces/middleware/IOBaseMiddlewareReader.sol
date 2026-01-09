@@ -205,9 +205,4 @@ interface IOBaseMiddlewareReader {
     function getEpochAtTs(
         uint48 timestamp
     ) external view returns (uint48 epoch);
-
-    function auxiliaryPrepareDataForSendingToGateway()
-        external
-        view
-        returns (bool upkeepNeeded, bytes memory performData);
 }

@@ -188,11 +188,12 @@ contract FullTest is Test {
 
         _cacheAllOperatorsVaults();
 
-        vm.startPrank(admin);
-        middleware.setExpectedAuthor(workflowOwner);
-        middleware.setExpectedWorkflowName(workflowName);
-        middleware.setExpectedWorkflowId(workflowId);
-        vm.stopPrank();
+        // TODO migration: get rid of all workflow stuff
+        // vm.startPrank(admin);
+        // middleware.setExpectedAuthor(workflowOwner);
+        // middleware.setExpectedWorkflowName(workflowName);
+        // middleware.setExpectedWorkflowId(workflowId);
+        // vm.stopPrank();
 
         TestUtils testUtils = new TestUtils();
         workflowNameEncoded = testUtils.encodeStringToBytes10(workflowName);
@@ -500,7 +501,7 @@ contract FullTest is Test {
         assertGe(operatorPowerBefore, 0);
 
         vm.prank(address(metaMiddleware));
-        middleware.slash(currentEpoch, testOperatorKey, SLASHING_FRACTION);
+        middleware.slash(currentEpoch, testOperatorAddress, SLASHING_FRACTION);
 
         // We need to veto the slashes for all the vaults of the operator
         address[] memory operatorVaults = operatorToVaults[testOperatorAddress];
@@ -906,9 +907,8 @@ contract FullTest is Test {
 
         rewardsToken.mint(address(middleware), TOKEN_REWARDS_PER_ERA_INDEX);
 
-        middleware.distributeRewards(
-            epoch, eraIndex, totalPoints, TOKEN_REWARDS_PER_ERA_INDEX, rewardsRoot, address(rewardsToken)
-        );
+        // TODO migration: It's ok to pass bytes(0) here since we re-verify the proofs when operator claims, but once we switch to a push rewards model, we need to pass the rewards distribution data.
+        middleware.distributeRewards(eraIndex, address(rewardsToken), new bytes(0));
 
         vm.stopPrank();
     }
@@ -941,9 +941,8 @@ contract FullTest is Test {
         }
 
         // We need to track by stake and not by power since power uses live oracle which cannot be mocked
-        bytes32 operatorKey = abi.decode(middleware.operatorKey(operatorAddress), (bytes32));
         vm.prank(address(metaMiddleware));
-        middleware.slash(initialEpoch, operatorKey, SLASHING_FRACTION);
+        middleware.slash(initialEpoch, operatorAddress, SLASHING_FRACTION);
     }
 
     function _testSlashingAndExecutingSlashForOperator(

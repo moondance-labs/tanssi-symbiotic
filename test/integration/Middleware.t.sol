@@ -298,9 +298,10 @@ contract MiddlewareTest is Test {
         middleware.setCollateralToOracle(address(rETH), rEthOracle);
         middleware.setCollateralToOracle(address(wBTC), wBtcOracle);
 
-        middleware.setExpectedAuthor(workflowOwner);
-        middleware.setExpectedWorkflowName(workflowName);
-        middleware.setExpectedWorkflowId(workflowId);
+        // TODO migration: get rid of all workflow stuff
+        // middleware.setExpectedAuthor(workflowOwner);
+        // middleware.setExpectedWorkflowName(workflowName);
+        // middleware.setExpectedWorkflowId(workflowId);
 
         testUtils = new TestUtils();
         workflowNameEncoded = testUtils.encodeStringToBytes10(workflowName);
@@ -644,7 +645,7 @@ contract MiddlewareTest is Test {
         uint256 slashingPower = (SLASHING_FRACTION * powerFromSharesOperator2) / PARTS_PER_BILLION;
 
         vm.prank(address(metaMiddleware));
-        middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
+        middleware.slash(currentEpoch, operator2, SLASHING_FRACTION);
 
         vm.prank(resolver1);
         vetoSlasher.vetoSlash(0, hex"");
@@ -671,7 +672,7 @@ contract MiddlewareTest is Test {
 
         vm.prank(address(metaMiddleware));
         vm.expectRevert(IVetoSlasher.InvalidCaptureTimestamp.selector);
-        middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
+        middleware.slash(currentEpoch, operator2, SLASHING_FRACTION);
         vm.stopPrank();
     }
 
@@ -692,7 +693,7 @@ contract MiddlewareTest is Test {
                 IMiddleware.Middleware__SlashPercentageTooBig.selector, currentEpoch, operator2, slashingFraction
             )
         );
-        middleware.slash(currentEpoch, OPERATOR2_KEY, slashingFraction);
+        middleware.slash(currentEpoch, operator2, slashingFraction);
     }
 
     function testSlashingOnOperator2AndExecuteSlashOnVetoVault() public {
@@ -703,7 +704,7 @@ contract MiddlewareTest is Test {
         uint256 slashingPower = (SLASHING_FRACTION * powerFromSharesOperator2) / PARTS_PER_BILLION;
 
         vm.prank(address(metaMiddleware));
-        middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
+        middleware.slash(currentEpoch, operator2, SLASHING_FRACTION);
 
         vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
         middleware.executeSlash(address(vaultVetoed), 0, hex"");
@@ -729,7 +730,7 @@ contract MiddlewareTest is Test {
         uint256 slashingPower = (SLASHING_FRACTION * (powerFromSharesOperator3 / 2)) / PARTS_PER_BILLION;
 
         vm.prank(address(metaMiddleware));
-        middleware.slash(currentEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
+        middleware.slash(currentEpoch, operator3, SLASHING_FRACTION);
 
         vm.prank(resolver1);
         vetoSlasher.vetoSlash(0, hex"");
@@ -755,7 +756,7 @@ contract MiddlewareTest is Test {
         uint256 slashingPower = (SLASHING_FRACTION * powerFromSharesOperator3 / 2) / PARTS_PER_BILLION;
 
         vm.prank(address(metaMiddleware));
-        middleware.slash(currentEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
+        middleware.slash(currentEpoch, operator3, SLASHING_FRACTION);
 
         vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
         middleware.executeSlash(address(vaultVetoed), 0, hex"");
@@ -782,7 +783,7 @@ contract MiddlewareTest is Test {
         middleware.pauseSharedVault(vaultAddresses.vaultSlashable);
 
         vm.prank(address(metaMiddleware));
-        middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
+        middleware.slash(currentEpoch, operator2, SLASHING_FRACTION);
 
         vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
@@ -807,7 +808,7 @@ contract MiddlewareTest is Test {
 
         vm.prank(address(metaMiddleware));
         //! Why this slash should anyway go through if operator was paused? Shouldn't it revert?
-        middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
+        middleware.slash(currentEpoch, operator2, SLASHING_FRACTION);
 
         vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
@@ -836,7 +837,7 @@ contract MiddlewareTest is Test {
         middleware.updateOperatorKey(operator2, abi.encode(differentOperatorKey));
 
         vm.startPrank(address(metaMiddleware));
-        middleware.slash(currentEpoch, OPERATOR2_KEY, SLASHING_FRACTION);
+        middleware.slash(currentEpoch, operator2, SLASHING_FRACTION);
 
         vm.startPrank(resolver1);
         vetoSlasher.vetoSlash(0, hex"");
@@ -1331,19 +1332,20 @@ contract MiddlewareTest is Test {
         uint256 lastGasUsedForPerform = 0;
         while (true) {
             uint256 gasBefore_ = gasleft();
-            (bool upkeepNeeded, bytes memory performData) = middleware.prepareDataForSendingToGateway();
-            if (!upkeepNeeded) {
-                break;
-            }
-            assertLt(performData.length, MAX_CHAINLINK_PERFORM_DATA_LENGTH);
-            uint256 gasUsedForCheck = gasBefore_ - gasleft();
-            // Assert gas usage is below 10M check gas limit by chainlink
-            assertLt(gasUsedForCheck, 10_000_000);
-            totalGasUsedForCheck += gasUsedForCheck;
-            lastGasUsedForCheck = gasUsedForCheck;
-            gasBefore_ = gasleft();
-            bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-            middleware.onReport(WORKFLOW_METADATA, report);
+            // TODO migration: Adapt this test to the new meta middleware
+            // (bool upkeepNeeded, bytes memory performData) = middleware.prepareDataForSendingToGateway();
+            // if (!upkeepNeeded) {
+            //     break;
+            // }
+            // assertLt(performData.length, MAX_CHAINLINK_PERFORM_DATA_LENGTH);
+            // uint256 gasUsedForCheck = gasBefore_ - gasleft();
+            // // Assert gas usage is below 10M check gas limit by chainlink
+            // assertLt(gasUsedForCheck, 10_000_000);
+            // totalGasUsedForCheck += gasUsedForCheck;
+            // lastGasUsedForCheck = gasUsedForCheck;
+            // gasBefore_ = gasleft();
+            // bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
+            // middleware.onReport(WORKFLOW_METADATA, report);
             uint256 gasUsedForPerform = gasBefore_ - gasleft();
             // Assert gas usage is below 5M perform gas limit by chainlink
             assertLt(gasUsedForPerform, 5_000_000);

@@ -528,9 +528,8 @@ contract RewardsTest is Test {
         rewardsToken.mint(address(middleware), AMOUNT_TO_DISTRIBUTE);
 
         vm.startPrank(address(metaMiddleware));
-        middleware.distributeRewards(
-            epoch, eraIndex, AMOUNT_TO_DISTRIBUTE, AMOUNT_TO_DISTRIBUTE, REWARDS_ROOT, address(rewardsToken)
-        );
+        // TODO migration: It's ok to pass bytes(0) here since we re-verify the proofs when operator claims, but once we switch to a push rewards model, we need to pass the rewards distribution data.
+        middleware.distributeRewards(eraIndex, address(rewardsToken), new bytes(0));
         vm.stopPrank();
 
         bytes32[] memory operatator3Proof = new bytes32[](1);

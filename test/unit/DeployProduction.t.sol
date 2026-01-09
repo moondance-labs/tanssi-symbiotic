@@ -82,8 +82,7 @@ contract DeployProductionTest is Test {
         assertNotEq(entities.middleware, address(0));
         assertNotEq(entities.admin, address(0));
         assertNotEq(entities.tanssi, address(0));
-        assertNotEq(entities.gateway, address(0));
-        // assertNotEq(entities.forwarder, address(0));
+        assertNotEq(entities.metaMiddleware, address(0));
         assertNotEq(entities.operatorRewards, address(0));
         assertNotEq(entities.rewardsToken, address(0));
 

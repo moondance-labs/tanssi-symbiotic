@@ -243,7 +243,7 @@ contract MiddlewareTest is Test {
         assertEq(validators[0].key, operatorData.operatorKey);
 
         vm.prank(gateway);
-        middleware.slash(currentEpoch, operatorData.operatorKey, SLASHING_FRACTION);
+        middleware.slash(currentEpoch, operatorData.evmAddress, SLASHING_FRACTION);
 
         vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
@@ -264,7 +264,7 @@ contract MiddlewareTest is Test {
         middleware.pauseSharedVault(vaultData.vault);
 
         vm.prank(gateway);
-        middleware.slash(currentEpoch, operatorData.operatorKey, SLASHING_FRACTION);
+        middleware.slash(currentEpoch, operatorData.evmAddress, SLASHING_FRACTION);
 
         vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();
@@ -290,7 +290,7 @@ contract MiddlewareTest is Test {
         middleware.pauseOperator(operator);
 
         vm.prank(gateway);
-        middleware.slash(currentEpoch, operatorData.operatorKey, SLASHING_FRACTION);
+        middleware.slash(currentEpoch, operatorData.evmAddress, SLASHING_FRACTION);
 
         vm.warp(vm.getBlockTimestamp() + SLASHING_WINDOW + 1);
         uint48 newEpoch = middleware.getCurrentEpoch();

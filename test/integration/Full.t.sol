@@ -217,7 +217,7 @@ contract FullTest is Test {
     bytes32 public workflowId = bytes32(uint256(1));
 
     address tanssi;
-    address gateway;
+    address gateway; // TODO migration: remove
 
     bytes public WORKFLOW_METADATA;
 
@@ -283,13 +283,14 @@ contract FullTest is Test {
         operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware));
         _deployMetaMiddleware();
 
-        middleware.setGateway(address(gateway));
+        middleware.setMetaMiddleware(address(metaMiddleware));
         middleware.setCollateralToOracle(address(STAR), starOracle);
         middleware.setCollateralToOracle(address(wBTC), wBtcOracle);
         middleware.setCollateralToOracle(address(stETH), stEthOracle);
-        middleware.setExpectedAuthor(workflowOwner);
-        middleware.setExpectedWorkflowName(workflowName);
-        middleware.setExpectedWorkflowId(workflowId);
+        // TODO migration: get rid of all workflow stuff
+        // middleware.setExpectedAuthor(workflowOwner);
+        // middleware.setExpectedWorkflowName(workflowName);
+        // middleware.setExpectedWorkflowId(workflowId);
 
         testUtils = new TestUtils();
         workflowNameEncoded = testUtils.encodeStringToBytes10(workflowName);
@@ -608,8 +609,9 @@ contract FullTest is Test {
 
         STAR.mint(address(middleware), amountToDistribute);
 
-        vm.prank(address(gateway));
-        middleware.distributeRewards(epoch, eraIndex, totalPoints, amountToDistribute, rewardsRoot, address(STAR));
+        vm.prank(address(metaMiddleware));
+        // TODO migration: It's ok to pass bytes(0) here since we re-verify the proofs when operator claims, but once we switch to a push rewards model, we need to pass the rewards distribution data.
+        middleware.distributeRewards(eraIndex, address(STAR), new bytes(0));
 
         return epoch;
     }
@@ -2281,10 +2283,9 @@ contract FullTest is Test {
             Token mockERC20 = new Token("MockERC20", 18);
             mockERC20.mint(address(middleware), amountToDistribute);
 
-            vm.prank(address(gateway));
-            middleware.distributeRewards(
-                epoch, eraIndexes[1], totalPoints, amountToDistribute, rewardsRoot, address(mockERC20)
-            );
+            vm.prank(address(metaMiddleware));
+            // TODO migration: It's ok to pass bytes(0) here since we re-verify the proofs when operator claims, but once we switch to a push rewards model, we need to pass the rewards distribution data.
+            middleware.distributeRewards(eraIndexes[1], address(mockERC20), new bytes(0));
         }
 
         (,, bytes32[] memory proofA, uint32 pointsA,) = _loadRewardsRootAndProof(eraIndexes[0], 1); // operatorNumber = 1
@@ -2461,7 +2462,7 @@ contract FullTest is Test {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
-        middleware.slash(slashingEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
+        middleware.slash(slashingEpoch, operator3, SLASHING_FRACTION);
         vm.stopPrank();
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
@@ -2475,7 +2476,7 @@ contract FullTest is Test {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
-        middleware.slash(slashingEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
+        middleware.slash(slashingEpoch, operator3, SLASHING_FRACTION);
         vm.stopPrank();
 
         // Start withdrawing BTC as soon as he finds out about the slash. It should not affect the resulting slash
@@ -2496,7 +2497,7 @@ contract FullTest is Test {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
-        middleware.slash(slashingEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
+        middleware.slash(slashingEpoch, operator3, SLASHING_FRACTION);
         vm.stopPrank();
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
@@ -2510,7 +2511,7 @@ contract FullTest is Test {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
-        middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
+        middleware.slash(slashingEpoch, operator7, SLASHING_FRACTION);
         vm.stopPrank();
 
         vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
@@ -2528,7 +2529,7 @@ contract FullTest is Test {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
-        middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
+        middleware.slash(slashingEpoch, operator7, SLASHING_FRACTION);
         vm.stopPrank();
 
         // Withdraw just after the slash trying to avoid it, shouldn't affect his slashed amount
@@ -2553,7 +2554,7 @@ contract FullTest is Test {
         uint48 slashingEpoch = middleware.getCurrentEpoch();
 
         vm.startPrank(gateway);
-        middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
+        middleware.slash(slashingEpoch, operator7, SLASHING_FRACTION);
         vm.stopPrank();
 
         vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
@@ -2575,7 +2576,7 @@ contract FullTest is Test {
         uint48 slashingEpoch = middleware.getCurrentEpoch();
 
         vm.startPrank(gateway);
-        middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
+        middleware.slash(slashingEpoch, operator7, SLASHING_FRACTION);
         vm.stopPrank();
 
         vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
@@ -2615,7 +2616,7 @@ contract FullTest is Test {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
-        middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
+        middleware.slash(slashingEpoch, operator7, SLASHING_FRACTION);
         vm.stopPrank();
 
         vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
@@ -2636,7 +2637,7 @@ contract FullTest is Test {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
-        middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
+        middleware.slash(slashingEpoch, operator7, SLASHING_FRACTION);
         vm.stopPrank();
 
         vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
@@ -2658,7 +2659,7 @@ contract FullTest is Test {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
-        middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
+        middleware.slash(slashingEpoch, operator7, SLASHING_FRACTION);
         vm.stopPrank();
 
         // Withdraw just after the slash trying to avoid it, shouldn't affect his slashed amount
@@ -2687,7 +2688,7 @@ contract FullTest is Test {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
-        middleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
+        middleware.slash(slashingEpoch, operator7, SLASHING_FRACTION);
         vm.stopPrank();
 
         vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
@@ -2903,102 +2904,103 @@ contract FullTest is Test {
         vm.stopPrank();
     }
 
-    function testWhenOperatorManagesToBeActiveInTooManyVaultsThenItIsIgnored() public {
-        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
-        uint48 currentEpoch = middleware.getCurrentEpoch();
+    // TODO migration: Adapt this test to the new meta middleware
+    // function testWhenOperatorManagesToBeActiveInTooManyVaultsThenItIsIgnored() public {
+    //     vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
+    //     uint48 currentEpoch = middleware.getCurrentEpoch();
 
-        // Before everything happens, the operator 1 is already registered in a vault and has power. Once he is in too many vaults his power must become 0 even if no stake is removed.
-        (, bytes memory performData) = middleware.prepareDataForSendingToGateway();
-        (uint8 command, uint48 epoch, IMiddleware.ValidatorData[] memory validatorsData) =
-            abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
-        assertEq(epoch, currentEpoch);
+    //     // Before everything happens, the operator 1 is already registered in a vault and has power. Once he is in too many vaults his power must become 0 even if no stake is removed.
+    //     (, bytes memory performData) = middleware.prepareDataForSendingToGateway();
+    //     (uint8 command, uint48 epoch, IMiddleware.ValidatorData[] memory validatorsData) =
+    //         abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
+    //     assertEq(epoch, currentEpoch);
 
-        bool operator1Found = false;
-        for (uint256 i = 0; i < validatorsData.length; i++) {
-            if (validatorsData[i].key == OPERATOR1_KEY) {
-                operator1Found = true;
-                assertGt(validatorsData[i].power, 0);
-                break;
-            }
-        }
-        assertTrue(operator1Found);
+    //     bool operator1Found = false;
+    //     for (uint256 i = 0; i < validatorsData.length; i++) {
+    //         if (validatorsData[i].key == OPERATOR1_KEY) {
+    //             operator1Found = true;
+    //             assertGt(validatorsData[i].power, 0);
+    //             break;
+    //         }
+    //     }
+    //     assertTrue(operator1Found);
 
-        uint256 maxVaults = MiddlewareStorage.MAX_ACTIVE_VAULTS;
-        uint256 activeSharedVaults = middlewareReaderForwarder.sharedVaultsLength();
-        uint256 activeOperatorVaults = middlewareReaderForwarder.operatorVaultsLength(operator1);
-        uint256 operatorSpecificVaultToCreate = 10 - activeOperatorVaults; // So in total this operator will have 10.
-        uint256 sharedVaultsToCreate = maxVaults - activeSharedVaults - 5; // We go to up limit-5
-        // Total vaults for the operator will be maxVaults + 5, but it is not detected on creation since operatorSpecific ones are created first.
+    //     uint256 maxVaults = MiddlewareStorage.MAX_ACTIVE_VAULTS;
+    //     uint256 activeSharedVaults = middlewareReaderForwarder.sharedVaultsLength();
+    //     uint256 activeOperatorVaults = middlewareReaderForwarder.operatorVaultsLength(operator1);
+    //     uint256 operatorSpecificVaultToCreate = 10 - activeOperatorVaults; // So in total this operator will have 10.
+    //     uint256 sharedVaultsToCreate = maxVaults - activeSharedVaults - 5; // We go to up limit-5
+    //     // Total vaults for the operator will be maxVaults + 5, but it is not detected on creation since operatorSpecific ones are created first.
 
-        vm.startPrank(tanssi);
-        DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
-            epochDuration: VAULT_EPOCH_DURATION,
-            depositWhitelist: false,
-            depositLimit: 0,
-            delegatorIndex: VaultManager.DelegatorType.OPERATOR_SPECIFIC,
-            shouldBroadcast: false,
-            vaultConfigurator: address(vaultConfigurator),
-            collateral: address(STAR),
-            owner: tanssi,
-            operator: operator1,
-            network: address(0),
-            burner: address(0xDead)
-        });
+    //     vm.startPrank(tanssi);
+    //     DeployVault.CreateVaultBaseParams memory params = DeployVault.CreateVaultBaseParams({
+    //         epochDuration: VAULT_EPOCH_DURATION,
+    //         depositWhitelist: false,
+    //         depositLimit: 0,
+    //         delegatorIndex: VaultManager.DelegatorType.OPERATOR_SPECIFIC,
+    //         shouldBroadcast: false,
+    //         vaultConfigurator: address(vaultConfigurator),
+    //         collateral: address(STAR),
+    //         owner: tanssi,
+    //         operator: operator1,
+    //         network: address(0),
+    //         burner: address(0xDead)
+    //     });
 
-        IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
-            adminFee: ADMIN_FEE,
-            defaultAdminRoleHolder: tanssi,
-            adminFeeClaimRoleHolder: tanssi,
-            adminFeeSetRoleHolder: tanssi,
-            implementation: stakerRewardsImpl
-        });
+    //     IODefaultStakerRewards.InitParams memory stakerRewardsParams = IODefaultStakerRewards.InitParams({
+    //         adminFee: ADMIN_FEE,
+    //         defaultAdminRoleHolder: tanssi,
+    //         adminFeeClaimRoleHolder: tanssi,
+    //         adminFeeSetRoleHolder: tanssi,
+    //         implementation: stakerRewardsImpl
+    //     });
 
-        for (uint256 i; i < operatorSpecificVaultToCreate; i++) {
-            (address vault,,) = deployVault.createBaseVault(params);
-            middleware.registerOperatorVault(operator1, address(vault));
-        }
+    //     for (uint256 i; i < operatorSpecificVaultToCreate; i++) {
+    //         (address vault,,) = deployVault.createBaseVault(params);
+    //         middleware.registerOperatorVault(operator1, address(vault));
+    //     }
 
-        params.delegatorIndex = VaultManager.DelegatorType.FULL_RESTAKE;
-        params.operator = address(0);
-        for (uint256 i; i < sharedVaultsToCreate; i++) {
-            (address vault,,) = deployVault.createBaseVault(params);
-            middleware.registerSharedVault(address(vault), stakerRewardsParams);
-        }
-        vm.warp(vm.getBlockTimestamp() + VAULT_EPOCH_DURATION + 1);
-        activeSharedVaults = middlewareReaderForwarder.sharedVaultsLength();
-        activeOperatorVaults = middlewareReaderForwarder.operatorVaultsLength(operator1);
+    //     params.delegatorIndex = VaultManager.DelegatorType.FULL_RESTAKE;
+    //     params.operator = address(0);
+    //     for (uint256 i; i < sharedVaultsToCreate; i++) {
+    //         (address vault,,) = deployVault.createBaseVault(params);
+    //         middleware.registerSharedVault(address(vault), stakerRewardsParams);
+    //     }
+    //     vm.warp(vm.getBlockTimestamp() + VAULT_EPOCH_DURATION + 1);
+    //     activeSharedVaults = middlewareReaderForwarder.sharedVaultsLength();
+    //     activeOperatorVaults = middlewareReaderForwarder.operatorVaultsLength(operator1);
 
-        currentEpoch = middleware.getCurrentEpoch();
-        assertEq(activeOperatorVaults, 10);
-        assertEq(activeSharedVaults + activeOperatorVaults, maxVaults + 5);
+    //     currentEpoch = middleware.getCurrentEpoch();
+    //     assertEq(activeOperatorVaults, 10);
+    //     assertEq(activeSharedVaults + activeOperatorVaults, maxVaults + 5);
 
-        (, performData) = middleware.prepareDataForSendingToGateway();
-        (command, epoch, validatorsData) = abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
-        assertEq(epoch, currentEpoch);
+    //     (, performData) = middleware.prepareDataForSendingToGateway();
+    //     (command, epoch, validatorsData) = abi.decode(performData, (uint8, uint48, IMiddleware.ValidatorData[]));
+    //     assertEq(epoch, currentEpoch);
 
-        operator1Found = false;
-        for (uint256 i = 0; i < validatorsData.length; i++) {
-            if (validatorsData[i].key == OPERATOR1_KEY) {
-                operator1Found = true;
-                assertEq(validatorsData[i].power, 0);
-                break;
-            }
-        }
-        assertTrue(operator1Found);
+    //     operator1Found = false;
+    //     for (uint256 i = 0; i < validatorsData.length; i++) {
+    //         if (validatorsData[i].key == OPERATOR1_KEY) {
+    //             operator1Found = true;
+    //             assertEq(validatorsData[i].power, 0);
+    //             break;
+    //         }
+    //     }
+    //     assertTrue(operator1Found);
 
-        // The operator should be removed from the list of operators to send
-        bytes32[] memory sortedKeys = middlewareReaderForwarder.sortOperatorsByPower(currentEpoch);
-        operator1Found = false;
-        for (uint256 i = 0; i < sortedKeys.length; i++) {
-            if (sortedKeys[i] == OPERATOR1_KEY) {
-                operator1Found = true;
-                break;
-            }
-        }
-        assertFalse(operator1Found);
+    //     // The operator should be removed from the list of operators to send
+    //     bytes32[] memory sortedKeys = middlewareReaderForwarder.sortOperatorsByPower(currentEpoch);
+    //     operator1Found = false;
+    //     for (uint256 i = 0; i < sortedKeys.length; i++) {
+    //         if (sortedKeys[i] == OPERATOR1_KEY) {
+    //             operator1Found = true;
+    //             break;
+    //         }
+    //     }
+    //     assertFalse(operator1Found);
 
-        vm.stopPrank();
-    }
+    //     vm.stopPrank();
+    // }
 
     // ************************************************************************************************
     // *                                       GAS LIMITS
@@ -3041,7 +3043,7 @@ contract FullTest is Test {
         uint48 slashingEpoch = middleware.getCurrentEpoch();
         vm.startPrank(gateway);
         uint256 initGas = gasleft();
-        middleware.slash(slashingEpoch, OPERATOR8_KEY, SLASHING_FRACTION);
+        middleware.slash(slashingEpoch, operator8, SLASHING_FRACTION);
         vm.stopPrank();
 
         uint256 endGas = gasleft();

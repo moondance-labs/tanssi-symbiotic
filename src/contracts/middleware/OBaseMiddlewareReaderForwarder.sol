@@ -681,18 +681,4 @@ contract OBaseMiddlewareReaderForwarder {
     function getVersion() external view returns (uint256) {
         return OBaseMiddlewareReader(address(middleware)).getVersion();
     }
-    /**
-     * @dev Called by the middleware, as an auxiliary view function to check if the upkeep is needed
-     * @dev The function is in this contract to reduce Middleware size
-     * @return upkeepNeeded boolean to indicate whether the keeper should call performUpkeep or not.
-     * @return performData bytes of the sorted (by power) operators' keys and the epoch that will be used by the keeper when calling performUpkeep, if upkeep is needed.
-     */
-
-    function auxiliaryPrepareDataForSendingToGateway()
-        external
-        view
-        returns (bool upkeepNeeded, bytes memory performData)
-    {
-        return middleware.auxiliaryPrepareDataForSendingToGateway();
-    }
 }

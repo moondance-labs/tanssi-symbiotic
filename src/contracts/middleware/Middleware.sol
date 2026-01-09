@@ -248,13 +248,6 @@ contract Middleware is
     }
 
     /**
-     * @inheritdoc IMiddleware
-     */
-    function prepareDataForSendingToGateway() external view returns (bool upkeepNeeded, bytes memory performData) {
-        (upkeepNeeded, performData) = IOBaseMiddlewareReader(address(this)).auxiliaryPrepareDataForSendingToGateway();
-    }
-
-    /**
      * @inheritdoc ITanssiCommonMiddleware
      */
     function slash(uint48 epoch, address operator, uint256 percentage) external checkAccess {

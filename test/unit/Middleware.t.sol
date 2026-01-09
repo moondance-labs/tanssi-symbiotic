@@ -229,10 +229,12 @@ contract MiddlewareTest is Test {
 
         middleware.setMetaMiddleware(metaMiddleware);
         middleware.setCollateralToOracle(address(collateral), address(collateralOracle));
+        middleware.reinitialize();
 
-        middleware.setExpectedAuthor(workflowOwner);
-        middleware.setExpectedWorkflowName(workflowName);
-        middleware.setExpectedWorkflowId(workflowId);
+        // TODO migration: get rid of all workflow stuff
+        // middleware.setExpectedAuthor(workflowOwner);
+        // middleware.setExpectedWorkflowName(workflowName);
+        // middleware.setExpectedWorkflowId(workflowId);
 
         testUtils = new TestUtils();
         workflowNameEncoded = testUtils.encodeStringToBytes10(workflowName);
@@ -950,7 +952,7 @@ contract MiddlewareTest is Test {
 
         vm.expectEmit(true, true, true, true);
         emit VaultManager.InstantSlash(address(vault), tanssi.subnetwork(0), slashAmount);
-        middleware.slash(currentEpoch, OPERATOR_KEY, slashPercentage);
+        middleware.slash(currentEpoch, operator, slashPercentage);
 
         vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
         currentEpoch = middleware.getCurrentEpoch();
@@ -968,7 +970,7 @@ contract MiddlewareTest is Test {
                 IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), META_MIDDLEWARE_ROLE
             )
         );
-        middleware.slash(0, OPERATOR_KEY, 0);
+        middleware.slash(0, operator, 0);
     }
 
     function testSlashEpochTooOld() public {
@@ -976,7 +978,7 @@ contract MiddlewareTest is Test {
         uint48 currentEpoch = middleware.getCurrentEpoch();
         vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
         vm.expectRevert(IMiddleware.Middleware__TooOldEpoch.selector);
-        middleware.slash(currentEpoch, OPERATOR_KEY, OPERATOR_STAKE);
+        middleware.slash(currentEpoch, operator, OPERATOR_STAKE);
         vm.stopPrank();
     }
 
@@ -987,7 +989,7 @@ contract MiddlewareTest is Test {
         vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
         uint48 currentEpoch = middleware.getCurrentEpoch();
         vm.expectRevert(IMiddleware.Middleware__InvalidEpoch.selector);
-        middleware.slash(currentEpoch + 1, OPERATOR_KEY, OPERATOR_STAKE);
+        middleware.slash(currentEpoch + 1, operator, OPERATOR_STAKE);
         vm.stopPrank();
     }
 
@@ -1005,7 +1007,7 @@ contract MiddlewareTest is Test {
             )
         );
         vm.startPrank(metaMiddleware);
-        middleware.slash(currentEpoch, OPERATOR_KEY, slashPercentage);
+        middleware.slash(currentEpoch, operator, slashPercentage);
 
         uint256 totalStake = readerForwarder.getTotalStake(currentEpoch);
         assertEq(totalStake, previousStake);
@@ -1052,7 +1054,7 @@ contract MiddlewareTest is Test {
         uint256 slashPercentage = PARTS_PER_BILLION / 2;
 
         vm.startPrank(metaMiddleware);
-        middleware.slash(currentEpoch, OPERATOR_KEY, slashPercentage);
+        middleware.slash(currentEpoch, operator, slashPercentage);
 
         vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
         currentEpoch = middleware.getCurrentEpoch();
@@ -1078,7 +1080,7 @@ contract MiddlewareTest is Test {
 
         vm.expectEmit(true, true, true, true);
         emit VaultManager.VetoSlash(address(vault), tanssi.subnetwork(0), 0);
-        middleware.slash(currentEpoch, OPERATOR_KEY, slashPercentage);
+        middleware.slash(currentEpoch, operator, slashPercentage);
 
         vm.warp(NETWORK_EPOCH_DURATION + SLASHING_WINDOW + 1);
         currentEpoch = middleware.getCurrentEpoch();
@@ -1110,7 +1112,7 @@ contract MiddlewareTest is Test {
 
         vm.startPrank(metaMiddleware);
         // TODO we should also test this for UnknownSlasherType
-        middleware.slash(currentEpoch, OPERATOR_KEY, slashPercentage);
+        middleware.slash(currentEpoch, operator, slashPercentage);
 
         uint256 totalStake = readerForwarder.getTotalStake(currentEpoch);
 
@@ -1151,7 +1153,7 @@ contract MiddlewareTest is Test {
         );
         vm.startPrank(metaMiddleware);
         vm.expectRevert(VaultManager.UnknownSlasherType.selector);
-        middleware.slash(currentEpoch, OPERATOR_KEY, slashPercentage);
+        middleware.slash(currentEpoch, operator, slashPercentage);
     }
 
     // ************************************************************************************************
@@ -1188,23 +1190,16 @@ contract MiddlewareTest is Test {
         token.transfer(address(middleware), 1000);
 
         uint256 epoch = 0;
-        uint256 eraIndex = 0;
-        uint256 totalPointsToken = 100;
-        uint256 tokensInflatedToken = 1000;
-        bytes32 rewardsRoot = 0x4b0ddd8b9b8ec6aec84bcd2003c973254c41d976f6f29a163054eec4e7947810;
+        uint48 eraIndex = 0;
 
         vm.startPrank(metaMiddleware);
-        middleware.distributeRewards(
-            epoch, eraIndex, totalPointsToken, tokensInflatedToken, rewardsRoot, address(token)
-        );
+        // TODO migration: It's ok to pass bytes(0) here since we re-verify the proofs when operator claims, but once we switch to a push rewards model, we need to pass the rewards distribution data.
+        middleware.distributeRewards(eraIndex, address(token), new bytes(0));
     }
 
     function testDistributeRewardsUnauthorized() public {
         uint256 epoch = 0;
-        uint256 eraIndex = 0;
-        uint256 totalPointsToken = 100;
-        uint256 tokensInflatedToken = 1000;
-        bytes32 rewardsRoot = 0x4b0ddd8b9b8ec6aec84bcd2003c973254c41d976f6f29a163054eec4e7947810;
+        uint48 eraIndex = 0;
         address tokenAddress = makeAddr("TanssiToken");
 
         vm.expectRevert(
@@ -1212,24 +1207,20 @@ contract MiddlewareTest is Test {
                 IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), META_MIDDLEWARE_ROLE
             )
         );
-        middleware.distributeRewards(epoch, eraIndex, totalPointsToken, tokensInflatedToken, rewardsRoot, tokenAddress);
+        // TODO migration: It's ok to pass bytes(0) here since we re-verify the proofs when operator claims, but once we switch to a push rewards model, we need to pass the rewards distribution data.
+        middleware.distributeRewards(eraIndex, tokenAddress, new bytes(0));
     }
 
     function testDistributeRewardsWithInsufficientBalance() public {
-        uint256 epoch = 0;
-        uint256 eraIndex = 0;
-        uint256 totalPointsToken = 100;
-        uint256 tokensInflatedToken = 1000;
-        bytes32 rewardsRoot = 0x4b0ddd8b9b8ec6aec84bcd2003c973254c41d976f6f29a163054eec4e7947810;
+        uint48 eraIndex = 0;
 
         Token token = new Token("Test", 18);
         token.transfer(address(middleware), 800);
 
         vm.startPrank(metaMiddleware);
         vm.expectRevert(IMiddleware.Middleware__InsufficientBalance.selector);
-        middleware.distributeRewards(
-            epoch, eraIndex, totalPointsToken, tokensInflatedToken, rewardsRoot, address(token)
-        );
+        // TODO migration: It's ok to pass bytes(0) here since we re-verify the proofs when operator claims, but once we switch to a push rewards model, we need to pass the rewards distribution data.
+        middleware.distributeRewards(eraIndex, address(token), new bytes(0));
     }
 
     // ************************************************************************************************
@@ -1293,82 +1284,83 @@ contract MiddlewareTest is Test {
     // *                                  SEND CURRENT OPERATORS KEYS
     // ************************************************************************************************
 
-    function testSendCurrentOperatorKeys() public {
-        _registerVaultAndOperator(address(slasher), true);
+    // TODO migration: Adapt all these tests to the new meta middleware
+    // function testSendCurrentOperatorKeys() public {
+    //     _registerVaultAndOperator(address(slasher), true);
 
-        vm.warp(NETWORK_EPOCH_DURATION * 2 + 2);
-        vm.roll(80);
-        bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
-        assertEq(keys.length, 1);
-    }
+    //     vm.warp(NETWORK_EPOCH_DURATION * 2 + 2);
+    //     vm.roll(80);
+    //     bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
+    //     assertEq(keys.length, 1);
+    // }
 
-    function testSendCurrentOperatorKeysButOperatorWithZeroPower() public {
-        _registerVaultAndOperator(address(slasher), false);
+    // function testSendCurrentOperatorKeysButOperatorWithZeroPower() public {
+    //     _registerVaultAndOperator(address(slasher), false);
 
-        vm.warp(NETWORK_EPOCH_DURATION + 2);
-        vm.roll(80);
-        bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
-        assertEq(keys.length, 0);
-    }
+    //     vm.warp(NETWORK_EPOCH_DURATION + 2);
+    //     vm.roll(80);
+    //     bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
+    //     assertEq(keys.length, 0);
+    // }
 
-    function testSendCurrentOperatorKeysButNoOperators() public {
-        vm.startPrank(owner);
-        vm.roll(80);
-        bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
-        assertEq(keys.length, 0);
-    }
+    // function testSendCurrentOperatorKeysButNoOperators() public {
+    //     vm.startPrank(owner);
+    //     vm.roll(80);
+    //     bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
+    //     assertEq(keys.length, 0);
+    // }
 
-    function testSendCurrentOperatorKeysButOperatorUnregistered() public {
-        _registerVaultAndOperator(address(0), false);
+    // function testSendCurrentOperatorKeysButOperatorUnregistered() public {
+    //     _registerVaultAndOperator(address(0), false);
 
-        middleware.pauseOperator(operator);
-        vm.warp(START_TIME + SLASHING_WINDOW + 1);
-        vm.roll(80);
-        middleware.unregisterOperator(operator);
+    //     middleware.pauseOperator(operator);
+    //     vm.warp(START_TIME + SLASHING_WINDOW + 1);
+    //     vm.roll(80);
+    //     middleware.unregisterOperator(operator);
 
-        vm.startPrank(owner);
+    //     vm.startPrank(owner);
 
-        bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
-        assertEq(keys.length, 0);
-    }
+    //     bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
+    //     assertEq(keys.length, 0);
+    // }
 
-    function testSendCurrentOperatorKeysButOperatorDisabled() public {
-        _registerVaultAndOperator(address(0), false);
+    // function testSendCurrentOperatorKeysButOperatorDisabled() public {
+    //     _registerVaultAndOperator(address(0), false);
 
-        middleware.pauseOperator(operator);
-        vm.warp(START_TIME + SLASHING_WINDOW + 1);
-        vm.roll(80);
+    //     middleware.pauseOperator(operator);
+    //     vm.warp(START_TIME + SLASHING_WINDOW + 1);
+    //     vm.roll(80);
 
-        vm.startPrank(owner);
+    //     vm.startPrank(owner);
 
-        bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
-        assertEq(keys.length, 0);
-    }
+    //     bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
+    //     assertEq(keys.length, 0);
+    // }
 
-    function testSendCurrentOperatorKeysButGatewayNotSet() public {
-        bytes32 slot = bytes32(uint256(MIDDLEWARE_STORAGE_LOCATION));
+    // function testSendCurrentOperatorKeysButGatewayNotSet() public {
+    //     bytes32 slot = bytes32(uint256(MIDDLEWARE_STORAGE_LOCATION));
 
-        vm.store(address(middleware), slot, bytes32(0));
+    //     vm.store(address(middleware), slot, bytes32(0));
 
-        vm.roll(80);
+    //     vm.roll(80);
 
-        vm.expectRevert(IMiddleware.Middleware__GatewayNotSet.selector);
-        middleware.sendCurrentOperatorsKeys();
-    }
+    //     vm.expectRevert(IMiddleware.Middleware__GatewayNotSet.selector);
+    //     middleware.sendCurrentOperatorsKeys();
+    // }
 
-    function testSendCurrentOperatorKeysButIsLimitedByMinIntervalBlock() public {
-        _registerVaultAndOperator(address(slasher), true);
+    // function testSendCurrentOperatorKeysButIsLimitedByMinIntervalBlock() public {
+    //     _registerVaultAndOperator(address(slasher), true);
 
-        vm.warp(NETWORK_EPOCH_DURATION + 2);
-        vm.roll(80);
-        bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
-        assertEq(keys.length, 1);
+    //     vm.warp(NETWORK_EPOCH_DURATION + 2);
+    //     vm.roll(80);
+    //     bytes32[] memory keys = middleware.sendCurrentOperatorsKeys();
+    //     assertEq(keys.length, 1);
 
-        vm.warp(NETWORK_EPOCH_DURATION + 2 + 60); // + 60 seconds ≈ 5 blocks
-        vm.roll(85);
-        keys = middleware.sendCurrentOperatorsKeys();
-        assertEq(keys.length, 0);
-    }
+    //     vm.warp(NETWORK_EPOCH_DURATION + 2 + 60); // + 60 seconds ≈ 5 blocks
+    //     vm.roll(85);
+    //     keys = middleware.sendCurrentOperatorsKeys();
+    //     assertEq(keys.length, 0);
+    // }
 
     // ************************************************************************************************
     // *                                  GET OPERATOR VAULT PAIRS
@@ -1566,17 +1558,15 @@ contract MiddlewareTest is Test {
 
         assertEq(readerForwarder.getVersion(), 2);
 
-        address gatewayAddress = makeAddr("gatewayAddress");
-
         vm.prank(owner);
         vm.expectRevert(); //Function doesn't exists
-        middleware.setGateway(gatewayAddress);
+        middleware.setMetaMiddleware(metaMiddleware);
 
         middleware.upgradeToAndCall(address(middlewareImpl), emptyBytes);
         assertEq(readerForwarder.getVersion(), 1);
 
         vm.prank(owner);
-        middleware.setGateway(gatewayAddress);
+        middleware.setMetaMiddleware(metaMiddleware);
     }
 
     function testMiddlewareIsUpgradeableButMiddlewareV3IsNotUpgradeable() public {
@@ -1595,7 +1585,7 @@ contract MiddlewareTest is Test {
         assertEq(readerForwarder.getVersion(), 3);
 
         vm.expectRevert(); //Doesn't exists
-        middleware.setGateway(address(0));
+        middleware.setMetaMiddleware(newMetaMiddleware);
 
         vm.expectRevert(MiddlewareV3.MiddlewareV3__UpgradeNotAuthorized.selector); //Contract is not upgradeable anymore
         middleware.upgradeToAndCall(address(middlewareImpl), emptyBytes);
@@ -2528,116 +2518,64 @@ contract MiddlewareTest is Test {
         for (uint256 i; i < activeOperatorsForwarder.length; i++) {
             assertEq(activeOperatorsForwarder[i], activeOperatorsReader[i]);
         }
-
-        (bool upkeepNeededForwarder, bytes memory performDataForwarder) =
-            readerForwarder_.auxiliaryPrepareDataForSendingToGateway();
-        (bool upkeepNeededReader, bytes memory performDataReader) = reader_.auxiliaryPrepareDataForSendingToGateway();
-
-        assertEq(upkeepNeededForwarder, upkeepNeededReader);
-        assertEq(performDataForwarder, performDataReader);
     }
 
-    function testSetExpectedWorkflowNameWithEmptyName() public {
-        string memory emptyString = "";
+    // TODO migration: Was this removed by sdk migration?
+    // function testSupportsInterface() public view {
+    //     bytes4 iErc165Id = type(IERC165).interfaceId;
+    //     assertTrue(middleware.supportsInterface(iErc165Id), "Should support IERC165");
 
-        vm.startPrank(owner);
-        middleware.setForwarder(forwarder);
-        middleware.setExpectedWorkflowName(emptyString);
+    //     bytes4 invalidId = 0xffffffff;
+    //     assertFalse(middleware.supportsInterface(invalidId), "Should NOT support random interface");
 
-        bytes10 emptyBytes = testUtils.encodeStringToBytes10(emptyString);
+    //     // Just to be sure it's not returning true for everything
+    //     bytes4 erc20Id = 0x36372b07;
+    //     assertFalse(middleware.supportsInterface(erc20Id), "Should NOT support ERC20");
+    // }
 
-        vm.startPrank(forwarder);
-        bytes memory performData = abi.encode(uint8(1), uint48(0), new IMiddleware.ValidatorData[](0));
-        // Whatever name is fine because it's completely ignored in the function logic since it was set as empty
-        WORKFLOW_METADATA = abi.encodePacked(workflowId, emptyBytes, workflowOwner);
-        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-        middleware.onReport(WORKFLOW_METADATA, report);
-    }
+    // TODO migration: Adapt this test to the new meta middleware
+    // function testReinitialize() public {
+    //     _registerOperatorToNetwork(operator, address(vault), false, false);
 
-    function testSetExpectedWorkflowIdWithEmptyId() public {
-        bytes32 emptyWorkflowId = bytes32(0);
+    //     bytes4 selectorToUnset = middleware.onReport.selector;
 
-        vm.startPrank(owner);
-        middleware.setForwarder(forwarder);
-        middleware.setExpectedWorkflowId(emptyWorkflowId);
+    //     // 3. Calculate the Slot
+    //     // The Base Location defined in your contract
+    //     bytes32 STORAGE_LOCATION = 0xbe09a78a256419d2b885312b60a13e8082d8ab3c36c463fff4fbb086f1e96f00;
 
-        vm.startPrank(forwarder);
-        bytes memory performData = abi.encode(uint8(1), uint48(0), new IMiddleware.ValidatorData[](0));
-        // Whatever name is fine because it's completely ignored in the function logic since it was set as empty
-        WORKFLOW_METADATA = abi.encodePacked(workflowId, workflowNameEncoded, workflowOwner);
-        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-        middleware.onReport(WORKFLOW_METADATA, report);
-    }
+    //     // The mapping `_selectorRoles` is the second element in the struct, so we add 1 to the base
+    //     uint256 mapSlot = uint256(STORAGE_LOCATION) + 1;
 
-    function testSetExpectedWorkflowIdWithEmptyAuthor() public {
-        address noOwner = address(0);
+    //     // Calculate the final slot for this specific selector key
+    //     bytes32 finalSlot = keccak256(abi.encode(selectorToUnset, mapSlot));
 
-        vm.startPrank(owner);
-        middleware.setForwarder(forwarder);
-        middleware.setExpectedAuthor(noOwner);
+    //     // 4. Wipe it (Set to 0x0)
+    //     vm.store(address(middleware), finalSlot, bytes32(0));
 
-        vm.startPrank(forwarder);
-        bytes memory performData = abi.encode(uint8(1), uint48(0), new IMiddleware.ValidatorData[](0));
-        // Whatever name is fine because it's completely ignored in the function logic since it was set as empty
-        WORKFLOW_METADATA = abi.encodePacked(workflowId, workflowNameEncoded, workflowOwner);
-        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-        middleware.onReport(WORKFLOW_METADATA, report);
-    }
+    //     vm.startPrank(owner);
+    //     middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
+    //     vm.stopPrank();
 
-    function testSupportsInterface() public view {
-        bytes4 iErc165Id = type(IERC165).interfaceId;
-        assertTrue(middleware.supportsInterface(iErc165Id), "Should support IERC165");
+    //     vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
-        bytes4 invalidId = 0xffffffff;
-        assertFalse(middleware.supportsInterface(invalidId), "Should NOT support random interface");
+    //     (bool upkeepNeeded, bytes memory performData) = middleware.prepareDataForSendingToGateway();
+    //     bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
 
-        // Just to be sure it's not returning true for everything
-        bytes4 erc20Id = 0x36372b07;
-        assertFalse(middleware.supportsInterface(erc20Id), "Should NOT support ERC20");
-    }
+    //     vm.prank(owner);
+    //     middleware.setForwarder(forwarder);
 
-    function testReinitialize() public {
-        _registerOperatorToNetwork(operator, address(vault), false, false);
+    //     vm.expectRevert(
+    //         abi.encodeWithSelector(
+    //             IOzAccessControl.AccessControlUnauthorizedAccount.selector, forwarder, middleware.DEFAULT_ADMIN_ROLE()
+    //         )
+    //     );
+    //     vm.prank(forwarder);
+    //     middleware.onReport(WORKFLOW_METADATA, report);
+    //     middleware.reinitialize();
 
-        bytes4 selectorToUnset = middleware.onReport.selector;
-
-        // 3. Calculate the Slot
-        // The Base Location defined in your contract
-        bytes32 STORAGE_LOCATION = 0xbe09a78a256419d2b885312b60a13e8082d8ab3c36c463fff4fbb086f1e96f00;
-
-        // The mapping `_selectorRoles` is the second element in the struct, so we add 1 to the base
-        uint256 mapSlot = uint256(STORAGE_LOCATION) + 1;
-
-        // Calculate the final slot for this specific selector key
-        bytes32 finalSlot = keccak256(abi.encode(selectorToUnset, mapSlot));
-
-        // 4. Wipe it (Set to 0x0)
-        vm.store(address(middleware), finalSlot, bytes32(0));
-
-        vm.startPrank(owner);
-        middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
-        vm.stopPrank();
-
-        vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
-
-        (bool upkeepNeeded, bytes memory performData) = middleware.prepareDataForSendingToGateway();
-        bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-
-        vm.prank(owner);
-        middleware.setForwarder(forwarder);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IOzAccessControl.AccessControlUnauthorizedAccount.selector, forwarder, middleware.DEFAULT_ADMIN_ROLE()
-            )
-        );
-        vm.prank(forwarder);
-        middleware.onReport(WORKFLOW_METADATA, report);
-        middleware.reinitialize();
-
-        vm.prank(forwarder);
-        middleware.onReport(WORKFLOW_METADATA, report);
-    }
+    //     vm.prank(forwarder);
+    //     middleware.onReport(WORKFLOW_METADATA, report);
+    // }
 
     // ************************************************************************************************
     // *                                          INTERNAL

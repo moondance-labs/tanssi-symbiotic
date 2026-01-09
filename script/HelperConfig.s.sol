@@ -21,7 +21,7 @@ contract HelperConfig is Script {
     struct Entities {
         address admin;
         address tanssi;
-        address gateway;
+        address metaMiddleware;
         address forwarder;
         address middleware;
         address operatorRewards;
@@ -158,7 +158,7 @@ contract HelperConfig is Script {
 
         entities.admin = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".admin")), (address));
         entities.tanssi = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".tanssi")), (address));
-        entities.gateway = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".gateway")), (address));
+        entities.metaMiddleware = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".metaMiddleware")), (address));
         entities.forwarder = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".forwarder")), (address));
         entities.middleware = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".middleware")), (address));
         entities.operatorRewards =
