@@ -325,7 +325,7 @@ contract Middleware is
     function distributeRewards(
         uint48 eraIndex,
         address tokenAddress,
-        bytes memory rewardsDistributionData
+        bytes memory /* rewardsDistributionData */
     ) external returns (bool distributionComplete) {
         MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
         ITanssiMetaMiddleware.EraRoot memory eraRoot = $.i_metaMiddleware.getEraRoot(eraIndex);

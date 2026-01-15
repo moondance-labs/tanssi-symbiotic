@@ -48,6 +48,7 @@ import {MockV3Aggregator} from "@chainlink/tests/MockV3Aggregator.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Errors} from "@openzeppelin/contracts/utils/Errors.sol";
 import {MiddlewareProxy} from "src/contracts/middleware/MiddlewareProxy.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 //**************************************************************************************************
 //                                      TANSSI META MIDDLEWARE
@@ -158,6 +159,7 @@ contract RewardsTest is Test {
 
     VetoSlasher vetoSlasher;
 
+    address public gateway;
     TanssiMetaMiddleware public metaMiddleware;
 
     // Scripts
@@ -434,7 +436,16 @@ contract RewardsTest is Test {
     }
 
     function _setupMetaMiddleware() public {
-        // TODO migration: Implement
+        gateway = makeAddr("gateway");
+        TanssiMetaMiddleware tanssiMetaMiddlewareImpl = new TanssiMetaMiddleware();
+        metaMiddleware = TanssiMetaMiddleware(address(new ERC1967Proxy(address(tanssiMetaMiddlewareImpl), "")));
+        metaMiddleware.initialize(owner);
+
+        vm.startPrank(owner);
+        metaMiddleware.grantRole(metaMiddleware.GATEWAY_ROLE(), gateway);
+        metaMiddleware.registerMiddleware(address(middleware));
+        middleware.setMetaMiddleware(address(metaMiddleware));
+        vm.stopPrank();
     }
 
     // ************************************************************************************************
@@ -519,18 +530,23 @@ contract RewardsTest is Test {
 
     function testClaimRewardsWithMultipleVaults() public {
         uint48 epoch = 1;
-        uint48 eraIndex = 0;
+        uint48 eraIndex = 1;
         uint48 epochStartTs = middleware.getEpochStart(epoch);
 
         vm.warp(NETWORK_EPOCH_DURATION * 2 + 1);
 
         Token rewardsToken = new Token("Rewards", 18);
-        rewardsToken.mint(address(middleware), AMOUNT_TO_DISTRIBUTE);
+        rewardsToken.mint(address(metaMiddleware), AMOUNT_TO_DISTRIBUTE);
 
-        vm.startPrank(address(metaMiddleware));
-        // TODO migration: It's ok to pass bytes(0) here since we re-verify the proofs when operator claims, but once we switch to a push rewards model, we need to pass the rewards distribution data.
-        middleware.distributeRewards(eraIndex, address(rewardsToken), new bytes(0));
-        vm.stopPrank();
+        vm.prank(gateway);
+        metaMiddleware.distributeRewards(
+            epoch, eraIndex, AMOUNT_TO_DISTRIBUTE, AMOUNT_TO_DISTRIBUTE, REWARDS_ROOT, address(rewardsToken)
+        );
+
+        // TODO migration, create operatorRewardsAndProofs. We need proof for all operators but file currently has proofs only for one
+        // metaMiddleware.storeRewards(eraIndex, operatorRewardsAndProofs);
+        vm.prank(owner);
+        metaMiddleware.distributeRewardsToMiddlewareTrustlessly(eraIndex, address(middleware));
 
         bytes32[] memory operatator3Proof = new bytes32[](1);
         // Create a valid proof that matches the root we set

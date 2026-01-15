@@ -47,6 +47,7 @@ import {MockV3Aggregator} from "@chainlink/tests/MockV3Aggregator.sol";
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 //**************************************************************************************************
 
@@ -59,7 +60,6 @@ import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {OBaseMiddlewareReaderForwarder} from "src/contracts/middleware/OBaseMiddlewareReaderForwarder.sol";
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 import {Token} from "test/mocks/Token.sol";
-import {TestUtils} from "test/utils/Utils.t.sol";
 
 import {DeploySymbiotic} from "script/DeploySymbiotic.s.sol";
 import {DeployCollateral} from "script/DeployCollateral.s.sol";
@@ -211,15 +211,8 @@ contract FullTest is Test {
     address public resolver2 = makeAddr("resolver2"); // For Vault 5
     address public forwarder = makeAddr("forwarder");
 
-    address public workflowOwner = makeAddr("workflowOwner");
-    string public workflowName = "workflow_tanssi";
-    bytes10 public workflowNameEncoded;
-    bytes32 public workflowId = bytes32(uint256(1));
-
     address tanssi;
-    address gateway; // TODO migration: remove
-
-    bytes public WORKFLOW_METADATA;
+    address gateway;
 
     VaultsData public vaultsData;
 
@@ -229,13 +222,13 @@ contract FullTest is Test {
     ODefaultOperatorRewards operatorRewards;
     address stakerRewardsImpl;
     ODefaultStakerRewardsFactory stakerRewardsFactory;
-    TestUtils testUtils;
 
     // ************************************************************************************************
     // *                                        SETUP
     // ************************************************************************************************
 
     function setUp() public {
+        address gateway = makeAddr("gateway");
         _deployTokens();
 
         address starOracle = _deployOracle(ORACLE_DECIMALS_STAR, ORACLE_CONVERSION_STAR);
@@ -281,22 +274,13 @@ contract FullTest is Test {
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
         operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
         operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware));
+        vm.stopPrank();
+
         _deployMetaMiddleware();
 
-        middleware.setMetaMiddleware(address(metaMiddleware));
-        middleware.setCollateralToOracle(address(STAR), starOracle);
-        middleware.setCollateralToOracle(address(wBTC), wBtcOracle);
-        middleware.setCollateralToOracle(address(stETH), stEthOracle);
-        // TODO migration: get rid of all workflow stuff
-        // middleware.setExpectedAuthor(workflowOwner);
-        // middleware.setExpectedWorkflowName(workflowName);
-        // middleware.setExpectedWorkflowId(workflowId);
-
-        testUtils = new TestUtils();
-        workflowNameEncoded = testUtils.encodeStringToBytes10(workflowName);
-        WORKFLOW_METADATA = abi.encodePacked(workflowId, workflowNameEncoded, workflowOwner);
-
-        vm.stopPrank();
+        metaMiddleware.registerCollateral(address(STAR), starOracle);
+        metaMiddleware.registerCollateral(address(wBTC), wBtcOracle);
+        metaMiddleware.registerCollateral(address(stETH), stEthOracle);
 
         vm.prank(owner);
         ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress).setImplementation(stakerRewardsImpl);
@@ -348,6 +332,7 @@ contract FullTest is Test {
         DeployTanssiEcosystem deployTanssi = new DeployTanssiEcosystem();
         middleware = deployTanssi.deployMiddlewareWithProxy(params);
         middleware.reinitializeRewards(operatorRewardsAddress, stakerRewardsFactoryAddress);
+        console2.log("Middleware", address(middleware));
         networkMiddlewareService.setMiddleware(address(middleware));
     }
 
@@ -426,7 +411,15 @@ contract FullTest is Test {
     }
 
     function _deployMetaMiddleware() private {
-        // TODO migration: implement
+        TanssiMetaMiddleware tanssiMetaMiddlewareImpl = new TanssiMetaMiddleware();
+        metaMiddleware = TanssiMetaMiddleware(address(new ERC1967Proxy(address(tanssiMetaMiddlewareImpl), "")));
+        metaMiddleware.initialize(owner);
+
+        vm.startPrank(owner);
+        metaMiddleware.grantRole(metaMiddleware.GATEWAY_ROLE(), gateway);
+        metaMiddleware.registerMiddleware(address(middleware));
+        middleware.setMetaMiddleware(address(metaMiddleware));
+        vm.stopPrank();
     }
 
     function _registerEntitiesToMiddleware(

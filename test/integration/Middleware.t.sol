@@ -61,6 +61,7 @@ import {MockV3Aggregator} from "@chainlink/tests/MockV3Aggregator.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 //**************************************************************************************************
 //                                      TANSSI META MIDDLEWARE
@@ -518,7 +519,9 @@ contract MiddlewareTest is Test {
     }
 
     function _deployMetaMiddleware() private {
-        // TODO migration: implement
+        TanssiMetaMiddleware tanssiMetaMiddlewareImpl = new TanssiMetaMiddleware();
+        metaMiddleware = TanssiMetaMiddleware(address(new ERC1967Proxy(address(tanssiMetaMiddlewareImpl), "")));
+        metaMiddleware.initialize(owner);
     }
 
     // ************************************************************************************************
