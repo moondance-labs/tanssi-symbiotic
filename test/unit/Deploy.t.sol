@@ -196,7 +196,7 @@ contract DeployTest is Test {
         address metaMiddleware = makeAddr("metaMiddleware");
         address tanssi_ = deployTanssiEcosystemDemo.tanssi();
         vm.prank(tanssi_);
-        middleware.setMetaMiddleware(metaMiddleware);
+        middleware.reinitializeMetaMiddleware(metaMiddleware);
 
         address operator = operatorVaultPairs[1].operator;
         address vault = operatorVaultPairs[1].vaults[1];

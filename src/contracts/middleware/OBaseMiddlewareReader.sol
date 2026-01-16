@@ -15,11 +15,6 @@
 pragma solidity 0.8.25;
 
 //**************************************************************************************************
-//                                      CHAINLINK
-//**************************************************************************************************
-import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3Interface.sol";
-
-//**************************************************************************************************
 //                                      OPENZEPPELIN
 //**************************************************************************************************
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -38,6 +33,11 @@ import {OperatorManager} from "@symbiotic-middleware/managers/OperatorManager.so
 import {KeyManager256} from "@symbiotic-middleware/extensions/managers/keys/KeyManager256.sol";
 import {BaseMiddleware} from "@symbiotic-middleware/middleware/BaseMiddleware.sol";
 import {EpochCapture} from "@symbiotic-middleware/extensions/managers/capture-timestamps/EpochCapture.sol";
+
+//**************************************************************************************************
+//                                      TANSSI META MIDDLEWARE
+//**************************************************************************************************
+import {ITanssiMetaMiddleware} from "@tanssi-meta-middleware/interfaces/ITanssiMetaMiddleware.sol";
 
 //**************************************************************************************************
 //                                      TANSSI
@@ -83,18 +83,18 @@ contract OBaseMiddlewareReader is
         if (stake == 0) {
             return 0;
         }
-
         address collateral = MiddlewareStorage.vaultToCollateral(vault);
-        address oracle = MiddlewareStorage.collateralToOracle(collateral);
 
-        if (oracle == address(0)) {
-            revert IOBaseMiddlewareReader.OBaseMiddlewareReader__NotSupportedCollateral(collateral);
-        }
-        (, int256 price,,,) = AggregatorV3Interface(oracle).latestRoundData();
-        uint8 priceDecimals = AggregatorV3Interface(oracle).decimals();
-        power = stake.mulDiv(uint256(price), 10 ** priceDecimals);
+        address metaMiddleware = MiddlewareStorage.getMetaMiddlewareAddress();
+        address[] memory collaterals = new address[](1);
+        collaterals[0] = collateral;
+
+        ITanssiMetaMiddleware.TokenData[] memory tokenData =
+            ITanssiMetaMiddleware(metaMiddleware).getTokensData(collaterals);
+
+        power = stake.mulDiv(uint256(tokenData[0].price), 10 ** tokenData[0].priceDecimals);
         // Normalize power to 18 decimals
-        uint8 collateralDecimals = IERC20Metadata(collateral).decimals();
+        uint8 collateralDecimals = tokenData[0].tokenDecimals;
         if (collateralDecimals != MiddlewareStorage.DEFAULT_DECIMALS) {
             power = power.mulDiv(10 ** MiddlewareStorage.DEFAULT_DECIMALS, 10 ** collateralDecimals);
         }

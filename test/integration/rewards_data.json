@@ -2,6 +2,7 @@
   "1": {
     "epoch": 1,
     "total_points": 100,
+    "total_operators": 7,
     "root": "0x8222cf14c50a00eaec88527ee1e99ec9953337b1709902c145ba45e3834993c4",
     "operator1_proof": [
       "0x5da769f6c710dcb58c76228f12605b09fb93bed9039bc66d3c7dfb60f6fc3c10",
@@ -43,6 +44,7 @@
   "2": {
     "epoch": 1,
     "total_points": 100,
+    "total_operators": 7,
     "root": "0x7e57ac938ab92cf171efa3dbb61c15167290ae83cb40432afba447711c66dd80",
     "operator1_proof": [
       "0x9a84d23c0373d5bbde68cfe2a127383b2898755314d289d50e25f941c3676d9a",
@@ -70,6 +72,7 @@
   "3": {
     "epoch": 2,
     "total_points": 50,
+    "total_operators": 7,
     "root": "0x4223153fa886ecd938c2f96d7c68dfe9fd47424fac0933823f31bada18b0ec68",
     "operator1_proof": [],
     "operator1_points": 0,
@@ -93,6 +96,7 @@
   "4": {
     "epoch": 2,
     "total_points": 100,
+    "total_operators": 7,
     "root": "0x8645aeff22ff5b53b59c19153bb95f383a6d3422f4bfe70ed32b60de56f38316",
     "operator1_proof": [
       "0x5da769f6c710dcb58c76228f12605b09fb93bed9039bc66d3c7dfb60f6fc3c10",
@@ -139,6 +143,7 @@
   "5": {
     "epoch": 1,
     "total_points": 100,
+    "total_operators": 9,
     "root": "0x0814d868937bbc1da973e5f959165ce6818ffaf7f42ba2f408bb7c970c229b42",
     "operator1_proof": [],
     "operator1_points": 0,

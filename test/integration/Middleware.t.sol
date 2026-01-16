@@ -90,7 +90,6 @@ import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRew
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {IOBaseMiddlewareReader} from "src/interfaces/middleware/IOBaseMiddlewareReader.sol";
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
-import {TestUtils} from "test/utils/Utils.t.sol";
 import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
 
 contract MiddlewareTest is Test {
@@ -179,7 +178,6 @@ contract MiddlewareTest is Test {
     Token public rETH;
     Token public wBTC;
     VaultConfigurator public vaultConfigurator;
-    TestUtils public testUtils;
 
     uint256 ownerPrivateKey =
         vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
@@ -195,12 +193,7 @@ contract MiddlewareTest is Test {
     address public resolver2 = makeAddr("resolver2");
     address public forwarder = makeAddr("forwarder");
 
-    address public workflowOwner = makeAddr("workflowOwner");
-    string internal workflowName = "workflow_tanssi";
-    bytes10 public workflowNameEncoded;
-    bytes32 public workflowId = bytes32(uint256(1));
-
-    bytes public WORKFLOW_METADATA;
+    address public gateway = makeAddr("gateway");
 
     address tanssi;
     address otherNetwork;
@@ -237,10 +230,6 @@ contract MiddlewareTest is Test {
         wBTC.mint(owner, 1_000_000 ether);
         vm.stopPrank();
 
-        address stEthOracle = _deployOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_ST_ETH);
-        address rEthOracle = _deployOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_R_ETH);
-        address wBtcOracle = _deployOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_W_BTC);
-
         deployVault = new DeployVault();
         deployRewards = new DeployRewards();
         deployRewards.setIsTest(true);
@@ -260,8 +249,6 @@ contract MiddlewareTest is Test {
         networkMetadataService = MetadataService(symbioticAddresses.networkMetadataService);
         networkMiddlewareService = NetworkMiddlewareService(symbioticAddresses.networkMiddlewareService);
         vaultConfigurator = VaultConfigurator(symbioticAddresses.vaultConfigurator);
-
-        testUtils = new TestUtils();
 
         vm.startPrank(tanssi);
         // Send initial collateral to the operators
@@ -293,26 +280,13 @@ contract MiddlewareTest is Test {
         operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
         operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware));
 
-        _deployMetaMiddleware();
-        middleware.setMetaMiddleware(address(metaMiddleware));
-        middleware.setCollateralToOracle(address(stETH), stEthOracle);
-        middleware.setCollateralToOracle(address(rETH), rEthOracle);
-        middleware.setCollateralToOracle(address(wBTC), wBtcOracle);
-
-        // TODO migration: get rid of all workflow stuff
-        // middleware.setExpectedAuthor(workflowOwner);
-        // middleware.setExpectedWorkflowName(workflowName);
-        // middleware.setExpectedWorkflowId(workflowId);
-
-        testUtils = new TestUtils();
-        workflowNameEncoded = testUtils.encodeStringToBytes10(workflowName);
-        WORKFLOW_METADATA = abi.encodePacked(workflowId, workflowNameEncoded, workflowOwner);
-
         vetoSlasher = VetoSlasher(vaultAddresses.slasherVetoed);
 
         vetoSlasher.setResolver(0, resolver1, hex"");
         vetoSlasher.setResolver(0, resolver2, hex"");
         vm.stopPrank();
+
+        _setupMetaMiddleware();
 
         vm.prank(owner);
         ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress).setImplementation(stakerRewardsImpl);
@@ -518,10 +492,25 @@ contract MiddlewareTest is Test {
         return sharesCount.mulDiv(stake, totalShares);
     }
 
-    function _deployMetaMiddleware() private {
+    function _setupMetaMiddleware() private {
         TanssiMetaMiddleware tanssiMetaMiddlewareImpl = new TanssiMetaMiddleware();
         metaMiddleware = TanssiMetaMiddleware(address(new ERC1967Proxy(address(tanssiMetaMiddlewareImpl), "")));
         metaMiddleware.initialize(owner);
+
+        address stEthOracle = _deployOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_ST_ETH);
+        address rEthOracle = _deployOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_R_ETH);
+        address wBtcOracle = _deployOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_W_BTC);
+
+        vm.startPrank(owner);
+        metaMiddleware.grantRole(metaMiddleware.GATEWAY_ROLE(), gateway);
+        metaMiddleware.registerMiddleware(address(middleware));
+
+        metaMiddleware.registerCollateral(address(stETH), stEthOracle);
+        metaMiddleware.registerCollateral(address(rETH), rEthOracle);
+        metaMiddleware.registerCollateral(address(wBTC), wBtcOracle);
+
+        middleware.reinitializeMetaMiddleware(address(metaMiddleware));
+        vm.stopPrank();
     }
 
     // ************************************************************************************************

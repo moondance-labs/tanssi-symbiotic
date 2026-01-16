@@ -54,6 +54,7 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 //**************************************************************************************************
 //                                      TANSSI META MIDDLEWARE
 //**************************************************************************************************
+import {ITanssiMetaMiddleware} from "lib/tanssi-meta-middleware/src/interfaces/ITanssiMetaMiddleware.sol";
 import {TanssiMetaMiddleware} from "lib/tanssi-meta-middleware/src/contracts/TanssiMetaMiddleware.sol";
 
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
@@ -111,6 +112,18 @@ contract FullTest is Test {
     bytes32 public constant OPERATOR7_KEY = 0x0707070707070707070707070707070707070707070707070707070707070707;
     bytes32 public constant OPERATOR8_KEY = 0x0808080808080808080808080808080808080808080808080808080808080808;
     bytes32 public constant OPERATOR9_KEY = 0x0909090909090909090909090909090909090909090909090909090909090909;
+
+    bytes32[] public operatorKeys = [
+        OPERATOR1_KEY,
+        OPERATOR2_KEY,
+        OPERATOR3_KEY,
+        OPERATOR4_KEY,
+        OPERATOR5_KEY,
+        OPERATOR6_KEY,
+        OPERATOR7_KEY,
+        OPERATOR8_KEY,
+        OPERATOR9_KEY
+    ];
 
     bytes32 public constant NEW_OPERATOR2_KEY = 0x0202020202020202020202020202020202020202020202020202020222222222;
 
@@ -228,12 +241,8 @@ contract FullTest is Test {
     // ************************************************************************************************
 
     function setUp() public {
-        address gateway = makeAddr("gateway");
+        gateway = makeAddr("gateway");
         _deployTokens();
-
-        address starOracle = _deployOracle(ORACLE_DECIMALS_STAR, ORACLE_CONVERSION_STAR);
-        address wBtcOracle = _deployOracle(ORACLE_DECIMALS_BTC, ORACLE_CONVERSION_W_BTC);
-        address stEthOracle = _deployOracle(ORACLE_DECIMALS_ETH, ORACLE_CONVERSION_ST_ETH);
 
         deployVault = new DeployVault();
         deployRewards = new DeployRewards();
@@ -276,11 +285,7 @@ contract FullTest is Test {
         operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware));
         vm.stopPrank();
 
-        _deployMetaMiddleware();
-
-        metaMiddleware.registerCollateral(address(STAR), starOracle);
-        metaMiddleware.registerCollateral(address(wBTC), wBtcOracle);
-        metaMiddleware.registerCollateral(address(stETH), stEthOracle);
+        _setupMetaMiddleware();
 
         vm.prank(owner);
         ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress).setImplementation(stakerRewardsImpl);
@@ -410,15 +415,24 @@ contract FullTest is Test {
         return address(oracle);
     }
 
-    function _deployMetaMiddleware() private {
+    function _setupMetaMiddleware() private {
         TanssiMetaMiddleware tanssiMetaMiddlewareImpl = new TanssiMetaMiddleware();
         metaMiddleware = TanssiMetaMiddleware(address(new ERC1967Proxy(address(tanssiMetaMiddlewareImpl), "")));
         metaMiddleware.initialize(owner);
 
+        address starOracle = _deployOracle(ORACLE_DECIMALS_STAR, ORACLE_CONVERSION_STAR);
+        address wBtcOracle = _deployOracle(ORACLE_DECIMALS_BTC, ORACLE_CONVERSION_W_BTC);
+        address stEthOracle = _deployOracle(ORACLE_DECIMALS_ETH, ORACLE_CONVERSION_ST_ETH);
+
         vm.startPrank(owner);
         metaMiddleware.grantRole(metaMiddleware.GATEWAY_ROLE(), gateway);
         metaMiddleware.registerMiddleware(address(middleware));
-        middleware.setMetaMiddleware(address(metaMiddleware));
+
+        metaMiddleware.registerCollateral(address(STAR), starOracle);
+        metaMiddleware.registerCollateral(address(wBTC), wBtcOracle);
+        metaMiddleware.registerCollateral(address(stETH), stEthOracle);
+
+        middleware.reinitializeMetaMiddleware(address(metaMiddleware));
         vm.stopPrank();
     }
 
@@ -594,19 +608,108 @@ contract FullTest is Test {
         totalPoints = uint32(vm.parseJsonUint(json, key));
     }
 
-    function _prepareRewardsDistribution(uint48 eraIndex, uint256 amountToDistribute) private returns (uint48) {
-        (uint48 epoch, bytes32 rewardsRoot,,, uint32 totalPoints) = _loadRewardsRootAndProof(eraIndex, 1);
+    function _loadRewardsRootAndProofs(
+        uint48 eraIndex
+    )
+        private
+        view
+        returns (
+            uint48 epoch,
+            bytes32 rewardsRoot,
+            ITanssiMetaMiddleware.OperatorRewardWithProof[] memory operatorRewardsAndProofs,
+            uint32 totalPoints
+        )
+    {
+        string memory project_root = vm.projectRoot();
+        string memory path = string.concat(project_root, "/test/integration/rewards_data.json");
+        string memory json = vm.readFile(path);
+
+        string memory key = string.concat("$.", vm.toString(eraIndex), ".root");
+        rewardsRoot = vm.parseJsonBytes32(json, key);
+
+        key = string.concat("$.", vm.toString(eraIndex), ".epoch");
+        epoch = uint48(vm.parseJsonUint(json, key));
+
+        uint256 totalOperators =
+            uint256(vm.parseJsonUint(json, string.concat("$.", vm.toString(eraIndex), ".total_operators")));
+
+        operatorRewardsAndProofs = new ITanssiMetaMiddleware.OperatorRewardWithProof[](totalOperators);
+        uint256 operatorIndex;
+        uint256 totalPointsFound;
+
+        for (uint256 i; i < totalOperators;) {
+            key = string.concat("$.", vm.toString(eraIndex), ".operator", vm.toString(i + 1), "_points");
+            uint32 points;
+
+            try vm.parseJsonUint(json, key) returns (uint256 points_) {
+                points = uint32(points_);
+            } catch {}
+            if (points > 0) {
+                totalPointsFound += points;
+
+                key = string.concat("$.", vm.toString(eraIndex), ".operator", vm.toString(i + 1), "_proof");
+                bytes32[] memory proof = vm.parseJsonBytes32Array(json, key);
+
+                if (i == 0) {
+                    console2.log("Proof and operator key", i + 1);
+                    console2.logBytes32(proof[0]);
+                    console2.logBytes32(operatorKeys[i]);
+                }
+                operatorRewardsAndProofs[operatorIndex] = ITanssiMetaMiddleware.OperatorRewardWithProof({
+                    operatorKey: operatorKeys[i],
+                    totalPoints: points,
+                    proof: proof
+                });
+                operatorIndex++;
+            }
+
+            i++;
+        }
+
+        assembly {
+            mstore(operatorRewardsAndProofs, operatorIndex)
+        }
+
+        key = string.concat("$.", vm.toString(eraIndex), ".total_points");
+        totalPoints = uint32(vm.parseJsonUint(json, key));
+
+        if (totalPointsFound != totalPoints) {
+            console2.log("Total points found:", totalPointsFound);
+            console2.log("Total points:", totalPoints);
+            revert("Total points found do not match total points");
+        }
+    }
+
+    function _prepareRewardsDistributionWithToken(
+        uint48 eraIndex,
+        uint256 amountToDistribute,
+        address token
+    ) private returns (uint48) {
+        (
+            uint48 epoch,
+            bytes32 rewardsRoot,
+            ITanssiMetaMiddleware.OperatorRewardWithProof[] memory operatorRewardsAndProofs,
+            uint32 totalPoints
+        ) = _loadRewardsRootAndProofs(eraIndex);
 
         uint48 epochStartTs = middleware.getEpochStart(epoch);
         vm.warp(epochStartTs + 1);
 
-        STAR.mint(address(middleware), amountToDistribute);
+        Token(token).mint(address(metaMiddleware), amountToDistribute);
 
-        vm.prank(address(metaMiddleware));
-        // TODO migration: It's ok to pass bytes(0) here since we re-verify the proofs when operator claims, but once we switch to a push rewards model, we need to pass the rewards distribution data.
-        middleware.distributeRewards(eraIndex, address(STAR), new bytes(0));
+        vm.prank(gateway);
+        metaMiddleware.distributeRewards(epoch, eraIndex, totalPoints, amountToDistribute, rewardsRoot, token);
+
+        metaMiddleware.storeRewards(eraIndex, operatorRewardsAndProofs);
+        vm.prank(owner);
+
+        metaMiddleware.distributeRewardsToMiddlewareTrustlessly(eraIndex, address(middleware));
 
         return epoch;
+    }
+
+    function _prepareRewardsDistribution(uint48 eraIndex, uint256 amountToDistribute) private returns (uint48) {
+        return _prepareRewardsDistributionWithToken(eraIndex, amountToDistribute, address(STAR));
     }
 
     function _claimAndCheckOperatorRewardsForOperator(
@@ -2108,7 +2211,10 @@ contract FullTest is Test {
 
         uint48 eraIndex = 4;
         uint256 amountToDistribute = 100 ether;
-        _prepareRewardsDistribution(eraIndex, amountToDistribute);
+        for (uint256 i = 1; i <= eraIndex; i++) {
+            // TODO migration: Cannot distribute for an era index if the previous era index is not distributed. Even though we need just one era index to be distributed, we need to distribute all the eras up to the current era index.
+            _prepareRewardsDistribution(uint48(i), amountToDistribute);
+        }
 
         (,, bytes32[] memory proof, uint32 points,) = _loadRewardsRootAndProof(eraIndex, 1);
 
@@ -2265,20 +2371,16 @@ contract FullTest is Test {
         eraIndexes[1] = 2;
         uint256 amountToDistribute = 100 ether;
         _prepareRewardsDistribution(eraIndexes[0], amountToDistribute);
+        console2.log("Balance of middleware", STAR.balanceOf(address(middleware)));
+        console2.log("Balance of operatorRewards", STAR.balanceOf(address(operatorRewards)));
 
         // Distribute rewards with a new token
         {
-            (uint48 epoch, bytes32 rewardsRoot,,, uint32 totalPoints) = _loadRewardsRootAndProof(eraIndexes[1], 1);
-
-            uint48 epochStartTs = middleware.getEpochStart(epoch);
-            vm.warp(epochStartTs + 1);
-
             Token mockERC20 = new Token("MockERC20", 18);
-            mockERC20.mint(address(middleware), amountToDistribute);
 
-            vm.prank(address(metaMiddleware));
-            // TODO migration: It's ok to pass bytes(0) here since we re-verify the proofs when operator claims, but once we switch to a push rewards model, we need to pass the rewards distribution data.
-            middleware.distributeRewards(eraIndexes[1], address(mockERC20), new bytes(0));
+            _prepareRewardsDistributionWithToken(eraIndexes[1], amountToDistribute, address(mockERC20));
+            console2.log("Balance of middleware", mockERC20.balanceOf(address(middleware)));
+            console2.log("Balance of operatorRewards", mockERC20.balanceOf(address(operatorRewards)));
         }
 
         (,, bytes32[] memory proofA, uint32 pointsA,) = _loadRewardsRootAndProof(eraIndexes[0], 1); // operatorNumber = 1
@@ -2455,7 +2557,7 @@ contract FullTest is Test {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
-        middleware.slash(slashingEpoch, operator3, SLASHING_FRACTION);
+        metaMiddleware.slash(slashingEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
         vm.stopPrank();
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
@@ -2469,7 +2571,7 @@ contract FullTest is Test {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
-        middleware.slash(slashingEpoch, operator3, SLASHING_FRACTION);
+        metaMiddleware.slash(slashingEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
         vm.stopPrank();
 
         // Start withdrawing BTC as soon as he finds out about the slash. It should not affect the resulting slash
@@ -2490,7 +2592,7 @@ contract FullTest is Test {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
-        middleware.slash(slashingEpoch, operator3, SLASHING_FRACTION);
+        metaMiddleware.slash(slashingEpoch, OPERATOR3_KEY, SLASHING_FRACTION);
         vm.stopPrank();
 
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
@@ -2504,7 +2606,7 @@ contract FullTest is Test {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
-        middleware.slash(slashingEpoch, operator7, SLASHING_FRACTION);
+        metaMiddleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
         vm.stopPrank();
 
         vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
@@ -2522,7 +2624,7 @@ contract FullTest is Test {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
-        middleware.slash(slashingEpoch, operator7, SLASHING_FRACTION);
+        metaMiddleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
         vm.stopPrank();
 
         // Withdraw just after the slash trying to avoid it, shouldn't affect his slashed amount
@@ -2547,7 +2649,7 @@ contract FullTest is Test {
         uint48 slashingEpoch = middleware.getCurrentEpoch();
 
         vm.startPrank(gateway);
-        middleware.slash(slashingEpoch, operator7, SLASHING_FRACTION);
+        metaMiddleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
         vm.stopPrank();
 
         vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
@@ -2569,7 +2671,7 @@ contract FullTest is Test {
         uint48 slashingEpoch = middleware.getCurrentEpoch();
 
         vm.startPrank(gateway);
-        middleware.slash(slashingEpoch, operator7, SLASHING_FRACTION);
+        metaMiddleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
         vm.stopPrank();
 
         vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
@@ -2609,7 +2711,7 @@ contract FullTest is Test {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
-        middleware.slash(slashingEpoch, operator7, SLASHING_FRACTION);
+        metaMiddleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
         vm.stopPrank();
 
         vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
@@ -2630,7 +2732,7 @@ contract FullTest is Test {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
-        middleware.slash(slashingEpoch, operator7, SLASHING_FRACTION);
+        metaMiddleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
         vm.stopPrank();
 
         vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
@@ -2652,7 +2754,7 @@ contract FullTest is Test {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
-        middleware.slash(slashingEpoch, operator7, SLASHING_FRACTION);
+        metaMiddleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
         vm.stopPrank();
 
         // Withdraw just after the slash trying to avoid it, shouldn't affect his slashed amount
@@ -2681,7 +2783,7 @@ contract FullTest is Test {
         vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
 
         vm.startPrank(gateway);
-        middleware.slash(slashingEpoch, operator7, SLASHING_FRACTION);
+        metaMiddleware.slash(slashingEpoch, OPERATOR7_KEY, SLASHING_FRACTION);
         vm.stopPrank();
 
         vm.warp(vm.getBlockTimestamp() + VETO_DURATION);
@@ -3012,7 +3114,10 @@ contract FullTest is Test {
         uint256 amountToDistribute = 100 ether;
         vm.warp(vm.getBlockTimestamp() + 5 * NETWORK_EPOCH_DURATION);
 
-        _prepareRewardsDistribution(eraIndex, amountToDistribute);
+        for (uint256 i = 1; i <= eraIndex; i++) {
+            // TODO migration: Cannot distribute for an era index if the previous era index is not distributed. Even though we need just one era index to be distributed, we need to distribute all the eras up to the current era index.
+            _prepareRewardsDistribution(uint48(i), amountToDistribute);
+        }
 
         uint256 initGas = gasleft();
         _claimAndCheckOperatorRewardsForOperator(amountToDistribute, eraIndex, OPERATOR8_KEY, operator8, 8, true, false);
@@ -3036,7 +3141,7 @@ contract FullTest is Test {
         uint48 slashingEpoch = middleware.getCurrentEpoch();
         vm.startPrank(gateway);
         uint256 initGas = gasleft();
-        middleware.slash(slashingEpoch, operator8, SLASHING_FRACTION);
+        metaMiddleware.slash(slashingEpoch, OPERATOR8_KEY, SLASHING_FRACTION);
         vm.stopPrank();
 
         uint256 endGas = gasleft();

@@ -159,7 +159,7 @@ contract RewardsTest is Test {
 
     VetoSlasher vetoSlasher;
 
-    address public gateway;
+    address public gateway = makeAddr("gateway");
     TanssiMetaMiddleware public metaMiddleware;
 
     // Scripts
@@ -191,10 +191,6 @@ contract RewardsTest is Test {
         wBTC = Token(wBTCAddress);
         wBTC.mint(owner, 1_000_000 ether);
         vm.stopPrank();
-
-        address stEthOracle = _deployOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_ST_ETH);
-        address rEthOracle = _deployOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_R_ETH);
-        address wBtcOracle = _deployOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_W_BTC);
 
         deployVault = new DeployVault();
         DeploySymbiotic deploySymbiotic = new DeploySymbiotic();
@@ -244,10 +240,6 @@ contract RewardsTest is Test {
         operatorRewards.grantRole(operatorRewards.MIDDLEWARE_ROLE(), address(middleware));
         operatorRewards.grantRole(operatorRewards.STAKER_REWARDS_SETTER_ROLE(), address(middleware));
 
-        middleware.setCollateralToOracle(address(stETH), stEthOracle);
-        middleware.setCollateralToOracle(address(rETH), rEthOracle);
-        middleware.setCollateralToOracle(address(wBTC), wBtcOracle);
-
         vetoSlasher = VetoSlasher(vaultAddresses.slasherVetoed);
 
         vetoSlasher.setResolver(0, resolver1, hex"");
@@ -263,6 +255,8 @@ contract RewardsTest is Test {
         vaults.push(vault);
         vaults.push(vaultSlashable);
         vaults.push(vaultVetoed);
+
+        _setupMetaMiddleware();
 
         _registerOperator(operator, tanssi, address(vault));
         _registerOperator(operator3, tanssi, address(vaultSlashable));
@@ -290,8 +284,6 @@ contract RewardsTest is Test {
         operatorVaultOptInService.optIn(address(vaultVetoed));
 
         vm.stopPrank();
-
-        _setupMetaMiddleware();
     }
 
     // ************************************************************************************************
@@ -435,16 +427,24 @@ contract RewardsTest is Test {
         vm.stopPrank();
     }
 
-    function _setupMetaMiddleware() public {
-        gateway = makeAddr("gateway");
+    function _setupMetaMiddleware() private {
         TanssiMetaMiddleware tanssiMetaMiddlewareImpl = new TanssiMetaMiddleware();
         metaMiddleware = TanssiMetaMiddleware(address(new ERC1967Proxy(address(tanssiMetaMiddlewareImpl), "")));
         metaMiddleware.initialize(owner);
 
+        address stEthOracle = _deployOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_ST_ETH);
+        address rEthOracle = _deployOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_R_ETH);
+        address wBtcOracle = _deployOracle(ORACLE_DECIMALS, ORACLE_CONVERSION_W_BTC);
+
         vm.startPrank(owner);
         metaMiddleware.grantRole(metaMiddleware.GATEWAY_ROLE(), gateway);
         metaMiddleware.registerMiddleware(address(middleware));
-        middleware.setMetaMiddleware(address(metaMiddleware));
+
+        metaMiddleware.registerCollateral(address(stETH), stEthOracle);
+        metaMiddleware.registerCollateral(address(rETH), rEthOracle);
+        metaMiddleware.registerCollateral(address(wBTC), wBtcOracle);
+
+        middleware.reinitializeMetaMiddleware(address(metaMiddleware));
         vm.stopPrank();
     }
 

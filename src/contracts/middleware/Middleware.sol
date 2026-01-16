@@ -21,6 +21,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 //**************************************************************************************************
 //                                      SYMBIOTIC
@@ -66,6 +67,7 @@ contract Middleware is
 {
     using Subnetwork for address;
     using Math for uint256;
+    using SafeERC20 for IERC20;
 
     modifier notZeroAddress(
         address address_
@@ -135,7 +137,13 @@ contract Middleware is
     /*
      * @notice Reinitialize to set the onReport selector role
      */
-    function reinitialize() external reinitializer(4) {
+    function reinitializeMetaMiddleware(
+        address metaMiddleware
+    ) external reinitializer(4) notZeroAddress(metaMiddleware) {
+        MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
+        $.i_metaMiddleware = ITanssiMetaMiddleware(metaMiddleware);
+        _grantRole(MiddlewareStorage.META_MIDDLEWARE_ROLE, metaMiddleware);
+
         _setSelectorRole(this.distributeRewards.selector, MiddlewareStorage.META_MIDDLEWARE_ROLE);
         _setSelectorRole(this.slash.selector, MiddlewareStorage.META_MIDDLEWARE_ROLE);
     }
@@ -163,26 +171,6 @@ contract Middleware is
 
     function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
         return IOBaseMiddlewareReader(address(this)).getPowerInUSD(vault, stake);
-    }
-
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function setMetaMiddleware(
-        address metaMiddleware
-    ) external checkAccess notZeroAddress(metaMiddleware) {
-        MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
-        address oldMetaMiddleware = address($.i_metaMiddleware);
-
-        if (metaMiddleware == oldMetaMiddleware) {
-            revert Middleware__AlreadySet();
-        }
-
-        $.i_metaMiddleware = ITanssiMetaMiddleware(metaMiddleware);
-        _revokeRole(MiddlewareStorage.META_MIDDLEWARE_ROLE, oldMetaMiddleware);
-        _grantRole(MiddlewareStorage.META_MIDDLEWARE_ROLE, metaMiddleware);
-
-        emit MetaMiddlewareSet(address(metaMiddleware));
     }
 
     /**
@@ -358,13 +346,13 @@ contract Middleware is
     }
 
     function transferRewards(uint48 eraIndex, address tokenAddress, uint256 totalRewards) external {
-        // TODO migration: Implement this
+        // TODO migration: complete implementation
         // MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
         // if ($.rewardsPerEra[eraIndex][tokenAddress] != 0) {
         //     revert Middleware__RewardsAlreadyTransferredForEra();
         // }
         // $.rewardsPerEra[eraIndex][tokenAddress] = totalRewards;
-        // IERC20(tokenAddress).safeTransferFrom(msg.sender, address(this), totalRewards);
+        IERC20(tokenAddress).safeTransferFrom(msg.sender, address(this), totalRewards);
     }
 
     /**
@@ -405,10 +393,20 @@ contract Middleware is
         address operator,
         bytes memory key,
         address
-    ) internal pure override notZeroAddress(operator) {
+    ) internal override notZeroAddress(operator) {
+        // TODO Migration: This might be not needed anymore since it's decoded later
         if (key.length != 32 || abi.decode(key, (bytes32)) == bytes32(0)) {
             revert Middleware__InvalidKey();
         }
+
+        MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
+        ITanssiMetaMiddleware($.i_metaMiddleware).registerOperator(operator, abi.decode(key, (bytes32)));
+    }
+
+    function _beforeUpdateOperatorKey(address operator, bytes memory key) internal override {
+        MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
+        // TODO migration: This should happen when updateOperatorKey is called, but the hooks is also called when registering an operator, so it would run twice and revert. Needs to be fixed.
+        // ITanssiMetaMiddleware($.i_metaMiddleware).updateOperatorKey(operator, abi.decode(key, (bytes32)));
     }
 
     /**
@@ -417,6 +415,7 @@ contract Middleware is
     function _beforeUnregisterOperator(
         address operator
     ) internal override {
+        // TODO Migration: Is it safe to update the key to 0, shall we also do it on meta middleware? Should other middlewares also do this?
         _updateKey(operator, abi.encode(bytes32(0)));
     }
 

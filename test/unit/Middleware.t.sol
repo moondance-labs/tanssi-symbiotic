@@ -56,6 +56,16 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
+//**************************************************************************************************
+//                                      TANSSI META MIDDLEWARE
+//**************************************************************************************************
+
+import {ITanssiMetaMiddleware} from "@tanssi-meta-middleware/interfaces/ITanssiMetaMiddleware.sol";
+
+//**************************************************************************************************
+//                                      TANSSI SYMBIOTIC MIDDLEWARE
+//**************************************************************************************************
+
 import {IODefaultStakerRewards} from "src/interfaces/rewarder/IODefaultStakerRewards.sol";
 import {IODefaultOperatorRewards} from "src/interfaces/rewarder/IODefaultOperatorRewards.sol";
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
@@ -227,9 +237,9 @@ contract MiddlewareTest is Test {
         middleware.initialize(params);
         middleware.reinitializeRewards(operatorRewardsAddress, stakerRewardsFactoryAddress);
 
-        middleware.setMetaMiddleware(metaMiddleware);
+        middleware.reinitializeMetaMiddleware(metaMiddleware);
+        vm.mockCall(metaMiddleware, abi.encodeWithSelector(ITanssiMetaMiddleware.registerOperator.selector), bytes(""));
         middleware.setCollateralToOracle(address(collateral), address(collateralOracle));
-        middleware.reinitialize();
 
         // TODO migration: get rid of all workflow stuff
         // middleware.setExpectedAuthor(workflowOwner);
@@ -1560,22 +1570,22 @@ contract MiddlewareTest is Test {
 
         vm.prank(owner);
         vm.expectRevert(); //Function doesn't exists
-        middleware.setMetaMiddleware(metaMiddleware);
+        middleware.setInterval(100);
 
         middleware.upgradeToAndCall(address(middlewareImpl), emptyBytes);
         assertEq(readerForwarder.getVersion(), 1);
 
         vm.prank(owner);
-        middleware.setMetaMiddleware(metaMiddleware);
+        middleware.setInterval(100);
     }
 
     function testMiddlewareIsUpgradeableButMiddlewareV3IsNotUpgradeable() public {
         address newMetaMiddleware = makeAddr("newMetaMiddleware");
         vm.prank(owner);
 
-        middleware.setMetaMiddleware(newMetaMiddleware);
+        middleware.setInterval(100);
         assertEq(readerForwarder.getVersion(), 1);
-        assertEq(address(readerForwarder.getMetaMiddleware()), newMetaMiddleware);
+        assertEq(readerForwarder.getInterval(), 100);
 
         MiddlewareV3 middlewareImplV3 = new MiddlewareV3(address(operatorRewards));
         bytes memory emptyBytes = hex"";
@@ -1585,7 +1595,7 @@ contract MiddlewareTest is Test {
         assertEq(readerForwarder.getVersion(), 3);
 
         vm.expectRevert(); //Doesn't exists
-        middleware.setMetaMiddleware(newMetaMiddleware);
+        middleware.setInterval(100);
 
         vm.expectRevert(MiddlewareV3.MiddlewareV3__UpgradeNotAuthorized.selector); //Contract is not upgradeable anymore
         middleware.upgradeToAndCall(address(middlewareImpl), emptyBytes);
@@ -2299,40 +2309,6 @@ contract MiddlewareTest is Test {
         key = readerForwarder.getOperatorKeyAt(operator, uint48(vm.getBlockTimestamp()));
 
         assertEq(abi.decode(key, (bytes32)), bytes32(0));
-    }
-
-    // ************************************************************************************************
-    // *                                        SET META MIDDLEWARE
-    // ************************************************************************************************
-
-    function testSetMetaMiddleware() public {
-        address metaMiddleware2 = makeAddr("metaMiddleware2");
-        vm.prank(owner);
-        middleware.setMetaMiddleware(metaMiddleware2);
-        assertEq(readerForwarder.getMetaMiddleware(), metaMiddleware2);
-    }
-
-    function testSetMetaMiddlewareUnauthorizedAccount() public {
-        address metaMiddleware2 = makeAddr("metaMiddleware2");
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
-            )
-        );
-        middleware.setMetaMiddleware(metaMiddleware2);
-    }
-
-    function testSetGatewayRevertIfZero() public {
-        address metaMiddlewareNull = address(0);
-        vm.prank(owner);
-        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
-        middleware.setMetaMiddleware(metaMiddlewareNull);
-    }
-
-    function testSetMetaMiddlewareRevertIfAlreadySet() public {
-        vm.prank(owner);
-        vm.expectRevert(IMiddleware.Middleware__AlreadySet.selector);
-        middleware.setMetaMiddleware(metaMiddleware);
     }
 
     // ************************************************************************************************

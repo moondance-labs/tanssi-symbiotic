@@ -41,6 +41,12 @@ import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol"
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+
+//**************************************************************************************************
+//                                      TANSSI META MIDDLEWARE
+//**************************************************************************************************
+import {ITanssiMetaMiddleware} from "@tanssi-meta-middleware/interfaces/ITanssiMetaMiddleware.sol";
+
 //**************************************************************************************************
 //                                      TANSSI
 //**************************************************************************************************
@@ -107,6 +113,7 @@ contract RewardsTest is Test {
     address delegatorFactory = makeAddr("delegatorFactory");
     address slasherFactory = makeAddr("slasherFactory");
     address vaultFactory = makeAddr("vaultFactory");
+    address metaMiddleware = makeAddr("metaMiddleware");
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
 
@@ -222,6 +229,10 @@ contract RewardsTest is Test {
         networkMiddlewareService.setMiddleware(address(middleware));
 
         _setVaultToCollateral(address(vault), address(token));
+
+        middleware.reinitializeMetaMiddleware(metaMiddleware);
+
+        vm.mockCall(metaMiddleware, abi.encodeWithSelector(ITanssiMetaMiddleware.registerOperator.selector), bytes(""));
 
         vm.startPrank(alice);
         operatorRegistry.registerOperator();

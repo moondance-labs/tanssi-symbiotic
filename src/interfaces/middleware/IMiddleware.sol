@@ -35,12 +35,6 @@ interface IMiddleware {
      */
     event ForwarderSet(address indexed forwarder);
 
-    /**
-     * @notice Emitted when a new meta middleware address is set.
-     * @param metaMiddleware The new meta middleware address
-     */
-    event MetaMiddlewareSet(address indexed metaMiddleware);
-
     // Errors
     error Middleware__GatewayNotSet();
     error Middleware__AlreadySet();
@@ -98,15 +92,6 @@ interface IMiddleware {
         uint48 slashingWindow;
         address reader;
     }
-
-    /**
-     * @notice Sets the meta middleware contract
-     * @dev Only the owner can call this function
-     * @param metaMiddleware The meta middleware contract address
-     */
-    function setMetaMiddleware(
-        address metaMiddleware
-    ) external;
 
     /**
      * @notice Sets the interval on which to let Chainlink forwarder to call `performUpkeep`

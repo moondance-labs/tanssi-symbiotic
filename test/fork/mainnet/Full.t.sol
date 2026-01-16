@@ -225,7 +225,7 @@ contract FullTest is Test {
         middleware.upgradeToAndCall(address(newMiddleware), hex"");
         operatorRewards.upgradeToAndCall(address(newOperatorRewards), hex"");
         middleware.setReader(address(newReader));
-        middleware.reinitialize();
+        middleware.reinitializeMetaMiddleware(address(metaMiddleware));
         vm.stopPrank();
         // TODO END
 
@@ -468,14 +468,14 @@ contract FullTest is Test {
         assertEq(reader.getVersion(), 2);
 
         vm.expectRevert(); //Function doesn't exists
-        middleware.setMetaMiddleware(address(metaMiddleware));
+        middleware.setInterval(100);
 
         middleware.upgradeToAndCall(address(middlewareImpl), emptyBytes);
         assertEq(reader.getVersion(), 1);
 
         vm.expectRevert(IMiddleware.Middleware__AlreadySet.selector);
-        middleware.setMetaMiddleware(address(metaMiddleware));
-        assertEq(reader.getMetaMiddleware(), address(metaMiddleware));
+        middleware.setInterval(100);
+        assertEq(reader.getInterval(), 100);
     }
 
     function testSlashingEachVault() public {
