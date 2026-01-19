@@ -145,6 +145,7 @@ contract Middleware is
         _grantRole(MiddlewareStorage.META_MIDDLEWARE_ROLE, metaMiddleware);
 
         _setSelectorRole(this.distributeRewards.selector, MiddlewareStorage.META_MIDDLEWARE_ROLE);
+        _setSelectorRole(this.transferRewards.selector, MiddlewareStorage.META_MIDDLEWARE_ROLE);
         _setSelectorRole(this.slash.selector, MiddlewareStorage.META_MIDDLEWARE_ROLE);
     }
 
@@ -211,18 +212,6 @@ contract Middleware is
         _grantRole(MiddlewareStorage.FORWARDER_ROLE, forwarder);
 
         emit ForwarderSet(forwarder);
-    }
-
-    function setCollateralToOracle(
-        address collateral,
-        address oracle
-    ) external checkAccess notZeroAddress(collateral) {
-        MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
-
-        // Oracle is not checked against zero so this can be used to remove the oracle from a collateral
-
-        $.collateralToOracle[collateral] = oracle;
-        emit CollateralToOracleSet(collateral, oracle);
     }
 
     /**

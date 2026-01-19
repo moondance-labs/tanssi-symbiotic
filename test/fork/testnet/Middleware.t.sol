@@ -36,6 +36,16 @@ import {AggregatorV3Interface} from "@chainlink/shared/interfaces/AggregatorV2V3
 //**************************************************************************************************
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+
+//**************************************************************************************************
+//                                      TANSSI META MIDDLEWARE
+//**************************************************************************************************
+import {TanssiMetaMiddleware} from "@tanssi-meta-middleware/contracts/TanssiMetaMiddleware.sol";
+
+//**************************************************************************************************
+//                                      TANSSI SYMBIOTIC MIDDLEWARE
+//**************************************************************************************************
 import {Middleware} from "src/contracts/middleware/Middleware.sol";
 import {OBaseMiddlewareReader} from "src/contracts/middleware/OBaseMiddlewareReader.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
@@ -78,21 +88,11 @@ contract MiddlewareTest is Test {
     Middleware middleware;
     ODefaultOperatorRewards operatorRewards;
     IERC20 stETH;
+    TanssiMetaMiddleware metaMiddleware;
 
     function setUp() public {
         _loadBaseInfrastructure();
-
-        vm.startPrank(admin);
-        middleware.setCollateralToOracle(address(stETH), oracle);
-        vm.mockCall(
-            oracle,
-            abi.encodeWithSelector(AggregatorV3Interface.latestRoundData.selector),
-            abi.encode(uint80(0), uint256(ORACLE_CONVERSION_TOKEN), uint256(0), uint256(0), uint80(0))
-        );
-        vm.mockCall(
-            oracle, abi.encodeWithSelector(AggregatorV3Interface.decimals.selector), abi.encode(uint8(ORACLE_DECIMALS))
-        );
-        vm.stopPrank();
+        _setupMetaMiddleware();
     }
 
     function _loadBaseInfrastructure() private {
@@ -117,6 +117,26 @@ contract MiddlewareTest is Test {
         operatorStake = vault.activeBalanceOf(operator);
         operatorShares = vault.activeSharesOf(operator);
         vaultShares = vault.activeShares();
+    }
+
+    function _setupMetaMiddleware() private {
+        TanssiMetaMiddleware tanssiMetaMiddlewareImpl = new TanssiMetaMiddleware();
+        metaMiddleware = TanssiMetaMiddleware(address(new ERC1967Proxy(address(tanssiMetaMiddlewareImpl), "")));
+        metaMiddleware.initialize(admin);
+
+        vm.startPrank(admin);
+        metaMiddleware.registerCollateral(address(stETH), oracle);
+        middleware.reinitializeMetaMiddleware(address(metaMiddleware));
+        vm.stopPrank();
+
+        vm.mockCall(
+            oracle,
+            abi.encodeWithSelector(AggregatorV3Interface.latestRoundData.selector),
+            abi.encode(uint80(0), uint256(ORACLE_CONVERSION_TOKEN), uint256(0), uint256(0), uint80(0))
+        );
+        vm.mockCall(
+            oracle, abi.encodeWithSelector(AggregatorV3Interface.decimals.selector), abi.encode(uint8(ORACLE_DECIMALS))
+        );
     }
 
     function _depositToVault(IVault _vault, address _operator, uint256 _amount, IERC20 collateral) public {

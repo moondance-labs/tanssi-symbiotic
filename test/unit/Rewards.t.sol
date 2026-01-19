@@ -224,7 +224,6 @@ contract RewardsTest is Test {
         token.transfer(address(middleware), token.totalSupply());
 
         vm.startPrank(tanssi);
-        middleware.setCollateralToOracle(address(token), address(collateralOracle));
         networkRegistry.registerNetwork();
         networkMiddlewareService.setMiddleware(address(middleware));
 

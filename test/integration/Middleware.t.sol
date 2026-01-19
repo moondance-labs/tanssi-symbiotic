@@ -941,8 +941,8 @@ contract MiddlewareTest is Test {
         params.collateral = address(usdt);
         (address vaultUsdt, address vaultDelegatorUsdt,) = deployVault.createBaseVault(params);
 
-        middleware.setCollateralToOracle(address(usdc), usdcOracle);
-        middleware.setCollateralToOracle(address(usdt), usdtOracle);
+        metaMiddleware.registerCollateral(address(usdc), usdcOracle);
+        metaMiddleware.registerCollateral(address(usdt), usdtOracle);
 
         _registerOperatorAndOptIn(operator4, tanssi, address(vaultUsdc), true);
         _registerOperatorAndOptIn(operator4, tanssi, address(vaultUsdt), false);
@@ -1023,7 +1023,7 @@ contract MiddlewareTest is Test {
             deployVault.createTanssiVault(address(vaultConfigurator), tanssi, address(tanssiCollateral));
 
         vm.startPrank(owner);
-        middleware.setCollateralToOracle(address(tanssiCollateral), address(tanssiCollateralOracle));
+        metaMiddleware.registerCollateral(address(tanssiCollateral), address(tanssiCollateralOracle));
 
         _registerOperatorAndOptIn(operator4, tanssi, address(tanssiVaultAddress), true);
 

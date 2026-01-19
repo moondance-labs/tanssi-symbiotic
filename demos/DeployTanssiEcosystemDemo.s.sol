@@ -393,15 +393,16 @@ contract DeployTanssiEcosystemDemo is Script {
         networkMiddlewareService.setMiddleware(address(ecosystemEntities.middleware));
         _registerEntitiesToMiddleware();
 
-        ecosystemEntities.middleware.setCollateralToOracle(
-            address(tokensAddresses.stETHToken), address(collateralOracle)
-        );
-        ecosystemEntities.middleware.setCollateralToOracle(
-            address(tokensAddresses.rETHToken), address(collateralOracle)
-        );
-        ecosystemEntities.middleware.setCollateralToOracle(
-            address(tokensAddresses.wBTCToken), address(collateralOracle)
-        );
+        // TODO migration: do on meta middleware
+        // ecosystemEntities.middleware.setCollateralToOracle(
+        //     address(tokensAddresses.stETHToken), address(collateralOracle)
+        // );
+        // ecosystemEntities.middleware.setCollateralToOracle(
+        //     address(tokensAddresses.rETHToken), address(collateralOracle)
+        // );
+        // ecosystemEntities.middleware.setCollateralToOracle(
+        //     address(tokensAddresses.wBTCToken), address(collateralOracle)
+        // );
 
         console2.log("VaultConfigurator: ", address(ecosystemEntities.vaultConfigurator));
         console2.log("OperatorRegistry: ", address(operatorRegistry));

@@ -16,14 +16,6 @@ pragma solidity ^0.8.0;
 
 interface IMiddleware {
     /**
-     * @notice Emitted when an oracle is set for a collateral.
-     * @dev If the oracle is set to address(0), the collateral will no longer be supported.
-     * @param collateral The collateral address
-     * @param oracle The oracle address
-     */
-    event CollateralToOracleSet(address indexed collateral, address indexed oracle);
-
-    /**
      * @notice Emitted when the interval for which the `performUpkeep` should be performed is set.
      * @param interval The interval in seconds
      */

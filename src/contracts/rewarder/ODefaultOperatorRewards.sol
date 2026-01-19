@@ -146,6 +146,7 @@ contract ODefaultOperatorRewards is
             revert ODefaultOperatorRewards__InsufficientTransfer();
         }
 
+        // TODO migration: We should read this from meta middleware instead of storing it
         EraRoot memory eraRoot_ = EraRoot({
             epoch: epoch,
             amount: amount,
@@ -256,8 +257,7 @@ contract ODefaultOperatorRewards is
                 keccak256(abi.encodePacked(input.operatorKey, _encodeU32(input.totalPointsClaimable)))
             )
         ) {
-            // TODO migration: Reverting for unknown reasons, disabled temporarily to move on with other tests.
-            // revert ODefaultOperatorRewards__InvalidProof();
+            revert ODefaultOperatorRewards__InvalidProof();
         }
 
         uint256 stakerAmount;
@@ -538,6 +538,6 @@ contract ODefaultOperatorRewards is
         // swap 2-byte long pairs
         v = (v >> 16) | (v << 16);
 
-        bytes4(v);
+        return bytes4(v);
     }
 }

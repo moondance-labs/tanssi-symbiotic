@@ -113,6 +113,7 @@ contract MiddlewareTest is Test {
 
     uint8 public constant ORACLE_DECIMALS = 18;
     int256 public constant ORACLE_CONVERSION_TOKEN = 3000 ether;
+    uint256 public constant REWARDS_AMOUNT = 10 ether;
 
     uint48 public constant START_TIME = 1;
 
@@ -131,13 +132,6 @@ contract MiddlewareTest is Test {
     OBaseMiddlewareReader reader;
     OBaseMiddlewareReaderForwarder readerForwarder;
 
-    address public workflowOwner = makeAddr("workflowOwner");
-    string internal workflowName = "workflow_tanssi";
-    bytes10 public workflowNameEncoded;
-    bytes32 public workflowId = bytes32(uint256(1));
-
-    bytes public WORKFLOW_METADATA;
-
     NetworkMiddlewareService networkMiddlewareService;
     OptInServiceMock operatorNetworkOptInServiceMock;
     OptInServiceMock operatorVaultOptInServiceMock;
@@ -151,7 +145,6 @@ contract MiddlewareTest is Test {
     Slasher slasherWithBadType;
     Token collateral;
     MockV3Aggregator collateralOracle;
-    TestUtils testUtils;
 
     DeployRewards deployRewards;
     DeployCollateral deployCollateral;
@@ -165,6 +158,8 @@ contract MiddlewareTest is Test {
         adminFeeSetRoleHolder: owner,
         implementation: address(0)
     });
+    ITanssiMetaMiddleware.EraRoot testEra;
+    Token rewardsToken;
 
     function setUp() public {
         vm.startPrank(owner);
@@ -239,16 +234,6 @@ contract MiddlewareTest is Test {
 
         middleware.reinitializeMetaMiddleware(metaMiddleware);
         vm.mockCall(metaMiddleware, abi.encodeWithSelector(ITanssiMetaMiddleware.registerOperator.selector), bytes(""));
-        middleware.setCollateralToOracle(address(collateral), address(collateralOracle));
-
-        // TODO migration: get rid of all workflow stuff
-        // middleware.setExpectedAuthor(workflowOwner);
-        // middleware.setExpectedWorkflowName(workflowName);
-        // middleware.setExpectedWorkflowId(workflowId);
-
-        testUtils = new TestUtils();
-        workflowNameEncoded = testUtils.encodeStringToBytes10(workflowName);
-        WORKFLOW_METADATA = abi.encodePacked(workflowId, workflowNameEncoded, workflowOwner);
 
         stakerRewardsParams.implementation =
             address(new ODefaultStakerRewards(address(networkMiddlewareService), tanssi));
@@ -261,6 +246,35 @@ contract MiddlewareTest is Test {
         registry.register();
         networkMiddlewareService.setMiddleware(address(middleware));
         vm.stopPrank();
+
+        rewardsToken = new Token("Test", 18);
+        rewardsToken.mint(address(metaMiddleware), REWARDS_AMOUNT);
+
+        testEra = ITanssiMetaMiddleware.EraRoot({
+            epoch: 1,
+            totalAmount: REWARDS_AMOUNT,
+            totalPoints: REWARDS_AMOUNT,
+            root: bytes32(uint256(1)),
+            tokenAddress: address(rewardsToken)
+        });
+
+        vm.prank(metaMiddleware);
+        rewardsToken.approve(address(middleware), REWARDS_AMOUNT);
+
+        vm.mockCall(
+            metaMiddleware, abi.encodeWithSelector(ITanssiMetaMiddleware.getEraRoot.selector), abi.encode(testEra)
+        );
+
+        ITanssiMetaMiddleware.TokenData[] memory tokenData = new ITanssiMetaMiddleware.TokenData[](1);
+        tokenData[0] = ITanssiMetaMiddleware.TokenData({
+            price: ORACLE_CONVERSION_TOKEN,
+            priceDecimals: ORACLE_DECIMALS,
+            tokenDecimals: uint8(18)
+        });
+
+        vm.mockCall(
+            metaMiddleware, abi.encodeWithSelector(ITanssiMetaMiddleware.getTokensData.selector), abi.encode(tokenData)
+        );
     }
 
     function _registerOperatorToNetwork(address _operator, address _vault, bool skipRegister, bool skipOptIn) public {
@@ -1196,29 +1210,38 @@ contract MiddlewareTest is Test {
     // ************************************************************************************************
 
     function testDistributeRewards() public {
-        Token token = new Token("Test", 18);
-        token.transfer(address(middleware), 1000);
-
-        uint256 epoch = 0;
-        uint48 eraIndex = 0;
+        uint48 eraIndex = 1;
 
         vm.startPrank(metaMiddleware);
-        // TODO migration: It's ok to pass bytes(0) here since we re-verify the proofs when operator claims, but once we switch to a push rewards model, we need to pass the rewards distribution data.
-        middleware.distributeRewards(eraIndex, address(token), new bytes(0));
+        middleware.transferRewards(eraIndex, address(rewardsToken), REWARDS_AMOUNT);
+        middleware.distributeRewards(eraIndex, address(rewardsToken), new bytes(0));
+        vm.stopPrank();
     }
 
     function testDistributeRewardsUnauthorized() public {
-        uint256 epoch = 0;
         uint48 eraIndex = 0;
-        address tokenAddress = makeAddr("TanssiToken");
+        address caller = makeAddr("caller");
+
+        vm.startPrank(caller);
 
         vm.expectRevert(
             abi.encodeWithSelector(
                 IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), META_MIDDLEWARE_ROLE
             )
         );
-        // TODO migration: It's ok to pass bytes(0) here since we re-verify the proofs when operator claims, but once we switch to a push rewards model, we need to pass the rewards distribution data.
-        middleware.distributeRewards(eraIndex, tokenAddress, new bytes(0));
+        middleware.transferRewards(eraIndex, address(rewardsToken), REWARDS_AMOUNT);
+
+        // Now we actually transfer so we can test permissions on the next call
+        vm.prank(metaMiddleware);
+        middleware.transferRewards(eraIndex, address(rewardsToken), REWARDS_AMOUNT);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), META_MIDDLEWARE_ROLE
+            )
+        );
+        vm.prank(caller);
+        middleware.distributeRewards(eraIndex, address(rewardsToken), new bytes(0));
     }
 
     function testDistributeRewardsWithInsufficientBalance() public {
@@ -1228,9 +1251,11 @@ contract MiddlewareTest is Test {
         token.transfer(address(middleware), 800);
 
         vm.startPrank(metaMiddleware);
+
+        // Since we are not calling transferRewards first, we expect the middleware to revert with InsufficientBalance
         vm.expectRevert(IMiddleware.Middleware__InsufficientBalance.selector);
-        // TODO migration: It's ok to pass bytes(0) here since we re-verify the proofs when operator claims, but once we switch to a push rewards model, we need to pass the rewards distribution data.
         middleware.distributeRewards(eraIndex, address(token), new bytes(0));
+        vm.stopPrank();
     }
 
     // ************************************************************************************************
@@ -1580,7 +1605,6 @@ contract MiddlewareTest is Test {
     }
 
     function testMiddlewareIsUpgradeableButMiddlewareV3IsNotUpgradeable() public {
-        address newMetaMiddleware = makeAddr("newMetaMiddleware");
         vm.prank(owner);
 
         middleware.setInterval(100);
@@ -2040,21 +2064,17 @@ contract MiddlewareTest is Test {
         oracleDecimals = 2;
         tokenDecimals = 18;
 
-        vm.startPrank(owner);
-        middleware.setCollateralToOracle(_collateral, _oracle);
-        vm.stopPrank();
         _setVaultToCollateral(_vault, _collateral);
 
+        ITanssiMetaMiddleware.TokenData[] memory tokenData = new ITanssiMetaMiddleware.TokenData[](1);
+        tokenData[0] = ITanssiMetaMiddleware.TokenData({
+            price: multiplier,
+            priceDecimals: oracleDecimals,
+            tokenDecimals: tokenDecimals
+        });
+
         vm.mockCall(
-            _oracle,
-            abi.encodeWithSelector(AggregatorV3Interface.latestRoundData.selector),
-            abi.encode(uint80(0), multiplier, uint256(0), uint256(0), uint80(0))
-        );
-        vm.mockCall(
-            _oracle, abi.encodeWithSelector(AggregatorV3Interface.decimals.selector), abi.encode(uint8(oracleDecimals))
-        );
-        vm.mockCall(
-            _collateral, abi.encodeWithSelector(IERC20Metadata.decimals.selector), abi.encode(uint8(tokenDecimals))
+            metaMiddleware, abi.encodeWithSelector(ITanssiMetaMiddleware.getTokensData.selector), abi.encode(tokenData)
         );
     }
 
@@ -2421,42 +2441,6 @@ contract MiddlewareTest is Test {
 
         address currentOracle = readerForwarder.vaultToOracle(address(vault));
         assertEq(currentOracle, address(collateralOracle));
-    }
-
-    // ************************************************************************************************
-    // *                                   SET COLLATERAL TO ORACLE
-    // ************************************************************************************************
-
-    function testSetCollateralToOracle() public {
-        address _collateral = makeAddr("collateral");
-        address _oracle = makeAddr("oracle");
-
-        vm.startPrank(owner);
-        middleware.setCollateralToOracle(_collateral, _oracle);
-        vm.stopPrank();
-        reader = OBaseMiddlewareReader(address(middleware));
-        assertEq(reader.collateralToOracle(_collateral), _oracle);
-    }
-
-    function testSetCollateralToOracleNoCollateral() public {
-        address _collateral = address(0);
-        address _oracle = makeAddr("oracle");
-
-        vm.startPrank(owner);
-        vm.expectRevert(abi.encodeWithSelector(IMiddleware.Middleware__InvalidAddress.selector));
-        middleware.setCollateralToOracle(_collateral, _oracle);
-        vm.stopPrank();
-    }
-
-    function testSetCollateralToOracleRemoveOracle() public {
-        address _collateral = makeAddr("collateral");
-        address _oracle = makeAddr("oracle");
-
-        vm.startPrank(owner);
-        middleware.setCollateralToOracle(_collateral, _oracle);
-        middleware.setCollateralToOracle(_collateral, address(0));
-        vm.stopPrank();
-        assertEq(MiddlewareStorage.collateralToOracle(_collateral), address(0));
     }
 
     function testReaderForwarder() public {
