@@ -564,17 +564,6 @@ contract OBaseMiddlewareReader is
     }
 
     /**
-     * @notice Get the oracle address for a collateral
-     * @param collateral The collateral address
-     * @return The oracle address
-     */
-    function collateralToOracle(
-        address collateral
-    ) external view returns (address) {
-        return MiddlewareStorage.collateralToOracle(collateral);
-    }
-
-    /**
      * @notice Get the collateral address for a vault
      * @param vault The vault address
      * @return The collateral address
@@ -583,17 +572,6 @@ contract OBaseMiddlewareReader is
         address vault
     ) external view returns (address) {
         return MiddlewareStorage.vaultToCollateral(vault);
-    }
-
-    /**
-     * @notice Get the oracle address for a vault
-     * @param vault The vault address
-     * @return The oracle address
-     */
-    function vaultToOracle(
-        address vault
-    ) external view returns (address) {
-        return MiddlewareStorage.vaultToOracle(vault);
     }
 
     /**
@@ -618,27 +596,11 @@ contract OBaseMiddlewareReader is
     }
 
     /**
-     * @notice Get the forwarder address
-     * @return The forwarder address
-     */
-    function getForwarderAddress() external view returns (address) {
-        return MiddlewareStorage.getForwarderAddress();
-    }
-
-    /**
      * @notice Get the meta middleware contract
      * @return The meta middleware contract address
      */
     function getMetaMiddleware() external view returns (address) {
         return MiddlewareStorage.getMetaMiddlewareAddress();
-    }
-
-    /**
-     * @notice Get the interval
-     * @return The interval
-     */
-    function getInterval() external view returns (uint256) {
-        return MiddlewareStorage.getInterval();
     }
 
     /**

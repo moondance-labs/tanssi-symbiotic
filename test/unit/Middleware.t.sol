@@ -91,7 +91,6 @@ import {RegistryMock} from "../mocks/symbiotic/RegistryMock.sol";
 import {VaultMock} from "../mocks/symbiotic/VaultMock.sol";
 import {SharedVaultMock} from "../mocks/symbiotic/SharedVaultMock.sol";
 import {Token} from "../mocks/Token.sol";
-import {TestUtils} from "test/utils/Utils.t.sol";
 import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
 
 contract MiddlewareTest is Test {
@@ -128,7 +127,6 @@ contract MiddlewareTest is Test {
     address owner = makeAddr("owner");
     address operator = makeAddr("operator");
     address metaMiddleware = makeAddr("metaMiddleware");
-    address forwarder = makeAddr("forwarder");
     OBaseMiddlewareReader reader;
     OBaseMiddlewareReaderForwarder readerForwarder;
 
@@ -396,8 +394,6 @@ contract MiddlewareTest is Test {
         assertEq(readerForwarder.OPERATOR_NET_OPTIN(), address(operatorNetworkOptInServiceMock));
         assertEq(readerForwarder.getMetaMiddleware(), metaMiddleware);
         assertEq(readerForwarder.getLastTimestamp(), 1); // Start time in tests is 1
-        assertEq(readerForwarder.getForwarderAddress(), address(0));
-        assertEq(readerForwarder.getInterval(), NETWORK_EPOCH_DURATION);
     }
 
     // ************************************************************************************************
@@ -1226,22 +1222,19 @@ contract MiddlewareTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), META_MIDDLEWARE_ROLE
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, caller, META_MIDDLEWARE_ROLE
             )
         );
-        middleware.transferRewards(eraIndex, address(rewardsToken), REWARDS_AMOUNT);
-
-        // Now we actually transfer so we can test permissions on the next call
-        vm.prank(metaMiddleware);
         middleware.transferRewards(eraIndex, address(rewardsToken), REWARDS_AMOUNT);
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), META_MIDDLEWARE_ROLE
+                IOzAccessControl.AccessControlUnauthorizedAccount.selector, caller, META_MIDDLEWARE_ROLE
             )
         );
-        vm.prank(caller);
         middleware.distributeRewards(eraIndex, address(rewardsToken), new bytes(0));
+
+        vm.stopPrank();
     }
 
     function testDistributeRewardsWithInsufficientBalance() public {
@@ -1595,21 +1588,21 @@ contract MiddlewareTest is Test {
 
         vm.prank(owner);
         vm.expectRevert(); //Function doesn't exists
-        middleware.setInterval(100);
+        middleware.setOperatorShareOnOperatorRewards(100);
 
         middleware.upgradeToAndCall(address(middlewareImpl), emptyBytes);
         assertEq(readerForwarder.getVersion(), 1);
 
         vm.prank(owner);
-        middleware.setInterval(100);
+        middleware.setOperatorShareOnOperatorRewards(100);
     }
 
     function testMiddlewareIsUpgradeableButMiddlewareV3IsNotUpgradeable() public {
         vm.prank(owner);
 
-        middleware.setInterval(100);
+        middleware.setOperatorShareOnOperatorRewards(100);
         assertEq(readerForwarder.getVersion(), 1);
-        assertEq(readerForwarder.getInterval(), 100);
+        assertEq(operatorRewards.operatorShare(), 100);
 
         MiddlewareV3 middlewareImplV3 = new MiddlewareV3(address(operatorRewards));
         bytes memory emptyBytes = hex"";
@@ -1619,7 +1612,7 @@ contract MiddlewareTest is Test {
         assertEq(readerForwarder.getVersion(), 3);
 
         vm.expectRevert(); //Doesn't exists
-        middleware.setInterval(100);
+        middleware.setOperatorShareOnOperatorRewards(100);
 
         vm.expectRevert(MiddlewareV3.MiddlewareV3__UpgradeNotAuthorized.selector); //Contract is not upgradeable anymore
         middleware.upgradeToAndCall(address(middlewareImpl), emptyBytes);
@@ -2106,22 +2099,6 @@ contract MiddlewareTest is Test {
         assertEq(power, expectedPower);
     }
 
-    function testStakeToPowerWithNoOracle() public {
-        uint256 stake = 1000;
-        address _vault = makeAddr("vault");
-        address _collateral = makeAddr("collateral");
-
-        _setVaultToCollateral(_vault, _collateral);
-        // Collateral is not set to an oracle
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IOBaseMiddlewareReader.OBaseMiddlewareReader__NotSupportedCollateral.selector, _collateral
-            )
-        );
-        middleware.stakeToPower(_vault, stake);
-    }
-
     // ************************************************************************************************
     // *                                        INITIALIZE
     // ************************************************************************************************
@@ -2332,78 +2309,6 @@ contract MiddlewareTest is Test {
     }
 
     // ************************************************************************************************
-    // *                                        SET FORWARDER
-    // ************************************************************************************************
-
-    function testSetForwarder() public {
-        address forwarder2 = makeAddr("forwarder2");
-        vm.prank(owner);
-        middleware.setForwarder(forwarder2);
-        assertEq(readerForwarder.getForwarderAddress(), forwarder2);
-    }
-
-    function testSetForwarderUnauthorizedAccount() public {
-        address forwarder2 = makeAddr("forwarder2");
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
-            )
-        );
-        middleware.setForwarder(forwarder2);
-    }
-
-    function testSetForwarderRevertIfZero() public {
-        address forwarderNull = address(0);
-        vm.prank(owner);
-        vm.expectRevert(IMiddleware.Middleware__InvalidAddress.selector);
-        middleware.setForwarder(forwarderNull);
-    }
-
-    function testSetForwarderRevertIfAlreadySet() public {
-        vm.startPrank(owner);
-        middleware.setForwarder(forwarder);
-
-        vm.expectRevert(IMiddleware.Middleware__AlreadySet.selector);
-        middleware.setForwarder(forwarder);
-    }
-
-    // ************************************************************************************************
-    // *                                        SET INTERVAL
-    // ************************************************************************************************
-
-    function testSetInterval() public {
-        uint256 interval = 3 days;
-        vm.prank(owner);
-        uint256 gasBefore = gasleft();
-        middleware.setInterval(interval);
-        console2.log("Total gas used: ", gasBefore - gasleft());
-        assertEq(readerForwarder.getInterval(), interval);
-    }
-
-    function testSetIntervalUnauthorizedAccount() public {
-        uint256 interval = 3 days;
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IOzAccessControl.AccessControlUnauthorizedAccount.selector, address(this), bytes32(0)
-            )
-        );
-        middleware.setInterval(interval);
-    }
-
-    function testSetIntervalRevertIfZero() public {
-        uint256 interval = 0;
-        vm.prank(owner);
-        vm.expectRevert(IMiddleware.Middleware__InvalidInterval.selector);
-        middleware.setInterval(interval);
-    }
-
-    function testSetIntervalRevertIfAlreadySet() public {
-        vm.prank(owner);
-        vm.expectRevert(IMiddleware.Middleware__AlreadySet.selector);
-        middleware.setInterval(NETWORK_EPOCH_DURATION);
-    }
-
-    // ************************************************************************************************
     // *                                   VAULT TO COLLATERAL AND TO ORACLE
     // ************************************************************************************************
 
@@ -2431,18 +2336,6 @@ contract MiddlewareTest is Test {
         vm.stopPrank();
     }
 
-    function testVaultToOracle() public {
-        vm.mockCall(
-            address(registry), abi.encodeWithSelector(IRegistry.isEntity.selector, address(vault)), abi.encode(true)
-        );
-        vm.startPrank(owner);
-        middleware.registerSharedVault(address(vault), stakerRewardsParams);
-        vm.stopPrank();
-
-        address currentOracle = readerForwarder.vaultToOracle(address(vault));
-        assertEq(currentOracle, address(collateralOracle));
-    }
-
     function testReaderForwarder() public {
         OBaseMiddlewareReaderForwarder readerForwarder_ = new OBaseMiddlewareReaderForwarder(address(middleware));
         OBaseMiddlewareReader reader_ = OBaseMiddlewareReader(address(middleware));
@@ -2455,19 +2348,13 @@ contract MiddlewareTest is Test {
             readerForwarder_.keyWasActiveAt(0, abi.encode(OPERATOR_KEY)),
             reader_.keyWasActiveAt(0, abi.encode(OPERATOR_KEY))
         );
-        assertEq(
-            readerForwarder_.collateralToOracle(address(collateral)), reader_.collateralToOracle(address(collateral))
-        );
         assertEq(readerForwarder_.vaultToCollateral(address(vault)), reader_.vaultToCollateral(address(vault)));
-        assertEq(readerForwarder_.vaultToOracle(address(vault)), reader_.vaultToOracle(address(vault)));
         assertEq(readerForwarder_.getEpochCacheIndex(0), reader_.getEpochCacheIndex(0));
         assertEq(
             readerForwarder_.getOperatorToPowerCached(0, OPERATOR_KEY),
             reader_.getOperatorToPowerCached(0, OPERATOR_KEY)
         );
-        assertEq(readerForwarder_.getForwarderAddress(), reader_.getForwarderAddress());
         assertEq(readerForwarder_.getMetaMiddleware(), reader_.getMetaMiddleware());
-        assertEq(readerForwarder_.getInterval(), reader_.getInterval());
         assertEq(readerForwarder_.getLastTimestamp(), reader_.getLastTimestamp());
         assertEq(readerForwarder_.getOperatorRewardsAddress(), reader_.getOperatorRewardsAddress());
         assertEq(readerForwarder_.getStakerRewardsFactoryAddress(), reader_.getStakerRewardsFactoryAddress());
@@ -2479,63 +2366,6 @@ contract MiddlewareTest is Test {
             assertEq(activeOperatorsForwarder[i], activeOperatorsReader[i]);
         }
     }
-
-    // TODO migration: Was this removed by sdk migration?
-    // function testSupportsInterface() public view {
-    //     bytes4 iErc165Id = type(IERC165).interfaceId;
-    //     assertTrue(middleware.supportsInterface(iErc165Id), "Should support IERC165");
-
-    //     bytes4 invalidId = 0xffffffff;
-    //     assertFalse(middleware.supportsInterface(invalidId), "Should NOT support random interface");
-
-    //     // Just to be sure it's not returning true for everything
-    //     bytes4 erc20Id = 0x36372b07;
-    //     assertFalse(middleware.supportsInterface(erc20Id), "Should NOT support ERC20");
-    // }
-
-    // TODO migration: Adapt this test to the new meta middleware
-    // function testReinitialize() public {
-    //     _registerOperatorToNetwork(operator, address(vault), false, false);
-
-    //     bytes4 selectorToUnset = middleware.onReport.selector;
-
-    //     // 3. Calculate the Slot
-    //     // The Base Location defined in your contract
-    //     bytes32 STORAGE_LOCATION = 0xbe09a78a256419d2b885312b60a13e8082d8ab3c36c463fff4fbb086f1e96f00;
-
-    //     // The mapping `_selectorRoles` is the second element in the struct, so we add 1 to the base
-    //     uint256 mapSlot = uint256(STORAGE_LOCATION) + 1;
-
-    //     // Calculate the final slot for this specific selector key
-    //     bytes32 finalSlot = keccak256(abi.encode(selectorToUnset, mapSlot));
-
-    //     // 4. Wipe it (Set to 0x0)
-    //     vm.store(address(middleware), finalSlot, bytes32(0));
-
-    //     vm.startPrank(owner);
-    //     middleware.registerOperator(operator, abi.encode(OPERATOR_KEY), address(0));
-    //     vm.stopPrank();
-
-    //     vm.warp(vm.getBlockTimestamp() + NETWORK_EPOCH_DURATION + 1);
-
-    //     (bool upkeepNeeded, bytes memory performData) = middleware.prepareDataForSendingToGateway();
-    //     bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-
-    //     vm.prank(owner);
-    //     middleware.setForwarder(forwarder);
-
-    //     vm.expectRevert(
-    //         abi.encodeWithSelector(
-    //             IOzAccessControl.AccessControlUnauthorizedAccount.selector, forwarder, middleware.DEFAULT_ADMIN_ROLE()
-    //         )
-    //     );
-    //     vm.prank(forwarder);
-    //     middleware.onReport(WORKFLOW_METADATA, report);
-    //     middleware.reinitialize();
-
-    //     vm.prank(forwarder);
-    //     middleware.onReport(WORKFLOW_METADATA, report);
-    // }
 
     // ************************************************************************************************
     // *                                          INTERNAL

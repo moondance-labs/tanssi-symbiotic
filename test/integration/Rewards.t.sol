@@ -54,6 +54,7 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 //                                      TANSSI META MIDDLEWARE
 //**************************************************************************************************
 import {TanssiMetaMiddleware} from "lib/tanssi-meta-middleware/src/contracts/TanssiMetaMiddleware.sol";
+import {ITanssiMetaMiddleware} from "lib/tanssi-meta-middleware/src/interfaces/ITanssiMetaMiddleware.sol";
 
 //**************************************************************************************************
 
@@ -92,7 +93,6 @@ contract RewardsTest is Test {
     bytes public REWARDS_ADDITIONAL_DATA;
     bytes public CLAIM_REWARDS_ADDITIONAL_DATA;
 
-    uint256 public constant AMOUNT_TO_DISTRIBUTE = 100 ether;
     uint32 public constant AMOUNT_TO_CLAIM = 20;
     uint256 public constant TOKENS_PER_POINT = 1;
     uint256 public constant EXPECTED_CLAIMABLE = uint256(AMOUNT_TO_CLAIM) * TOKENS_PER_POINT;
@@ -536,21 +536,26 @@ contract RewardsTest is Test {
         vm.warp(NETWORK_EPOCH_DURATION * 2 + 1);
 
         Token rewardsToken = new Token("Rewards", 18);
-        rewardsToken.mint(address(metaMiddleware), AMOUNT_TO_DISTRIBUTE);
+        rewardsToken.mint(address(metaMiddleware), AMOUNT_TO_CLAIM);
 
         vm.prank(gateway);
         metaMiddleware.distributeRewards(
-            epoch, eraIndex, AMOUNT_TO_DISTRIBUTE, AMOUNT_TO_DISTRIBUTE, REWARDS_ROOT, address(rewardsToken)
+            epoch, eraIndex, AMOUNT_TO_CLAIM, AMOUNT_TO_CLAIM, REWARDS_ROOT, address(rewardsToken)
         );
 
-        // TODO migration, create operatorRewardsAndProofs. We need proof for all operators but file currently has proofs only for one
-        // metaMiddleware.storeRewards(eraIndex, operatorRewardsAndProofs);
-        vm.prank(owner);
-        metaMiddleware.distributeRewardsToMiddlewareTrustlessly(eraIndex, address(middleware));
-
+        // We need to store all rewards before starting the distribution to middleware. In this case it's a single operator who gets all rewards.
+        ITanssiMetaMiddleware.OperatorRewardWithProof[] memory operatorRewardsAndProofs =
+            new ITanssiMetaMiddleware.OperatorRewardWithProof[](1);
         bytes32[] memory operatator3Proof = new bytes32[](1);
-        // Create a valid proof that matches the root we set
         operatator3Proof[0] = OPERATOR3_PROOF;
+
+        operatorRewardsAndProofs[0] = ITanssiMetaMiddleware.OperatorRewardWithProof({
+            operatorKey: OPERATOR3_KEY,
+            proof: operatator3Proof,
+            totalPoints: AMOUNT_TO_CLAIM
+        });
+        metaMiddleware.storeRewards(eraIndex, operatorRewardsAndProofs);
+        metaMiddleware.distributeRewardsToMiddlewareTrustlessly(eraIndex, address(middleware));
 
         IODefaultOperatorRewards.ClaimRewardsInput memory claimRewardsData = IODefaultOperatorRewards.ClaimRewardsInput({
             operatorKey: OPERATOR3_KEY,

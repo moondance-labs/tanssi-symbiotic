@@ -102,7 +102,6 @@ contract Middleware is
         {
             MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
             $.lastTimestamp = Time.timestamp();
-            $.interval = params.epochDuration;
         }
 
         __BaseMiddleware_init(
@@ -172,46 +171,6 @@ contract Middleware is
 
     function stakeToPower(address vault, uint256 stake) public view override returns (uint256 power) {
         return IOBaseMiddlewareReader(address(this)).getPowerInUSD(vault, stake);
-    }
-
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function setInterval(
-        uint256 interval
-    ) external checkAccess {
-        if (interval == 0) {
-            revert Middleware__InvalidInterval();
-        }
-        MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
-
-        if (interval == $.interval) {
-            revert Middleware__AlreadySet();
-        }
-
-        $.interval = interval;
-        emit IntervalSet(interval);
-    }
-
-    /**
-     * @inheritdoc IMiddleware
-     */
-    function setForwarder(
-        address forwarder
-    ) external checkAccess notZeroAddress(forwarder) {
-        //TODO !!! TO CHECK PROBABLY WE COULD TAKE OUT FROM STORAGE THE ADDRESS
-        // WE DIRECTLY CHECK THAT THE ADDRESS HAS THE ROLE. THERE IS NO POINT IN STORING IT
-        MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
-        address currentForwarderAddress = $.forwarderAddress;
-        if (forwarder == currentForwarderAddress) {
-            revert Middleware__AlreadySet();
-        }
-
-        $.forwarderAddress = forwarder;
-        _revokeRole(MiddlewareStorage.FORWARDER_ROLE, currentForwarderAddress);
-        _grantRole(MiddlewareStorage.FORWARDER_ROLE, forwarder);
-
-        emit ForwarderSet(forwarder);
     }
 
     /**
@@ -303,7 +262,7 @@ contract Middleware is
         uint48 eraIndex,
         address tokenAddress,
         bytes memory /* rewardsDistributionData */
-    ) external returns (bool distributionComplete) {
+    ) external checkAccess returns (bool distributionComplete) {
         MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
         ITanssiMetaMiddleware.EraRoot memory eraRoot = $.i_metaMiddleware.getEraRoot(eraIndex);
 
@@ -334,7 +293,7 @@ contract Middleware is
         return address($.i_metaMiddleware);
     }
 
-    function transferRewards(uint48 eraIndex, address tokenAddress, uint256 totalRewards) external {
+    function transferRewards(uint48 eraIndex, address tokenAddress, uint256 totalRewards) external checkAccess {
         // TODO migration: complete implementation
         // MiddlewareStorage.StorageMiddleware storage $ = MiddlewareStorage.getMiddlewareStorage();
         // if ($.rewardsPerEra[eraIndex][tokenAddress] != 0) {

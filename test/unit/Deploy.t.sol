@@ -85,7 +85,7 @@ contract DeployTest is Test {
         deployRewards = new DeployRewards();
         deployRewards.setIsTest(true);
         helperConfig = new HelperConfig();
-        (, tanssi,,,,,) = helperConfig.activeEntities();
+        (, tanssi,,,,) = helperConfig.activeEntities();
 
         operatorRewardsAddress = makeAddr("operatorRewards");
         stakerRewardsFactoryAddress = makeAddr("stakerRewardsFactory");
@@ -185,7 +185,7 @@ contract DeployTest is Test {
         DeployTanssiEcosystemDemo deployTanssiEcosystemDemo = new DeployTanssiEcosystemDemo();
         deployTanssiEcosystemDemo.run();
 
-        (Middleware middleware,,) = deployTanssiEcosystemDemo.ecosystemEntities();
+        (Middleware middleware, address metaMiddleware,,) = deployTanssiEcosystemDemo.ecosystemEntities();
 
         vm.warp(vm.getBlockTimestamp() + 12 days + 1);
 
@@ -193,10 +193,7 @@ contract DeployTest is Test {
         IMiddleware.OperatorVaultPair[] memory operatorVaultPairs =
             OBaseMiddlewareReader(address(middleware)).getOperatorVaultPairs(epoch);
 
-        address metaMiddleware = makeAddr("metaMiddleware");
         address tanssi_ = deployTanssiEcosystemDemo.tanssi();
-        vm.prank(tanssi_);
-        middleware.reinitializeMetaMiddleware(metaMiddleware);
 
         address operator = operatorVaultPairs[1].operator;
         address vault = operatorVaultPairs[1].vaults[1];

@@ -36,9 +36,9 @@ contract DeployProductionTest is Test {
             deployProduction.deploy();
 
         HelperConfig helperConfig = new HelperConfig();
-        (address admin, address tanssi, address gateway, address forwarder,,,) = helperConfig.activeEntities();
+        (address admin, address tanssi, address gateway,,,) = helperConfig.activeEntities();
         DeployProduction.Entities memory entities =
-            DeployProduction.Entities({admin: admin, tanssi: tanssi, gateway: gateway, forwarder: forwarder});
+            DeployProduction.Entities({admin: admin, tanssi: tanssi, gateway: gateway});
 
         uint256 adminPrivateKey =
             vm.envOr("OWNER_PRIVATE_KEY", uint256(0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6));
@@ -55,9 +55,8 @@ contract DeployProductionTest is Test {
         address admin = makeAddr("admin");
         address tanssi = makeAddr("tanssi");
         address gateway = makeAddr("gateway");
-        address forwarder = makeAddr("forwarder");
         DeployProduction.Entities memory entities =
-            DeployProduction.Entities({admin: admin, tanssi: tanssi, gateway: gateway, forwarder: forwarder});
+            DeployProduction.Entities({admin: admin, tanssi: tanssi, gateway: gateway});
 
         (address middlewareAddress, address operatorRewardsAddress, address stakerRewardsFactoryAddress) =
             deployProduction.localDeploy(helperConfig, entities, initialAdmin);
@@ -82,7 +81,7 @@ contract DeployProductionTest is Test {
         assertNotEq(entities.middleware, address(0));
         assertNotEq(entities.admin, address(0));
         assertNotEq(entities.tanssi, address(0));
-        assertNotEq(entities.metaMiddleware, address(0));
+        // assertNotEq(entities.metaMiddleware, address(0)); // TODO: Uncomment check once meta middleware is deployed
         assertNotEq(entities.operatorRewards, address(0));
         assertNotEq(entities.rewardsToken, address(0));
 
@@ -126,8 +125,6 @@ contract DeployProductionTest is Test {
         address initialAdmin
     ) internal view {
         Middleware middleware = Middleware(middlewareAddress);
-        // assertTrue(middleware.hasRole(keccak256("META_MIDDLEWARE_ROLE"), entities.gateway)); // Not needed initially
-        // assertTrue(middleware.hasRole(keccak256("FORWARDER_ROLE"), entities.forwarder)); // Not needed initially
         assertTrue(middleware.hasRole(middleware.DEFAULT_ADMIN_ROLE(), entities.admin));
         assertTrue(middleware.hasRole(middleware.DEFAULT_ADMIN_ROLE(), initialAdmin));
 

@@ -71,7 +71,6 @@ import {DeployVault} from "script/DeployVault.s.sol";
 import {DeployTanssiEcosystem} from "script/DeployTanssiEcosystem.s.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
 import {Token} from "test/mocks/Token.sol";
-import {TestUtils} from "test/utils/Utils.t.sol";
 import {MiddlewareStorage} from "src/contracts/middleware/MiddlewareStorage.sol";
 
 contract FullTest is Test {
@@ -114,16 +113,6 @@ contract FullTest is Test {
     address public constant WHITELIST_SETTER_MEVCAPITAL = 0x8989e3f949df80e8eFcbf3372F082699b93E5C09;
 
     bytes32 public constant DEPOSIT_WHITELIST_SET_ROLE = keccak256("DEPOSIT_WHITELIST_SET_ROLE");
-
-    address public forwarder = makeAddr("forwarder");
-
-    // TODO fix for mainnet
-    address public workflowOwner = makeAddr("workflowOwner");
-    string internal workflowName = "workflow_tanssi";
-    bytes10 public workflowNameEncoded;
-    bytes32 public workflowId = bytes32(uint256(1));
-
-    bytes public WORKFLOW_METADATA;
 
     HelperConfig helperConfig;
     string public json;
@@ -187,17 +176,6 @@ contract FullTest is Test {
         totalActiveOperators = reader.getOperatorVaultPairs(middleware.getCurrentEpoch()).length;
 
         _cacheAllOperatorsVaults();
-
-        // TODO migration: get rid of all workflow stuff
-        // vm.startPrank(admin);
-        // middleware.setExpectedAuthor(workflowOwner);
-        // middleware.setExpectedWorkflowName(workflowName);
-        // middleware.setExpectedWorkflowId(workflowId);
-        // vm.stopPrank();
-
-        TestUtils testUtils = new TestUtils();
-        workflowNameEncoded = testUtils.encodeStringToBytes10(workflowName);
-        WORKFLOW_METADATA = abi.encodePacked(workflowId, workflowNameEncoded, workflowOwner);
     }
 
     function _getBaseInfrastructure() private {
@@ -468,14 +446,14 @@ contract FullTest is Test {
         assertEq(reader.getVersion(), 2);
 
         vm.expectRevert(); //Function doesn't exists
-        middleware.setInterval(100);
+        middleware.setOperatorShareOnOperatorRewards(100);
 
         middleware.upgradeToAndCall(address(middlewareImpl), emptyBytes);
         assertEq(reader.getVersion(), 1);
 
         vm.expectRevert(IMiddleware.Middleware__AlreadySet.selector);
-        middleware.setInterval(100);
-        assertEq(reader.getInterval(), 100);
+        middleware.setOperatorShareOnOperatorRewards(100);
+        assertEq(operatorRewards.operatorShare(), 100);
     }
 
     function testSlashingEachVault() public {

@@ -116,7 +116,6 @@ contract DeployTanssiEcosystem is Script {
     ) public returns (OBaseMiddlewareReaderForwarder reader) {
         vm.startBroadcast(broadcaster());
         reader = new OBaseMiddlewareReaderForwarder(middleware);
-        console2.log("New reader forwarder: ", address(reader));
 
         vm.stopBroadcast();
     }

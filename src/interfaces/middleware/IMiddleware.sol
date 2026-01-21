@@ -21,12 +21,6 @@ interface IMiddleware {
      */
     event IntervalSet(uint256 indexed interval);
 
-    /**
-     * @notice Emitted when the forwarder is set.
-     * @param forwarder The forwarder address
-     */
-    event ForwarderSet(address indexed forwarder);
-
     // Errors
     error Middleware__GatewayNotSet();
     error Middleware__AlreadySet();
@@ -84,23 +78,6 @@ interface IMiddleware {
         uint48 slashingWindow;
         address reader;
     }
-
-    /**
-     * @notice Sets the interval on which to let Chainlink forwarder to call `performUpkeep`
-     * @dev Only the owner can call this function
-     * @param interval The interval
-     */
-    function setInterval(
-        uint256 interval
-    ) external;
-
-    /**
-     * @notice Sets the forwarder address
-     * @param forwarder The forwarder address
-     */
-    function setForwarder(
-        address forwarder
-    ) external;
 
     /**
      * @notice Sets the operator share on operator rewards contract

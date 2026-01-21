@@ -22,7 +22,6 @@ contract HelperConfig is Script {
         address admin;
         address tanssi;
         address metaMiddleware;
-        address forwarder;
         address middleware;
         address operatorRewards;
         address rewardsToken;
@@ -159,7 +158,6 @@ contract HelperConfig is Script {
         entities.admin = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".admin")), (address));
         entities.tanssi = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".tanssi")), (address));
         entities.metaMiddleware = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".metaMiddleware")), (address));
-        entities.forwarder = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".forwarder")), (address));
         entities.middleware = abi.decode(vm.parseJson(json, string.concat(jsonPath, ".middleware")), (address));
         entities.operatorRewards =
             abi.decode(vm.parseJson(json, string.concat(jsonPath, ".operatorRewards")), (address));

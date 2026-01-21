@@ -191,7 +191,6 @@ contract MiddlewareTest is Test {
 
     address public resolver1 = makeAddr("resolver1");
     address public resolver2 = makeAddr("resolver2");
-    address public forwarder = makeAddr("forwarder");
 
     address public gateway = makeAddr("gateway");
 
@@ -885,7 +884,10 @@ contract MiddlewareTest is Test {
         operatorRewards2.grantRole(operatorRewards2.MIDDLEWARE_ROLE(), address(middleware2));
         operatorRewards2.grantRole(operatorRewards2.STAKER_REWARDS_SETTER_ROLE(), address(middleware2));
 
+        metaMiddleware.registerMiddleware(address(middleware2));
+
         vm.startPrank(network2);
+        middleware2.reinitializeMetaMiddleware(address(metaMiddleware));
         middleware2.registerSharedVault(address(vault), stakerRewardsParams);
         middleware2.registerOperator(operatorX, abi.encode(OPERATORX_KEY), address(0));
 
@@ -1303,70 +1305,6 @@ contract MiddlewareTest is Test {
 
         Middleware.ValidatorData[] memory validators = _validatorSet(currentEpoch);
 
-        _assertDataIsValidAndSorted(validators, sortedValidators, count);
-    }
-
-    function testGasFor1000peratorsIn3VaultsSortedAfterUpkeep() public {
-        uint16 count = 1000;
-        _addOperatorsToNetwork(count);
-
-        vm.warp(NETWORK_EPOCH_DURATION + 2);
-        uint48 currentEpoch = middleware.getCurrentEpoch();
-
-        vm.prank(owner);
-        middleware.setForwarder(forwarder);
-
-        vm.startPrank(forwarder);
-        uint256 totalUpkeepCalls;
-        uint256 totalGasUsedForCheck = 0;
-        uint256 totalGasUsedForPerform = 0;
-        uint256 lastGasUsedForCheck = 0;
-        uint256 lastGasUsedForPerform = 0;
-        while (true) {
-            uint256 gasBefore_ = gasleft();
-            // TODO migration: Adapt this test to the new meta middleware
-            // (bool upkeepNeeded, bytes memory performData) = middleware.prepareDataForSendingToGateway();
-            // if (!upkeepNeeded) {
-            //     break;
-            // }
-            // assertLt(performData.length, MAX_CHAINLINK_PERFORM_DATA_LENGTH);
-            // uint256 gasUsedForCheck = gasBefore_ - gasleft();
-            // // Assert gas usage is below 10M check gas limit by chainlink
-            // assertLt(gasUsedForCheck, 10_000_000);
-            // totalGasUsedForCheck += gasUsedForCheck;
-            // lastGasUsedForCheck = gasUsedForCheck;
-            // gasBefore_ = gasleft();
-            // bytes memory report = testUtils.encodePerformDataToReport(testUtils.EXECUTION_CODE_CACHE(), performData);
-            // middleware.onReport(WORKFLOW_METADATA, report);
-            uint256 gasUsedForPerform = gasBefore_ - gasleft();
-            // Assert gas usage is below 5M perform gas limit by chainlink
-            assertLt(gasUsedForPerform, 5_000_000);
-            totalGasUsedForPerform += gasUsedForPerform;
-            lastGasUsedForPerform = gasUsedForPerform;
-            totalUpkeepCalls++;
-        }
-        console2.log("-------------------------------------");
-        console2.log("Operators: ", count);
-        console2.log("Total upkeep calls: ", totalUpkeepCalls);
-        console2.log(
-            "Average gas used for check (cache): ", (totalGasUsedForCheck - lastGasUsedForCheck) / totalUpkeepCalls
-        );
-        console2.log(
-            "Average gas used for perform (cache): ",
-            (totalGasUsedForPerform - lastGasUsedForPerform) / totalUpkeepCalls
-        );
-        console2.log("Total gas used for check (sort): ", lastGasUsedForCheck);
-        console2.log("Total gas used for perform (send): ", lastGasUsedForPerform);
-
-        uint256 gasBefore = gasleft();
-        bytes32[] memory sortedValidators = readerForwarder.sortOperatorsByPower(currentEpoch);
-        uint256 gasAfter = gasleft();
-        console2.log("Total gas use sorting cached: ", gasBefore - gasAfter);
-
-        // Assert gas usage is below 30M ETH limit
-        assertLt(gasBefore - gasAfter, 30_000_000);
-
-        Middleware.ValidatorData[] memory validators = _validatorSet(currentEpoch);
         _assertDataIsValidAndSorted(validators, sortedValidators, count);
     }
 

@@ -14,8 +14,6 @@
 
 pragma solidity 0.8.25;
 
-import {console2} from "forge-std/console2.sol";
-
 //**************************************************************************************************
 //                                      SYMBIOTIC
 //**************************************************************************************************
@@ -133,9 +131,6 @@ contract ODefaultOperatorRewards is
         if (amount == 0 || totalPoints == 0) {
             revert ODefaultOperatorRewards__InvalidValues();
         }
-        console2.log("Distributing rewards", amount);
-        console2.log("Token address", tokenAddress);
-        console2.logBytes32(root);
 
         // Check if the amount being sent is greater than 0
         uint256 balanceBefore = IERC20(tokenAddress).balanceOf(address(this));
@@ -239,15 +234,6 @@ contract ODefaultOperatorRewards is
         if (eraRoot_.root == bytes32(0)) {
             revert ODefaultOperatorRewards__RootNotSet();
         }
-
-        console2.log("Claiming rewards for operator", operator);
-        console2.log("Token", tokenAddress);
-        console2.log("Era index", input.eraIndex);
-        console2.log("Epoch", eraRoot_.epoch);
-        console2.log("Total points claimable", input.totalPointsClaimable);
-        console2.logBytes32(eraRoot_.root);
-        console2.logBytes32(input.proof[0]);
-        console2.logBytes32(input.operatorKey);
 
         // Check that the leaf composed by operatorKey and totalPointsClaimable is part of the proof
         if (

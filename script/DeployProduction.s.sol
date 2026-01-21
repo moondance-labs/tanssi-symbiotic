@@ -52,7 +52,6 @@ contract DeployProduction is Script {
         address admin;
         address tanssi;
         address gateway;
-        address forwarder;
     }
 
     function localDeploy(
@@ -132,10 +131,6 @@ contract DeployProduction is Script {
         middlewareAddress = address(new MiddlewareProxy(address(middlewareImpl), ""));
         middleware = Middleware(middlewareAddress);
         middleware.initialize(params);
-
-        // All these needs to be called by the admin, we could make ourselves admins initially to do so:
-        // middleware.setForwarder(entities.forwarder); // Not needed initially
-        // middleware.setGateway(entities.gateway); // Not needed initially
         middleware.grantRole(middleware.DEFAULT_ADMIN_ROLE(), entities.admin);
 
         ODefaultOperatorRewards operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
@@ -162,7 +157,6 @@ contract DeployProduction is Script {
             console2.log("Admin (Safe): ", entities.admin);
             console2.log("Initial Admin: ", initialAdmin);
             console2.log("Gateway: ", entities.gateway);
-            console2.log("Forwarder: ", entities.forwarder);
             console2.log("Middleware: ", address(middleware));
             console2.log("Middleware Implementation: ", address(middlewareImpl));
             console2.log("Reader: ", address(reader));
@@ -172,8 +166,8 @@ contract DeployProduction is Script {
     }
 
     function _loadEntities() private {
-        (address admin, address tanssi, address gateway, address forwarder,,,) = helperConfig.activeEntities();
+        (address admin, address tanssi, address gateway,,,) = helperConfig.activeEntities();
 
-        entities = Entities({admin: admin, tanssi: tanssi, gateway: gateway, forwarder: forwarder});
+        entities = Entities({admin: admin, tanssi: tanssi, gateway: gateway});
     }
 }

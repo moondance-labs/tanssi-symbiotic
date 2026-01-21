@@ -36,6 +36,20 @@ import {Subnetwork} from "@symbiotic/contracts/libraries/Subnetwork.sol";
 //**************************************************************************************************
 import {MockV3Aggregator} from "@chainlink/tests/MockV3Aggregator.sol";
 
+//**************************************************************************************************
+//                                      OPENZEPPELIN
+//**************************************************************************************************
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+
+//**************************************************************************************************
+//                                      TANSSI META MIDDLEWARE
+//**************************************************************************************************
+import {TanssiMetaMiddleware} from "lib/tanssi-meta-middleware/src/contracts/TanssiMetaMiddleware.sol";
+
+//**************************************************************************************************
+//                                      PROXY
+//**************************************************************************************************
+
 import {ODefaultStakerRewardsFactory} from "src/contracts/rewarder/ODefaultStakerRewardsFactory.sol";
 import {ODefaultStakerRewards} from "src/contracts/rewarder/ODefaultStakerRewards.sol";
 import {ODefaultOperatorRewards} from "src/contracts/rewarder/ODefaultOperatorRewards.sol";
@@ -101,6 +115,7 @@ contract DeployTanssiEcosystemDemo is Script {
 
     struct EcosystemEntity {
         Middleware middleware;
+        address metaMiddleware;
         IVaultConfigurator vaultConfigurator;
         address stETHCollateralAddress;
     }
@@ -365,6 +380,8 @@ contract DeployTanssiEcosystemDemo is Script {
         ecosystemEntities.middleware =
             _deployMiddlewareWithProxy(params, operatorRewardsAddress, stakerRewardsFactoryAddress);
 
+        ecosystemEntities.metaMiddleware = _setupMetaMiddleware(address(collateralOracle));
+
         stakerRewardsImpl = address(new ODefaultStakerRewards(address(networkMiddlewareService), tanssi));
         ODefaultStakerRewardsFactory(stakerRewardsFactoryAddress).setImplementation(stakerRewardsImpl);
 
@@ -392,17 +409,6 @@ contract DeployTanssiEcosystemDemo is Script {
         _setDelegatorConfigs();
         networkMiddlewareService.setMiddleware(address(ecosystemEntities.middleware));
         _registerEntitiesToMiddleware();
-
-        // TODO migration: do on meta middleware
-        // ecosystemEntities.middleware.setCollateralToOracle(
-        //     address(tokensAddresses.stETHToken), address(collateralOracle)
-        // );
-        // ecosystemEntities.middleware.setCollateralToOracle(
-        //     address(tokensAddresses.rETHToken), address(collateralOracle)
-        // );
-        // ecosystemEntities.middleware.setCollateralToOracle(
-        //     address(tokensAddresses.wBTCToken), address(collateralOracle)
-        // );
 
         console2.log("VaultConfigurator: ", address(ecosystemEntities.vaultConfigurator));
         console2.log("OperatorRegistry: ", address(operatorRegistry));
@@ -435,6 +441,24 @@ contract DeployTanssiEcosystemDemo is Script {
         params.reader = address(new OBaseMiddlewareReader());
         _middleware.initialize(params);
         _middleware.reinitializeRewards(operatorRewardsAddress, stakerRewardsFactoryAddress);
+    }
+
+    function _setupMetaMiddleware(
+        address collateralOracle
+    ) private returns (address) {
+        TanssiMetaMiddleware tanssiMetaMiddlewareImpl = new TanssiMetaMiddleware();
+        TanssiMetaMiddleware metaMiddleware =
+            TanssiMetaMiddleware(address(new ERC1967Proxy(address(tanssiMetaMiddlewareImpl), "")));
+        metaMiddleware.initialize(tanssi);
+
+        metaMiddleware.registerMiddleware(address(ecosystemEntities.middleware));
+
+        metaMiddleware.registerCollateral(address(tokensAddresses.stETHToken), collateralOracle);
+        metaMiddleware.registerCollateral(address(tokensAddresses.rETHToken), collateralOracle);
+        metaMiddleware.registerCollateral(address(tokensAddresses.wBTCToken), collateralOracle);
+
+        ecosystemEntities.middleware.reinitializeMetaMiddleware(address(metaMiddleware));
+        return address(metaMiddleware);
     }
 
     function run() external {

@@ -34,14 +34,12 @@ contract UpgradesTest is Test {
     address admin; // Used to run tests
     address currentAdmin; // Current admin in the 3 contracts, we use its account to set the admin role to test admin which will run using broadcast
     address rewardsToken;
-    address gateway;
 
     function setUp() public {
         HelperConfig helperConfig = new HelperConfig();
         address middlewareAddress;
         address operatorRewardsAddress;
-        (currentAdmin, tanssi, gateway,, middlewareAddress, operatorRewardsAddress, rewardsToken) =
-            helperConfig.activeEntities();
+        (currentAdmin, tanssi,, middlewareAddress, operatorRewardsAddress, rewardsToken) = helperConfig.activeEntities();
         middleware = Middleware(middlewareAddress);
         operatorRewards = ODefaultOperatorRewards(operatorRewardsAddress);
 

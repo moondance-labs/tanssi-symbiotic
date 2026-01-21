@@ -17,8 +17,6 @@ pragma solidity ^0.8.0;
 import {IMiddleware} from "src/interfaces/middleware/IMiddleware.sol";
 
 interface IOBaseMiddlewareReader {
-    error OBaseMiddlewareReader__NotSupportedCollateral(address collateral);
-
     function getCaptureTimestamp() external view returns (uint48 timestamp);
 
     function stakeToPower(address vault, uint256 stake) external view returns (uint256 power);
@@ -160,15 +158,7 @@ interface IOBaseMiddlewareReader {
         uint48 epochStartTs
     ) external view returns (uint256 vaultIdx, address[] memory _vaults);
 
-    function collateralToOracle(
-        address collateral
-    ) external view returns (address);
-
     function vaultToCollateral(
-        address vault
-    ) external view returns (address);
-
-    function vaultToOracle(
         address vault
     ) external view returns (address);
 
@@ -178,11 +168,7 @@ interface IOBaseMiddlewareReader {
 
     function getOperatorToPowerCached(uint48 epoch, bytes32 operatorKey_) external view returns (uint256);
 
-    function getForwarderAddress() external view returns (address);
-
     function getMetaMiddleware() external view returns (address);
-
-    function getInterval() external view returns (uint256);
 
     function getLastTimestamp() external view returns (uint256);
 

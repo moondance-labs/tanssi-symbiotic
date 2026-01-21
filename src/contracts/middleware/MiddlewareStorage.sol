@@ -27,9 +27,9 @@ library MiddlewareStorage {
     struct StorageMiddleware {
         address _legacyGateway;
         uint256 lastTimestamp;
-        uint256 interval;
-        address forwarderAddress;
-        mapping(address collateral => address oracle) collateralToOracle;
+        uint256 _legacyInterval;
+        address _legacyForwarderAddress; // This now lives in the meta middleware
+        mapping(address collateral => address oracle) _legacyCollateralToOracle; // This now lives in the meta middleware
         mapping(address vault => address collateral) vaultToCollateral;
         uint256 lastExecutionBlock;
         address i_operatorRewards;
@@ -111,41 +111,12 @@ library MiddlewareStorage {
     }
 
     /**
-     * @notice Get the forwarder address
-     * @return forwarder address
-     */
-    function getForwarderAddress() public view returns (address) {
-        StorageMiddleware storage $ = getMiddlewareStorage();
-        return $.forwarderAddress;
-    }
-
-    /**
      * @notice Get the meta middleware contract
      * @return meta middleware contract
      */
     function getMetaMiddlewareAddress() public view returns (address) {
         StorageMiddleware storage $ = getMiddlewareStorage();
         return address($.i_metaMiddleware);
-    }
-
-    /**
-     * @notice Get the interval
-     * @return interval
-     */
-    function getInterval() public view returns (uint256) {
-        StorageMiddleware storage $ = getMiddlewareStorage();
-        return $.interval;
-    }
-
-    /**
-     * @notice Get the oracle address for a collateral
-     * @return oracle address
-     */
-    function collateralToOracle(
-        address collateral
-    ) public view returns (address) {
-        StorageMiddleware storage $ = getMiddlewareStorage();
-        return $.collateralToOracle[collateral];
     }
 
     /**
@@ -157,17 +128,6 @@ library MiddlewareStorage {
     ) public view returns (address) {
         StorageMiddleware storage $ = getMiddlewareStorage();
         return $.vaultToCollateral[vault];
-    }
-
-    /**
-     * @notice Get the oracle address for a vault
-     * @return oracle address
-     */
-    function vaultToOracle(
-        address vault
-    ) public view returns (address) {
-        StorageMiddleware storage $ = getMiddlewareStorage();
-        return $.collateralToOracle[$.vaultToCollateral[vault]];
     }
 
     /**
